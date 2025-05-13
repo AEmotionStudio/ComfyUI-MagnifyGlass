@@ -1,0 +1,14 @@
+[project]
+name = "comfyui-magnifyglass"
+description = "ComfyUI-MagnifyGlass: A powerful & customizable magnifying glass for ComfyUI. Zoom into canvas details with smooth controls, configurable activation, custom styles (shape, size, border) & WebGL performance."
+version = "1.0.0"
+license = {file = "LICENSE"}
+
+[project.urls]
+Repository = "https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass"
+#  Used by Comfy Registry https://comfyregistry.org
+
+[tool.comfy]
+PublisherId = "aemotionstudio"
+DisplayName = "ComfyUI-MagnifyGlass"
+Icon = ""

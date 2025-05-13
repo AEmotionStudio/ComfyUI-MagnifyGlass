@@ -13,8 +13,6 @@ ComfyUI-MagnifyGlass adds an intuitive magnifying glass to your ComfyUI canvas, 
 > Perfect for inspecting fine details in your generated images, node connections, or any part of the ComfyUI canvas!
 
 ![Magnify Glass in Action WEBP](images/magnify_glass_action.webp)
-![Magnify Glass in Action PNG](images/magnify_glass_action.png)
-*(Placeholder: Image/GIF showing the magnify glass in action)*
 
 ## ✨ Features
 

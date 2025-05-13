@@ -76,7 +76,6 @@ Restart ComfyUI after installation. No additional `pip install` steps are typica
 4.  **Configuration**:
     - Access all settings by clicking the ⚙️ (Settings) icon in ComfyUI, then find the "🔍 Magnify Glass" section.
 
-![Magnify Glass Usage Example WEBP](images/magnify_glass_usage.webp)
 ![Magnify Glass Usage Example PNG](images/magnify_glass_usage.png)
 *(Placeholder: GIF demonstrating basic usage - activation, moving, offset adjustment)*
 

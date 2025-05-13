@@ -38,9 +38,7 @@ ComfyUI-MagnifyGlass adds an intuitive magnifying glass to your ComfyUI canvas, 
 - **💾 Persistent Offsets**: Manually adjusted offsets are saved and loaded across sessions.
 - **🖼️ Texture Filtering**: Choose between Linear (smooth) and Nearest (pixelated) texture filtering for the magnified view.
 
-![Magnify Glass Settings WEBP](images/magnify_glass_settings.webp)
 ![Magnify Glass Settings PNG](images/magnify_glass_settings.png)
-*(Placeholder: Screenshot of the settings panel)*
 
 ## 📥 Installation
 

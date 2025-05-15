@@ -79,7 +79,7 @@ Restart ComfyUI after installation. No additional `pip install` steps are typica
     - Access all settings by clicking the ⚙️ (Settings) icon in ComfyUI, then find the "🔍 Magnify Glass" section.
 
 ![Magnify Glass Usage Example PNG](images/magnify_glass_usage.webp)
-*(🐞 Debug Mode & Arrow Keys Showcase: ⚠️ some flickering may aquire with the VHS Combine Node Preview when moving the glass across the preview service while active.)*
+*(🐞 Debug Mode & Arrow Keys Showcase: ⚠️ some flickering may occur with the VHS Combine Node Preview when moving the glass across the preview service while active.)*
 
 ## ⚙️ Configuration Options
 

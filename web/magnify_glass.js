@@ -1529,7 +1529,7 @@ app.registerExtension({
         
         app.ui.settings.addSetting({
             id: "🔍MagnifyGlass.ToggleFollowCursorKey",
-            name: "⌨️ Magnify Glass: Toggle Follow Key",
+            name: "🔑 Magnify Glass: Toggle Follow Key",
             type: "combo",
             options: ["f", "g", "h", "j", "k"], // Example keys, can be expanded
             defaultValue: DEFAULT_SETTINGS["🔍MagnifyGlass.ToggleFollowCursorKey"],

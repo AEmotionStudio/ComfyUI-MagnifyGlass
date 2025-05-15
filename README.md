@@ -41,6 +41,7 @@ ComfyUI-MagnifyGlass adds an intuitive magnifying glass to your ComfyUI canvas, 
 - **🔑 Toggle Follow Key**: Use a configurable key (default 'H') to toggle the 'Follow Cursor' behavior on the fly.
 
 ![Always Active Mode in Action WEBP](images/always_active_action.webp)
+*(🔒 Always Active & 🔑 Toggle Follow Key Showcase: you can essentially set the glass preview where ever you want on the canvas and toggle it off and on.)*
 
 ## 📥 Installation
 

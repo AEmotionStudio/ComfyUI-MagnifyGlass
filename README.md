@@ -35,6 +35,7 @@ ComfyUI-MagnifyGlass adds an intuitive magnifying glass to your ComfyUI canvas, 
 - **⚙️ Settings Integration**: All options are configurable through the ComfyUI settings dialog.
 - **💾 Persistent Offsets**: Manually adjusted offsets are saved and loaded across sessions.
 - **🖼️ Texture Filtering**: Choose between Linear (smooth) and Nearest (pixelated) texture filtering for the magnified view.
+- **🔒 Always Active Mode**: Toggle the magnifier to stay on/off without holding keys.
 
 ![Magnify Glass Settings PNG](images/magnify_glass_settings.png)
 
@@ -60,7 +61,7 @@ Restart ComfyUI after installation. No additional `pip install` steps are typica
 ## 🚀 Usage
 
 1.  **Activation**:
-    - By default, press and hold `Alt + X` to activate the magnifying glass.
+    - By default, press and hold `Alt + X` to activate the magnifying glass. If "Always Active Mode" is enabled, this combination toggles the magnifier on or off.
     - The activation key and whether `Alt/Option` is required can be changed in the settings.
 2.  **Using the Magnifier**:
     - While active, move your mouse over the ComfyUI canvas to see the magnified view.
@@ -68,7 +69,8 @@ Restart ComfyUI after installation. No additional `pip install` steps are typica
 3.  **Controls (while active)**:
     - **Arrow Keys**: Nudge the magnified view (adjusts `offsetX`/`offsetY`).
     - **Shift + Arrow Keys**: Nudge the magnified view by a larger step.
-    - **Reset Key (default 'R')**: Resets `offsetX` and `offsetY` to zero. (Configurable, may require Alt/Option).
+    - **Reset Key (default 'R')**: Resets `offsetX` and `offsetY` to zero. (Configurable, respects the global "Require Alt/Option Key" setting).
+    - **Toggle Follow Key (default 'H')**: Toggles the `Follow Cursor` behavior on/off. (Configurable, respects the global "Require Alt/Option Key" setting).
 4.  **Configuration**:
     - Access all settings by clicking the ⚙️ (Settings) icon in ComfyUI, then find the "🔍 Magnify Glass" section.
 
@@ -86,16 +88,17 @@ All options are available in the ComfyUI settings dialog under the "🔍 Magnify
 | **Border Width (px)**                | Width of the border around the magnifying glass.                                                          | `2`              |
 | **Border Color**                     | Color of the border around the magnifying glass.                                                          | `#ffffff`        |
 | **Activation Key**                   | The key (case-insensitive) to hold down to activate the magnifier.                                        | `x`              |
-| **Require Alt/Option Key**           | If Yes, Alt (Windows/Linux) or Option (Mac) must be held along with the activation key.                 | `Yes (true)`     |
+| **Require Alt/Option Key**           | If Yes, Alt (Windows/Linux) or Option (Mac) must be held for activation and for reset.                 | `Yes (true)`     |
 | **Follow Cursor Position**           | If Yes, the magnifier window moves with the cursor. If No, it stays where activated.                      | `Yes (true)`     |
 | **Offset Adjust Step (Graph Units)** | How many graph units the view shifts when pressing arrow keys (Shift+Arrow = 5x).                         | `5`              |
 | **Reset Offset Key**                 | The key to press to reset the view offset while active.                                                   | `r`              |
-| **Require Alt/Option for Reset**     | If Yes, Alt/Option must be held with the reset key.                                                       | `Yes (true)`     |
 | **Debug Mode**                       | Show detailed logging and the debug visualization overlay.                                                | `Disabled (false)`|
 | **Glass Position**                   | Position of the magnifying glass relative to the cursor.                                                  | `Bottom`         |
 | **Shape**                            | Shape of the magnifying glass (Circle, Square, Rounded Square).                                           | `Circle`         |
 | **Show Border**                      | Enable or disable the border around the magnifying glass.                                                 | `Yes (true)`     |
 | **Texture Filtering**                | Controls how the magnified image is scaled. Linear is smoother, Nearest is sharper/pixelated.             | `Linear`         |
+| **Always Active Mode**               | If Yes, activating the magnifier keeps it on until activated again. If No, it deactivates on key release. | `No (false)`     |
+| **Toggle Follow Key**                | The key to toggle 'Follow Cursor' behavior. Works with Alt/Option if 'Require Alt/Option Key' is Yes.   | `h`              |
 
 ## ❓ Troubleshooting
 

@@ -17,16 +17,17 @@ app.registerExtension({
             "🔍MagnifyGlass.BorderColor": "#ffffff",
             "🔍MagnifyGlass.BorderWidth": 2,
             "🔍MagnifyGlass.ActivationKey": "x",
-            "🔍MagnifyGlass.AltRequired": true,
+            "🔍MagnifyGlass.AltRequired": false,
             "🔍MagnifyGlass.FollowCursor": true,
             "🔍MagnifyGlass.DebugMode": false,
             "🔍MagnifyGlass.OffsetStep": 5,
             "🔍MagnifyGlass.GlassPosition": "Bottom",
-            "🔍MagnifyGlass.ResetKey": "r",
-            "🔍MagnifyGlass.ResetAltRequired": true,
-            "🔍MagnifyGlass.GlassShape": "Circle",
+            "🔍MagnifyGlass.ResetKey": "o",
+            "🔍MagnifyGlass.GlassShape": "Rounded Square",
             "🔍MagnifyGlass.BorderEnabled": true,
             "🔍MagnifyGlass.TextureFiltering": "Linear",
+            "🔍MagnifyGlass.AlwaysActiveMode": false,
+            "🔍MagnifyGlass.ToggleFollowCursorKey": "h",
         };
 
         // Function to safely get settings values
@@ -355,10 +356,11 @@ app.registerExtension({
                 this.config.offsetStep = getSettingValue("🔍MagnifyGlass.OffsetStep", DEFAULT_SETTINGS["🔍MagnifyGlass.OffsetStep"]);
                 this.config.glassPosition = getSettingValue("🔍MagnifyGlass.GlassPosition", DEFAULT_SETTINGS["🔍MagnifyGlass.GlassPosition"]);
                 this.config.resetKey = getSettingValue("🔍MagnifyGlass.ResetKey", DEFAULT_SETTINGS["🔍MagnifyGlass.ResetKey"]);
-                this.config.resetAltRequired = getSettingValue("🔍MagnifyGlass.ResetAltRequired", DEFAULT_SETTINGS["🔍MagnifyGlass.ResetAltRequired"]);
                 this.config.glassShape = getSettingValue("🔍MagnifyGlass.GlassShape", DEFAULT_SETTINGS["🔍MagnifyGlass.GlassShape"]);
                 this.config.borderEnabled = getSettingValue("🔍MagnifyGlass.BorderEnabled", DEFAULT_SETTINGS["🔍MagnifyGlass.BorderEnabled"]);
                 this.config.textureFiltering = getSettingValue("🔍MagnifyGlass.TextureFiltering", DEFAULT_SETTINGS["🔍MagnifyGlass.TextureFiltering"]);
+                this.config.alwaysActiveMode = getSettingValue("🔍MagnifyGlass.AlwaysActiveMode", DEFAULT_SETTINGS["🔍MagnifyGlass.AlwaysActiveMode"]);
+                this.config.toggleFollowCursorKey = getSettingValue("🔍MagnifyGlass.ToggleFollowCursorKey", DEFAULT_SETTINGS["🔍MagnifyGlass.ToggleFollowCursorKey"]);
                 // Offsets X/Y are managed separately via load/save/arrow keys
             }
             
@@ -432,10 +434,11 @@ app.registerExtension({
                 this.offsetStep = DEFAULT_SETTINGS["🔍MagnifyGlass.OffsetStep"];
                 this.glassPosition = DEFAULT_SETTINGS["🔍MagnifyGlass.GlassPosition"];
                 this.resetKey = DEFAULT_SETTINGS["🔍MagnifyGlass.ResetKey"];
-                this.resetAltRequired = DEFAULT_SETTINGS["🔍MagnifyGlass.ResetAltRequired"];
                 this.glassShape = DEFAULT_SETTINGS["🔍MagnifyGlass.GlassShape"];
                 this.borderEnabled = DEFAULT_SETTINGS["🔍MagnifyGlass.BorderEnabled"];
                 this.textureFiltering = DEFAULT_SETTINGS["🔍MagnifyGlass.TextureFiltering"];
+                this.alwaysActiveMode = DEFAULT_SETTINGS["🔍MagnifyGlass.AlwaysActiveMode"];
+                this.toggleFollowCursorKey = DEFAULT_SETTINGS["🔍MagnifyGlass.ToggleFollowCursorKey"];
                 
                 // Alignment adjustment parameters - managed separately
                 this.offsetX = 0; // Default before loading saved
@@ -455,10 +458,11 @@ app.registerExtension({
                 this.offsetStep = getSettingValue("🔍MagnifyGlass.OffsetStep", this.offsetStep);
                 this.glassPosition = getSettingValue("🔍MagnifyGlass.GlassPosition", this.glassPosition);
                 this.resetKey = getSettingValue("🔍MagnifyGlass.ResetKey", this.resetKey);
-                this.resetAltRequired = getSettingValue("🔍MagnifyGlass.ResetAltRequired", this.resetAltRequired);
                 this.glassShape = getSettingValue("🔍MagnifyGlass.GlassShape", this.glassShape);
                 this.borderEnabled = getSettingValue("🔍MagnifyGlass.BorderEnabled", this.borderEnabled);
                 this.textureFiltering = getSettingValue("🔍MagnifyGlass.TextureFiltering", this.textureFiltering);
+                this.alwaysActiveMode = getSettingValue("🔍MagnifyGlass.AlwaysActiveMode", this.alwaysActiveMode);
+                this.toggleFollowCursorKey = getSettingValue("🔍MagnifyGlass.ToggleFollowCursorKey", this.toggleFollowCursorKey);
             }
             
             loadSavedOffsets() {
@@ -933,12 +937,21 @@ app.registerExtension({
                 // Magnifier activation
                 if (e.key.toLowerCase() === config.activationKey && 
                     (!config.altRequired || e.altKey)) {
-                    if (!state.active) {
-                        state.active = true;
-                        this.magnifyGlass.ui.show();
-                        
-                        // On activation, immediately update cursor position from current mouse position
-                        this.updateInitialPosition();
+                    if (config.alwaysActiveMode) {
+                        if (state.active) {
+                            state.active = false;
+                            this.magnifyGlass.ui.hide();
+                        } else {
+                            state.active = true;
+                            this.magnifyGlass.ui.show();
+                            this.updateInitialPosition(); // Update position when activating
+                        }
+                    } else {
+                        if (!state.active) {
+                            state.active = true;
+                            this.magnifyGlass.ui.show();
+                            this.updateInitialPosition(); // Update position when activating
+                        }
                     }
                 }
                 
@@ -967,11 +980,24 @@ app.registerExtension({
                         offsetChanged = true;
                         e.preventDefault();
                     } else if (e.key.toLowerCase() === config.resetKey.toLowerCase() && 
-                               (!config.resetAltRequired || e.altKey)) { // Use configured reset key & check Alt
+                               (!config.altRequired || e.altKey)) { // Use configured reset key & check Alt
                         // Reset offsets to zero
                         config.offsetX = 0;
                         config.offsetY = 0;
                         offsetChanged = true;
+                        e.preventDefault();
+                    }
+                    
+                    // Toggle Follow Cursor Key
+                    if (e.key.toLowerCase() === config.toggleFollowCursorKey && 
+                        (!config.altRequired || e.altKey)) {
+                        config.followCursor = !config.followCursor;
+                        this.magnifyGlass.debugger.log(`Follow Cursor Toggled: ${config.followCursor ? 'ON' : 'OFF'}`);
+                        if (state.active && config.followCursor) {
+                            // If toggled ON and active, update glass position to current cursor
+                            this.magnifyGlass.ui.positionGlass(this.magnifyGlass.lastKnownMousePosition.x, this.magnifyGlass.lastKnownMousePosition.y);
+                        }
+                        // We might also want to trigger an update of the settings UI if it shows this value directly, but that's more complex.
                         e.preventDefault();
                     }
                     
@@ -989,14 +1015,12 @@ app.registerExtension({
                 const state = this.magnifyGlass.state;
                 
                 // Check if the released key is the activation key OR if Alt was required and Alt was released.
-                if (e.key.toLowerCase() === config.activationKey || 
-                    (config.altRequired && e.key === "Alt")) {
+                if (!config.alwaysActiveMode && 
+                    (e.key.toLowerCase() === config.activationKey || 
+                    (config.altRequired && e.key === "Alt"))) { 
                     
                     // Only deactivate if the *other* key required for activation is NOT still pressed.
                     // This handles cases like: Alt+X, release X (deactivate), or Alt+X, release Alt (deactivate).
-                    // But if Alt+X, release X, but Alt is still held for another purpose, it shouldn't deactivate if activationKey is still held (though less common).
-                    // The primary goal is to ensure releasing *either* key (if both were used) deactivates.
-                    
                     let shouldDeactivate = false;
                     if (config.altRequired) {
                         // If Alt is required, releasing either Alt or the activation key deactivates.
@@ -1056,21 +1080,24 @@ app.registerExtension({
             
             updateInitialPosition() {
                 if (!this.magnifyGlass.litegraphCanvas) return;
-                
+
                 const rect = this.magnifyGlass.litegraphCanvas.getBoundingClientRect();
                 const clientX = this.magnifyGlass.lastKnownMousePosition.x;
                 const clientY = this.magnifyGlass.lastKnownMousePosition.y;
-                
-                // Only use the position if it's over the canvas
-                if (clientX >= rect.left && clientX <= rect.right && 
-                    clientY >= rect.top && clientY <= rect.bottom) {
-                    
+
+                // If alwaysActiveMode is true, we want to set the initial position
+                // even if the cursor is not strictly over the canvas at the moment of activation.
+                // However, we still need a valid canvas context for calculations.
+                // The current logic in handleMouseMove which sets state.x/y only when over canvas remains crucial
+                // for continuous updates. This initial positioning is a one-shot for activation.
+                const isOverCanvas = clientX >= rect.left && clientX <= rect.right &&
+                                     clientY >= rect.top && clientY <= rect.bottom;
+
+                if (this.magnifyGlass.config.alwaysActiveMode || isOverCanvas) {
                     const cssMouseXOnCanvas = clientX - rect.left;
                     const cssMouseYOnCanvas = clientY - rect.top;
 
-                    // Convert CSS coordinates on canvas to actual canvas pixel coordinates
                     const canvasElement = this.magnifyGlass.litegraphCanvas;
-                    // Ensure rect.width and rect.height are not zero to prevent division by zero
                     const scaleX = rect.width > 0 ? canvasElement.width / rect.width : 1;
                     const scaleY = rect.height > 0 ? canvasElement.height / rect.height : 1;
 
@@ -1079,7 +1106,7 @@ app.registerExtension({
 
                     this.magnifyGlass.state.x = pixelX;
                     this.magnifyGlass.state.y = pixelY;
-                    
+
                     // Position the glass immediately based on current cursor
                     this.magnifyGlass.ui.positionGlass(clientX, clientY);
                     this.magnifyGlass.updateMagnifiedView();
@@ -1324,11 +1351,11 @@ app.registerExtension({
             type: "combo",
             options: [ { value: true, text: "Yes" }, { value: false, text: "No" } ],
             defaultValue: DEFAULT_SETTINGS["🔍MagnifyGlass.AltRequired"],
-            tooltip: "If Yes, Alt (Windows/Linux) or Option (Mac) must be held along with the activation key.",
+            tooltip: "If Yes, Alt (Windows/Linux) or Option (Mac) must be held for activation and for reset.",
             onChange: (value) => {
                 if (magnifyGlass && magnifyGlass.config) {
                     magnifyGlass.config.altRequired = value;
-                    magnifyGlass.debugger.log(`Activation key set to ${magnifyGlass.config.altRequired ? 'Alt/Option+' : ''}${magnifyGlass.config.activationKey.toUpperCase()}`);
+                    magnifyGlass.debugger.log(`Require Alt/Option set to ${value}. Activation: ${magnifyGlass.config.altRequired ? 'Alt/Option+' : ''}${magnifyGlass.config.activationKey.toUpperCase()}, Reset: ${magnifyGlass.config.altRequired ? 'Alt/Option+' : ''}${magnifyGlass.config.resetKey.toUpperCase()}`);
                 }
             }
         });
@@ -1374,21 +1401,6 @@ app.registerExtension({
                 if (magnifyGlass && magnifyGlass.config) {
                     magnifyGlass.config.resetKey = value.toLowerCase();
                     magnifyGlass.debugger.log(`Reset offset key set to ${magnifyGlass.config.resetAltRequired ? 'Alt/Option+' : ''}${magnifyGlass.config.resetKey.toUpperCase()}`);
-                }
-            }
-        });
-
-        app.ui.settings.addSetting({
-            id: "🔍MagnifyGlass.ResetAltRequired",
-            name: "⌨️ Magnify Glass: Require Alt/Option for Reset",
-            type: "combo",
-            options: [ { value: true, text: "Yes" }, { value: false, text: "No" } ],
-            defaultValue: DEFAULT_SETTINGS["🔍MagnifyGlass.ResetAltRequired"],
-            tooltip: "If Yes, Alt (Windows/Linux) or Option (Mac) must be held along with the reset key.",
-            onChange: (value) => {
-                if (magnifyGlass && magnifyGlass.config) {
-                    magnifyGlass.config.resetAltRequired = value;
-                    magnifyGlass.debugger.log(`Require Alt/Option for Reset set to ${value}. Reset key combination is now ${magnifyGlass.config.resetAltRequired ? 'Alt/Option+' : ''}${magnifyGlass.config.resetKey.toUpperCase()}`);
                 }
             }
         });
@@ -1493,6 +1505,39 @@ app.registerExtension({
                     if (magnifyGlass.state.active) {
                         magnifyGlass.updateMagnifiedView(); // Re-render if active
                     }
+                }
+            }
+        });
+        
+        app.ui.settings.addSetting({
+            id: "🔍MagnifyGlass.AlwaysActiveMode",
+            name: "🔒 Magnify Glass: Always Active Mode",
+            type: "combo",
+            options: [
+                { value: true, text: "Yes" },
+                { value: false, text: "No" }
+            ],
+            defaultValue: DEFAULT_SETTINGS["🔍MagnifyGlass.AlwaysActiveMode"],
+            tooltip: "If Yes, activating the magnifier keeps it on until activated again. If No, it deactivates on key release.",
+            onChange: (value) => {
+                if (magnifyGlass && magnifyGlass.config) {
+                    magnifyGlass.config.alwaysActiveMode = value;
+                    // No immediate UI change needed other than behavior change
+                }
+            }
+        });
+        
+        app.ui.settings.addSetting({
+            id: "🔍MagnifyGlass.ToggleFollowCursorKey",
+            name: "⌨️ Magnify Glass: Toggle Follow Key",
+            type: "combo",
+            options: ["f", "g", "h", "j", "k"], // Example keys, can be expanded
+            defaultValue: DEFAULT_SETTINGS["🔍MagnifyGlass.ToggleFollowCursorKey"],
+            tooltip: "The key (case-insensitive) to toggle the 'Follow Cursor' behavior. Works with Alt/Option if 'Require Alt/Option Key' is Yes.",
+            onChange: (value) => {
+                if (magnifyGlass && magnifyGlass.config) {
+                    magnifyGlass.config.toggleFollowCursorKey = value.toLowerCase();
+                    magnifyGlass.debugger.log(`Toggle Follow Cursor key set to ${magnifyGlass.config.altRequired ? 'Alt/Option+' : ''}${magnifyGlass.config.toggleFollowCursorKey.toUpperCase()}`);
                 }
             }
         });

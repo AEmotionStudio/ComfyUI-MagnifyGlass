@@ -1,6 +1,6 @@
 # ComfyUI-MagnifyGlass
 
-![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)
 ![ComfyUI](https://img.shields.io/badge/ComfyUI-compatible-green)
 ![License](https://img.shields.io/badge/license-GPL--3.0-brightgreen.svg)
 ![Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen.svg)
@@ -19,6 +19,8 @@ ComfyUI-MagnifyGlass adds an intuitive magnifying glass to your ComfyUI canvas, 
 **6/12/25 (v1.3.0)**
 
 - **Inspector Information Panel:** I've introduced a new dockable panel that provides real-time data about whatever you're hovering over on the canvas. It includes detailed node analysis, media information, and a technical "Inspector" tab. Check out the "Features" and "Configuration" sections below for more details!
+
+![Inspector Usage Example Webp](images/inspector_preview.webp)
 
 ## ✨ Features
 
@@ -116,8 +118,6 @@ All options are available in the ComfyUI settings dialog under the "🔍 Magnify
 | **Toggle Follow Key**                | The key to toggle 'Follow Cursor' behavior. Works with Alt/Option if 'Require Alt/Option Key' is Yes.   | `h`              |
 
 ### 📊 Information Panel Options
-
-![Inspector Usage Example Webp](images/inspector_preview.webp)
 
 These settings control the behavior and appearance of the optional Info Panel.
 

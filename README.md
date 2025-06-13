@@ -20,7 +20,7 @@ ComfyUI-MagnifyGlass adds an intuitive magnifying glass to your ComfyUI canvas, 
 
 - **Inspector Information Panel:** I've introduced a new dockable panel that provides real-time data about whatever you're hovering over on the canvas. It includes detailed node analysis, media information, and a technical "Inspector" tab. Check out the "Features" and "Configuration" sections below for more details!
 
-![Inspector Usage Example Webp](images/inspector_preview.webp)
+![Inspector Usage Example Webp](images/inspector_preview_2.webp)
 
 ## ✨ Features
 

@@ -21,7 +21,7 @@ app.registerExtension({
             "🔍MagnifyGlass.FollowCursor": true,
             "🔍MagnifyGlass.DebugMode": false,
             "🔍MagnifyGlass.OffsetStep": 5,
-            "🔍MagnifyGlass.GlassPosition": "Bottom",
+            "🔍MagnifyGlass.GlassPosition": "Top-Right",
             "🔍MagnifyGlass.ResetKey": "o",
             "🔍MagnifyGlass.GlassShape": "Rounded Square",
             "🔍MagnifyGlass.BorderEnabled": true,
@@ -505,6 +505,7 @@ app.registerExtension({
         class MagnifierState {
             constructor() {
                 this.active = false;
+                this.wasActivatedBefore = false; // Track if the glass has been activated before
                 this.x = 0; // Cursor X relative to litegraphCanvas
                 this.y = 0; // Cursor Y relative to litegraphCanvas
                 this.sourceX = 0; // Calculated source area X
@@ -581,7 +582,7 @@ app.registerExtension({
                 this.debugCanvas = document.createElement("canvas");
                 this.debugCanvas.id = "comfyui-magnify-debug";
                 this.debugCanvas.width = 400;
-                this.debugCanvas.height = 320;
+                this.debugCanvas.height = 350; // Increased height to 350px
                 this.debugCanvas.style.cssText = `
                     position: fixed;
                     top: 10px;
@@ -1107,8 +1108,21 @@ app.registerExtension({
                     this.magnifyGlass.state.x = pixelX;
                     this.magnifyGlass.state.y = pixelY;
 
-                    // Position the glass immediately based on current cursor
-                    this.magnifyGlass.ui.positionGlass(clientX, clientY);
+                    // Position the glass initially at the top right corner of the window instead of at cursor
+                    // when first activated
+                    const glassSize = this.magnifyGlass.config.glassSize;
+                    const padding = 20; // Padding from window edges
+                    
+                    if (!this.magnifyGlass.state.wasActivatedBefore) {
+                        // First activation - position at top right of the window
+                        this.magnifyGlass.ui.glassDiv.style.left = `${window.innerWidth - glassSize - padding}px`;
+                        this.magnifyGlass.ui.glassDiv.style.top = `${padding}px`;
+                        this.magnifyGlass.state.wasActivatedBefore = true; // Mark as activated once
+                    } else {
+                        // For subsequent activations, use normal positioning based on cursor and settings
+                        this.magnifyGlass.ui.positionGlass(clientX, clientY);
+                    }
+                    
                     this.magnifyGlass.updateMagnifiedView();
                 }
             }
@@ -1550,34 +1564,14 @@ app.registerExtension({
         // Initialize the magnifier (reads config, creates UI, attaches listeners)
         magnifyGlass.init();
 
-        // Optional: Apply default settings if any are missing (similar to link_animations)
-        // This ensures that if new settings are added later, they get a default value
-        // without needing a full reset from the user.
-        // You might want a more sophisticated version check later.
-        // Object.entries(DEFAULT_SETTINGS).forEach(([key, value]) => {
-        //     const fullKey = `MagnifyGlass.${key.split('.')[1]}`; // Construct full ID
-        //     const setting = app.ui.settings.items.find(s => s.id === fullKey);
-        //     if (setting && app.ui.settings.getSettingValue(fullKey) === undefined) {
-        //         app.ui.settings.setSettingValue(fullKey, value);
-        //         // Manually update the config if a default was just applied
-        //         const configKey = key.split('.')[1].charAt(0).toLowerCase() + key.split('.')[1].slice(1); // e.g., ZoomFactor -> zoomFactor
-        //         if (magnifyGlass.config.hasOwnProperty(configKey)) {
-        //              magnifyGlass.config[configKey] = value;
-        //              console.log(`Applied default for ${fullKey}`);
-        //         }
-        //         // Apply immediate UI changes if needed for the defaulted setting
-        //         if(setting.onChange) {
-        //             setting.onChange(value);
-        //         } else {
-        //             magnifyGlass.applyUiChanges();
-        //         }
-        //     }
-        // });
-        magnifyGlass.applyUiChanges(); // Ensure UI reflects loaded/default settings initially
+        // Apply UI changes
+        magnifyGlass.applyUiChanges();
 
+        // Expose magnifyGlass globally for extensions
+        window.comfyUIMagnifyGlass = magnifyGlass;
 
-        // --- Diagnostic Info (moved inside setup) ---
-        console.log("---- Magnifier Diagnostic Info ----");
+        // Diagnostic Info
+        console.log("---- Enhanced Magnifier Diagnostic Info ----");
         // Browser Info
         console.log("User Agent:", navigator.userAgent);
         console.log("Device Pixel Ratio:", window.devicePixelRatio);

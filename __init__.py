@@ -6,7 +6,7 @@ NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}
 
 # List of JS files to be loaded
-__js_files__ = ["magnify_glass.js"]
+__js_files__ = ["magnify_glass.js", "magnify_info_panel.js"]
 
 # List of exported elements
 __all__ = ['NODE_CLASS_MAPPINGS', 'NODE_DISPLAY_NAME_MAPPINGS', 'WEB_DIRECTORY', '__js_files__']

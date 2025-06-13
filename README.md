@@ -1,6 +1,6 @@
 # ComfyUI-MagnifyGlass
 
-![Version](https://img.shields.io/badge/version-1.2.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.3.0-blue.svg)
 ![ComfyUI](https://img.shields.io/badge/ComfyUI-compatible-green)
 ![License](https://img.shields.io/badge/license-GPL--3.0-brightgreen.svg)
 ![Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen.svg)
@@ -12,11 +12,17 @@ ComfyUI-MagnifyGlass adds an intuitive magnifying glass to your ComfyUI canvas, 
 > [!TIP]
 > Perfect for inspecting fine details in your generated images, node connections, or any part of the ComfyUI canvas!
 
-![Magnify Glass in Action WEBP](images/magnify_glass_action.webp)
+![Magnify Glass in Action Wepb](images/magnify_glass_action.webp)
+
+## 🚀 Latest Updates
+
+**6/12/25 (v1.3.0)**
+
+- **Inspector Information Panel:** I've introduced a new dockable panel that provides real-time data about whatever you're hovering over on the canvas. It includes detailed node analysis, media information, and a technical "Inspector" tab. Check out the "Features" and "Configuration" sections below for more details!
 
 ## ✨ Features
 
-![Magnify Glass Settings PNG](images/magnify_glass_settings.png)
+![Magnify Glass Settings Webp](images/magnify_glass_settings.png)
 
 - **🔍 Smooth Zooming**: Magnify any part of the ComfyUI canvas with a configurable zoom factor.
 - **🖱️ Cursor Interaction**:
@@ -39,8 +45,13 @@ ComfyUI-MagnifyGlass adds an intuitive magnifying glass to your ComfyUI canvas, 
 - **🖼️ Texture Filtering**: Choose between Linear (smooth) and Nearest (pixelated) texture filtering for the magnified view.
 - **🔒 Always Active Mode**: Toggle the magnifier to stay on/off without holding keys.
 - **🔑 Toggle Follow Key**: Use a configurable key (default 'H') to toggle the 'Follow Cursor' behavior on the fly.
+- **📊 Information Panel**: An optional, dockable panel that provides real-time data about the object you are hovering over.
+    - **Node Analysis**: See detailed information about nodes, including title, type, important parameters (like seed, steps, CFG), and content from text boxes.
+    - **Media Details**: Get information on images and other media.
+    - **Inspector Tab**: A special tab showing technical details like cursor coordinates, canvas scale, and magnifier zoom level.
+    - **Highly Customizable**: Pin, lock, and move the panel. Change its appearance, opacity, and more through settings.
 
-![Always Active Mode in Action WEBP](images/always_active_action.webp)
+![Always Active Mode in Action Webp](images/always_active_action.webp)
 *(🔒 Always Active & 🔑 Toggle Follow Key Showcase: you can essentially set the glass preview where ever you want on the canvas and toggle it off and on.)*
 
 ## 📥 Installation
@@ -78,7 +89,7 @@ Restart ComfyUI after installation. No additional `pip install` steps are typica
 4.  **Configuration**:
     - Access all settings by clicking the ⚙️ (Settings) icon in ComfyUI, then find the "🔍 Magnify Glass" section.
 
-![Magnify Glass Usage Example PNG](images/magnify_glass_usage.webp)
+![Magnify Glass Usage Example Webp](images/magnify_glass_usage.webp)
 *(🐞 Debug Mode & Arrow Keys Showcase: ⚠️ some flickering may occur with the VHS Combine Node Preview when moving the glass across the preview service while active.)*
 
 ## ⚙️ Configuration Options
@@ -103,6 +114,28 @@ All options are available in the ComfyUI settings dialog under the "🔍 Magnify
 | **Texture Filtering**                | Controls how the magnified image is scaled. Linear is smoother, Nearest is sharper/pixelated.             | `Linear`         |
 | **Always Active Mode**               | If Yes, activating the magnifier keeps it on until activated again. If No, it deactivates on key release. | `Yes (true)`     |
 | **Toggle Follow Key**                | The key to toggle 'Follow Cursor' behavior. Works with Alt/Option if 'Require Alt/Option Key' is Yes.   | `h`              |
+
+### 📊 Information Panel Options
+
+![Inspector Usage Example Webp](images/inspector_preview.webp)
+
+These settings control the behavior and appearance of the optional Info Panel.
+
+| Option | Description | Default Value |
+| --- | --- | --- |
+| **Info Panel** | Enable or disable the professional information panel. | `Enabled` |
+| **Info Panel Position** | Position of the info panel relative to the magnifying glass. | `Left` |
+| **Info Panel Width** | Width of the information panel in pixels. | `320` |
+| **Info Panel Opacity** | Opacity of the information panel background. | `0.95` |
+| **Info Panel Max Height** | Maximum height of the information panel in pixels. | `500` |
+| **Info Panel Theme** | Color theme for the information panel. | `Dark` |
+| **Info Panel Animations**| Enable or disable animations for the info panel. | `Enabled` |
+| **Show Inspector Tab** | Show or hide the Inspector tab with cursor and canvas information. | `Disabled` |
+| **Info Panel Toggle Hotkey**| Key to toggle the info panel visibility while the magnifier is active. | `i` |
+| **Preview Toggle Hotkey**| Key to toggle the magnifying glass preview visibility. | `g` |
+| **Pin Panel Hotkey** | Key to use with Alt to pin the info panel at mouse location (e.g., Alt+P). | `p` |
+| **Show Hover Controls**| Show or hide hovering UI controls above the info panel. | `Enabled` |
+| **Controls Position** | Position of the floating control buttons relative to the info panel. | `bottom-centered` |
 
 ## ❓ Troubleshooting
 

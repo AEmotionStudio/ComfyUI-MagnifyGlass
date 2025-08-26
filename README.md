@@ -16,7 +16,7 @@ ComfyUI-MagnifyGlass adds an intuitive magnifying glass to your ComfyUI canvas, 
 
 ## 🔥 Recent Improvements
 
-**Latest Session Updates:**
+**8/26/25 - Latest Session Updates:**
 
 - **🎯 Smart Input Detection**: Hotkeys now intelligently detect when you're typing in input fields (similar to ComfyUI's native 'F' key behavior) and won't activate, eliminating the need for Alt key requirements
 - **🔓 Enhanced Panel Controls**: 

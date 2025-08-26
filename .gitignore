@@ -1,0 +1,13 @@
+# Ignore image files
+images/
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+
+# Ignore common image formats
+*.bmp
+*.tiff
+*.svg
+*.ico

@@ -45,7 +45,7 @@ app.registerExtension({
                 "🔍MagnifyGlass.InfoPanelPosition": "Bottom",
                 "🔍MagnifyGlass.InfoPanelWidth": 320,
                 "🔍MagnifyGlass.InfoPanelOpacity": 100,
-                "🔍MagnifyGlass.InfoPanelMaxHeight": 500,
+                "🔍MagnifyGlass.InfoPanelMaxHeight": 1000,
                 "🔍MagnifyGlass.InfoPanelAnimations": false,
                 "🔍MagnifyGlass.ShowInspectorTab": false,
                 "🔍MagnifyGlass.ToggleHotkey": "i",
@@ -762,33 +762,59 @@ app.registerExtension({
                         const nodeContent = [
                             { label: 'Title', value: info.hoveredNode.title }
                         ];
-                        
-                        // Add important node information
-                        const checkpointInfo = this.getCheckpointInfo(info.hoveredNode);
-                        if (checkpointInfo) {
-                            nodeContent.push({ label: 'Model', value: checkpointInfo });
-                        }
-                        
-                        const imageInfo = this.getImageInfo(info.hoveredNode);
-                        if (imageInfo) {
-                            if (typeof imageInfo === 'string') {
-                                nodeContent.push({ label: 'Image', value: imageInfo });
-                            } else if (typeof imageInfo === 'object') {
-                                nodeContent.push({ label: 'Image Size', value: `${imageInfo.width}×${imageInfo.height}` });
-                                if (imageInfo.src) {
-                                    nodeContent.push({ label: 'Image Source', value: imageInfo.src });
+
+                        // Check if this is a complex node that shows all widgets
+                        const nodeType = info.hoveredNode.type.toLowerCase();
+                        const isSaveNode = nodeType.includes('save') &&
+                                         !nodeType.includes('checkpoint') &&
+                                         !nodeType.includes('model') &&
+                                         !nodeType.includes('preview');
+
+                        const showAllWidgets = info.hoveredNode.type && (
+                            nodeType.includes('ksampler') ||
+                            nodeType.includes('sampler') ||
+                            nodeType.includes('k_samplers') ||
+                            nodeType.includes('checkpoint') ||
+                            nodeType.includes('model') ||
+                            nodeType.includes('lora') ||
+                            nodeType.includes('controlnet') ||
+                            nodeType.includes('advanced') ||
+                            nodeType.includes('detailer') ||
+                            nodeType.includes('inpaint') ||
+                            nodeType.includes('upscale') ||
+                            nodeType.includes('clip') ||
+                            nodeType.includes('text') ||
+                            nodeType.includes('encode')
+                        ) && !isSaveNode;
+
+                        if (!showAllWidgets) {
+                            // Add specific extractions for simple nodes
+                            const checkpointInfo = this.getCheckpointInfo(info.hoveredNode);
+                            if (checkpointInfo) {
+                                nodeContent.push({ label: 'Model', value: checkpointInfo });
+                            }
+
+                            const imageInfo = this.getImageInfo(info.hoveredNode);
+                            if (imageInfo) {
+                                if (typeof imageInfo === 'string') {
+                                    nodeContent.push({ label: 'Image', value: imageInfo });
+                                } else if (typeof imageInfo === 'object') {
+                                    nodeContent.push({ label: 'Image Size', value: `${imageInfo.width}×${imageInfo.height}` });
+                                    if (imageInfo.src) {
+                                        nodeContent.push({ label: 'Image Source', value: imageInfo.src });
+                                    }
                                 }
                             }
+
+                            const textBoxContent = this.getTextBoxContent(info.hoveredNode);
+                            if (textBoxContent) {
+                                nodeContent.push({ label: 'Text', value: textBoxContent });
+                            }
                         }
-                        
+
                         const importantParameters = this.getImportantNodeParameters(info.hoveredNode);
                         nodeContent.push(...importantParameters);
-                        
-                        const textBoxContent = this.getTextBoxContent(info.hoveredNode);
-                        if (textBoxContent) {
-                            nodeContent.push({ label: 'Text', value: textBoxContent });
-                        }
-                        
+
                         sections.push({
                             id: 'node',
                             icon: '🎯',
@@ -1030,24 +1056,108 @@ app.registerExtension({
                 
                 getImportantNodeParameters(nodeInfo) {
                     const parameters = [];
-                    const importantParams = [
-                        'seed', 'steps', 'cfg', 'scale', 'sampler', 'scheduler', 
-                        'positive', 'negative', 'width', 'height', 'denoise', 'strength',
-                        'noise', 'count', 'batch', 'size', 'phase', 'color', 'intensity'
-                    ];
-                    
+
+                    // For complex nodes that have many parameters, show ALL widgets
+                    const nodeType = nodeInfo.type.toLowerCase();
+                    const isSaveNode = nodeType.includes('save') &&
+                                     !nodeType.includes('checkpoint') &&
+                                     !nodeType.includes('model') &&
+                                     !nodeType.includes('preview');
+
+                    const showAllWidgets = nodeInfo.type && (
+                        nodeType.includes('ksampler') ||
+                        nodeType.includes('sampler') ||
+                        nodeType.includes('k_samplers') ||
+                        nodeType.includes('checkpoint') ||
+                        nodeType.includes('model') ||
+                        nodeType.includes('lora') ||
+                        nodeType.includes('controlnet') ||
+                        nodeType.includes('advanced') ||
+                        nodeType.includes('detailer') ||
+                        nodeType.includes('inpaint') ||
+                        nodeType.includes('upscale') ||
+                        nodeType.includes('clip') ||
+                        nodeType.includes('text') ||
+                        nodeType.includes('encode')
+                    ) && !isSaveNode;
+
+                    if (showAllWidgets) {
+                        if (nodeInfo.widgets && nodeInfo.widgets.length > 0) {
+                            for (const widget of nodeInfo.widgets) {
+                                // Show all widgets for complex nodes, but filter out some duplicates
+                                if (widget.name && widget.name !== '') {
+                                    const widgetName = widget.name.toLowerCase();
+
+                                    // Skip some generic widget names that might be duplicates
+                                    // These are handled by specific extraction methods for simple nodes
+                                    if (widgetName.includes('title') ||
+                                        widgetName === 'node' ||
+                                        widgetName === 'id' ||
+                                        widgetName === 'type' ||
+                                        widgetName === 'mode') {
+                                        continue;
+                                    }
+
+                                    parameters.push({
+                                        label: widget.name,
+                                        value: this.formatValue(widget.value)
+                                    });
+                                }
+                            }
+                        }
+                        return parameters;
+                    }
+
+                    // Special handling for Save nodes - only show essential parameters
+                    let importantParams;
+                    if (isSaveNode) {
+                        importantParams = [
+                            'filename_prefix', 'filename', 'directory', 'path',
+                            'format', 'quality', 'extension'
+                        ];
+                    } else {
+                        // For other nodes, use the filtered list but avoid duplicates with specific extractions
+                        importantParams = [
+                            'seed', 'steps', 'cfg', 'scale', 'sampler', 'scheduler',
+                            'positive', 'negative', 'width', 'height', 'denoise', 'strength',
+                            'noise', 'count', 'batch', 'size', 'phase', 'color', 'intensity',
+                            // KSampler specific parameters (for other samplers)
+                            'control_after_generate', 'control', 'after', 'generate',
+                            'start_at_step', 'end_at_step', 'start', 'end',
+                            'return_with_leftover_noise', 'leftover', 'noise_return',
+                            // Additional common parameters (but avoid duplicates with specific extractors)
+                            'model', 'vae', 'clip', 'lora', 'checkpoint',
+                            'latent', 'image', 'mask', 'filename', 'directory',
+                            'prompt', 'conditioning', 'filename_prefix',
+                            // New detection vocabulary
+                            'resolution', 'num_chunks', 'seconds', 'aspect_ratio',
+                            'style_type', 'background', 'n', 'human', 'raw', 'guidance',
+                            'skip_preprocessing', 'movement_amplitude', 'animation',
+                            'material_type', 'b1', 'b2', 's1', 's2', 'type', 'channel',
+                            'sigma', 'rho',
+                            // Additional detection vocabulary
+                            'alpha', 'base_shift', 'shift', 'stretch', 'terminal',
+                            'spacing', 'style', 'eta', 'norm_threshold', 'momentum',
+                            'hypernetwork_name', 'reuse_threshold', 'verbose', 'layers',
+                            'set_cond_area', 'audioui',
+                            // Camera and 3D parameters
+                            'camera_pose', 'fx', 'cx', 'fy', 'cy'
+                            // Note: 'text' and 'string' removed to avoid duplication with getTextBoxContent
+                        ];
+                    }
+
                     if (nodeInfo.widgets && nodeInfo.widgets.length > 0) {
                         for (const widget of nodeInfo.widgets) {
                             const paramName = widget.name.toLowerCase();
                             if (importantParams.some(param => paramName.includes(param))) {
-                                parameters.push({ 
-                                    label: widget.name, 
+                                parameters.push({
+                                    label: widget.name,
                                     value: this.formatValue(widget.value)
                                 });
                             }
                         }
                     }
-                    
+
                     return parameters;
                 }
                 

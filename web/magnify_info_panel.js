@@ -822,12 +822,16 @@ app.registerExtension({
                             </div>
                             <div class="section-content">
                                 <div class="section-body">
-                                    ${section.content.map(item => `
+                                    ${section.content.map(item => {
+                                        const value = this.formatValue(item.value, item.label);
+                                        const valueClass = this.getValueClass(item.value);
+                                        const valueAttributes = this.getValueAttributes(item.value);
+                                        return `
                                         <div class="info-row">
                                             <span class="info-label">${item.label}</span>
-                                            <span class="info-value">${item.value}</span>
-                                        </div>
-                                    `).join('')}
+                                            <span class="info-value ${valueClass}" ${valueAttributes}>${value}</span>
+                                        </div>`;
+                                    }).join('')}
                                 </div>
                             </div>
                         </div>
@@ -849,6 +853,55 @@ app.registerExtension({
                             content.classList.remove('expanded');
                         }
                     });
+                }
+                
+                formatValue(value, label) {
+                    if (!value) return value;
+
+                    const str = String(value);
+
+                    // Show full text for prompts, text content, model names, and file paths
+                    if (label && (
+                        label.toLowerCase().includes('text') ||
+                        label.toLowerCase().includes('prompt') ||
+                        label.toLowerCase().includes('model') ||
+                        label.toLowerCase().includes('file') ||
+                        label.toLowerCase().includes('conditioning') ||
+                        label.toLowerCase().includes('positive') ||
+                        label.toLowerCase().includes('negative')
+                    )) {
+                        return str;
+                    }
+
+                    // Show full text for very long values (no truncation)
+                    return str;
+                }
+                
+                getValueClass(value) {
+                    if (!value) return '';
+
+                    const str = String(value);
+                    let classes = [];
+
+                    // Mark text that might benefit from special styling for readability
+                    if (str.length > 100) {
+                        classes.push('long-text');
+                    }
+
+                    return classes.join(' ');
+                }
+                
+                getValueAttributes(value) {
+                    // Since we show full text now, we don't need title attributes for long text
+                    // Only add title for very long text that might benefit from tooltips
+                    if (!value) return '';
+
+                    const str = String(value);
+                    if (str.length > 500) { // Only for extremely long text
+                        return `title="${str.replace(/"/g, '&quot;')}"`;
+                    }
+
+                    return '';
                 }
                 
                 updateHeaderSubtitle(info) {
@@ -967,10 +1020,7 @@ app.registerExtension({
                                 widget.type === 'string' || widget.name.toLowerCase().includes('text')) && 
                                 typeof widget.value === 'string' && widget.value.length > 0) {
                                 
-                                const maxLength = 150;
-                                if (widget.value.length > maxLength) {
-                                    return widget.value.substring(0, maxLength) + '...';
-                                }
+                                // Show full text without truncation
                                 return widget.value;
                             }
                         }
@@ -1005,7 +1055,7 @@ app.registerExtension({
                     if (value === null) return "null";
                     if (value === undefined) return "undefined";
                     if (typeof value === "string") {
-                        return value.length > 30 ? value.substring(0, 27) + "..." : value;
+                        return value; // Show full text without truncation
                     }
                     if (typeof value === "number") {
                         return Number.isInteger(value) ? value.toString() : value.toFixed(3);
@@ -1037,7 +1087,7 @@ app.registerExtension({
                             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1);
                             overflow: hidden;
                             font-size: 16px;
-                            line-height: 1.5;
+                            line-height: 1.6;
                             pointer-events: auto;
                         }
                         
@@ -1046,15 +1096,19 @@ app.registerExtension({
                         }
                         
                         .magnify-info-panel.theme-dark {
-                            background: linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(10, 10, 15, 0.95));
+                            background: linear-gradient(135deg, rgba(0, 0, 0, 0.96), rgba(10, 10, 15, 0.96));
                             color: var(--info-panel-text-color, #e0e0e0);
-                            border: 1px solid rgba(100, 100, 120, 0.3);
+                            border: 1px solid rgba(100, 100, 120, 0.4);
+                            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 2px 16px rgba(0, 0, 0, 0.2);
+                            backdrop-filter: blur(12px);
                         }
                         
                         .magnify-info-panel.theme-light {
-                            background: linear-gradient(135deg, rgba(250, 250, 255, 0.95), rgba(240, 240, 250, 0.95));
+                            background: linear-gradient(135deg, rgba(250, 250, 255, 0.96), rgba(240, 240, 250, 0.96));
                             color: var(--info-panel-text-color, #2a2a2a);
-                            border: 1px solid rgba(200, 200, 220, 0.4);
+                            border: 1px solid rgba(200, 200, 220, 0.5);
+                            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1), 0 2px 16px rgba(0, 0, 0, 0.05);
+                            backdrop-filter: blur(12px);
                         }
                         
                         .magnify-info-panel.visible {
@@ -1263,19 +1317,47 @@ app.registerExtension({
                         }
                         
                         .info-section {
-                            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+                            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                            margin-bottom: 8px;
+                            border-radius: 10px;
+                            overflow: visible;
+                            background: rgba(255, 255, 255, 0.02);
+                            transition: all 0.3s ease;
+                        }
+                        
+                        .info-section:hover {
+                            background: rgba(255, 255, 255, 0.04);
+                            transform: translateY(-1px);
                         }
                         
                         .section-header {
                             display: flex;
                             align-items: center;
-                            gap: 10px;
-                            padding: 14px 18px;
+                            gap: 12px;
+                            padding: 16px 20px;
                             cursor: pointer;
-                            transition: all 0.2s;
+                            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
                             font-weight: 500;
-                            border-radius: 6px;
-                            margin: 2px;
+                            border-radius: 8px;
+                            margin: 3px;
+                            position: relative;
+                            overflow: hidden;
+                        }
+                        
+                        .section-header::before {
+                            content: '';
+                            position: absolute;
+                            top: 0;
+                            left: 0;
+                            right: 0;
+                            bottom: 0;
+                            background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.05) 50%, transparent 100%);
+                            transform: translateX(-100%);
+                            transition: transform 0.6s ease;
+                        }
+                        
+                        .section-header:hover::before {
+                            transform: translateX(100%);
                         }
                         
                         .section-header:hover {
@@ -1361,6 +1443,8 @@ app.registerExtension({
                             flex: 1;
                             font-size: 16px;
                             font-weight: 600;
+                            letter-spacing: 0.3px;
+                            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
                         }
                         
                         .section-badge {
@@ -1373,61 +1457,108 @@ app.registerExtension({
                         }
                         
                         .expand-icon {
-                            font-size: 13px;
-                            transition: all 0.2s;
-                            opacity: 0.7;
+                            font-size: 14px;
+                            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                            color: rgba(255, 255, 255, 0.6);
+                            width: 20px;
+                            height: 20px;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            border-radius: 50%;
+                            background: rgba(255, 255, 255, 0.05);
                             margin-left: auto;
                         }
                         
                         .section-header:hover .expand-icon {
-                            opacity: 1;
                             color: var(--info-panel-accent-color, #74b9ff);
+                            background: rgba(116, 185, 255, 0.15);
+                            transform: scale(1.1);
                         }
                         
                         .section-header.expanded .expand-icon {
-                            transform: rotate(90deg);
+                            transform: rotate(90deg) scale(1.1);
                             color: var(--info-panel-accent-color, #74b9ff);
+                            background: rgba(116, 185, 255, 0.2);
                         }
                         
                         .section-content {
                             max-height: 0;
-                            overflow: hidden;
-                            transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                            overflow: visible;
+                            transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+                            opacity: 0;
                         }
-                        
+
                         .section-content.expanded {
-                            max-height: 1000px;
+                            max-height: 2000px;
+                            opacity: 1;
+                            overflow: visible;
                         }
                         
                         .section-body {
-                            padding: 0 18px 14px 42px;
+                            padding: 0 18px 16px 24px;
                         }
                         
                         .info-row {
                             display: flex;
                             justify-content: space-between;
-                            align-items: center;
-                            padding: 6px 0;
-                            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+                            align-items: flex-start;
+                            padding: 10px 0;
+                            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                            transition: all 0.2s ease;
+                            border-radius: 4px;
+                            margin: 0 -8px;
+                            padding-left: 8px;
+                            padding-right: 8px;
                         }
                         
                         .info-row:last-child {
                             border-bottom: none;
                         }
                         
+                        .info-row:hover {
+                            background: rgba(255, 255, 255, 0.03);
+                            border-bottom-color: rgba(255, 255, 255, 0.08);
+                        }
+                        
                         .info-label {
                             font-weight: 500;
-                            opacity: 0.8;
+                            opacity: 0.85;
                             font-size: 15px;
+                            min-width: 80px;
+                            padding-right: 12px;
+                            line-height: 1.5;
                         }
                         
                         .info-value {
                             font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
                             font-size: 14px;
                             color: var(--info-panel-accent-color, #a0d468);
-                            background: rgba(160, 212, 104, 0.1);
-                            padding: 3px 8px;
-                            border-radius: 4px;
+                            background: rgba(160, 212, 104, 0.12);
+                            padding: 4px 10px;
+                            border-radius: 6px;
+                            max-width: 100%;
+                            word-wrap: break-word;
+                            word-break: break-word;
+                            hyphens: auto;
+                            line-height: 1.4;
+                            text-align: left;
+                            white-space: pre-wrap;
+                            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                            transition: all 0.2s ease;
+                        }
+                        
+                        .info-value:hover {
+                            background: rgba(160, 212, 104, 0.18);
+                            transform: translateY(-1px);
+                            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+                        }
+                        
+                        .info-value.long-text {
+                            white-space: pre-wrap;
+                            word-wrap: break-word;
+                            max-width: 100%;
+                            line-height: 1.4;
                         }
                         
                         .empty-state {
@@ -1440,6 +1571,61 @@ app.registerExtension({
                             font-size: 36px;
                             margin-bottom: 15px;
                             opacity: 0.5;
+                        }
+                        
+                        /* Copy to clipboard functionality */
+                        .info-value[title]:hover::after {
+                            content: '📋';
+                            position: absolute;
+                            right: -20px;
+                            top: 50%;
+                            transform: translateY(-50%);
+                            font-size: 12px;
+                            opacity: 0.7;
+                        }
+                        
+                        /* Smooth loading states */
+                        .section-body.loading {
+                            opacity: 0.5;
+                            pointer-events: none;
+                        }
+                        
+                        .section-body.loading::after {
+                            content: '';
+                            position: absolute;
+                            top: 50%;
+                            left: 50%;
+                            width: 20px;
+                            height: 20px;
+                            border: 2px solid transparent;
+                            border-top: 2px solid var(--info-panel-accent-color, #74b9ff);
+                            border-radius: 50%;
+                            animation: spin 1s linear infinite;
+                            transform: translate(-50%, -50%);
+                        }
+                        
+                        @keyframes spin {
+                            to { transform: translate(-50%, -50%) rotate(360deg); }
+                        }
+                        
+                        /* Enhanced scrollbar for better UX */
+                        .section-body::-webkit-scrollbar {
+                            width: 4px;
+                        }
+                        
+                        .section-body::-webkit-scrollbar-track {
+                            background: rgba(255, 255, 255, 0.05);
+                            border-radius: 2px;
+                        }
+                        
+                        .section-body::-webkit-scrollbar-thumb {
+                            background: var(--info-panel-accent-color, #74b9ff);
+                            border-radius: 2px;
+                            opacity: 0.6;
+                        }
+                        
+                        .section-body::-webkit-scrollbar-thumb:hover {
+                            opacity: 1;
                         }
                         
                         .empty-state-text {
@@ -2352,43 +2538,43 @@ app.registerExtension({
                 detectNodeRegion(localPos, node) {
                     const titleHeight = 30;
                     const regions = [];
-                    
+
                     if (localPos.y <= titleHeight) {
                         regions.push("Title Bar");
                     }
-                    
+
                     if (localPos.x <= 10) {
                         regions.push("Left Edge");
                     } else if (localPos.x >= node.size[0] - 10) {
                         regions.push("Right Edge");
                     }
-                    
+
                     if (localPos.y <= 10) {
                         regions.push("Top Edge");
                     } else if (localPos.y >= node.size[1] - 10) {
                         regions.push("Bottom Edge");
                     }
-                    
+
                     if (regions.length === 0) {
                         if (localPos.y > titleHeight) {
                             regions.push("Content Area");
                         }
                     }
-                    
+
                     if (localPos.x <= 20 && localPos.y > titleHeight) {
                         regions.push("Input Area");
                     } else if (localPos.x >= node.size[0] - 20 && localPos.y > titleHeight) {
                         regions.push("Output Area");
                     }
-                    
+
                     return regions.length > 0 ? regions.join(", ") : "Unknown";
                 }
-                
+
                 formatValue(value) {
                     if (value === null) return "null";
                     if (value === undefined) return "undefined";
                     if (typeof value === "string") {
-                        return value.length > 30 ? value.substring(0, 27) + "..." : value;
+                        return value; // Show full text without truncation
                     }
                     if (typeof value === "number") {
                         return Number.isInteger(value) ? value.toString() : value.toFixed(3);

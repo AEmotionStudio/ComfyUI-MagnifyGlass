@@ -42,18 +42,19 @@ app.registerExtension({
             // Default settings configuration
             const DEFAULT_SETTINGS = {
                 "🔍MagnifyGlass.InfoPanelEnabled": true,
-                "🔍MagnifyGlass.InfoPanelPosition": "Left",
+                "🔍MagnifyGlass.InfoPanelPosition": "Bottom",
                 "🔍MagnifyGlass.InfoPanelWidth": 320,
-                "🔍MagnifyGlass.InfoPanelOpacity": 0.95,
+                "🔍MagnifyGlass.InfoPanelOpacity": 100,
                 "🔍MagnifyGlass.InfoPanelMaxHeight": 500,
-                "🔍MagnifyGlass.InfoPanelTheme": "Dark",
-                "🔍MagnifyGlass.InfoPanelAnimations": true,
+                "🔍MagnifyGlass.InfoPanelAnimations": false,
                 "🔍MagnifyGlass.ShowInspectorTab": false,
                 "🔍MagnifyGlass.ToggleHotkey": "i",
                 "🔍MagnifyGlass.GlassPreviewToggleHotkey": "g",
-                "🔍MagnifyGlass.PinPanelHotkey": "p",
+                "🔍MagnifyGlass.PinPanelHotkey": "u",
                 "🔍MagnifyGlass.ShowHoveringControls": true,
-                "🔍MagnifyGlass.ControlsPosition": "bottom-centered",
+                "🔍MagnifyGlass.ControlsPosition": "bottom",
+                "🔍MagnifyGlass.InfoPanelTextColor": "#6b7280",
+                "🔍MagnifyGlass.InfoPanelAccentColor": "#3b82f6",
             };
 
             const getSettingValue = (key, defaultValue) => {
@@ -78,6 +79,7 @@ app.registerExtension({
                         isPanelMinimized: false,
                         isPanelPinned: false,
                         isPanelLocked: false, // New lock state
+                        isAutoPinned: false, // Track if panel was auto-pinned by glass hide
                         pinnedPosition: { x: 0, y: 0 },
                         lastPinnedPosition: null, // Remember last pinned location
                         
@@ -103,16 +105,265 @@ app.registerExtension({
                         currentInfo: {},
                         
                         // Settings cache
-                        settings: {}
+                        settings: {},
+                        
+                        // Auto-detected theme
+                        currentTheme: 'dark' // Will be auto-detected
                     };
                     
+                    this.initThemeDetection();
                     this.loadSettings();
+                }
+                
+                initThemeDetection() {
+                    // Immediate forced detection
+                    console.log('ComfyUI Magnify Glass: Starting theme detection...');
+                    
+                    // Detect ComfyUI's current theme
+                    this.detectCurrentTheme();
+                    
+                    // Force an immediate check in case we missed the initial state
+                    setTimeout(() => {
+                        console.log('ComfyUI Magnify Glass: Delayed theme check...');
+                        if (this.detectCurrentTheme()) {
+                            this.notifyThemeChange();
+                        }
+                    }, 1000);
+                    
+                    // Set up mutation observer to watch for theme changes
+                    this.setupThemeObserver();
+                    
+                    // Listen for system theme changes as fallback
+                    if (window.matchMedia) {
+                        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+                        prefersDark.addListener(() => this.detectCurrentTheme());
+                    }
+                    
+                    // Add click listener to theme toggle buttons for immediate detection
+                    this.setupThemeButtonListeners();
+                }
+                
+                detectCurrentTheme() {
+                    let detectedTheme = 'dark'; // Default fallback
+                    
+                    const body = document.body;
+                    const html = document.documentElement;
+                    const vueApp = document.querySelector('#vue-app');
+                    const sidebar = document.querySelector('.comfy-menu, .sidebar, .menu, [class*="sidebar"], [class*="menu"]');
+                    
+                    // Get all possible theme-related elements
+                    const allElements = [body, html, vueApp, sidebar].filter(Boolean);
+                    
+                    // Debug: Log current classes and attributes with more detail
+                    const debugInfo = {
+                        bodyClasses: Array.from(body.classList),
+                        htmlClasses: Array.from(html.classList),
+                        bodyDataTheme: body.getAttribute('data-theme'),
+                        htmlDataTheme: html.getAttribute('data-theme'),
+                        vueAppClasses: vueApp ? Array.from(vueApp.classList) : null,
+                        sidebarClasses: sidebar ? Array.from(sidebar.classList) : null,
+                        bodyBgColor: window.getComputedStyle(body).backgroundColor,
+                        htmlBgColor: window.getComputedStyle(html).backgroundColor,
+                        allComputedVars: {}
+                    };
+                    
+                    // Check CSS variables
+                    const rootStyles = window.getComputedStyle(html);
+                    const bodyStyles = window.getComputedStyle(body);
+                    
+                    // Get all CSS custom properties
+                    for (let i = 0; i < rootStyles.length; i++) {
+                        const prop = rootStyles[i];
+                        if (prop.startsWith('--')) {
+                            debugInfo.allComputedVars[prop] = rootStyles.getPropertyValue(prop).trim();
+                        }
+                    }
+                    
+                    console.log('ComfyUI Magnify Glass: Comprehensive theme detection debug:', debugInfo);
+                    
+                    // Method 1: Look for specific light theme indicators in CSS variables
+                    const primarySurface = rootStyles.getPropertyValue('--p-primary-color') || 
+                                          rootStyles.getPropertyValue('--primary-color') ||
+                                          bodyStyles.getPropertyValue('--p-primary-color') ||
+                                          bodyStyles.getPropertyValue('--primary-color');
+                    
+                    const surfaceGround = rootStyles.getPropertyValue('--p-surface-ground') || 
+                                         rootStyles.getPropertyValue('--surface-ground') ||
+                                         bodyStyles.getPropertyValue('--p-surface-ground') ||
+                                         bodyStyles.getPropertyValue('--surface-ground');
+                    
+                    const textColor = rootStyles.getPropertyValue('--p-text-color') || 
+                                     rootStyles.getPropertyValue('--text-color') ||
+                                     bodyStyles.getPropertyValue('--p-text-color') ||
+                                     bodyStyles.getPropertyValue('--text-color');
+                    
+                    console.log('ComfyUI Magnify Glass: CSS Variables:', { primarySurface, surfaceGround, textColor });
+                    
+                    // Method 2: Analyze background colors of multiple elements
+                    const backgrounds = allElements.map(el => {
+                        const styles = window.getComputedStyle(el);
+                        return {
+                            element: el.tagName || el.className,
+                            backgroundColor: styles.backgroundColor,
+                            color: styles.color
+                        };
+                    });
+                    
+                    console.log('ComfyUI Magnify Glass: Background analysis:', backgrounds);
+                    
+                    // Method 3: Check for light backgrounds
+                    for (const bg of backgrounds) {
+                        if (bg.backgroundColor && bg.backgroundColor !== 'rgba(0, 0, 0, 0)' && bg.backgroundColor !== 'transparent') {
+                            const rgbMatch = bg.backgroundColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+                            if (rgbMatch) {
+                                const [, r, g, b] = rgbMatch.map(Number);
+                                const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+                                console.log(`ComfyUI Magnify Glass: Element ${bg.element} brightness: ${brightness}`);
+                                if (brightness > 180) { // Higher threshold for light detection
+                                    detectedTheme = 'light';
+                                    console.log(`ComfyUI Magnify Glass: Light theme detected via background analysis of ${bg.element}`);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Method 4: Check for theme toggle buttons state (they might indicate current theme)
+                    const themeButtons = document.querySelectorAll('[class*="theme"], button[title*="theme"], button[title*="Theme"], .p-button[title*="light"], .p-button[title*="Light"]');
+                    themeButtons.forEach(btn => {
+                        console.log('ComfyUI Magnify Glass: Found theme button:', {
+                            classes: Array.from(btn.classList),
+                            text: btn.textContent,
+                            title: btn.title,
+                            active: btn.classList.contains('active') || btn.classList.contains('selected')
+                        });
+                    });
+                    
+                    // Method 5: Force light theme detection if we see light backgrounds
+                    if (detectedTheme === 'dark') {
+                        // Look for any element with very light background
+                        const lightElements = document.querySelectorAll('*');
+                        for (let i = 0; i < Math.min(lightElements.length, 50); i++) { // Check first 50 elements
+                            const el = lightElements[i];
+                            const styles = window.getComputedStyle(el);
+                            const bgColor = styles.backgroundColor;
+                            
+                            if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
+                                const rgbMatch = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+                                if (rgbMatch) {
+                                    const [, r, g, b] = rgbMatch.map(Number);
+                                    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+                                    if (brightness > 200) { // Very light elements
+                                        detectedTheme = 'light';
+                                        console.log(`ComfyUI Magnify Glass: Light theme forced via element ${el.tagName}.${el.className} with brightness ${brightness}`);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Update theme if it changed
+                    if (this.state.currentTheme !== detectedTheme) {
+                        console.log(`ComfyUI Magnify Glass: Theme changed from ${this.state.currentTheme} to ${detectedTheme}`);
+                        this.state.currentTheme = detectedTheme;
+                        return true; // Theme changed
+                    }
+                    
+                    console.log(`ComfyUI Magnify Glass: Current theme remains: ${detectedTheme}`);
+                    return false; // No change
+                }
+                
+                setupThemeObserver() {
+                    // Watch for changes to body/html classes and attributes
+                    const observer = new MutationObserver((mutations) => {
+                        let shouldCheck = false;
+                        mutations.forEach((mutation) => {
+                            if (mutation.type === 'attributes' && 
+                                (mutation.attributeName === 'class' || 
+                                 mutation.attributeName === 'data-theme' ||
+                                 mutation.attributeName === 'style')) {
+                                shouldCheck = true;
+                                console.log('ComfyUI Magnify Glass: DOM change detected:', {
+                                    target: mutation.target.tagName,
+                                    attribute: mutation.attributeName,
+                                    oldValue: mutation.oldValue,
+                                    newValue: mutation.target.getAttribute(mutation.attributeName)
+                                });
+                            }
+                        });
+                        
+                        if (shouldCheck && this.detectCurrentTheme()) {
+                            // Theme changed, update UI immediately
+                            this.notifyThemeChange();
+                        }
+                    });
+                    
+                    // Observe changes to body, html, and vue app
+                    observer.observe(document.body, { attributes: true, attributeOldValue: true });
+                    observer.observe(document.documentElement, { attributes: true, attributeOldValue: true });
+                    
+                    const vueApp = document.querySelector('#vue-app');
+                    if (vueApp) {
+                        observer.observe(vueApp, { attributes: true, attributeOldValue: true });
+                    }
+                    
+                    // Also watch for changes to any element with theme-related classes
+                    const themeElements = document.querySelectorAll('[class*="theme"], [class*="dark"], [class*="light"], [data-theme]');
+                    themeElements.forEach(el => {
+                        observer.observe(el, { attributes: true, attributeOldValue: true });
+                    });
+                    
+                    // Periodic fallback check every 2 seconds
+                    setInterval(() => {
+                        if (this.detectCurrentTheme()) {
+                            this.notifyThemeChange();
+                        }
+                    }, 2000);
+                }
+                
+                setupThemeButtonListeners() {
+                    // Listen for clicks on theme toggle buttons
+                    document.addEventListener('click', (e) => {
+                        // Check if clicked element might be a theme toggle
+                        const target = e.target;
+                        const isThemeButton = target.textContent?.toLowerCase().includes('theme') ||
+                                            target.textContent?.toLowerCase().includes('light') ||
+                                            target.textContent?.toLowerCase().includes('dark') ||
+                                            target.title?.toLowerCase().includes('theme') ||
+                                            target.className?.toLowerCase().includes('theme');
+                        
+                        if (isThemeButton) {
+                            console.log('ComfyUI Magnify Glass: Theme button clicked, triggering detection');
+                            setTimeout(() => {
+                                if (this.detectCurrentTheme()) {
+                                    this.notifyThemeChange();
+                                }
+                            }, 100);
+                        }
+                    });
+                }
+                
+                notifyThemeChange() {
+                    // Update settings to reflect new theme
+                    this.state.settings["🔍MagnifyGlass.InfoPanelTheme"] = this.state.currentTheme;
+                    
+                    // Notify UI components of theme change immediately
+                    if (window.infoPanelManager && window.infoPanelManager.uiManager) {
+                        window.infoPanelManager.uiManager.updateTheme(this.state.currentTheme);
+                    }
                 }
                 
                 loadSettings() {
                     Object.keys(DEFAULT_SETTINGS).forEach(key => {
-                        this.state.settings[key] = getSettingValue(key, DEFAULT_SETTINGS[key]);
+                        // Skip the theme setting since we auto-detect it
+                        if (key !== "🔍MagnifyGlass.InfoPanelTheme") {
+                            this.state.settings[key] = getSettingValue(key, DEFAULT_SETTINGS[key]);
+                        }
                     });
+                    
+                    // Set theme to auto-detected value
+                    this.state.settings["🔍MagnifyGlass.InfoPanelTheme"] = this.state.currentTheme;
                 }
                 
                 updateSettings() {
@@ -149,9 +400,10 @@ app.registerExtension({
                     const wasPinned = this.state.isPanelPinned;
                     this.state.isPanelPinned = !this.state.isPanelPinned;
                     
-                    // When unpinning, also unlock
+                    // When unpinning, also unlock and clear auto-pin flag
                     if (!this.state.isPanelPinned) {
                         this.state.isPanelLocked = false;
+                        this.state.isAutoPinned = false; // Clear auto-pin flag when manually unpinning
                     }
                     
                     if (this.state.isPanelPinned && this.state.lastPinnedPosition) {
@@ -266,7 +518,7 @@ app.registerExtension({
                     // Main panel container
                     this.elements.panel = document.createElement("div");
                     this.elements.panel.id = "comfyui-magnify-info-panel-pro-v2";
-                    this.elements.panel.className = `magnify-info-panel theme-${this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelTheme"].toLowerCase()}`;
+                    this.elements.panel.className = `magnify-info-panel theme-${this.stateManager.state.currentTheme}`;
                     
                     // Header
                     this.elements.header = document.createElement("div");
@@ -304,10 +556,10 @@ app.registerExtension({
                     this.elements.controls = document.createElement("div");
                     this.elements.controls.className = "floating-controls vertical-layout"; // Default to vertical
                     this.elements.controls.innerHTML = `
-                        <button class="control-btn pin-btn" title="Pin Panel (Alt+P)" data-action="pin">🔓</button>
+                        <button class="control-btn pin-btn" title="Unlock Panel to Mouse Location (U)" data-action="pin">🔓</button>
                         <button class="control-btn lock-btn" title="Lock Panel Position" data-action="lock">📌</button>
-                        <button class="control-btn visibility-btn" title="Toggle Panel Visibility (Alt+I)" data-action="toggle-panel">👁️</button>
-                        <button class="control-btn glass-btn" title="Toggle Glass Preview (Alt+G)" data-action="toggle-glass">🔍</button>
+                        <button class="control-btn visibility-btn" title="Toggle Panel Visibility (I)" data-action="toggle-panel">👁️</button>
+                        <button class="control-btn glass-btn" title="Toggle Glass Preview (G)" data-action="toggle-glass">🔍</button>
                     `;
                     
                     // Insert before the panel in the document body, not as a child
@@ -329,6 +581,7 @@ app.registerExtension({
                     if (pinBtn) {
                         pinBtn.classList.toggle('active', this.stateManager.state.isPanelPinned);
                         pinBtn.title = this.stateManager.state.isPanelPinned ? "Lock Panel" : "Unlock Panel";
+                        pinBtn.textContent = this.stateManager.state.isPanelPinned ? "🔒" : "🔓";
                     }
                     
                     if (lockBtn) {
@@ -367,11 +620,33 @@ app.registerExtension({
                 applyStyles() {
                     const settings = this.stateManager.state.settings;
                     
+                                            // Apply custom text color via CSS variable if provided
+                        const textColor = settings["🔍MagnifyGlass.InfoPanelTextColor"];
+                        if (textColor) {
+                            // Ensure color has # symbol
+                            const normalizedTextColor = textColor.startsWith('#') ? textColor : `#${textColor}`;
+                            this.elements.panel.style.setProperty('--info-panel-text-color', normalizedTextColor);
+                        }
+                        
+                        // Apply custom accent color via CSS variable if provided
+                        const accentColor = settings["🔍MagnifyGlass.InfoPanelAccentColor"];
+                        if (accentColor) {
+                            // Ensure color has # symbol
+                            const normalizedAccentColor = accentColor.startsWith('#') ? accentColor : `#${accentColor}`;
+                            this.elements.panel.style.setProperty('--info-panel-accent-color', normalizedAccentColor);
+                        }
+                        
+                        // Apply opacity setting if panel is visible (convert percentage to decimal)
+                        if (this.stateManager.state.isPanelVisible) {
+                            const opacityPercent = settings["🔍MagnifyGlass.InfoPanelOpacity"];
+                            this.elements.panel.style.opacity = opacityPercent / 100;
+                        }
+                    
                     this.elements.panel.style.cssText = `
                         position: absolute;
                         width: ${settings["🔍MagnifyGlass.InfoPanelWidth"]}px;
                         max-height: ${settings["🔍MagnifyGlass.InfoPanelMaxHeight"]}px;
-                        z-index: 10001;
+                        z-index: 99999;
                         display: none;
                         opacity: 0;
                         transform: translateY(-10px);
@@ -379,6 +654,8 @@ app.registerExtension({
                         pointer-events: auto;
                         user-select: none;
                         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+                        ${textColor ? `--info-panel-text-color: ${textColor.startsWith('#') ? textColor : `#${textColor}`};` : ''}
+                        ${accentColor ? `--info-panel-accent-color: ${accentColor.startsWith('#') ? accentColor : `#${accentColor}`};` : ''}
                     `;
                 }
                 
@@ -388,6 +665,9 @@ app.registerExtension({
                         if (this.elements.controls) {
                             this.elements.controls.style.display = "flex";
                         }
+                        // Apply user's opacity setting when showing (convert percentage to decimal)
+                        const opacityPercent = this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelOpacity"];
+                        this.elements.panel.style.opacity = opacityPercent / 100;
                         // Trigger reflow
                         this.elements.panel.offsetHeight;
                         this.elements.panel.classList.add('visible');
@@ -424,7 +704,10 @@ app.registerExtension({
                 }
                 
                 updateTheme(newTheme) {
-                    this.elements.panel.className = this.elements.panel.className.replace(/theme-\w+/, `theme-${newTheme.toLowerCase()}`);
+                    if (this.elements.panel) {
+                        this.elements.panel.className = this.elements.panel.className.replace(/theme-\w+/, `theme-${newTheme.toLowerCase()}`);
+                        console.log(`ComfyUI Magnify Glass: Panel theme updated to ${newTheme}`);
+                    }
                 }
                 
                 displayInfo(info) {
@@ -571,15 +854,16 @@ app.registerExtension({
                 updateHeaderSubtitle(info) {
                     const subtitleElement = this.elements.header.querySelector('.header-subtitle');
                     if (subtitleElement) {
+                        const accentColor = this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelAccentColor"];
                         if (info.hoveredNode) {
                             subtitleElement.textContent = `Analyzing: ${info.hoveredNode.title}`;
-                            subtitleElement.style.color = '#74b9ff';
+                            subtitleElement.style.color = accentColor;
                         } else if (info.media) {
                             subtitleElement.textContent = `Media: ${info.media.tagName}`;
-                            subtitleElement.style.color = '#a0d468';
+                            subtitleElement.style.color = accentColor;
                         } else if (info.connection) {
                             subtitleElement.textContent = `Connection: ${info.connection.type}`;
-                            subtitleElement.style.color = '#fdcb6e';
+                            subtitleElement.style.color = accentColor;
                         } else {
                             subtitleElement.textContent = 'Real-time analysis';
                             subtitleElement.style.color = '';
@@ -763,18 +1047,17 @@ app.registerExtension({
                         
                         .magnify-info-panel.theme-dark {
                             background: linear-gradient(135deg, rgba(0, 0, 0, 0.95), rgba(10, 10, 15, 0.95));
-                            color: #e0e0e0;
+                            color: var(--info-panel-text-color, #e0e0e0);
                             border: 1px solid rgba(100, 100, 120, 0.3);
                         }
                         
                         .magnify-info-panel.theme-light {
                             background: linear-gradient(135deg, rgba(250, 250, 255, 0.95), rgba(240, 240, 250, 0.95));
-                            color: #2a2a2a;
+                            color: var(--info-panel-text-color, #2a2a2a);
                             border: 1px solid rgba(200, 200, 220, 0.4);
                         }
                         
                         .magnify-info-panel.visible {
-                            opacity: 1 !important;
                             transform: translateY(0) !important;
                         }
                         
@@ -803,7 +1086,7 @@ app.registerExtension({
                             cursor: grabbing;
                             box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5), 0 0 0 2px rgba(255, 215, 0, 0.7);
                             transform: scale(1.02) !important;
-                            z-index: 10010 !important;
+                            z-index: 100001 !important;
                             transition: none !important;
                         }
                         
@@ -839,7 +1122,7 @@ app.registerExtension({
                             border: 1px solid rgba(255, 255, 255, 0.3);
                             border-radius: 4px;
                             opacity: 1;
-                            z-index: 10003;
+                            z-index: 100000;
                             backdrop-filter: blur(8px);
                             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
                         }
@@ -1008,7 +1291,7 @@ app.registerExtension({
                         
                         .section-header.expanded {
                             background: rgba(116, 185, 255, 0.1);
-                            border-left: 2px solid #74b9ff;
+                            border-left: 2px solid var(--info-panel-accent-color, #74b9ff);
                         }
                         
                         .info-section[data-section="node"] {
@@ -1030,7 +1313,7 @@ app.registerExtension({
                         }
                         
                         .info-section[data-section="node"] .section-title {
-                            color: #74b9ff;
+                            color: var(--info-panel-accent-color, #74b9ff);
                             font-weight: 700;
                         }
                         
@@ -1064,7 +1347,7 @@ app.registerExtension({
                         }
                         
                         .info-section[data-section="media"] .section-title {
-                            color: #fdcb6e;
+                            color: var(--info-panel-accent-color, #fdcb6e);
                             font-weight: 700;
                         }
                         
@@ -1098,12 +1381,12 @@ app.registerExtension({
                         
                         .section-header:hover .expand-icon {
                             opacity: 1;
-                            color: #74b9ff;
+                            color: var(--info-panel-accent-color, #74b9ff);
                         }
                         
                         .section-header.expanded .expand-icon {
                             transform: rotate(90deg);
-                            color: #74b9ff;
+                            color: var(--info-panel-accent-color, #74b9ff);
                         }
                         
                         .section-content {
@@ -1141,7 +1424,7 @@ app.registerExtension({
                         .info-value {
                             font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
                             font-size: 14px;
-                            color: #a0d468;
+                            color: var(--info-panel-accent-color, #a0d468);
                             background: rgba(160, 212, 104, 0.1);
                             padding: 3px 8px;
                             border-radius: 4px;
@@ -1442,29 +1725,64 @@ app.registerExtension({
                     });
                 }
                 
+                // Helper function to check if user is typing in an input field
+                isUserTyping() {
+                    const activeElement = document.activeElement;
+                    if (!activeElement) return false;
+                    
+                    // Check if the active element is an input, textarea, or contenteditable
+                    const tagName = activeElement.tagName.toLowerCase();
+                    if (tagName === 'input' || tagName === 'textarea') {
+                        return true;
+                    }
+                    
+                    // Check for contenteditable elements
+                    if (activeElement.contentEditable === 'true') {
+                        return true;
+                    }
+                    
+                    // Check if it's inside a form or has input-like classes
+                    if (activeElement.closest('form') || 
+                        activeElement.classList.contains('cm-editor') || // CodeMirror editor
+                        activeElement.classList.contains('monaco-editor') || // Monaco editor
+                        activeElement.closest('.cm-editor') ||
+                        activeElement.closest('.monaco-editor')) {
+                        return true;
+                    }
+                    
+                    return false;
+                }
+                
                 setupHotkeyEvents() {
                     document.addEventListener('keydown', (e) => {
+                        // Don't handle hotkeys if user is typing in an input field (Smart Input Detection)
+                        if (this.isUserTyping()) {
+                            return;
+                        }
+                        
                         // Only handle hotkeys when magnifying glass is active
                         if (!magnifyGlass.state.active) return;
                         
                         const settings = this.stateManager.state.settings;
                         
                         // Toggle info panel
-                        if (e.key.toLowerCase() === settings["🔍MagnifyGlass.ToggleHotkey"].toLowerCase() && !e.repeat) {
+                        if (e.key.toLowerCase() === settings["🔍MagnifyGlass.ToggleHotkey"].toLowerCase() && 
+                            (!magnifyGlass.config.altRequired || e.altKey) && !e.repeat) {
                             e.preventDefault();
                             e.stopPropagation();
                             this.handleControlAction('toggle-panel');
                         }
                         
                         // Toggle glass preview
-                        if (e.key.toLowerCase() === settings["🔍MagnifyGlass.GlassPreviewToggleHotkey"].toLowerCase() && !e.repeat) {
+                        if (e.key.toLowerCase() === settings["🔍MagnifyGlass.GlassPreviewToggleHotkey"].toLowerCase() && 
+                            (!magnifyGlass.config.altRequired || e.altKey) && !e.repeat) {
                             e.preventDefault();
                             e.stopPropagation();
                             this.handleControlAction('toggle-glass');
                         }
                         
-                        // Pin at mouse location with Alt + configured key
-                        if (e.key.toLowerCase() === settings["🔍MagnifyGlass.PinPanelHotkey"].toLowerCase() && e.altKey && !e.repeat) {
+                        // Unlock panel from magnify glass and move to current mouse location (no Alt required due to Smart Input Detection)
+                        if (e.key.toLowerCase() === settings["🔍MagnifyGlass.PinPanelHotkey"].toLowerCase() && !e.repeat) {
                             e.preventDefault();
                             e.stopPropagation();
                             this.handleControlAction('pin-at-mouse');
@@ -1754,6 +2072,14 @@ app.registerExtension({
                             if (!isVisible && !this.stateManager.state.isPanelPinned) {
                                 this.captureCurrentPanelPosition(); // Capture current position before pinning
                                 this.stateManager.togglePinning();
+                                this.stateManager.state.isAutoPinned = true; // Mark as auto-pinned
+                                this.uiManager.updatePinnedState();
+                            }
+                            
+                            // When the glass preview is shown again, only auto-unlock if NOT manually locked with 📌 button
+                            if (isVisible && this.stateManager.state.isPanelPinned && !this.stateManager.state.isPanelLocked) {
+                                this.stateManager.togglePinning(); // Unpin the panel
+                                this.stateManager.state.isAutoPinned = false; // Clear auto-pin flag
                                 this.uiManager.updatePinnedState();
                             }
 
@@ -2170,10 +2496,8 @@ app.registerExtension({
                 updateSettings() {
                     const changes = this.stateManager.updateSettings();
                     
-                    // React to setting changes
-                    if (changes["🔍MagnifyGlass.InfoPanelTheme"]) {
-                        this.uiManager.updateTheme(changes["🔍MagnifyGlass.InfoPanelTheme"].new);
-                    }
+                                    // React to setting changes (theme is now auto-detected)
+                // Theme changes are handled automatically by the observer
                     
                     if (changes["🔍MagnifyGlass.ControlsPosition"]) {
                         // Update controls layout and position when position setting changes
@@ -2199,11 +2523,14 @@ app.registerExtension({
             // Create the main manager instance
             const infoPanelManager = new ProfessionalInfoPanelManager(magnifyGlass);
             
-            // Store reference globally for cleanup
+            // Store reference globally for cleanup and theme updates
             if (!window.comfyUIMagnifyGlassExtensions) {
                 window.comfyUIMagnifyGlassExtensions = [];
             }
             window.comfyUIMagnifyGlassExtensions.push(infoPanelManager);
+            
+            // Store main manager reference for theme updates
+            window.infoPanelManager = infoPanelManager;
             
             // Register settings with ComfyUI
             Object.keys(DEFAULT_SETTINGS).forEach(settingKey => {
@@ -2256,13 +2583,20 @@ app.registerExtension({
                     },
                     "🔍MagnifyGlass.InfoPanelOpacity": {
                         id: key,
-                        name: "📋 Magnify Glass: Info Panel Opacity",
+                        name: "📋 Magnify Glass: Info Panel Opacity (%)",
                         type: "slider",
                         defaultValue,
-                        min: 0.7,
-                        max: 1.0,
-                        step: 0.05,
-                        tooltip: "Opacity of the information panel background."
+                        min: 10,
+                        max: 100,
+                        step: 5,
+                        tooltip: "Opacity of the information panel background as a percentage (10 = very transparent, 100 = fully opaque).",
+                        onChange: (value) => {
+                            // Convert percentage to decimal and apply opacity immediately
+                            const opacity = value / 100;
+                            if (window.infoPanelManager && window.infoPanelManager.uiManager && window.infoPanelManager.uiManager.elements.panel) {
+                                window.infoPanelManager.uiManager.elements.panel.style.opacity = opacity;
+                            }
+                        }
                     },
                     "🔍MagnifyGlass.InfoPanelMaxHeight": {
                         id: key,
@@ -2274,17 +2608,7 @@ app.registerExtension({
                         step: 25,
                         tooltip: "Maximum height of the information panel in pixels."
                     },
-                    "🔍MagnifyGlass.InfoPanelTheme": {
-                        id: key,
-                        name: "🎨 Magnify Glass: Info Panel Theme",
-                        type: "combo",
-                        options: [
-                            { value: "Dark", text: "Dark" },
-                            { value: "Light", text: "Light" }
-                        ],
-                        defaultValue,
-                        tooltip: "Color theme for the information panel."
-                    },
+
                     "🔍MagnifyGlass.InfoPanelAnimations": {
                         id: key,
                         name: "🎬 Magnify Glass: Info Panel Animations",
@@ -2325,11 +2649,11 @@ app.registerExtension({
                     },
                     "🔍MagnifyGlass.PinPanelHotkey": {
                         id: key,
-                        name: "📌 Magnify Glass: Pin Panel Hotkey",
+                        name: "🔓 Magnify Glass: Unlock Panel to Mouse Location",
                         type: "combo",
-                        options: ["p", "f", "x", "z", "h"],
+                        options: ["u", "p", "f", "x", "z"],
                         defaultValue,
-                        tooltip: "Key to use with Alt to pin the info panel at mouse location (e.g., Alt+P)."
+                        tooltip: "Key to unlock the info panel from the magnify glass and move it to your current mouse position (e.g., U). Panel remains movable - use the pin button to lock it in place. Alt not required due to Smart Input Detection."
                     },
                     "🔍MagnifyGlass.ShowHoveringControls": {
                         id: key,
@@ -2358,6 +2682,56 @@ app.registerExtension({
                         ],
                         defaultValue,
                         tooltip: "Position of the floating control buttons relative to the info panel."
+                    },
+                    "🔍MagnifyGlass.InfoPanelTextColor": {
+                        id: key,
+                        name: "🎨 Magnify Glass: Info Panel Text Color",
+                        type: "color",
+                        defaultValue,
+                        tooltip: "Color of the text in the info panel. This affects all text content including titles, values, and labels.",
+                        onChange: (value) => {
+                            // Ensure color value includes # symbol for valid CSS and persistence
+                            const normalizedColor = value && !value.startsWith('#') ? `#${value}` : value;
+                            
+                            // Only save back if we actually normalized the color (to prevent recursion)
+                            if (value !== normalizedColor) {
+                                try {
+                                    app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelTextColor", normalizedColor);
+                                } catch (e) {
+                                    console.warn('Failed to save normalized text color:', e);
+                                }
+                            }
+                            
+                            // Apply the color immediately
+                            if (window.infoPanelManager && window.infoPanelManager.uiManager) {
+                                window.infoPanelManager.uiManager.applyStyles();
+                            }
+                        }
+                    },
+                    "🔍MagnifyGlass.InfoPanelAccentColor": {
+                        id: key,
+                        name: "🎨 Magnify Glass: Info Panel Accent Color",
+                        type: "color",
+                        defaultValue,
+                        tooltip: "Color used for highlighted elements like values, section titles, and active states in the info panel.",
+                        onChange: (value) => {
+                            // Ensure color value includes # symbol for valid CSS and persistence
+                            const normalizedColor = value && !value.startsWith('#') ? `#${value}` : value;
+                            
+                            // Only save back if we actually normalized the color (to prevent recursion)
+                            if (value !== normalizedColor) {
+                                try {
+                                    app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelAccentColor", normalizedColor);
+                                } catch (e) {
+                                    console.warn('Failed to save normalized accent color:', e);
+                                }
+                            }
+                            
+                            // Apply the color immediately
+                            if (window.infoPanelManager && window.infoPanelManager.uiManager) {
+                                window.infoPanelManager.uiManager.applyStyles();
+                            }
+                        }
                     }
                 };
                 

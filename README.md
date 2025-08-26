@@ -1,6 +1,6 @@
 # ComfyUI-MagnifyGlass
 
-![Version](https://img.shields.io/badge/version-1.4.0-blue.svg)
+![Version](https://img.shields.io/badge/version-1.4.1-blue.svg)
 ![ComfyUI](https://img.shields.io/badge/ComfyUI-compatible-green)
 ![License](https://img.shields.io/badge/license-GPL--3.0-brightgreen.svg)
 ![Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen.svg)
@@ -13,6 +13,28 @@ ComfyUI-MagnifyGlass adds an intuitive magnifying glass to your ComfyUI canvas, 
 > Perfect for inspecting fine details in your generated images, node connections, or any part of the ComfyUI canvas!
 
 ![Magnify Glass in Action Wepb](images/magnify_glass_action.webp)
+
+## 🔥 Recent Improvements
+
+**Latest Session Updates:**
+
+- **🎯 Smart Input Detection**: Hotkeys now intelligently detect when you're typing in input fields (similar to ComfyUI's native 'F' key behavior) and won't activate, eliminating the need for Alt key requirements
+- **🔓 Enhanced Panel Controls**: 
+  - Pin button now properly toggles between unlocked (🔓) and locked (🔒) states
+  - 'U' key unlocks panel to mouse location without requiring Alt
+  - 'G' key intelligently respects manual pin/lock decisions and only auto-unlocks when appropriate
+- **🎨 Visual Improvements**:
+  - Updated default border colors to gray (#6b7280) for better UI integration
+  - Added customizable info panel text and accent colors with smart defaults for light/dark modes
+  - Automatic theme synchronization with main ComfyUI frontend for dark and light modes
+- **⚙️ Enhanced Settings**:
+  - Percentage-based controls for opacity (10-100%) and zoom factor (100-1000%) for finer control
+  - Fixed color picker persistence issues
+- **🔄 Improved Reset Functionality**: Reset key ('O') now properly resets both magnify glass and inspector panel to default top-right positions
+- **📱 UI Polish**: 
+  - Inspector panel always appears above other UI elements with proper z-index layering
+  - Fixed blank settings dropdowns and improved tooltip descriptions
+  - Updated button tooltips to reflect current hotkey behavior
 
 ## 🚀 Latest Updates
 

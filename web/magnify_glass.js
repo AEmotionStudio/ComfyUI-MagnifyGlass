@@ -4,7 +4,7 @@ import { app } from "../../../scripts/app.js";
  * ComfyUI Magnifying Glass
  * 
  * This script adds a magnifying glass feature to ComfyUI.
- * Hold Alt+X to activate the magnifying glass and see a zoomed view of the canvas.
+ * Press X to activate the magnifying glass and see a zoomed view of the canvas.
  */
 
 app.registerExtension({
@@ -12,13 +12,13 @@ app.registerExtension({
     async setup() {
         // Default settings configuration
         const DEFAULT_SETTINGS = {
-            "🔍MagnifyGlass.ZoomFactor": 3,
+            "🔍MagnifyGlass.ZoomFactor": 300,
             "🔍MagnifyGlass.GlassSize": 300,
-            "🔍MagnifyGlass.BorderColor": "#ffffff",
-            "🔍MagnifyGlass.BorderWidth": 2,
+            "🔍MagnifyGlass.BorderColor": "#6b7280",
+            "🔍MagnifyGlass.BorderWidth": 1,
             "🔍MagnifyGlass.ActivationKey": "x",
             "🔍MagnifyGlass.AltRequired": false,
-            "🔍MagnifyGlass.FollowCursor": true,
+            "🔍MagnifyGlass.FollowCursor": false,
             "🔍MagnifyGlass.DebugMode": false,
             "🔍MagnifyGlass.OffsetStep": 5,
             "🔍MagnifyGlass.GlassPosition": "Top-Right",
@@ -26,7 +26,7 @@ app.registerExtension({
             "🔍MagnifyGlass.GlassShape": "Rounded Square",
             "🔍MagnifyGlass.BorderEnabled": true,
             "🔍MagnifyGlass.TextureFiltering": "Linear",
-            "🔍MagnifyGlass.AlwaysActiveMode": false,
+            "🔍MagnifyGlass.AlwaysActiveMode": true,
             "🔍MagnifyGlass.ToggleFollowCursorKey": "h",
         };
 
@@ -94,7 +94,7 @@ app.registerExtension({
                 // Attach event handlers
                 this.eventHandler.attachListeners();
         
-                this.debugger.log(`Initialized (WebGL). Hold ${this.config.altRequired ? 'Alt+' : ''}${this.config.activationKey.toUpperCase()} to activate. Arrow keys to adjust offset, R to reset.`);
+                this.debugger.log(`Initialized (WebGL) with Smart Input Detection. Press ${this.config.altRequired ? 'Alt+' : ''}${this.config.activationKey.toUpperCase()} to activate. Hotkeys disabled while typing in inputs.`);
             }
             
             findLiteGraphCanvas() {
@@ -345,7 +345,7 @@ app.registerExtension({
             
             // Method to update config from settings (can be called from callbacks)
             updateConfigFromSettings() {
-                this.config.zoomFactor = getSettingValue("🔍MagnifyGlass.ZoomFactor", DEFAULT_SETTINGS["🔍MagnifyGlass.ZoomFactor"]);
+                this.config.zoomFactor = getSettingValue("🔍MagnifyGlass.ZoomFactor", DEFAULT_SETTINGS["🔍MagnifyGlass.ZoomFactor"]) / 100;
                 this.config.glassSize = getSettingValue("🔍MagnifyGlass.GlassSize", DEFAULT_SETTINGS["🔍MagnifyGlass.GlassSize"]);
                 this.config.borderColor = getSettingValue("🔍MagnifyGlass.BorderColor", DEFAULT_SETTINGS["🔍MagnifyGlass.BorderColor"]);
                 this.config.borderWidth = getSettingValue("🔍MagnifyGlass.BorderWidth", DEFAULT_SETTINGS["🔍MagnifyGlass.BorderWidth"]);
@@ -415,7 +415,40 @@ app.registerExtension({
                 if (this.state.active) {
                     this.updateMagnifiedView(); // Update if active
                 }
-                this.debugger.log("Offsets reset to 0, 0");
+                
+                // Reset magnify glass position to top-right corner
+                if (this.ui.glassDiv) {
+                    const glassSize = this.config.glassSize;
+                    const padding = 20; // Same padding as initial positioning
+                    this.ui.glassDiv.style.left = `${window.innerWidth - glassSize - padding}px`;
+                    this.ui.glassDiv.style.top = `${padding}px`;
+                    // Reset the activation flag so next time it uses default positioning
+                    this.state.wasActivatedBefore = false;
+                }
+                
+                // Reset inspector panel position to default
+                if (window.comfyUIMagnifyGlassExtensions && window.comfyUIMagnifyGlassExtensions.length > 0) {
+                    window.comfyUIMagnifyGlassExtensions.forEach(extension => {
+                        if (extension && extension.stateManager) {
+                            // Reset panel to default position
+                            extension.stateManager.state.isPanelPinned = false;
+                            extension.stateManager.state.isPanelLocked = false;
+                            extension.stateManager.state.isAutoPinned = false;
+                            extension.stateManager.state.pinnedPosition = { x: 0, y: 0 };
+                            extension.stateManager.state.lastPinnedPosition = null;
+                            
+                            // Update panel position and controls
+                            if (extension.positionManager) {
+                                extension.positionManager.positionPanel();
+                            }
+                            if (extension.uiManager && extension.uiManager.updateControlStates) {
+                                extension.uiManager.updateControlStates();
+                            }
+                        }
+                    });
+                }
+                
+                this.debugger.log("Reset: Magnify glass and inspector panel positions restored to top-right defaults");
             }
         }
         
@@ -423,7 +456,7 @@ app.registerExtension({
         class ConfigManager {
             constructor() {
                 // Initialize properties that will be set by reading settings
-                this.zoomFactor = DEFAULT_SETTINGS["🔍MagnifyGlass.ZoomFactor"];
+                this.zoomFactor = DEFAULT_SETTINGS["🔍MagnifyGlass.ZoomFactor"] / 100;
                 this.glassSize = DEFAULT_SETTINGS["🔍MagnifyGlass.GlassSize"];
                 this.borderColor = DEFAULT_SETTINGS["🔍MagnifyGlass.BorderColor"];
                 this.borderWidth = DEFAULT_SETTINGS["🔍MagnifyGlass.BorderWidth"];
@@ -447,7 +480,7 @@ app.registerExtension({
             
             // Call this after settings are registered and potentially read by MagnifyGlass
             loadSettings() {
-                this.zoomFactor = getSettingValue("🔍MagnifyGlass.ZoomFactor", this.zoomFactor);
+                this.zoomFactor = getSettingValue("🔍MagnifyGlass.ZoomFactor", this.zoomFactor * 100) / 100;
                 this.glassSize = getSettingValue("🔍MagnifyGlass.GlassSize", this.glassSize);
                 this.borderColor = getSettingValue("🔍MagnifyGlass.BorderColor", this.borderColor);
                 this.borderWidth = getSettingValue("🔍MagnifyGlass.BorderWidth", this.borderWidth);
@@ -543,7 +576,7 @@ app.registerExtension({
                     border: ${this.config.borderEnabled ? `${this.config.borderWidth}px solid ${this.config.borderColor}` : 'none'};
                     overflow: hidden;
                     pointer-events: none;
-                    z-index: 9999;
+                    z-index: 98999;
                     display: none;
                     box-shadow: 0 5px 15px rgba(0,0,0,0.3);
                     background-color: rgba(255,255,255,0.1);
@@ -589,7 +622,7 @@ app.registerExtension({
                     right: 10px;
                     background: rgba(0,0,0,0.7);
                     border: 1px solid #fff;
-                    z-index: 10000;
+                    z-index: 99000;
                     pointer-events: none;
                     color: white;
                     font-family: monospace;
@@ -931,9 +964,42 @@ app.registerExtension({
                 document.addEventListener("mousemove", this.handleMouseMove.bind(this));
             }
             
+            // Helper function to check if user is typing in an input field
+            isUserTyping() {
+                const activeElement = document.activeElement;
+                if (!activeElement) return false;
+                
+                // Check if the active element is an input, textarea, or contenteditable
+                const tagName = activeElement.tagName.toLowerCase();
+                if (tagName === 'input' || tagName === 'textarea') {
+                    return true;
+                }
+                
+                // Check for contenteditable elements
+                if (activeElement.contentEditable === 'true') {
+                    return true;
+                }
+                
+                // Check if it's inside a form or has input-like classes
+                if (activeElement.closest('form') || 
+                    activeElement.classList.contains('cm-editor') || // CodeMirror editor
+                    activeElement.classList.contains('monaco-editor') || // Monaco editor
+                    activeElement.closest('.cm-editor') ||
+                    activeElement.closest('.monaco-editor')) {
+                    return true;
+                }
+                
+                return false;
+            }
+            
             handleKeyDown(e) {
                 const config = this.magnifyGlass.config;
                 const state = this.magnifyGlass.state;
+                
+                // Don't handle hotkeys if user is typing in an input field (Smart Input Detection)
+                if (this.isUserTyping()) {
+                    return;
+                }
                 
                 // Magnifier activation
                 if (e.key.toLowerCase() === config.activationKey && 
@@ -982,10 +1048,43 @@ app.registerExtension({
                         e.preventDefault();
                     } else if (e.key.toLowerCase() === config.resetKey.toLowerCase() && 
                                (!config.altRequired || e.altKey)) { // Use configured reset key & check Alt
-                        // Reset offsets to zero
+                        // Reset magnify glass offsets to zero
                         config.offsetX = 0;
                         config.offsetY = 0;
                         offsetChanged = true;
+                        
+                        // Reset magnify glass position to top-right corner
+                        if (this.magnifyGlass.ui.glassDiv) {
+                            const glassSize = config.glassSize;
+                            const padding = 20; // Same padding as initial positioning
+                            this.magnifyGlass.ui.glassDiv.style.left = `${window.innerWidth - glassSize - padding}px`;
+                            this.magnifyGlass.ui.glassDiv.style.top = `${padding}px`;
+                            // Reset the activation flag so next time it uses default positioning
+                            this.magnifyGlass.state.wasActivatedBefore = false;
+                        }
+                        
+                        // Reset inspector panel position to default
+                        if (window.comfyUIMagnifyGlassExtensions && window.comfyUIMagnifyGlassExtensions.length > 0) {
+                            window.comfyUIMagnifyGlassExtensions.forEach(extension => {
+                                if (extension && extension.stateManager) {
+                                    // Reset panel to default position
+                                    extension.stateManager.state.isPanelPinned = false;
+                                    extension.stateManager.state.isPanelLocked = false;
+                                    extension.stateManager.state.pinnedPosition = { x: 0, y: 0 };
+                                    extension.stateManager.state.lastPinnedPosition = null;
+                                    
+                                    // Update panel position and controls
+                                    if (extension.positionManager) {
+                                        extension.positionManager.positionPanel();
+                                    }
+                                    if (extension.uiManager && extension.uiManager.updateControlStates) {
+                                        extension.uiManager.updateControlStates();
+                                    }
+                                }
+                            });
+                        }
+                        
+                        this.magnifyGlass.debugger.log("Reset: Magnify glass and inspector panel positions restored to top-right defaults");
                         e.preventDefault();
                     }
                     
@@ -1276,16 +1375,17 @@ app.registerExtension({
         // Add settings to the ComfyUI settings dialog
         app.ui.settings.addSetting({
             id: "🔍MagnifyGlass.ZoomFactor",
-            name: "🔍 Magnify Glass: Zoom Factor",
+            name: "🔍 Magnify Glass: Zoom Factor (%)",
             type: "slider",
             defaultValue: DEFAULT_SETTINGS["🔍MagnifyGlass.ZoomFactor"],
-            min: 1.0,
-            max: 10.0,
-            step: 0.1,
-            tooltip: "Magnification level (e.g., 2.5 means 2.5x zoom).",
+            min: 100,
+            max: 1000,
+            step: 25,
+            tooltip: "Magnification level as a percentage (e.g., 300 = 3x zoom, 150 = 1.5x zoom).",
             onChange: (value) => {
                 if (magnifyGlass && magnifyGlass.config) {
-                    magnifyGlass.config.zoomFactor = parseFloat(value);
+                    // Convert percentage to decimal (e.g., 300 -> 3.0)
+                    magnifyGlass.config.zoomFactor = value / 100;
                     if (magnifyGlass.state.active) {
                         magnifyGlass.updateMagnifiedView();
                     }
@@ -1320,11 +1420,11 @@ app.registerExtension({
             defaultValue: DEFAULT_SETTINGS["🔍MagnifyGlass.BorderWidth"],
             min: 0,
             max: 10,
-            step: 1,
-            tooltip: "Width of the border around the magnifying glass.",
+            step: 0.1,
+            tooltip: "Width of the border around the magnifying glass (supports decimal values like 0.5, 1.5, etc.).",
             onChange: (value) => {
                 if (magnifyGlass && magnifyGlass.config) {
-                    magnifyGlass.config.borderWidth = parseInt(value, 10);
+                    magnifyGlass.config.borderWidth = parseFloat(value);
                     magnifyGlass.applyUiChanges(); // Update border style
                 }
             }
@@ -1338,7 +1438,19 @@ app.registerExtension({
             tooltip: "Color of the border around the magnifying glass.",
             onChange: (value) => {
                 if (magnifyGlass && magnifyGlass.config) {
-                    magnifyGlass.config.borderColor = value;
+                    // Ensure color value includes # symbol for valid CSS
+                    const normalizedColor = value && !value.startsWith('#') ? `#${value}` : value;
+                    magnifyGlass.config.borderColor = normalizedColor;
+                    
+                    // Only save back if we actually normalized the color (to prevent recursion)
+                    if (value !== normalizedColor) {
+                        try {
+                            app.ui.settings.setSettingValue("🔍MagnifyGlass.BorderColor", normalizedColor);
+                        } catch (e) {
+                            console.warn('Failed to save normalized border color:', e);
+                        }
+                    }
+                    
                     magnifyGlass.applyUiChanges(); // Update border style
                 }
             }
@@ -1365,7 +1477,7 @@ app.registerExtension({
             type: "combo",
             options: [ { value: true, text: "Yes" }, { value: false, text: "No" } ],
             defaultValue: DEFAULT_SETTINGS["🔍MagnifyGlass.AltRequired"],
-            tooltip: "If Yes, Alt (Windows/Linux) or Option (Mac) must be held for activation and for reset.",
+            tooltip: "If Yes, Alt (Windows/Linux) or Option (Mac) must be held for activation and for reset. Not needed when 'Smart Input Detection' prevents hotkeys during typing.",
             onChange: (value) => {
                 if (magnifyGlass && magnifyGlass.config) {
                     magnifyGlass.config.altRequired = value;
@@ -1410,7 +1522,7 @@ app.registerExtension({
             type: "combo",
             options: ["r", "o", "p", "k", "l"], // Example keys, can be expanded
             defaultValue: DEFAULT_SETTINGS["🔍MagnifyGlass.ResetKey"],
-            tooltip: "The key (case-insensitive) to press to reset the view offset while the magnifier is active. Works with Alt/Option if 'Require Alt for Reset' is Yes.",
+            tooltip: "The key (case-insensitive) to press to reset the magnify glass offset and inspector panel position to their default locations while the magnifier is active. Works with Alt/Option if 'Require Alt for Reset' is Yes.",
             onChange: (value) => {
                 if (magnifyGlass && magnifyGlass.config) {
                     magnifyGlass.config.resetKey = value.toLowerCase();

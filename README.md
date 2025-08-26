@@ -108,7 +108,7 @@ Restart ComfyUI after installation. No additional `pip install` steps are typica
 3.  **Controls (while active)**:
     - **Arrow Keys**: Nudge the magnified view (adjusts `offsetX`/`offsetY`).
     - **Shift + Arrow Keys**: Nudge the magnified view by a larger step.
-    - **Reset Key (default 'R')**: Resets `offsetX` and `offsetY` to zero. (Configurable, respects the global "Require Alt/Option Key" setting).
+    - **Reset Key (default 'O')**: Resets `offsetX` and `offsetY` to zero. (Configurable, respects the global "Require Alt/Option Key" setting).
     - **Toggle Follow Key (default 'H')**: Toggles the `Follow Cursor` behavior on/off. (Configurable, respects the global "Require Alt/Option Key" setting).
 4.  **Configuration**:
     - Access all settings by clicking the ⚙️ (Settings) icon in ComfyUI, then find the "🔍 Magnify Glass" section.
@@ -122,13 +122,13 @@ All options are available in the ComfyUI settings dialog under the "🔍 Magnify
 
 | Option                               | Description                                                                                               | Default Value    |
 |--------------------------------------|-----------------------------------------------------------------------------------------------------------|------------------|
-| **Zoom Factor**                      | Magnification level (e.g., 2.5 means 2.5x zoom).                                                          | `3`              |
+| **Zoom Factor**                      | Magnification level (e.g., 250 means 2.5x zoom).                                                          | `3`              |
 | **Glass Size (px)**                  | Diameter of the magnifying glass in pixels.                                                               | `300`            |
-| **Border Width (px)**                | Width of the border around the magnifying glass.                                                          | `2`              |
+| **Border Width (px)**                | Width of the border around the magnifying glass.                                                          | `1`              |
 | **Border Color**                     | Color of the border around the magnifying glass.                                                          | `#ffffff`        |
-| **Activation Key**                   | The key (case-insensitive) to hold down to activate the magnifier.                                        | `x`              |
+| **Activation Key**                   | The key (case-insensitive) to press to activate the magnifier.                                        | `x`              |
 | **Require Alt/Option Key**           | If Yes, Alt (Windows/Linux) or Option (Mac) must be held for activation and for reset.                 | `No (false)`     |
-| **Follow Cursor Position**           | If Yes, the magnifier window moves with the cursor. If No, it stays where activated.                      | `Yes (true)`     |
+| **Follow Cursor Position**           | If Yes, the magnifier window moves with the cursor. If No, it stays where activated.                      | `No (false)`     |
 | **Offset Adjust Step (Graph Units)** | How many graph units the view shifts when pressing arrow keys (Shift+Arrow = 5x).                         | `5`              |
 | **Reset Offset Key**                 | The key to press to reset the view offset while active.                                                   | `o`              |
 | **Debug Mode**                       | Show detailed logging and the debug visualization overlay.                                                | `Disabled (false)`|
@@ -148,14 +148,14 @@ These settings control the behavior and appearance of the optional Info Panel.
 | **Info Panel** | Enable or disable the professional information panel. | `Enabled` |
 | **Info Panel Position** | Position of the info panel relative to the magnifying glass. | `Left` |
 | **Info Panel Width** | Width of the information panel in pixels. | `320` |
-| **Info Panel Opacity** | Opacity of the information panel background. | `0.95` |
+| **Info Panel Opacity** | Opacity of the information panel background. | `100` |
 | **Info Panel Max Height** | Maximum height of the information panel in pixels. | `500` |
-| **Info Panel Theme** | Color theme for the information panel. | `Dark` |
-| **Info Panel Animations**| Enable or disable animations for the info panel. | `Enabled` |
+| **Info Panel Theme** | Color theme for the information panel. | `Auto (based on Comfy Theme)` |
+| **Info Panel Animations**| Enable or disable animations for the info panel. | `Disabled` |
 | **Show Inspector Tab** | Show or hide the Inspector tab with cursor and canvas information. | `Disabled` |
 | **Info Panel Toggle Hotkey**| Key to toggle the info panel visibility while the magnifier is active. | `i` |
 | **Preview Toggle Hotkey**| Key to toggle the magnifying glass preview visibility. | `g` |
-| **Pin Panel Hotkey** | Key to use with Alt to pin the info panel at mouse location (e.g., Alt+P). | `p` |
+| **Pin Panel Hotkey** | Key to use with to pin the info panel at mouse location.| `u` |
 | **Show Hover Controls**| Show or hide hovering UI controls above the info panel. | `Enabled` |
 | **Controls Position** | Position of the floating control buttons relative to the info panel. | `bottom-centered` |
 
@@ -163,10 +163,9 @@ These settings control the behavior and appearance of the optional Info Panel.
 
 -   **Magnifier not appearing**:
     -   Ensure you are pressing the correct activation key combination (check settings for current keys).
-    -   Make sure ComfyUI has focus.
     -   Check the browser console (F12) for any errors related to "ComfyUI Magnifying Glass".
 -   **Performance issues on very complex graphs**:
-    -   While WebGL is used for efficiency, extremely complex scenes might still impact performance. Try reducing the `Glass Size` if issues occur.
+    -   While WebGL is used for efficiency, extremely complex scenes might impact performance. Try reducing the `Glass Size` if issues occur.
 -   **Text in widgets not sharp enough**:
     -   The HTML overlay feature aims to render text crisply. If you notice issues, ensure your browser zoom is at 100%.
 

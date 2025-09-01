@@ -117,14 +117,14 @@ app.registerExtension({
                 
                 initThemeDetection() {
                     // Immediate forced detection
-                    console.log('ComfyUI Magnify Glass: Starting theme detection...');
+                    // console.log('ComfyUI Magnify Glass: Starting theme detection...');
                     
                     // Detect ComfyUI's current theme
                     this.detectCurrentTheme();
                     
                     // Force an immediate check in case we missed the initial state
                     setTimeout(() => {
-                        console.log('ComfyUI Magnify Glass: Delayed theme check...');
+                        // console.log('ComfyUI Magnify Glass: Delayed theme check...');
                         if (this.detectCurrentTheme()) {
                             this.notifyThemeChange();
                         }
@@ -179,7 +179,7 @@ app.registerExtension({
                         }
                     }
                     
-                    console.log('ComfyUI Magnify Glass: Comprehensive theme detection debug:', debugInfo);
+                    // console.log('ComfyUI Magnify Glass: Comprehensive theme detection debug:', debugInfo);
                     
                     // Method 1: Look for specific light theme indicators in CSS variables
                     const primarySurface = rootStyles.getPropertyValue('--p-primary-color') || 
@@ -197,7 +197,7 @@ app.registerExtension({
                                      bodyStyles.getPropertyValue('--p-text-color') ||
                                      bodyStyles.getPropertyValue('--text-color');
                     
-                    console.log('ComfyUI Magnify Glass: CSS Variables:', { primarySurface, surfaceGround, textColor });
+                    // console.log('ComfyUI Magnify Glass: CSS Variables:', { primarySurface, surfaceGround, textColor });
                     
                     // Method 2: Analyze background colors of multiple elements
                     const backgrounds = allElements.map(el => {
@@ -209,7 +209,7 @@ app.registerExtension({
                         };
                     });
                     
-                    console.log('ComfyUI Magnify Glass: Background analysis:', backgrounds);
+                    // console.log('ComfyUI Magnify Glass: Background analysis:', backgrounds);
                     
                     // Method 3: Check for light backgrounds
                     for (const bg of backgrounds) {
@@ -218,10 +218,10 @@ app.registerExtension({
                             if (rgbMatch) {
                                 const [, r, g, b] = rgbMatch.map(Number);
                                 const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-                                console.log(`ComfyUI Magnify Glass: Element ${bg.element} brightness: ${brightness}`);
+                                // console.log(`ComfyUI Magnify Glass: Element ${bg.element} brightness: ${brightness}`);
                                 if (brightness > 180) { // Higher threshold for light detection
                                     detectedTheme = 'light';
-                                    console.log(`ComfyUI Magnify Glass: Light theme detected via background analysis of ${bg.element}`);
+                                    // console.log(`ComfyUI Magnify Glass: Light theme detected via background analysis of ${bg.element}`);
                                     break;
                                 }
                             }
@@ -231,12 +231,7 @@ app.registerExtension({
                     // Method 4: Check for theme toggle buttons state (they might indicate current theme)
                     const themeButtons = document.querySelectorAll('[class*="theme"], button[title*="theme"], button[title*="Theme"], .p-button[title*="light"], .p-button[title*="Light"]');
                     themeButtons.forEach(btn => {
-                        console.log('ComfyUI Magnify Glass: Found theme button:', {
-                            classes: Array.from(btn.classList),
-                            text: btn.textContent,
-                            title: btn.title,
-                            active: btn.classList.contains('active') || btn.classList.contains('selected')
-                        });
+                        // console.log('ComfyUI Magnify Glass: Found theme button:', btn);
                     });
                     
                     // Method 5: Force light theme detection if we see light backgrounds
@@ -255,7 +250,7 @@ app.registerExtension({
                                     const brightness = (r * 299 + g * 587 + b * 114) / 1000;
                                     if (brightness > 200) { // Very light elements
                                         detectedTheme = 'light';
-                                        console.log(`ComfyUI Magnify Glass: Light theme forced via element ${el.tagName}.${el.className} with brightness ${brightness}`);
+                                        // console.log(`ComfyUI Magnify Glass: Light theme forced via element ${el.tagName}.${el.className} with brightness ${brightness}`);
                                         break;
                                     }
                                 }
@@ -265,12 +260,12 @@ app.registerExtension({
                     
                     // Update theme if it changed
                     if (this.state.currentTheme !== detectedTheme) {
-                        console.log(`ComfyUI Magnify Glass: Theme changed from ${this.state.currentTheme} to ${detectedTheme}`);
+                        // console.log(`ComfyUI Magnify Glass: Theme changed from ${this.state.currentTheme} to ${detectedTheme}`);
                         this.state.currentTheme = detectedTheme;
                         return true; // Theme changed
                     }
                     
-                    console.log(`ComfyUI Magnify Glass: Current theme remains: ${detectedTheme}`);
+                    // console.log(`ComfyUI Magnify Glass: Current theme remains: ${detectedTheme}`);
                     return false; // No change
                 }
                 
@@ -284,12 +279,12 @@ app.registerExtension({
                                  mutation.attributeName === 'data-theme' ||
                                  mutation.attributeName === 'style')) {
                                 shouldCheck = true;
-                                console.log('ComfyUI Magnify Glass: DOM change detected:', {
-                                    target: mutation.target.tagName,
-                                    attribute: mutation.attributeName,
-                                    oldValue: mutation.oldValue,
-                                    newValue: mutation.target.getAttribute(mutation.attributeName)
-                                });
+                                // console.log('ComfyUI Magnify Glass: DOM change detected:', {
+                                //     target: mutation.target.tagName,
+                                //     attribute: mutation.attributeName,
+                                //     oldValue: mutation.oldValue,
+                                //     newValue: mutation.target.getAttribute(mutation.attributeName)
+                                // });
                             }
                         });
                         
@@ -334,7 +329,7 @@ app.registerExtension({
                                             target.className?.toLowerCase().includes('theme');
                         
                         if (isThemeButton) {
-                            console.log('ComfyUI Magnify Glass: Theme button clicked, triggering detection');
+                            // console.log('ComfyUI Magnify Glass: Theme button clicked, triggering detection');
                             setTimeout(() => {
                                 if (this.detectCurrentTheme()) {
                                     this.notifyThemeChange();
@@ -386,13 +381,13 @@ app.registerExtension({
                 
                 togglePanelVisibility() {
                     this.state.isPanelVisible = !this.state.isPanelVisible;
-                    console.log(`Info panel visibility toggled to ${this.state.isPanelVisible ? 'visible' : 'hidden'}`);
+                    // console.log(`Info panel visibility toggled to ${this.state.isPanelVisible ? 'visible' : 'hidden'}`);
                     return this.state.isPanelVisible;
                 }
                 
                 toggleGlassPreview() {
                     this.state.isGlassPreviewVisible = !this.state.isGlassPreviewVisible;
-                    console.log(`Glass preview visibility toggled to ${this.state.isGlassPreviewVisible ? 'visible' : 'hidden'}`);
+                    // console.log(`Glass preview visibility toggled to ${this.state.isGlassPreviewVisible ? 'visible' : 'hidden'}`);
                     return this.state.isGlassPreviewVisible;
                 }
                 
@@ -409,26 +404,26 @@ app.registerExtension({
                     if (this.state.isPanelPinned && this.state.lastPinnedPosition) {
                         // Restore to last pinned position
                         this.state.pinnedPosition = { ...this.state.lastPinnedPosition };
-                        console.log(`Panel pinned at remembered position: (${this.state.pinnedPosition.x}, ${this.state.pinnedPosition.y})`);
+                        // console.log(`Panel pinned at remembered position: (${this.state.pinnedPosition.x}, ${this.state.pinnedPosition.y})`);
                     } else if (!this.state.isPanelPinned && wasPinned) {
                         // Save current position when unpinning
                         this.state.lastPinnedPosition = { ...this.state.pinnedPosition };
-                        console.log(`Panel unpinned, position saved: (${this.state.lastPinnedPosition.x}, ${this.state.lastPinnedPosition.y})`);
+                        // console.log(`Panel unpinned, position saved: (${this.state.lastPinnedPosition.x}, ${this.state.lastPinnedPosition.y})`);
                     }
                     
-                    console.log(`Panel ${this.state.isPanelPinned ? 'pinned' : 'unpinned'}`);
+                    // console.log(`Panel ${this.state.isPanelPinned ? 'pinned' : 'unpinned'}`);
                     return this.state.isPanelPinned;
                 }
                 
                 toggleLocking() {
                     // Only allow locking when pinned
                     if (!this.state.isPanelPinned) {
-                        console.log("Cannot lock panel when not pinned");
+                        // console.log("Cannot lock panel when not pinned");
                         return false;
                     }
                     
                     this.state.isPanelLocked = !this.state.isPanelLocked;
-                    console.log(`Panel ${this.state.isPanelLocked ? 'locked' : 'unlocked'}`);
+                    // console.log(`Panel ${this.state.isPanelLocked ? 'locked' : 'unlocked'}`);
                     return this.state.isPanelLocked;
                 }
                 
@@ -706,7 +701,7 @@ app.registerExtension({
                 updateTheme(newTheme) {
                     if (this.elements.panel) {
                         this.elements.panel.className = this.elements.panel.className.replace(/theme-\w+/, `theme-${newTheme.toLowerCase()}`);
-                        console.log(`ComfyUI Magnify Glass: Panel theme updated to ${newTheme}`);
+                        // console.log(`ComfyUI Magnify Glass: Panel theme updated to ${newTheme}`);
                     }
                 }
                 
@@ -2109,7 +2104,7 @@ app.registerExtension({
                             return;
                         }
 
-                        console.log('[DRAG] Starting drag');
+                        // console.log('[DRAG] Starting drag');
                         
                         // Stop all event propagation immediately
                         e.preventDefault();
@@ -2133,7 +2128,7 @@ app.registerExtension({
                         document.body.style.cursor = 'grabbing';
                         document.body.style.userSelect = 'none';
 
-                        console.log('[DRAG] Drag started at:', { x: dragState.currentX, y: dragState.currentY });
+                        // console.log('[DRAG] Drag started at:', { x: dragState.currentX, y: dragState.currentY });
                     };
 
                     // Handle drag movement
@@ -2171,14 +2166,14 @@ app.registerExtension({
                             this.positionManager.positionFloatingControls();
                         }
 
-                        console.log('[DRAG] Moving to:', { x: boundedX, y: boundedY });
+                        // console.log('[DRAG] Moving to:', { x: boundedX, y: boundedY });
                     };
 
                     // End drag
                     const endDrag = (e) => {
                         if (!dragState.isDragging) return;
 
-                        console.log('[DRAG] Ending drag');
+                        // console.log('[DRAG] Ending drag');
 
                         e.preventDefault();
                         e.stopImmediatePropagation();
@@ -2191,7 +2186,7 @@ app.registerExtension({
                         if (moved) {
                             // Save the final position
                             this.stateManager.setPinnedPosition(dragState.currentX, dragState.currentY);
-                            console.log('[DRAG] Position saved:', { x: dragState.currentX, y: dragState.currentY });
+                            // console.log('[DRAG] Position saved:', { x: dragState.currentX, y: dragState.currentY });
                         }
 
                         // Reset state
@@ -2209,7 +2204,7 @@ app.registerExtension({
                     const cancelDrag = () => {
                         if (!dragState.isDragging) return;
 
-                        console.log('[DRAG] Cancelling drag');
+                        // console.log('[DRAG] Cancelling drag');
 
                         // Restore original position from pinned state
                         const { x, y } = this.stateManager.state.pinnedPosition;
@@ -2260,7 +2255,7 @@ app.registerExtension({
                         }
                     });
 
-                    console.log('[DRAG] Event listeners attached with capture mode');
+                    // console.log('[DRAG] Event listeners attached with capture mode');
 
                     // Store cleanup function
                     this.dragCleanup = () => {
@@ -2290,7 +2285,7 @@ app.registerExtension({
                     // Capture current position when pinning is activated
                     const panelRect = this.uiManager.elements.panel.getBoundingClientRect();
                     this.stateManager.setPinnedPosition(panelRect.left, panelRect.top);
-                    console.log(`Panel pinned at current position: (${panelRect.left}, ${panelRect.top})`);
+                    // console.log(`Panel pinned at current position: (${panelRect.left}, ${panelRect.top})`);
                 }
                 
                 handleControlAction(action) {
@@ -2348,7 +2343,7 @@ app.registerExtension({
                             
                             this.uiManager.updatePinnedState();
                             this.positionManager.positionPanel();
-                            console.log(`Panel pinned at mouse location: (${pinX}, ${pinY}) using Alt+${pinKey.toUpperCase()}`);
+                            // console.log(`Panel pinned at mouse location: (${pinX}, ${pinY}) using Alt+${pinKey.toUpperCase()}`);
                             break;
                             
                         case 'toggle-panel':

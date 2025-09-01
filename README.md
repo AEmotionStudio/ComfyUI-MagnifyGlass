@@ -1,6 +1,6 @@
 # ComfyUI-MagnifyGlass
 
-![Version](https://img.shields.io/badge/version-1.4.4-blue.svg)
+![Version](https://img.shields.io/badge/version-1.4.5-blue.svg)
 ![ComfyUI](https://img.shields.io/badge/ComfyUI-compatible-green)
 ![License](https://img.shields.io/badge/license-GPL--3.0-brightgreen.svg)
 ![Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen.svg)

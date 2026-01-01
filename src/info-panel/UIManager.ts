@@ -129,6 +129,12 @@ export class UIManager {
         // Insert before the panel in the document body, not as a child
         document.body.appendChild(this.elements.controls);
 
+        // Hide and position off-screen initially - will be shown when magnify glass activates and positions them
+        this.elements.controls.style.display = 'none';
+        this.elements.controls.style.visibility = 'hidden';
+        this.elements.controls.style.left = '-9999px';
+        this.elements.controls.style.top = '-9999px';
+
         // Add click event delegation for control buttons
         this.elements.controls.addEventListener('click', (e: MouseEvent) => {
             const target = e.target as HTMLElement;
@@ -288,9 +294,7 @@ export class UIManager {
 
         if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"]) {
             this.elements.panel.style.display = "block";
-            if (this.elements.controls) {
-                this.elements.controls.style.display = "flex";
-            }
+            // Controls are shown by positionFloatingControls() after proper positioning
             // Apply user's opacity setting when showing (convert percentage to decimal)
             const opacityPercent = this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelOpacity"];
             this.elements.panel.style.opacity = (opacityPercent / 100).toString();

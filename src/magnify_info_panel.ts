@@ -42,13 +42,7 @@ function initializeInfoPanel() {
         // Expose orchestrator globally if needed
         window.infoPanelManager = infoPanel as any;
 
-        // Load CSS
-        const link = document.createElement("link");
-        link.rel = "stylesheet";
-        link.type = "text/css";
-        link.href = "extensions/comfyui-magnifyglass/style.css";
-        document.head.appendChild(link);
-        console.log("ComfyUI Magnify Info Panel: CSS loaded");
+        // CSS is loaded by UIManager.injectStyles() - no need to load separately
 
         console.log("ComfyUI Magnify Info Panel: Extension initialized");
     } catch (e) {

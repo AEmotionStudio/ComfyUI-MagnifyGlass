@@ -171,7 +171,8 @@
 
 .floating-controls {
     position: fixed;
-    display: flex;
+    display: none;
+    /* Hidden initially - JS will show when positioned */
     padding: 4px;
     background: rgba(40, 40, 50, 0.95);
     border: 1px solid rgba(255, 255, 255, 0.3);

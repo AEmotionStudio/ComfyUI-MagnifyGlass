@@ -141,5 +141,9 @@ export class PositionManager {
 
         controlsElement.style.left = `${left}px`;
         controlsElement.style.top = `${top}px`;
+
+        // Show controls now that they're positioned (initially hidden off-screen)
+        controlsElement.style.display = 'flex';
+        controlsElement.style.visibility = 'visible';
     }
 }

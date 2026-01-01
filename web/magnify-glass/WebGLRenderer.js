@@ -72,7 +72,14 @@ class WebGLRenderer {
     if (!this.ui.glassCanvas) return;
     this.gl = this.ui.glassCanvas.getContext("webgl", { preserveDrawingBuffer: true });
     if (!this.gl) {
+      this.gl = this.ui.glassCanvas.getContext("webgl2", { preserveDrawingBuffer: true });
+    }
+    if (!this.gl) {
+      const isFirefox = navigator.userAgent.toLowerCase().includes("firefox");
+      const browserInstructions = isFirefox ? "Firefox: Go to about:config, search for 'webgl.disabled' and set it to 'false', then restart Firefox." : "Check your browser settings to ensure WebGL is enabled.";
       console.error("ComfyUI Magnifying Glass ERROR: WebGL not supported or context creation failed.");
+      console.error(`To fix: ${browserInstructions}`);
+      this.showWebGLError(browserInstructions);
       return;
     }
     this.program = this.createShaderProgram(this.gl, this.vertexShaderSource, this.fragmentShaderSource);
@@ -256,6 +263,63 @@ class WebGLRenderer {
     if (this.gl) {
       this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
     }
+  }
+  /**
+   * Show WebGL error notification to user.
+   * @param instructions - Browser-specific instructions to fix
+   */
+  showWebGLError(instructions) {
+    const toast = document.createElement("div");
+    toast.id = "magnifyglass-webgl-error";
+    toast.style.cssText = `
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            max-width: 400px;
+            padding: 16px 20px;
+            background: linear-gradient(135deg, #ff4444 0%, #cc3333 100%);
+            color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            font-family: system-ui, -apple-system, sans-serif;
+            font-size: 14px;
+            line-height: 1.5;
+            z-index: 100000;
+            animation: slideIn 0.3s ease-out;
+        `;
+    toast.innerHTML = `
+            <div style="display: flex; align-items: flex-start; gap: 12px;">
+                <span style="font-size: 24px;">⚠️</span>
+                <div>
+                    <strong style="display: block; margin-bottom: 6px;">MagnifyGlass: WebGL Disabled</strong>
+                    <span style="opacity: 0.9;">${instructions}</span>
+                    <button onclick="this.parentElement.parentElement.parentElement.remove()" 
+                            style="display: block; margin-top: 10px; padding: 6px 12px; background: rgba(255,255,255,0.2); 
+                                   border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; color: white; 
+                                   cursor: pointer; font-size: 12px;">
+                        Dismiss
+                    </button>
+                </div>
+            </div>
+        `;
+    if (!document.getElementById("magnifyglass-toast-style")) {
+      const style = document.createElement("style");
+      style.id = "magnifyglass-toast-style";
+      style.textContent = `
+                @keyframes slideIn {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+            `;
+      document.head.appendChild(style);
+    }
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      if (toast.parentElement) {
+        toast.style.animation = "slideIn 0.3s ease-out reverse";
+        setTimeout(() => toast.remove(), 300);
+      }
+    }, 15e3);
   }
 }
 export {

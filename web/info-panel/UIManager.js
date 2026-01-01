@@ -85,6 +85,10 @@ class UIManager {
             <button class="control-btn glass-btn" title="Toggle Glass Preview (G)" data-action="toggle-glass">${Icons.magnifyGlass}</button>
         `;
     document.body.appendChild(this.elements.controls);
+    this.elements.controls.style.display = "none";
+    this.elements.controls.style.visibility = "hidden";
+    this.elements.controls.style.left = "-9999px";
+    this.elements.controls.style.top = "-9999px";
     this.elements.controls.addEventListener("click", (e) => {
       const target = e.target;
       const button = target.closest("button[data-action]");
@@ -213,9 +217,6 @@ class UIManager {
     if (!this.elements.panel) return;
     if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"]) {
       this.elements.panel.style.display = "block";
-      if (this.elements.controls) {
-        this.elements.controls.style.display = "flex";
-      }
       const opacityPercent = this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelOpacity"];
       this.elements.panel.style.opacity = (opacityPercent / 100).toString();
       this.elements.panel.offsetHeight;

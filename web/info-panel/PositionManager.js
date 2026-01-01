@@ -115,6 +115,8 @@ class PositionManager {
     top = Math.max(10, Math.min(top, window.innerHeight - controlsElement.offsetHeight - 10));
     controlsElement.style.left = `${left}px`;
     controlsElement.style.top = `${top}px`;
+    controlsElement.style.display = "flex";
+    controlsElement.style.visibility = "visible";
   }
 }
 export {

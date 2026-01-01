@@ -22,12 +22,6 @@ function initializeInfoPanel() {
   try {
     const infoPanel = new InfoPanel(magnifyGlass);
     window.infoPanelManager = infoPanel;
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.type = "text/css";
-    link.href = "extensions/comfyui-magnifyglass/style.css";
-    document.head.appendChild(link);
-    console.log("ComfyUI Magnify Info Panel: CSS loaded");
     console.log("ComfyUI Magnify Info Panel: Extension initialized");
   } catch (e) {
     console.error("ComfyUI Magnify Info Panel: Error during initialization:", e);

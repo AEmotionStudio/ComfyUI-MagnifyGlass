@@ -196,6 +196,7 @@ export interface ComfyCanvas {
 declare global {
     interface Window {
         comfyUIMagnifyGlass?: MagnifyGlassInstance;
+        magnifyGlass?: MagnifyGlassInstance; // Alias used by info panel controls
         comfyUIMagnifyGlassExtensions?: unknown[];
         infoPanelManager?: { uiManager?: { updateTheme: (theme: string) => void } };
     }

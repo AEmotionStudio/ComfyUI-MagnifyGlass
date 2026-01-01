@@ -1,6 +1,7 @@
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
+import { Icons } from "../shared/icons.js";
 class UIManager {
   constructor(stateManager) {
     __publicField(this, "stateManager");
@@ -26,12 +27,12 @@ class UIManager {
     this.elements.header.className = "panel-header";
     this.elements.header.innerHTML = `
             <div class="header-content">
-                <div class="header-icon">🔍</div>
+                <div class="header-icon">${Icons.magnifyGlass}</div>
                 <div class="header-title">Inspector</div>
                 <div class="header-subtitle">Real-time analysis</div>
             </div>
             <div class="header-controls">
-                <button class="control-btn minimize-btn" title="Minimize Panel" data-action="minimize">−</button>
+                <button class="control-btn minimize-btn" title="Minimize Panel" data-action="minimize">${Icons.minus}</button>
             </div>
         `;
     this.elements.content = document.createElement("div");
@@ -40,6 +41,32 @@ class UIManager {
     this.elements.panel.appendChild(this.elements.content);
     this.applyStyles();
     document.body.appendChild(this.elements.panel);
+    this.elements.panel.addEventListener("click", (e) => {
+      const target = e.target;
+      const minimizeBtn = target.closest('[data-action="minimize"]');
+      if (minimizeBtn) {
+        this.stateManager.state.isPanelMinimized = !this.stateManager.state.isPanelMinimized;
+        this.updateMinimizedState();
+        return;
+      }
+      const sectionHeader = target.closest(".section-header");
+      if (sectionHeader) {
+        const sectionId = sectionHeader.getAttribute("data-section");
+        if (sectionId && sectionId !== "node") {
+          const isExpanded = this.stateManager.state.expandedSections.has(sectionId);
+          if (isExpanded) {
+            this.stateManager.state.expandedSections.delete(sectionId);
+          } else {
+            this.stateManager.state.expandedSections.add(sectionId);
+          }
+          sectionHeader.classList.toggle("expanded", !isExpanded);
+          const sectionContent = sectionHeader.nextElementSibling;
+          if (sectionContent && sectionContent.classList.contains("section-content")) {
+            sectionContent.classList.toggle("expanded", !isExpanded);
+          }
+        }
+      }
+    });
     if (this.stateManager.state.settings["🔍MagnifyGlass.ShowHoveringControls"]) {
       this.createFloatingControls();
       this.updateControlStates();
@@ -52,12 +79,52 @@ class UIManager {
     this.elements.controls = document.createElement("div");
     this.elements.controls.className = "floating-controls vertical-layout";
     this.elements.controls.innerHTML = `
-            <button class="control-btn pin-btn" title="Unlock Panel to Mouse Location (U)" data-action="pin">🔓</button>
-            <button class="control-btn lock-btn" title="Lock Panel Position" data-action="lock">📌</button>
-            <button class="control-btn visibility-btn" title="Toggle Panel Visibility (I)" data-action="toggle-panel">👁️</button>
-            <button class="control-btn glass-btn" title="Toggle Glass Preview (G)" data-action="toggle-glass">🔍</button>
+            <button class="control-btn pin-btn" title="Unlock Panel to Mouse Location (U)" data-action="pin">${Icons.unlock}</button>
+            <button class="control-btn lock-btn" title="Lock Panel Position" data-action="lock">${Icons.pin}</button>
+            <button class="control-btn visibility-btn" title="Toggle Panel Visibility (I)" data-action="toggle-panel">${Icons.eye}</button>
+            <button class="control-btn glass-btn" title="Toggle Glass Preview (G)" data-action="toggle-glass">${Icons.magnifyGlass}</button>
         `;
     document.body.appendChild(this.elements.controls);
+    this.elements.controls.addEventListener("click", (e) => {
+      const target = e.target;
+      const button = target.closest("button[data-action]");
+      if (!button) return;
+      const action = button.getAttribute("data-action");
+      console.log(`[InfoPanel] Control button clicked: ${action}`);
+      switch (action) {
+        case "pin":
+          this.stateManager.togglePinning();
+          this.updatePinnedState();
+          this.updateControlStates();
+          break;
+        case "lock":
+          this.stateManager.state.isPanelLocked = !this.stateManager.state.isPanelLocked;
+          this.updateControlStates();
+          if (this.elements.panel) {
+            this.elements.panel.classList.toggle("panel-locked", this.stateManager.state.isPanelLocked);
+          }
+          break;
+        case "toggle-panel":
+          if (this.stateManager.state.isPanelVisible) {
+            this.hide();
+          } else {
+            this.show();
+          }
+          this.updateControlStates();
+          break;
+        case "toggle-glass":
+          this.stateManager.state.isGlassPreviewVisible = !this.stateManager.state.isGlassPreviewVisible;
+          this.updateControlStates();
+          if (window.magnifyGlass) {
+            if (this.stateManager.state.isGlassPreviewVisible) {
+              window.magnifyGlass.ui.show();
+            } else {
+              window.magnifyGlass.ui.hide();
+            }
+          }
+          break;
+      }
+    });
     const controlsPosition = this.stateManager.state.settings["🔍MagnifyGlass.ControlsPosition"] || "top-right";
     this.updateControlsLayout(controlsPosition);
   }
@@ -73,7 +140,7 @@ class UIManager {
     if (pinBtn) {
       pinBtn.classList.toggle("active", this.stateManager.state.isPanelPinned);
       pinBtn.title = this.stateManager.state.isPanelPinned ? "Lock Panel" : "Unlock Panel";
-      pinBtn.textContent = this.stateManager.state.isPanelPinned ? "🔒" : "🔓";
+      pinBtn.innerHTML = this.stateManager.state.isPanelPinned ? Icons.lock : Icons.unlock;
     }
     if (lockBtn) {
       lockBtn.style.display = this.stateManager.state.isPanelPinned ? "flex" : "none";
@@ -228,7 +295,7 @@ class UIManager {
       ];
       sections.push({
         id: "inspector",
-        icon: "🔍",
+        icon: Icons.info,
         title: "Inspector",
         content: inspectorContent
       });
@@ -243,7 +310,7 @@ class UIManager {
       }
       sections.push({
         id: "media",
-        icon: "📷",
+        icon: Icons.camera,
         title: "Media",
         badge: info.media.tagName,
         content: mediaContent
@@ -282,7 +349,7 @@ class UIManager {
       nodeContent.push(...importantParameters);
       sections.push({
         id: "node",
-        icon: "🎯",
+        icon: Icons.box,
         title: "Node",
         badge: info.hoveredNode.type,
         content: nodeContent
@@ -299,7 +366,7 @@ class UIManager {
     if (sections.length === 0) {
       this.elements.content.innerHTML = `
                 <div class="empty-state">
-                    <div class="empty-state-icon">📍</div>
+                    <div class="empty-state-icon">${Icons.mapPin}</div>
                     <div class="empty-state-text">Empty canvas area</div>
                 </div>
             `;
@@ -311,7 +378,7 @@ class UIManager {
                     <span class="section-icon">${section.icon}</span>
                     <span class="section-title">${section.title}</span>
                     ${section.badge ? `<span class="section-badge">${section.badge}</span>` : ""}
-                    ${section.id !== "node" ? '<span class="expand-icon">▶</span>' : ""}
+                    ${section.id !== "node" ? `<span class="expand-icon">${Icons.chevronRight}</span>` : ""}
                 </div>
                 <div class="section-content">
                     <div class="section-body">

@@ -4,6 +4,44 @@
  * Complete CSS styles for the info panel component.
  */
 
+/* SVG Icon Styling */
+.magnify-info-panel svg,
+.floating-controls svg {
+    width: 1em;
+    height: 1em;
+    vertical-align: middle;
+    fill: none;
+    stroke: currentColor;
+    pointer-events: none;
+    /* Allow clicks to pass through to button */
+}
+
+.header-icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+.section-icon svg {
+    width: 18px;
+    height: 18px;
+}
+
+.control-btn svg {
+    width: 14px;
+    height: 14px;
+}
+
+.expand-icon svg {
+    width: 12px;
+    height: 12px;
+}
+
+.empty-state-icon svg {
+    width: 36px;
+    height: 36px;
+    stroke-width: 1.5;
+}
+
 .magnify-info-panel {
     border-radius: 12px;
     backdrop-filter: blur(20px);

@@ -200,6 +200,9 @@ export class UIManager {
         // Set initial layout based on settings
         const controlsPosition = this.stateManager.state.settings["🔍MagnifyGlass.ControlsPosition"] || "top-right";
         this.updateControlsLayout(controlsPosition);
+
+        // Initial state update
+        this.updateControlStates();
     }
 
     /**
@@ -219,17 +222,27 @@ export class UIManager {
             pinBtn.innerHTML = this.stateManager.state.isPanelPinned ? Icons.lock : Icons.unlock;
         }
 
+        // Hide unlock/pin buttons when panel is not visible
+        const isPanelVisible = this.stateManager.state.isPanelVisible;
+
+        if (pinBtn) {
+            // Hide unlock button when panel is hidden
+            pinBtn.style.display = isPanelVisible ? 'flex' : 'none';
+        }
+
         if (lockBtn) {
-            // Only show/enable lock button when pinned
-            lockBtn.style.display = this.stateManager.state.isPanelPinned ? 'flex' : 'none';
+            // Only show pin button when panel is visible AND unlocked from glass
+            const showLockBtn = isPanelVisible && this.stateManager.state.isPanelPinned;
+            lockBtn.style.display = showLockBtn ? 'flex' : 'none';
             lockBtn.classList.toggle('active', this.stateManager.state.isPanelLocked);
-            lockBtn.title = this.stateManager.state.isPanelLocked ? "Upin Panel Position" : "Pin Panel Position";
+            lockBtn.title = this.stateManager.state.isPanelLocked ? "Unpin Panel Position" : "Pin Panel Position";
             lockBtn.disabled = !this.stateManager.state.isPanelPinned;
         }
 
         if (visibilityBtn) {
-            visibilityBtn.classList.toggle('active', this.stateManager.state.isPanelVisible);
-            visibilityBtn.title = this.stateManager.state.isPanelVisible ? "Show Panel" : "Hide Panel";
+            // Active means "Panel is Visible"
+            visibilityBtn.classList.toggle('active', isPanelVisible);
+            visibilityBtn.title = isPanelVisible ? "Hide Panel" : "Show Panel";
         }
 
         if (glassBtn) {
@@ -319,6 +332,7 @@ export class UIManager {
             this.elements.panel.offsetHeight;
             this.elements.panel.classList.add('visible');
             this.stateManager.state.isPanelVisible = true;
+            this.updateControlStates();
         }
     }
 
@@ -332,12 +346,14 @@ export class UIManager {
         setTimeout(() => {
             if (!this.stateManager.state.isPanelVisible && this.elements.panel) {
                 this.elements.panel.style.display = "none";
-                if (this.elements.controls) {
-                    this.elements.controls.style.display = "none";
-                }
+                // Do NOT hide controls when panel is hidden - they should remain visible on glass
+                // if (this.elements.controls) {
+                //    this.elements.controls.style.display = "none";
+                // }
             }
         }, this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelAnimations"] ? 300 : 0);
         this.stateManager.state.isPanelVisible = false;
+        this.updateControlStates();
     }
 
     /**

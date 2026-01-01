@@ -98,36 +98,48 @@ class PositionManager {
    * Position the floating controls relative to the panel.
    */
   positionFloatingControls(controlsElement) {
-    if (!controlsElement || !this.panelElement) return;
-    const panelRect = this.panelElement.getBoundingClientRect();
+    if (!controlsElement) return;
+    const isPanelVisible = this.stateManager.state.isPanelVisible;
+    const magnifyGlass = window.comfyUIMagnifyGlass;
+    let referenceRect = null;
+    if (isPanelVisible && this.panelElement) {
+      referenceRect = this.panelElement.getBoundingClientRect();
+    } else if (magnifyGlass && magnifyGlass.ui && magnifyGlass.ui.glassDiv) {
+      referenceRect = magnifyGlass.ui.glassDiv.getBoundingClientRect();
+      if (referenceRect.width === 0 || referenceRect.height === 0) {
+        controlsElement.style.display = "none";
+        return;
+      }
+    }
+    if (!referenceRect) return;
     const controlsPosition = this.stateManager.state.settings["🔍MagnifyGlass.ControlsPosition"] || "right";
     const margin = 8;
     let left;
     let top;
     switch (controlsPosition) {
       case "left":
-        left = panelRect.left - controlsElement.offsetWidth - margin;
-        top = panelRect.top;
+        left = referenceRect.left - controlsElement.offsetWidth - margin;
+        top = referenceRect.top;
         break;
       case "right":
-        left = panelRect.right + margin;
-        top = panelRect.top;
+        left = referenceRect.right + margin;
+        top = referenceRect.top;
         break;
       case "top":
-        left = panelRect.left;
-        top = panelRect.top - controlsElement.offsetHeight - margin;
+        left = referenceRect.left;
+        top = referenceRect.top - controlsElement.offsetHeight - margin;
         break;
       case "bottom":
-        left = panelRect.left;
-        top = panelRect.bottom + margin;
+        left = referenceRect.left;
+        top = referenceRect.bottom + margin;
         break;
       case "top-right":
-        left = panelRect.right - controlsElement.offsetWidth;
-        top = panelRect.top - controlsElement.offsetHeight - margin;
+        left = referenceRect.right - controlsElement.offsetWidth;
+        top = referenceRect.top - controlsElement.offsetHeight - margin;
         break;
       default:
-        left = panelRect.right + margin;
-        top = panelRect.top;
+        left = referenceRect.right + margin;
+        top = referenceRect.top;
     }
     left = Math.max(10, Math.min(left, window.innerWidth - controlsElement.offsetWidth - 10));
     top = Math.max(10, Math.min(top, window.innerHeight - controlsElement.offsetHeight - 10));

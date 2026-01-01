@@ -131,6 +131,7 @@ class UIManager {
     });
     const controlsPosition = this.stateManager.state.settings["🔍MagnifyGlass.ControlsPosition"] || "top-right";
     this.updateControlsLayout(controlsPosition);
+    this.updateControlStates();
   }
   /**
    * Update control button states.
@@ -146,15 +147,20 @@ class UIManager {
       pinBtn.title = this.stateManager.state.isPanelPinned ? "Lock Panel" : "Unlock Panel";
       pinBtn.innerHTML = this.stateManager.state.isPanelPinned ? Icons.lock : Icons.unlock;
     }
+    const isPanelVisible = this.stateManager.state.isPanelVisible;
+    if (pinBtn) {
+      pinBtn.style.display = isPanelVisible ? "flex" : "none";
+    }
     if (lockBtn) {
-      lockBtn.style.display = this.stateManager.state.isPanelPinned ? "flex" : "none";
+      const showLockBtn = isPanelVisible && this.stateManager.state.isPanelPinned;
+      lockBtn.style.display = showLockBtn ? "flex" : "none";
       lockBtn.classList.toggle("active", this.stateManager.state.isPanelLocked);
-      lockBtn.title = this.stateManager.state.isPanelLocked ? "Upin Panel Position" : "Pin Panel Position";
+      lockBtn.title = this.stateManager.state.isPanelLocked ? "Unpin Panel Position" : "Pin Panel Position";
       lockBtn.disabled = !this.stateManager.state.isPanelPinned;
     }
     if (visibilityBtn) {
-      visibilityBtn.classList.toggle("active", this.stateManager.state.isPanelVisible);
-      visibilityBtn.title = this.stateManager.state.isPanelVisible ? "Show Panel" : "Hide Panel";
+      visibilityBtn.classList.toggle("active", isPanelVisible);
+      visibilityBtn.title = isPanelVisible ? "Hide Panel" : "Show Panel";
     }
     if (glassBtn) {
       glassBtn.classList.toggle("active", this.stateManager.state.isGlassPreviewVisible);
@@ -222,6 +228,7 @@ class UIManager {
       this.elements.panel.offsetHeight;
       this.elements.panel.classList.add("visible");
       this.stateManager.state.isPanelVisible = true;
+      this.updateControlStates();
     }
   }
   /**
@@ -233,12 +240,10 @@ class UIManager {
     setTimeout(() => {
       if (!this.stateManager.state.isPanelVisible && this.elements.panel) {
         this.elements.panel.style.display = "none";
-        if (this.elements.controls) {
-          this.elements.controls.style.display = "none";
-        }
       }
     }, this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelAnimations"] ? 300 : 0);
     this.stateManager.state.isPanelVisible = false;
+    this.updateControlStates();
   }
   /**
    * Update minimized state.

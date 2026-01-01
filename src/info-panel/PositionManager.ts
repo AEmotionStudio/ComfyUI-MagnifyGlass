@@ -131,9 +131,27 @@ export class PositionManager {
      * Position the floating controls relative to the panel.
      */
     positionFloatingControls(controlsElement: HTMLElement | null): void {
-        if (!controlsElement || !this.panelElement) return;
+        if (!controlsElement) return;
 
-        const panelRect = this.panelElement.getBoundingClientRect();
+        const isPanelVisible = this.stateManager.state.isPanelVisible;
+        const magnifyGlass = window.comfyUIMagnifyGlass;
+        let referenceRect: DOMRect | null = null;
+
+        if (isPanelVisible && this.panelElement) {
+            // Position relative to panel
+            referenceRect = this.panelElement.getBoundingClientRect();
+        } else if (magnifyGlass && magnifyGlass.ui && magnifyGlass.ui.glassDiv) {
+            // Position relative to magnify glass
+            referenceRect = magnifyGlass.ui.glassDiv.getBoundingClientRect();
+            // Don't show controls if glass is hidden/invalid
+            if (referenceRect.width === 0 || referenceRect.height === 0) {
+                controlsElement.style.display = 'none';
+                return;
+            }
+        }
+
+        if (!referenceRect) return;
+
         const controlsPosition = this.stateManager.state.settings["🔍MagnifyGlass.ControlsPosition"] || "right";
         const margin = 8;
 
@@ -142,28 +160,28 @@ export class PositionManager {
 
         switch (controlsPosition) {
             case "left":
-                left = panelRect.left - controlsElement.offsetWidth - margin;
-                top = panelRect.top;
+                left = referenceRect.left - controlsElement.offsetWidth - margin;
+                top = referenceRect.top;
                 break;
             case "right":
-                left = panelRect.right + margin;
-                top = panelRect.top;
+                left = referenceRect.right + margin;
+                top = referenceRect.top;
                 break;
             case "top":
-                left = panelRect.left;
-                top = panelRect.top - controlsElement.offsetHeight - margin;
+                left = referenceRect.left;
+                top = referenceRect.top - controlsElement.offsetHeight - margin;
                 break;
             case "bottom":
-                left = panelRect.left;
-                top = panelRect.bottom + margin;
+                left = referenceRect.left;
+                top = referenceRect.bottom + margin;
                 break;
             case "top-right":
-                left = panelRect.right - controlsElement.offsetWidth;
-                top = panelRect.top - controlsElement.offsetHeight - margin;
+                left = referenceRect.right - controlsElement.offsetWidth;
+                top = referenceRect.top - controlsElement.offsetHeight - margin;
                 break;
             default:
-                left = panelRect.right + margin;
-                top = panelRect.top;
+                left = referenceRect.right + margin;
+                top = referenceRect.top;
         }
 
         // Keep controls within viewport

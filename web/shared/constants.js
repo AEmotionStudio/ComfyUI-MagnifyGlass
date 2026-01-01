@@ -1,81 +1,61 @@
-/**
- * ComfyUI MagnifyGlass - Shared Constants
- * 
- * Configuration constants shared between magnify glass and info panel modules.
- */
-
-// Glass positioning options
-export const GLASS_POSITIONS = [
-    "Top",
-    "Bottom",
-    "Left",
-    "Right",
-    "Top-Left",
-    "Top-Right",
-    "Bottom-Left",
-    "Bottom-Right"
+const GLASS_POSITIONS = [
+  "Top",
+  "Bottom",
+  "Left",
+  "Right",
+  "Top-Left",
+  "Top-Right",
+  "Bottom-Left",
+  "Bottom-Right"
 ];
-
-// Glass shape options
-export const GLASS_SHAPES = [
-    "Circle",
-    "Square",
-    "Rounded Square"
+const GLASS_SHAPES = [
+  "Circle",
+  "Square",
+  "Rounded Square"
 ];
-
-// Texture filtering modes
-export const TEXTURE_FILTERS = [
-    "Linear",
-    "Nearest"
+const PANEL_POSITIONS = [
+  "Top",
+  "Bottom",
+  "Left",
+  "Right"
 ];
-
-// Info panel positions relative to glass
-export const PANEL_POSITIONS = [
-    "Top",
-    "Bottom",
-    "Left",
-    "Right"
-];
-
-// Available activation keys
-export const ACTIVATION_KEYS = ["x", "z", "m", "q", "v", "c"];
-
-// Available reset keys
-export const RESET_KEYS = ["r", "o", "p", "k", "l"];
-
-// Available toggle follow keys
-export const TOGGLE_FOLLOW_KEYS = ["f", "g", "h", "j", "k"];
-
-// UI Constants
-export const DEFAULT_PADDING = 20;
-export const DEFAULT_GLASS_SIZE = 300;
-export const DEFAULT_ZOOM_FACTOR = 300; // 3x as percentage
-export const DEFAULT_BORDER_WIDTH = 1;
-export const DEFAULT_BORDER_COLOR = "#6b7280";
-export const DEFAULT_OFFSET_STEP = 5;
-
-// Panel Constants
-export const DEFAULT_PANEL_WIDTH = 320;
-export const DEFAULT_PANEL_MAX_HEIGHT = 1000;
-export const DEFAULT_PANEL_OPACITY = 100;
-
-// Z-Index hierarchy
-export const Z_INDEX = {
-    GLASS: 98999,
-    DEBUG: 99000,
-    PANEL: 99999,
-    CONTROLS: 99998
+const ACTIVATION_KEYS = ["x", "z", "m", "q", "v", "c"];
+const RESET_KEYS = ["r", "o", "p", "k", "l"];
+const TOGGLE_FOLLOW_KEYS = ["f", "g", "h", "j", "k"];
+const DEFAULT_PADDING = 20;
+const DEFAULT_GLASS_SIZE = 300;
+const DEFAULT_ZOOM_FACTOR = 300;
+const DEFAULT_BORDER_WIDTH = 1;
+const DEFAULT_BORDER_COLOR = "#6b7280";
+const DEFAULT_OFFSET_STEP = 5;
+const DEFAULT_PANEL_WIDTH = 320;
+const DEFAULT_PANEL_MAX_HEIGHT = 1e3;
+const DEFAULT_PANEL_OPACITY = 100;
+const Z_INDEX = {
+  GLASS: 98999,
+  DEBUG: 99e3
 };
-
-// Animation durations (ms)
-export const ANIMATION = {
-    PANEL_TRANSITION: 300,
-    AUTO_COLLAPSE_DELAY: 1500,
-    THEME_DETECTION_INTERVAL: 2000
+const STORAGE_KEYS = {
+  OFFSET_X: "comfyui_magnify_offset_x",
+  OFFSET_Y: "comfyui_magnify_offset_y"
 };
-
-// LocalStorage keys
-export const STORAGE_KEYS = {
-    OFFSET_X: 'comfyui_magnify_offset_x',
-    OFFSET_Y: 'comfyui_magnify_offset_y'
+export {
+  ACTIVATION_KEYS,
+  DEFAULT_BORDER_COLOR,
+  DEFAULT_BORDER_WIDTH,
+  DEFAULT_GLASS_SIZE,
+  DEFAULT_OFFSET_STEP,
+  DEFAULT_PADDING,
+  DEFAULT_PANEL_MAX_HEIGHT,
+  DEFAULT_PANEL_OPACITY,
+  DEFAULT_PANEL_WIDTH,
+  DEFAULT_ZOOM_FACTOR,
+  GLASS_POSITIONS,
+  GLASS_SHAPES,
+  PANEL_POSITIONS,
+  RESET_KEYS,
+  STORAGE_KEYS,
+  TOGGLE_FOLLOW_KEYS,
+  Z_INDEX
 };
+//# sourceMappingURL=constants.js.map

@@ -1,16 +1,5 @@
-/**
- * ComfyUI MagnifyGlass - Info Panel Styles
- * 
- * Complete CSS styles for the info panel component.
- * Extracted from magnify_info_panel.js getCSS() method.
- */
-
-/**
- * Get the complete CSS for the info panel.
- * @returns {string} CSS string
- */
-export function getInfoPanelCSS() {
-    return `
+function getInfoPanelCSS() {
+  return `
         .magnify-info-panel {
             border-radius: 12px;
             backdrop-filter: blur(20px);
@@ -573,3 +562,7 @@ export function getInfoPanelCSS() {
         }
     `;
 }
+export {
+  getInfoPanelCSS
+};
+//# sourceMappingURL=styles.js.map

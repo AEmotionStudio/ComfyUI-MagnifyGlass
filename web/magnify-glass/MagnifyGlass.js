@@ -1,362 +1,322 @@
-/**
- * ComfyUI MagnifyGlass - Main Class
- * 
- * Orchestrates all components of the magnifying glass.
- */
-
-import { app } from "../../../../scripts/app.js";
-import { findLiteGraphCanvas, rectsOverlap } from '../shared/utils.js';
-import { DEFAULT_PADDING } from '../shared/constants.js';
-import { ConfigManager } from './ConfigManager.js';
-import { MagnifierState } from './MagnifierState.js';
-import { UiManager } from './UiManager.js';
-import { WebGLRenderer } from './WebGLRenderer.js';
-import { DebugManager } from './DebugManager.js';
-import { EventHandler } from './EventHandler.js';
-
-/**
- * Main MagnifyGlass class.
- * Orchestrates all components and provides the main API.
- */
-export class MagnifyGlass {
-    constructor() {
-        this.config = new ConfigManager();
-        this.state = new MagnifierState();
-        this.ui = new UiManager(this.config, this.state);
-        this.renderer = null;
-        this.debugger = new DebugManager(this.config, this.state, this.ui);
-        this.eventHandler = new EventHandler(this);
-
-        // The LiteGraph canvas
-        this.litegraphCanvas = null;
-
-        // Last known mouse position for better initial positioning
-        this.lastKnownMousePosition = { x: 0, y: 0 };
+var __defProp = Object.defineProperty;
+var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
+var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
+import { findLiteGraphCanvas, rectsOverlap } from "../shared/utils.js";
+import { DEFAULT_PADDING } from "../shared/constants.js";
+import { registerGlassSettings } from "../shared/settings.js";
+import { ConfigManager } from "./ConfigManager.js";
+import { MagnifierState } from "./MagnifierState.js";
+import { UiManager } from "./UiManager.js";
+import { WebGLRenderer } from "./WebGLRenderer.js";
+import { DebugManager } from "./DebugManager.js";
+import { EventHandler } from "./EventHandler.js";
+class MagnifyGlass {
+  constructor() {
+    __publicField(this, "config");
+    __publicField(this, "state");
+    __publicField(this, "ui");
+    __publicField(this, "renderer");
+    __publicField(this, "debugger");
+    __publicField(this, "eventHandler");
+    /** The LiteGraph canvas */
+    __publicField(this, "litegraphCanvas");
+    /** Last known mouse position for better initial positioning */
+    __publicField(this, "lastKnownMousePosition");
+    /** Whether we're currently over media (for info panel) */
+    __publicField(this, "isOverMedia");
+    /** Current media element under cursor */
+    __publicField(this, "currentMediaElement");
+    this.config = new ConfigManager();
+    this.state = new MagnifierState();
+    this.ui = new UiManager(this.config, this.state);
+    this.renderer = null;
+    this.debugger = new DebugManager(this.config, this.state, this.ui);
+    this.eventHandler = new EventHandler(this);
+    this.litegraphCanvas = null;
+    this.lastKnownMousePosition = { x: 0, y: 0 };
+    this.isOverMedia = false;
+    this.currentMediaElement = null;
+  }
+  /**
+   * Initialize the magnifying glass.
+   */
+  init() {
+    if (typeof LiteGraph === "undefined" || typeof app === "undefined" || !app.canvas) {
+      this.debugger.log("LiteGraph or app not ready, retrying in 100ms.");
+      setTimeout(() => this.init(), 100);
+      return;
     }
-
-    /**
-     * Initialize the magnifying glass.
-     */
-    init() {
-        if (typeof LiteGraph === 'undefined' || typeof app === 'undefined' || !app.canvas) {
-            this.debugger.log("LiteGraph or app not ready, retrying in 100ms.");
-            setTimeout(() => this.init(), 100);
-            return;
-        }
-        this.debugger.log("LiteGraph and app ready.");
-
-        // Load saved offsets first
-        this.config.loadSavedOffsets();
-
-        // Print detailed canvas information
-        this.debugger.printCanvasInfo();
-
-        // Create UI elements
-        this.ui.createElements();
-
-        // Setup WebGL renderer
-        this.renderer = new WebGLRenderer(this.config, this.state, this.ui);
-        if (!this.renderer.isValid()) {
-            this.ui.cleanup();
-            return;
-        }
-
-        // Find the LiteGraph canvas
-        this.litegraphCanvas = findLiteGraphCanvas();
-        this.debugger.log("LiteGraph canvas found:", this.litegraphCanvas);
-        if (!this.litegraphCanvas) {
-            this.debugger.error("Could not find LiteGraph canvas. Magnifier will not work.");
-            this.ui.cleanup();
-            return;
-        }
-
-        // Attach event handlers
-        this.eventHandler.attachListeners();
-
-        this.debugger.log(`Initialized (WebGL) with Smart Input Detection. Press ${this.config.altRequired ? 'Alt+' : ''}${this.config.activationKey.toUpperCase()} to activate.`);
+    this.debugger.log("LiteGraph and app ready.");
+    this.config.loadSavedOffsets();
+    this.debugger.printCanvasInfo();
+    this.ui.createElements();
+    this.renderer = new WebGLRenderer(this.config, this.state, this.ui);
+    if (!this.renderer.isValid()) {
+      this.ui.cleanup();
+      return;
     }
-
-    /**
-     * Update the magnified view.
-     */
-    updateMagnifiedView() {
+    this.litegraphCanvas = findLiteGraphCanvas();
+    this.debugger.log("LiteGraph canvas found:", this.litegraphCanvas);
+    if (!this.litegraphCanvas) {
+      this.debugger.error("Could not find LiteGraph canvas. Magnifier will not work.");
+      this.ui.cleanup();
+      return;
+    }
+    this.eventHandler.attachListeners();
+    registerGlassSettings(this);
+    this.debugger.log(`Initialized (WebGL) with Smart Input Detection. Press ${this.config.altRequired ? "Alt+" : ""}${this.config.activationKey.toUpperCase()} to activate.`);
+  }
+  /**
+   * Update the magnified view.
+   */
+  updateMagnifiedView() {
+    if (!this.state.active || !this.renderer || !this.litegraphCanvas) {
+      return;
+    }
+    this.updateCanvasTransformation();
+    this.calculateSourceRegion();
+    if (!this.state.isRenderScheduled) {
+      this.state.isRenderScheduled = true;
+      requestAnimationFrame(() => {
         if (!this.state.active || !this.renderer || !this.litegraphCanvas) {
-            return;
+          this.state.isRenderScheduled = false;
+          return;
         }
-
-        // Get canvas transformation info
-        this.updateCanvasTransformation();
-
-        // Calculate the source region
-        this.calculateSourceRegion();
-
-        // Schedule the rendering operation
-        if (!this.state.isRenderScheduled) {
-            this.state.isRenderScheduled = true;
-            requestAnimationFrame(() => {
-                if (!this.state.active || !this.renderer || !this.litegraphCanvas) {
-                    this.state.isRenderScheduled = false;
-                    return;
-                }
-                // Render the magnified view
-                this.renderer.render(this.litegraphCanvas);
-
-                // Update debug visualization
-                this.debugger.updateDebugView();
-
-                // Render HTML overlays
-                this.renderHtmlOverlays();
-
-                this.state.isRenderScheduled = false;
-            });
-        }
+        this.renderer.render(this.litegraphCanvas);
+        this.debugger.updateDebugView();
+        this.renderHtmlOverlays();
+        this.state.isRenderScheduled = false;
+      });
     }
-
-    /**
-     * Update canvas transformation state.
-     */
-    updateCanvasTransformation() {
-        this.state.canvasScale = 1.0;
-        this.state.canvasOffsetX = 0;
-        this.state.canvasOffsetY = 0;
-
-        if (app && app.canvas) {
-            if (app.canvas.ds) {
-                if (typeof app.canvas.ds.scale === 'number') {
-                    this.state.canvasScale = app.canvas.ds.scale;
-                }
-
-                if (app.canvas.ds.offset) {
-                    this.state.canvasOffsetX = app.canvas.ds.offset[0] || 0;
-                    this.state.canvasOffsetY = app.canvas.ds.offset[1] || 0;
-                }
+  }
+  /**
+   * Update canvas transformation state.
+   */
+  updateCanvasTransformation() {
+    this.state.canvasScale = 1;
+    this.state.canvasOffsetX = 0;
+    this.state.canvasOffsetY = 0;
+    if (app == null ? void 0 : app.canvas) {
+      const ds = app.canvas.ds;
+      if (ds) {
+        if (typeof ds.scale === "number") {
+          this.state.canvasScale = ds.scale;
+        }
+        if (ds.offset) {
+          this.state.canvasOffsetX = ds.offset[0] || 0;
+          this.state.canvasOffsetY = ds.offset[1] || 0;
+        }
+      }
+    }
+  }
+  /**
+   * Calculate the source region for magnification.
+   */
+  calculateSourceRegion() {
+    const cursorPixelX = this.state.x;
+    const cursorPixelY = this.state.y;
+    const canvasScale = this.state.canvasScale;
+    const canvasOffsetX = this.state.canvasOffsetX;
+    const canvasOffsetY = this.state.canvasOffsetY;
+    if (canvasScale === 0) return;
+    const cursorGraphX = (cursorPixelX - canvasOffsetX) / canvasScale;
+    const cursorGraphY = (cursorPixelY - canvasOffsetY) / canvasScale;
+    const targetGraphCenterX = cursorGraphX + this.config.offsetX;
+    const targetGraphCenterY = cursorGraphY + this.config.offsetY;
+    const sourceGraphWidth = this.config.glassSize / this.config.zoomFactor / canvasScale;
+    const sourceGraphHeight = this.config.glassSize / this.config.zoomFactor / canvasScale;
+    const sourceGraphX = targetGraphCenterX - sourceGraphWidth / 2;
+    const sourceGraphY = targetGraphCenterY - sourceGraphHeight / 2;
+    this.state.sourceX = sourceGraphX * canvasScale + canvasOffsetX;
+    this.state.sourceY = sourceGraphY * canvasScale + canvasOffsetY;
+    this.state.sourceWidth = sourceGraphWidth * canvasScale;
+    this.state.sourceHeight = sourceGraphHeight * canvasScale;
+  }
+  /**
+   * Render HTML overlays for text and media in the magnified view.
+   */
+  renderHtmlOverlays() {
+    const graph = app.graph;
+    if (!this.state.active || !this.ui.htmlOverlayContainer || !graph || !this.litegraphCanvas) {
+      if (this.ui.htmlOverlayContainer) this.ui.htmlOverlayContainer.innerHTML = "";
+      return;
+    }
+    this.ui.htmlOverlayContainer.innerHTML = "";
+    const magnifyRect = {
+      x: this.state.sourceX,
+      y: this.state.sourceY,
+      width: this.state.sourceWidth,
+      height: this.state.sourceHeight
+    };
+    const nodes = graph._nodes;
+    if (!nodes) return;
+    for (const node of nodes) {
+      const widgets = node.widgets;
+      if (!widgets) continue;
+      for (const widget of widgets) {
+        let isTextElement = false;
+        let isVideoElement = false;
+        let isImageElement = false;
+        let elementToProcess = null;
+        if (widget.element) {
+          const element = widget.element;
+          if (widget.type === "text" || widget.type === "string" || element.tagName === "TEXTAREA") {
+            isTextElement = true;
+            elementToProcess = element;
+          } else if (element.tagName === "VIDEO") {
+            isVideoElement = true;
+            elementToProcess = element;
+          } else if (element.tagName === "IMG") {
+            isImageElement = true;
+            elementToProcess = element;
+          } else {
+            const potentialVideo = element.querySelector("video");
+            if (potentialVideo) {
+              isVideoElement = true;
+              elementToProcess = potentialVideo;
+            } else {
+              const potentialImage = element.querySelector("img");
+              if (potentialImage) {
+                isImageElement = true;
+                elementToProcess = potentialImage;
+              }
             }
+          }
         }
-    }
-
-    /**
-     * Calculate the source region for magnification.
-     */
-    calculateSourceRegion() {
-        const cursorPixelX = this.state.x;
-        const cursorPixelY = this.state.y;
-        const canvasScale = this.state.canvasScale;
-        const canvasOffsetX = this.state.canvasOffsetX;
-        const canvasOffsetY = this.state.canvasOffsetY;
-
-        if (canvasScale === 0) return;
-
-        // Convert cursor canvas pixels to LiteGraph graph coordinates
-        const cursorGraphX = (cursorPixelX - canvasOffsetX) / canvasScale;
-        const cursorGraphY = (cursorPixelY - canvasOffsetY) / canvasScale;
-
-        // Apply manual offset
-        const targetGraphCenterX = cursorGraphX + this.config.offsetX;
-        const targetGraphCenterY = cursorGraphY + this.config.offsetY;
-
-        // Calculate source dimensions in graph units
-        const sourceGraphWidth = (this.config.glassSize / this.config.zoomFactor) / canvasScale;
-        const sourceGraphHeight = (this.config.glassSize / this.config.zoomFactor) / canvasScale;
-
-        // Calculate source top-left corner in graph coordinates
-        const sourceGraphX = targetGraphCenterX - (sourceGraphWidth / 2);
-        const sourceGraphY = targetGraphCenterY - (sourceGraphHeight / 2);
-
-        // Convert back to canvas pixel coordinates
-        this.state.sourceX = (sourceGraphX * canvasScale) + canvasOffsetX;
-        this.state.sourceY = (sourceGraphY * canvasScale) + canvasOffsetY;
-        this.state.sourceWidth = sourceGraphWidth * canvasScale;
-        this.state.sourceHeight = sourceGraphHeight * canvasScale;
-    }
-
-    /**
-     * Render HTML overlays for text and media in the magnified view.
-     */
-    renderHtmlOverlays() {
-        if (!this.state.active || !this.ui.htmlOverlayContainer || !app.graph || !this.litegraphCanvas) {
-            if (this.ui.htmlOverlayContainer) this.ui.htmlOverlayContainer.innerHTML = '';
-            return;
-        }
-
-        this.ui.htmlOverlayContainer.innerHTML = '';
-
-        const magnifyRect = {
-            x: this.state.sourceX,
-            y: this.state.sourceY,
-            width: this.state.sourceWidth,
-            height: this.state.sourceHeight
-        };
-
-        const nodes = app.graph._nodes;
-        if (!nodes) return;
-
-        for (const node of nodes) {
-            if (!node.widgets) continue;
-
-            for (const widget of node.widgets) {
-                let isTextElement = false;
-                let isVideoElement = false;
-                let isImageElement = false;
-                let elementToProcess = null;
-
-                if (widget.element) {
-                    if (widget.type === "text" || widget.type === "string" || widget.element.tagName === 'TEXTAREA') {
-                        isTextElement = true;
-                        elementToProcess = widget.element;
-                    } else if (widget.element.tagName === 'VIDEO') {
-                        isVideoElement = true;
-                        elementToProcess = widget.element;
-                    } else if (widget.element.tagName === 'IMG') {
-                        isImageElement = true;
-                        elementToProcess = widget.element;
-                    } else {
-                        const potentialVideo = widget.element.querySelector('video');
-                        if (potentialVideo) {
-                            isVideoElement = true;
-                            elementToProcess = potentialVideo;
-                        } else {
-                            const potentialImage = widget.element.querySelector('img');
-                            if (potentialImage) {
-                                isImageElement = true;
-                                elementToProcess = potentialImage;
-                            }
-                        }
-                    }
-                }
-
-                if (elementToProcess && (isTextElement || isVideoElement || isImageElement)) {
-                    const widgetRect = elementToProcess.getBoundingClientRect();
-                    const canvasRect = this.litegraphCanvas.getBoundingClientRect();
-
-                    const canvasToViewportScaleX = canvasRect.width > 0 ? (this.litegraphCanvas.width / canvasRect.width) : 1;
-                    const canvasToViewportScaleY = canvasRect.height > 0 ? (this.litegraphCanvas.height / canvasRect.height) : 1;
-
-                    const widgetCanvasX = (widgetRect.left - canvasRect.left) * canvasToViewportScaleX;
-                    const widgetCanvasY = (widgetRect.top - canvasRect.top) * canvasToViewportScaleY;
-                    const widgetCanvasWidth = widgetRect.width * canvasToViewportScaleX;
-                    const widgetCanvasHeight = widgetRect.height * canvasToViewportScaleY;
-
-                    const widgetSourceRect = {
-                        x: widgetCanvasX,
-                        y: widgetCanvasY,
-                        width: widgetCanvasWidth,
-                        height: widgetCanvasHeight
-                    };
-
-                    if (rectsOverlap(magnifyRect, widgetSourceRect)) {
-                        const clonedElement = elementToProcess.cloneNode(true);
-                        clonedElement.style.position = 'absolute';
-                        clonedElement.style.pointerEvents = 'none';
-
-                        if (isTextElement) {
-                            clonedElement.style.backgroundColor = elementToProcess.style.backgroundColor || '#222';
-                            clonedElement.style.color = elementToProcess.style.color || '#DDD';
-                            clonedElement.style.border = elementToProcess.style.border || '1px solid #555';
-                            clonedElement.disabled = true;
-                        } else if (isVideoElement) {
-                            clonedElement.src = elementToProcess.src;
-                            clonedElement.autoplay = elementToProcess.autoplay;
-                            clonedElement.loop = elementToProcess.loop;
-                            clonedElement.preload = elementToProcess.preload;
-                            clonedElement.crossOrigin = elementToProcess.crossOrigin;
-                            clonedElement.muted = true;
-                            if (!elementToProcess.paused) {
-                                clonedElement.play().catch(e => console.warn("Magnify Glass: Cloned video play failed", e));
-                            }
-                            clonedElement.currentTime = elementToProcess.currentTime;
-                        } else if (isImageElement) {
-                            clonedElement.src = elementToProcess.src;
-                            clonedElement.alt = elementToProcess.alt;
-                        }
-
-                        const relativeX = widgetSourceRect.x - magnifyRect.x;
-                        const relativeY = widgetSourceRect.y - magnifyRect.y;
-                        const magnifiedX = relativeX * this.config.zoomFactor;
-                        const magnifiedY = relativeY * this.config.zoomFactor;
-
-                        clonedElement.style.left = `${magnifiedX}px`;
-                        clonedElement.style.top = `${magnifiedY}px`;
-                        clonedElement.style.width = `${widgetSourceRect.width}px`;
-                        clonedElement.style.height = `${widgetSourceRect.height}px`;
-                        clonedElement.style.transformOrigin = 'top left';
-                        clonedElement.style.transform = `scale(${this.config.zoomFactor})`;
-
-                        if (isTextElement && clonedElement.style.fontSize) {
-                            const originalFontSize = parseFloat(window.getComputedStyle(elementToProcess).fontSize);
-                            clonedElement.style.fontSize = `${originalFontSize}px`;
-                        }
-
-                        this.ui.htmlOverlayContainer.appendChild(clonedElement);
-                    }
-                }
+        if (elementToProcess && (isTextElement || isVideoElement || isImageElement)) {
+          const widgetRect = elementToProcess.getBoundingClientRect();
+          const canvasRect = this.litegraphCanvas.getBoundingClientRect();
+          const canvasToViewportScaleX = canvasRect.width > 0 ? this.litegraphCanvas.width / canvasRect.width : 1;
+          const canvasToViewportScaleY = canvasRect.height > 0 ? this.litegraphCanvas.height / canvasRect.height : 1;
+          const widgetCanvasX = (widgetRect.left - canvasRect.left) * canvasToViewportScaleX;
+          const widgetCanvasY = (widgetRect.top - canvasRect.top) * canvasToViewportScaleY;
+          const widgetCanvasWidth = widgetRect.width * canvasToViewportScaleX;
+          const widgetCanvasHeight = widgetRect.height * canvasToViewportScaleY;
+          const widgetSourceRect = {
+            x: widgetCanvasX,
+            y: widgetCanvasY,
+            width: widgetCanvasWidth,
+            height: widgetCanvasHeight
+          };
+          if (rectsOverlap(magnifyRect, widgetSourceRect)) {
+            const clonedElement = elementToProcess.cloneNode(true);
+            clonedElement.style.position = "absolute";
+            clonedElement.style.pointerEvents = "none";
+            if (isTextElement) {
+              clonedElement.style.backgroundColor = elementToProcess.style.backgroundColor || "#222";
+              clonedElement.style.color = elementToProcess.style.color || "#DDD";
+              clonedElement.style.border = elementToProcess.style.border || "1px solid #555";
+              clonedElement.disabled = true;
+            } else if (isVideoElement) {
+              const video = clonedElement;
+              const originalVideo = elementToProcess;
+              video.src = originalVideo.src;
+              video.autoplay = originalVideo.autoplay;
+              video.loop = originalVideo.loop;
+              video.preload = originalVideo.preload;
+              video.crossOrigin = originalVideo.crossOrigin;
+              video.muted = true;
+              if (!originalVideo.paused) {
+                video.play().catch((e) => console.warn("Magnify Glass: Cloned video play failed", e));
+              }
+              video.currentTime = originalVideo.currentTime;
+            } else if (isImageElement) {
+              const img = clonedElement;
+              const originalImg = elementToProcess;
+              img.src = originalImg.src;
+              img.alt = originalImg.alt;
             }
+            const relativeX = widgetSourceRect.x - magnifyRect.x;
+            const relativeY = widgetSourceRect.y - magnifyRect.y;
+            const magnifiedX = relativeX * this.config.zoomFactor;
+            const magnifiedY = relativeY * this.config.zoomFactor;
+            clonedElement.style.left = `${magnifiedX}px`;
+            clonedElement.style.top = `${magnifiedY}px`;
+            clonedElement.style.width = `${widgetSourceRect.width}px`;
+            clonedElement.style.height = `${widgetSourceRect.height}px`;
+            clonedElement.style.transformOrigin = "top left";
+            clonedElement.style.transform = `scale(${this.config.zoomFactor})`;
+            if (isTextElement && clonedElement.style.fontSize) {
+              const originalFontSize = parseFloat(window.getComputedStyle(elementToProcess).fontSize);
+              clonedElement.style.fontSize = `${originalFontSize}px`;
+            }
+            this.ui.htmlOverlayContainer.appendChild(clonedElement);
+          }
         }
+      }
     }
-
-    /**
-     * Update config from current settings values.
-     */
-    updateConfigFromSettings() {
-        this.config.loadSettings();
+  }
+  /**
+   * Update config from current settings values.
+   */
+  updateConfigFromSettings() {
+    this.config.loadSettings();
+  }
+  /**
+   * Apply UI changes based on current config.
+   */
+  applyUiChanges() {
+    var _a;
+    this.ui.applyStyles();
+    if ((_a = this.renderer) == null ? void 0 : _a.gl) {
+      this.renderer.updateViewport();
     }
-
-    /**
-     * Apply UI changes based on current config.
-     */
-    applyUiChanges() {
-        this.ui.applyStyles();
-
-        if (this.renderer && this.renderer.gl) {
-            this.renderer.updateViewport();
+  }
+  /**
+   * Toggle the magnify glass on/off.
+   */
+  toggle() {
+    this.state.active = !this.state.active;
+    if (this.state.active) {
+      this.ui.show();
+    } else {
+      this.ui.hide();
+    }
+  }
+  /**
+   * Reset offsets and panel positions to defaults.
+   */
+  resetOffsets() {
+    this.config.resetOffsets();
+    if (this.state.active) {
+      this.updateMagnifiedView();
+    }
+    if (this.ui.glassDiv) {
+      const glassSize = this.config.glassSize;
+      this.ui.glassDiv.style.left = `${window.innerWidth - glassSize - DEFAULT_PADDING}px`;
+      this.ui.glassDiv.style.top = `${DEFAULT_PADDING}px`;
+      this.state.wasActivatedBefore = false;
+    }
+    const extensions = window.comfyUIMagnifyGlassExtensions;
+    if (extensions && extensions.length > 0) {
+      extensions.forEach((extension) => {
+        var _a;
+        if (extension == null ? void 0 : extension.stateManager) {
+          extension.stateManager.state.isPanelPinned = false;
+          extension.stateManager.state.isPanelLocked = false;
+          extension.stateManager.state.isAutoPinned = false;
+          extension.stateManager.state.pinnedPosition = { x: 0, y: 0 };
+          extension.stateManager.state.lastPinnedPosition = null;
+          if (extension.positionManager) {
+            extension.positionManager.positionPanel();
+          }
+          if ((_a = extension.uiManager) == null ? void 0 : _a.updateControlStates) {
+            extension.uiManager.updateControlStates();
+          }
         }
+      });
     }
-
-    /**
-     * Reset offsets and panel positions to defaults.
-     */
-    resetOffsets() {
-        this.config.resetOffsets();
-
-        if (this.state.active) {
-            this.updateMagnifiedView();
-        }
-
-        // Reset magnify glass position to top-right corner
-        if (this.ui.glassDiv) {
-            const glassSize = this.config.glassSize;
-            this.ui.glassDiv.style.left = `${window.innerWidth - glassSize - DEFAULT_PADDING}px`;
-            this.ui.glassDiv.style.top = `${DEFAULT_PADDING}px`;
-            this.state.wasActivatedBefore = false;
-        }
-
-        // Reset inspector panel position if exists
-        if (window.comfyUIMagnifyGlassExtensions && window.comfyUIMagnifyGlassExtensions.length > 0) {
-            window.comfyUIMagnifyGlassExtensions.forEach(extension => {
-                if (extension && extension.stateManager) {
-                    extension.stateManager.state.isPanelPinned = false;
-                    extension.stateManager.state.isPanelLocked = false;
-                    extension.stateManager.state.isAutoPinned = false;
-                    extension.stateManager.state.pinnedPosition = { x: 0, y: 0 };
-                    extension.stateManager.state.lastPinnedPosition = null;
-
-                    if (extension.positionManager) {
-                        extension.positionManager.positionPanel();
-                    }
-                    if (extension.uiManager && extension.uiManager.updateControlStates) {
-                        extension.uiManager.updateControlStates();
-                    }
-                }
-            });
-        }
-
-        this.debugger.log("Reset: Magnify glass and inspector panel positions restored to defaults");
-    }
-
-    /**
-     * Cleanup all resources.
-     */
-    cleanup() {
-        this.eventHandler.detachListeners();
-        this.ui.cleanup();
-    }
+    this.debugger.log("Reset: Magnify glass and inspector panel positions restored to defaults");
+  }
+  /**
+   * Cleanup all resources.
+   */
+  cleanup() {
+    this.eventHandler.detachListeners();
+    this.ui.cleanup();
+  }
 }
+export {
+  MagnifyGlass
+};
+//# sourceMappingURL=MagnifyGlass.js.map

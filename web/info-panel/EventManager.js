@@ -36,33 +36,68 @@ class EventManager {
   }
   setupDragEvents() {
     if (!this.panelElement) return;
+    let isDragging = false;
+    let rafId = null;
+    let targetX = 0;
+    let targetY = 0;
     const startDrag = (e) => {
       if (!this.panelElement) return;
       const target = e.target;
-      if (!target.closest(".mag-panel-header")) return;
+      const header = target.closest(".panel-header");
+      if (!header) return;
       if (target.closest("button")) return;
       e.preventDefault();
+      e.stopPropagation();
+      isDragging = true;
       const startX = e.clientX;
       const startY = e.clientY;
       const rect = this.panelElement.getBoundingClientRect();
       const startLeft = rect.left;
       const startTop = rect.top;
+      this.panelElement.style.cursor = "grabbing";
+      this.panelElement.style.opacity = "0.9";
+      this.panelElement.style.transition = "none";
+      document.body.style.cursor = "grabbing";
+      document.body.style.userSelect = "none";
       const onMouseMove = (moveEvent) => {
+        var _a, _b;
+        if (!isDragging) return;
         const dx = moveEvent.clientX - startX;
         const dy = moveEvent.clientY - startY;
-        if (this.panelElement) {
-          this.panelElement.style.left = `${startLeft + dx}px`;
-          this.panelElement.style.top = `${startTop + dy}px`;
+        targetX = startLeft + dx;
+        targetY = startTop + dy;
+        const panelWidth = ((_a = this.panelElement) == null ? void 0 : _a.offsetWidth) || 0;
+        const panelHeight = ((_b = this.panelElement) == null ? void 0 : _b.offsetHeight) || 0;
+        targetX = Math.max(0, Math.min(targetX, window.innerWidth - panelWidth));
+        targetY = Math.max(0, Math.min(targetY, window.innerHeight - panelHeight));
+        if (rafId === null) {
+          rafId = requestAnimationFrame(() => {
+            if (this.panelElement && isDragging) {
+              this.panelElement.style.left = `${targetX}px`;
+              this.panelElement.style.top = `${targetY}px`;
+            }
+            rafId = null;
+          });
         }
       };
       const onMouseUp = () => {
+        isDragging = false;
+        if (rafId !== null) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
         document.removeEventListener("mousemove", onMouseMove);
         document.removeEventListener("mouseup", onMouseUp);
         if (this.panelElement) {
-          const finalRect = this.panelElement.getBoundingClientRect();
-          this.stateManager.state.pinnedPosition = { x: finalRect.left, y: finalRect.top };
-          if (!this.stateManager.state.isPanelPinned) ;
+          this.panelElement.style.cursor = "";
+          this.panelElement.style.opacity = "";
+          this.panelElement.style.transition = "";
+          this.panelElement.style.left = `${targetX}px`;
+          this.panelElement.style.top = `${targetY}px`;
+          this.stateManager.state.pinnedPosition = { x: targetX, y: targetY };
         }
+        document.body.style.cursor = "";
+        document.body.style.userSelect = "";
       };
       document.addEventListener("mousemove", onMouseMove);
       document.addEventListener("mouseup", onMouseUp);

@@ -19,8 +19,16 @@ class PositionManager {
   applyPinnedPosition() {
     if (!this.panelElement) return;
     let { x, y } = this.stateManager.state.pinnedPosition;
-    const panelWidth = this.panelElement.offsetWidth;
-    const panelHeight = this.panelElement.offsetHeight;
+    if (x === 0 && y === 0) {
+      this.calculateNormalPosition();
+      if (this.panelElement) {
+        const rect = this.panelElement.getBoundingClientRect();
+        this.stateManager.state.pinnedPosition = { x: rect.left, y: rect.top };
+      }
+      return;
+    }
+    const panelWidth = this.panelElement.offsetWidth || 300;
+    const panelHeight = this.panelElement.offsetHeight || 400;
     const margin = 10;
     const boundedX = Math.max(margin, Math.min(x, window.innerWidth - panelWidth - margin));
     const boundedY = Math.max(margin, Math.min(y, window.innerHeight - panelHeight - margin));
@@ -28,48 +36,58 @@ class PositionManager {
     this.panelElement.style.top = `${boundedY}px`;
   }
   calculateNormalPosition() {
-    var _a;
+    var _a, _b, _c;
     const magnifyGlass = window.comfyUIMagnifyGlass;
     if (!magnifyGlass || !this.panelElement) return;
     const settings = this.stateManager.state.settings;
-    const panelWidth = settings["🔍MagnifyGlass.InfoPanelWidth"];
-    const panelHeight = this.panelElement.offsetHeight;
+    const panelWidth = settings["🔍MagnifyGlass.InfoPanelWidth"] || 300;
+    const panelHeight = this.panelElement.offsetHeight || 400;
     let left;
     let top;
     const margin = 15;
+    const glassRect = (_a = magnifyGlass.ui.glassDiv) == null ? void 0 : _a.getBoundingClientRect();
+    const hasValidGlassRect = glassRect && (glassRect.right > 0 || glassRect.top > 0);
+    const mouseX = ((_b = magnifyGlass.lastKnownMousePosition) == null ? void 0 : _b.x) || 0;
+    const mouseY = ((_c = magnifyGlass.lastKnownMousePosition) == null ? void 0 : _c.y) || 0;
+    const hasValidMousePosition = mouseX > 0 || mouseY > 0;
     if (!this.stateManager.state.isGlassPreviewVisible) {
-      left = magnifyGlass.lastKnownMousePosition.x - panelWidth / 2;
-      top = magnifyGlass.lastKnownMousePosition.y - 20;
-    } else {
-      const glassRect = (_a = magnifyGlass.ui.glassDiv) == null ? void 0 : _a.getBoundingClientRect();
-      if (glassRect) {
-        const position = settings["🔍MagnifyGlass.InfoPanelPosition"];
-        switch (position) {
-          case "Right":
-            left = glassRect.right + margin;
-            top = glassRect.top;
-            break;
-          case "Left":
-            left = glassRect.left - panelWidth - margin;
-            top = glassRect.top;
-            break;
-          case "Top":
-            left = glassRect.left;
-            top = glassRect.top - panelHeight - margin;
-            break;
-          case "Bottom":
-            left = glassRect.left;
-            top = glassRect.bottom + margin;
-            break;
-          default:
-            left = glassRect.right + margin;
-            top = glassRect.top;
-            break;
-        }
+      if (hasValidMousePosition) {
+        left = mouseX - panelWidth / 2;
+        top = mouseY - 20;
       } else {
-        left = magnifyGlass.lastKnownMousePosition.x - panelWidth / 2;
-        top = magnifyGlass.lastKnownMousePosition.y - 20;
+        left = window.innerWidth - panelWidth - 50;
+        top = 100;
       }
+    } else if (hasValidGlassRect) {
+      const position = settings["🔍MagnifyGlass.InfoPanelPosition"];
+      switch (position) {
+        case "Right":
+          left = glassRect.right + margin;
+          top = glassRect.top;
+          break;
+        case "Left":
+          left = glassRect.left - panelWidth - margin;
+          top = glassRect.top;
+          break;
+        case "Top":
+          left = glassRect.left;
+          top = glassRect.top - panelHeight - margin;
+          break;
+        case "Bottom":
+          left = glassRect.left;
+          top = glassRect.bottom + margin;
+          break;
+        default:
+          left = glassRect.right + margin;
+          top = glassRect.top;
+          break;
+      }
+    } else if (hasValidMousePosition) {
+      left = mouseX - panelWidth / 2;
+      top = mouseY - 20;
+    } else {
+      left = window.innerWidth - panelWidth - 50;
+      top = 100;
     }
     left = Math.max(10, Math.min(left, window.innerWidth - panelWidth - 10));
     top = Math.max(10, Math.min(top, window.innerHeight - panelHeight - 10));

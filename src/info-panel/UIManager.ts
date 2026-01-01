@@ -169,11 +169,11 @@ export class UIManager {
                     this.stateManager.state.isGlassPreviewVisible = !this.stateManager.state.isGlassPreviewVisible;
                     this.updateControlStates();
                     // Toggle glass visibility on the magnify glass
-                    if (window.magnifyGlass) {
+                    if (window.comfyUIMagnifyGlass) {
                         if (this.stateManager.state.isGlassPreviewVisible) {
-                            window.magnifyGlass.ui.show();
+                            window.comfyUIMagnifyGlass.ui.show();
                         } else {
-                            window.magnifyGlass.ui.hide();
+                            window.comfyUIMagnifyGlass.ui.hide();
                         }
                     }
                     break;

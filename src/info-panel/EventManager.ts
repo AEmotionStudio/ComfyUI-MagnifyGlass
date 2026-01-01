@@ -67,23 +67,24 @@ export class EventManager {
     setupDragEvents(): void {
         if (!this.panelElement) return;
 
-        // Simple drag implementation for the Vue panel
-        // The dragging logic could be inside Vue, but if we want to update global state/position, we can do it here.
-        // For now, let's look for the header element.
-
-        // We need to wait for Vue to render the header?
-        // Since we pass the container, and Vue mounts to it, the header might be inside.
-        // We can use event delegation on the container.
+        let isDragging = false;
+        let rafId: number | null = null;
+        let targetX = 0;
+        let targetY = 0;
 
         const startDrag = (e: MouseEvent) => {
             if (!this.panelElement) return;
             const target = e.target as HTMLElement;
 
-            // Only allow dragging from header
-            if (!target.closest('.mag-panel-header')) return;
+            // Only allow dragging from header (expand clickable area)
+            const header = target.closest('.panel-header');
+            if (!header) return;
             if (target.closest('button')) return;
 
             e.preventDefault();
+            e.stopPropagation();
+
+            isDragging = true;
 
             const startX = e.clientX;
             const startY = e.clientY;
@@ -91,31 +92,68 @@ export class EventManager {
             const startLeft = rect.left;
             const startTop = rect.top;
 
-            // Use requestAnimationFrame for smoother dragging?
+            // Visual feedback - dragging state
+            this.panelElement.style.cursor = 'grabbing';
+            this.panelElement.style.opacity = '0.9';
+            this.panelElement.style.transition = 'none'; // Disable transitions during drag
+            document.body.style.cursor = 'grabbing';
+            document.body.style.userSelect = 'none';
+
             const onMouseMove = (moveEvent: MouseEvent) => {
+                if (!isDragging) return;
+
                 const dx = moveEvent.clientX - startX;
                 const dy = moveEvent.clientY - startY;
 
-                if (this.panelElement) {
-                    this.panelElement.style.left = `${startLeft + dx}px`;
-                    this.panelElement.style.top = `${startTop + dy}px`;
+                targetX = startLeft + dx;
+                targetY = startTop + dy;
+
+                // Keep within viewport bounds
+                const panelWidth = this.panelElement?.offsetWidth || 0;
+                const panelHeight = this.panelElement?.offsetHeight || 0;
+                targetX = Math.max(0, Math.min(targetX, window.innerWidth - panelWidth));
+                targetY = Math.max(0, Math.min(targetY, window.innerHeight - panelHeight));
+
+                // Use RAF for smooth updates
+                if (rafId === null) {
+                    rafId = requestAnimationFrame(() => {
+                        if (this.panelElement && isDragging) {
+                            this.panelElement.style.left = `${targetX}px`;
+                            this.panelElement.style.top = `${targetY}px`;
+                        }
+                        rafId = null;
+                    });
                 }
             };
 
             const onMouseUp = () => {
+                isDragging = false;
+
+                // Cancel any pending RAF
+                if (rafId !== null) {
+                    cancelAnimationFrame(rafId);
+                    rafId = null;
+                }
+
                 document.removeEventListener('mousemove', onMouseMove);
                 document.removeEventListener('mouseup', onMouseUp);
 
-                // Save pinned position
+                // Restore visual state
                 if (this.panelElement) {
-                    const finalRect = this.panelElement.getBoundingClientRect();
-                    this.stateManager.state.pinnedPosition = { x: finalRect.left, y: finalRect.top };
-                    // Auto-pin on drag end?
-                    if (!this.stateManager.state.isPanelPinned) {
-                        // callbacks.togglePin? Or just set state?
-                        // Better to let user manually pin, or follow existing logic.
-                    }
+                    this.panelElement.style.cursor = '';
+                    this.panelElement.style.opacity = '';
+                    this.panelElement.style.transition = '';
+
+                    // Final position update
+                    this.panelElement.style.left = `${targetX}px`;
+                    this.panelElement.style.top = `${targetY}px`;
+
+                    // Save pinned position
+                    this.stateManager.state.pinnedPosition = { x: targetX, y: targetY };
                 }
+
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
             };
 
             document.addEventListener('mousemove', onMouseMove);

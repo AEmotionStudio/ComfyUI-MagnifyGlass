@@ -3,8 +3,9 @@
 # ComfyUI-MagnifyGlass
 
 ![Version](https://img.shields.io/badge/version-1.5.0-blue.svg?style=flat-square)
-![License](https://img.shields.io/badge/license-GPL--3.0-brightgreen.svg?style=flat-square)
-![ComfyUI](https://img.shields.io/badge/ComfyUI-Compatible-green?style=flat-square)
+![ComfyUI](https://img.shields.io/badge/ComfyUI-Compatible-blueviolet?style=flat-square)
+![License](https://img.shields.io/badge/license-GPL--3.0-green.svg?style=flat-square)
+![Dependencies](https://img.shields.io/badge/dependencies-none-orange?style=flat-square)
 
 **A powerful, customizable magnifying glass extension for ComfyUI.**  
 *Inspect fine details in your generated images, node connections, and canvas with ease.*
@@ -17,18 +18,21 @@
 
 ## 🚀 Latest Updates (v1.5.0)
 
-We've completely overhauled the UI and workflow for a seamless experience. Major highlights include:
+I've completely overhauled the UI and workflow for a seamless experience. Major highlights include:
 
 *   **Modernized UI**: Professional SVG icons and full support for all ComfyUI themes (Dark, Solarized, Nord, etc.).
 *   **Smart Workflow**: The Inspector Panel now intelligently pins/unpins based on your usage, allowing for both "Follow Glass" and "Free Floating" modes.
 *   **Quick Access**: New toolbar toggle for instant access.
-*   **Persistent State**: Your preferences and panel visibility are preserved between sessions.
 
 > 📄 **See [CHANGELOG.md](CHANGELOG.md) for the complete version history and detailed patch notes.**
 
 ---
 
 ## ✨ Features
+
+<div align="center">
+  <img src="https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/magnify_glass_action.webp" width="800" alt="Magnify Glass Demo">
+</div>
 
 ### 🔍 Magnifying Glass
 *   **High Performance**: WebGL-powered rendering for smooth zooming.
@@ -39,10 +43,6 @@ We've completely overhauled the UI and workflow for a seamless experience. Major
 *   **Deep Analysis**: Hover over any node to see parameters (Seed, CFG, Steps), text content, and image details.
 *   **Dockable Interface**: Pin the panel to the screen to keep it stable, or let it follow the glass.
 *   **Inspector Tab**: Technical breakdown of coordinate space and scaling for power users.
-
-<div align="center">
-  <img src="https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/magnify_glass_action.webp" width="800" alt="Magnify Glass Demo">
-</div>
 
 ---
 
@@ -73,7 +73,7 @@ git clone https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass.git
 | **`O`** | Reset Offsets |
 | **Arrows** | Nudge Glass Position |
 
-> **Pro Tip:** Toggle the **Glass Preview (`G`)** off to keep the Inspector Panel active but hide the magnifying circle. This is perfect for analyzing nodes without visual obstruction.
+> **Pro Tip:** Toggle the **Glass Preview (`G`)** off to keep the Inspector Panel active but hide the magnifying preview.
 
 ---
 

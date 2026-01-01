@@ -79,8 +79,8 @@ class UIManager {
     this.elements.controls = document.createElement("div");
     this.elements.controls.className = "floating-controls vertical-layout";
     this.elements.controls.innerHTML = `
-            <button class="control-btn pin-btn" title="Unlock Panel to Mouse Location (U)" data-action="pin">${Icons.unlock}</button>
-            <button class="control-btn lock-btn" title="Lock Panel Position" data-action="lock">${Icons.pin}</button>
+            <button class="control-btn unlock-btn" title="Unlock/Lock Panel from Glass" data-action="pin">${Icons.unlock}</button>
+            <button class="control-btn pin-btn" title="Pin/Unpin Panel Position (Prevent Drag)" data-action="lock">${Icons.pin}</button>
             <button class="control-btn visibility-btn" title="Toggle Panel Visibility (I)" data-action="toggle-panel">${Icons.eye}</button>
             <button class="control-btn glass-btn" title="Toggle Glass Preview (G)" data-action="toggle-glass">${Icons.magnifyGlass}</button>
         `;

@@ -81,6 +81,9 @@ export class EventManager {
             if (!header) return;
             if (target.closest('button')) return;
 
+            // Button 2 (pin icon, data-action="lock") prevents dragging
+            if (this.stateManager.state.isPanelLocked) return;
+
             e.preventDefault();
             e.stopPropagation();
 

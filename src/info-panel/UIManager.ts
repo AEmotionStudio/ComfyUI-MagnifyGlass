@@ -119,9 +119,26 @@ export class UIManager {
     createFloatingControls(): void {
         this.elements.controls = document.createElement("div");
         this.elements.controls.className = "floating-controls vertical-layout"; // Default to vertical
+
+        /**
+         * BUTTON MAPPING DOCUMENTATION:
+         * =============================
+         * Button 1 (Unlock Icon): data-action="pin" → controls isPanelPinned
+         *   - Unpinned (default): Panel follows magnify glass
+         *   - Pinned: Panel stays at fixed position (unlocked from following glass)
+         * 
+         * Button 2 (Pin Icon): data-action="lock" → controls isPanelLocked
+         *   - Unlocked (default): Panel can be dragged
+         *   - Locked: Panel cannot be dragged (pinned in place)
+         * 
+         * NOTE: The data-action names are counterintuitive but kept for backwards compatibility.
+         * The ICONS correctly represent the functionality:
+         *   - Unlock icon = unlock from following glass
+         *   - Pin icon = pin position (prevent drag)
+         */
         this.elements.controls.innerHTML = `
-            <button class="control-btn pin-btn" title="Unlock Panel to Mouse Location (U)" data-action="pin">${Icons.unlock}</button>
-            <button class="control-btn lock-btn" title="Lock Panel Position" data-action="lock">${Icons.pin}</button>
+            <button class="control-btn unlock-btn" title="Unlock/Lock Panel from Glass" data-action="pin">${Icons.unlock}</button>
+            <button class="control-btn pin-btn" title="Pin/Unpin Panel Position (Prevent Drag)" data-action="lock">${Icons.pin}</button>
             <button class="control-btn visibility-btn" title="Toggle Panel Visibility (I)" data-action="toggle-panel">${Icons.eye}</button>
             <button class="control-btn glass-btn" title="Toggle Glass Preview (G)" data-action="toggle-glass">${Icons.magnifyGlass}</button>
         `;

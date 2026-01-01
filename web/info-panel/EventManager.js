@@ -46,6 +46,7 @@ class EventManager {
       const header = target.closest(".panel-header");
       if (!header) return;
       if (target.closest("button")) return;
+      if (this.stateManager.state.isPanelLocked) return;
       e.preventDefault();
       e.stopPropagation();
       isDragging = true;

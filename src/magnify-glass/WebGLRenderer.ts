@@ -38,6 +38,14 @@ export class WebGLRenderer {
     attributeLocations: AttributeLocations | null;
     currentFilteringMode: number | null;
 
+    // Dirty flag optimization
+    lastCanvasVersion: number;
+    lastSourceX: number;
+    lastSourceY: number;
+    lastSourceWidth: number;
+    lastSourceHeight: number;
+    textureUploadSkipCount: number;
+
     vertexShaderSource: string;
     fragmentShaderSource: string;
 
@@ -54,6 +62,14 @@ export class WebGLRenderer {
         this.uniformLocations = null;
         this.attributeLocations = null;
         this.currentFilteringMode = null;
+
+        // Initialize dirty flag tracking
+        this.lastCanvasVersion = -1;
+        this.lastSourceX = -1;
+        this.lastSourceY = -1;
+        this.lastSourceWidth = -1;
+        this.lastSourceHeight = -1;
+        this.textureUploadSkipCount = 0;
 
         this.vertexShaderSource = `
             attribute vec2 a_position;
@@ -231,14 +247,53 @@ export class WebGLRenderer {
     render(sourceCanvas: HTMLCanvasElement): void {
         if (!this.gl || !this.program || !this.texture || !this.uniformLocations || !this.attributeLocations) return;
 
-        // Bind texture and update with source canvas
+        // Check if we need to update the texture
+        // We track: canvas version (via LiteGraph's change counter), source coordinates, and source dimensions
+        const app = (window as any).app;
+        const currentCanvasVersion = app?.graph?.change_counter ?? -1;
+
+        const sourceChanged =
+            this.lastSourceX !== this.state.sourceX ||
+            this.lastSourceY !== this.state.sourceY ||
+            this.lastSourceWidth !== this.state.sourceWidth ||
+            this.lastSourceHeight !== this.state.sourceHeight;
+
+        const canvasChanged = currentCanvasVersion !== this.lastCanvasVersion;
+
+        // Only upload texture if something changed
+        const needsTextureUpdate = canvasChanged || sourceChanged || this.lastCanvasVersion === -1;
+
+        // Bind texture
         this.gl.bindTexture(this.gl.TEXTURE_2D, this.texture);
 
-        try {
-            this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, sourceCanvas);
-        } catch (e) {
-            console.error("ComfyUI Magnifying Glass ERROR: Error in texImage2D:", e);
-            return;
+        if (needsTextureUpdate) {
+            try {
+                this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, sourceCanvas);
+
+                // Update tracking variables
+                this.lastCanvasVersion = currentCanvasVersion;
+                this.lastSourceX = this.state.sourceX;
+                this.lastSourceY = this.state.sourceY;
+                this.lastSourceWidth = this.state.sourceWidth;
+                this.lastSourceHeight = this.state.sourceHeight;
+
+                // Reset skip counter and log if debug mode
+                if (this.config.debugMode && this.textureUploadSkipCount > 0) {
+                    console.log(`[MagnifyGlass] Texture uploaded after skipping ${this.textureUploadSkipCount} frames`);
+                }
+                this.textureUploadSkipCount = 0;
+            } catch (e) {
+                console.error("ComfyUI Magnifying Glass ERROR: Error in texImage2D:", e);
+                return;
+            }
+        } else {
+            // Skip texture upload - just increment counter
+            this.textureUploadSkipCount++;
+
+            // Periodic debug logging
+            if (this.config.debugMode && this.textureUploadSkipCount % 60 === 0) {
+                console.log(`[MagnifyGlass] Texture upload skipped (${this.textureUploadSkipCount} frames cached)`);
+            }
         }
 
         // Calculate normalized texture coordinates (UV space: 0-1)

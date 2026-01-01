@@ -22,8 +22,8 @@ describe('Shared Utilities', () => {
 
         it('should handle falsy values', () => {
             expect(normalizeColor('')).toBe('');
-            // @ts-ignore
-            expect(normalizeColor(null)).toBe(null);
+            expect(normalizeColor(null)).toBe('');
+            expect(normalizeColor(undefined)).toBe('');
         });
     });
 });

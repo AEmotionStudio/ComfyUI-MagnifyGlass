@@ -2,6 +2,7 @@ var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 import { isUserTyping } from "../shared/utils.js";
+import { Logger } from "../shared/logger.js";
 class EventManager {
   constructor(stateManager, panelElement, positionManager, callbacks) {
     __publicField(this, "stateManager");
@@ -128,7 +129,7 @@ class EventManager {
     const settings = this.stateManager.state.settings;
     const key = e.key.toLowerCase();
     if (key === settings["🔍MagnifyGlass.ToggleHotkey"].toLowerCase()) {
-      console.log("[InfoPanel] Toggle visibility hotkey matched!");
+      Logger.debug("Toggle visibility hotkey matched!");
       e.preventDefault();
       (_a = this.callbacks) == null ? void 0 : _a.toggleVisibility();
     }

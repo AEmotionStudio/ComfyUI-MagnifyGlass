@@ -5,6 +5,7 @@
  */
 
 import { MagnifyGlass } from './magnify-glass';
+import { Logger } from './shared/logger';
 // @ts-ignore
 import { app } from "/scripts/app.js";
 
@@ -22,6 +23,6 @@ app.registerExtension({
         // Expose to window for other extensions (like info panel) to access
         window.comfyUIMagnifyGlass = magnifyGlass;
 
-        console.log("ComfyUI Magnify Glass: Extension initialized");
+        Logger.info('Magnify Glass extension initialized');
     }
 });

@@ -2,6 +2,7 @@ var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 import { isUserTyping } from "../shared/utils.js";
+import { Logger } from "../shared/logger.js";
 import { DEFAULT_PADDING } from "../shared/constants.js";
 class EventHandler {
   constructor(magnifyGlass) {
@@ -36,10 +37,9 @@ class EventHandler {
     if (isUserTyping()) {
       return;
     }
-    console.log(`[MagnifyGlass] KeyDown: ${e.key} (config: ${config.activationKey}, active: ${state.active})`);
+    Logger.debug(`KeyDown: ${e.key} (config: ${config.activationKey}, active: ${state.active})`);
     if (e.key.toLowerCase() === config.activationKey && (!config.altRequired || e.altKey)) {
-      console.log("[MagnifyGlass] Activation key matched!");
-      console.log("[MagnifyGlass] Activation key matched!");
+      Logger.debug("Activation key matched!");
       if (config.alwaysActiveMode) {
         this.magnifyGlass.toggle();
       } else {

@@ -6,6 +6,7 @@
 
 import { Z_INDEX, DEFAULT_PADDING } from '../shared/constants';
 import { Icons } from '../shared/icons';
+import { Logger } from '../shared/logger';
 import type { ConfigManager } from './ConfigManager';
 import type { MagnifierState } from './MagnifierState';
 
@@ -338,7 +339,7 @@ export class UiManager {
                 // Determine success BEFORE creating elements to allow early return if duplicate
                 if (anchorBtn.parentElement.querySelector('.magnify-toggle-btn')) return true;
 
-                console.log("[MagnifyGlass] Found menu anchor:", anchorBtn.title || anchorBtn.getAttribute('aria-label') || "Unknown Button");
+                Logger.debug('Found menu anchor:', anchorBtn.title || anchorBtn.getAttribute('aria-label') || 'Unknown Button');
 
                 const btn = document.createElement('button');
                 // Copy all classes to match theme/library (e.g. p-button, comfy-btn, etc)
@@ -392,7 +393,7 @@ export class UiManager {
                     anchorBtn.parentElement.insertBefore(btn, anchorBtn);
                 }
 
-                console.log("[MagnifyGlass] Menu toggle button injected successfully");
+                Logger.debug('Menu toggle button injected successfully');
                 return true;
             }
             return false;

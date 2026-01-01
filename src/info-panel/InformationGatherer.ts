@@ -5,9 +5,9 @@
  * Responsible for collecting information about nodes, widgets, and canvas state.
  */
 
-// We need to declare the app global variable or import it if the type definition is available
-// Assuming types/comfyui.d.ts handles declared const app: ComfyApp;
-declare const app: any;
+import type { ComfyApp, ComfyNode, ComfyWidget, GatheredInfo, NodeInfo, WidgetInfo, MediaInfo } from '../types/comfyui';
+
+declare const app: ComfyApp;
 
 /**
  * Information Gatherer class.
@@ -16,63 +16,53 @@ declare const app: any;
 export class InformationGatherer {
     constructor() { }
 
-    gatherInformation(): any {
+    gatherInformation(): GatheredInfo {
         const magnifyGlass = window.comfyUIMagnifyGlass;
-        if (!magnifyGlass) return {};
+        if (!magnifyGlass) {
+            return {
+                timestamp: Date.now(),
+                cursor: { screenX: 0, screenY: 0, canvasX: 0, canvasY: 0 },
+                zoom: 1,
+                nodeCount: 0,
+                hoveredNode: null,
+                hoveredWidget: null,
+                mediaElement: null
+            };
+        }
 
-        const info: any = {
+        const info: GatheredInfo = {
             timestamp: Date.now(),
             cursor: {
-                canvas: { x: magnifyGlass.state.x, y: magnifyGlass.state.y },
-                screen: {
-                    x: magnifyGlass.lastKnownMousePosition.x,
-                    y: magnifyGlass.lastKnownMousePosition.y
-                }
+                screenX: magnifyGlass.lastKnownMousePosition.x,
+                screenY: magnifyGlass.lastKnownMousePosition.y,
+                canvasX: magnifyGlass.state.x,
+                canvasY: magnifyGlass.state.y
             },
-            canvas: {
-                scale: magnifyGlass.state.canvasScale,
-                offset: {
-                    x: magnifyGlass.state.canvasOffsetX,
-                    y: magnifyGlass.state.canvasOffsetY
-                }
-            },
-            magnifier: {
-                zoomFactor: magnifyGlass.config.zoomFactor,
-                offsetX: magnifyGlass.config.offsetX,
-                offsetY: magnifyGlass.config.offsetY,
-                sourceRegion: {
-                    x: magnifyGlass.state.sourceX,
-                    y: magnifyGlass.state.sourceY,
-                    width: magnifyGlass.state.sourceWidth,
-                    height: magnifyGlass.state.sourceHeight
-                }
-            },
+            zoom: magnifyGlass.state.canvasScale,
+            nodeCount: app.graph?._nodes?.length ?? 0,
             hoveredNode: null,
-            node: null,
-            widget: null,
-            connection: null,
-            media: null
+            hoveredWidget: null,
+            mediaElement: null
         };
 
         if (magnifyGlass.isOverMedia && magnifyGlass.currentMediaElement) {
-            info.media = this.getMediaInfo(magnifyGlass.currentMediaElement);
+            info.mediaElement = this.getMediaInfo(magnifyGlass.currentMediaElement);
         }
 
         const nodeUnderCursor = this.getNodeUnderCursor();
         if (nodeUnderCursor) {
             info.hoveredNode = this.getDetailedNodeInfo(nodeUnderCursor.node, nodeUnderCursor.localPos);
-            info.node = this.getNodeInfo(nodeUnderCursor.node);
 
             const widget = this.getWidgetUnderCursor(nodeUnderCursor.node, nodeUnderCursor.localPos);
             if (widget) {
-                info.widget = this.getWidgetInfo(widget);
+                info.hoveredWidget = this.getWidgetInfo(widget);
             }
         }
 
         return info;
     }
 
-    getNodeUnderCursor(): { node: any, localPos: { x: number, y: number } } | null {
+    getNodeUnderCursor(): { node: ComfyNode, localPos: { x: number, y: number } } | null {
         const magnifyGlass = window.comfyUIMagnifyGlass;
         if (!app.graph || !app.canvas || !magnifyGlass) {
             return null;
@@ -149,7 +139,7 @@ export class InformationGatherer {
         return null;
     }
 
-    getDetailedNodeInfo(node: any, localPos: { x: number, y: number }): any {
+    getDetailedNodeInfo(node: ComfyNode, localPos: { x: number, y: number }): NodeInfo {
         return {
             id: node.id,
             title: node.title || "Untitled Node",
@@ -188,7 +178,7 @@ export class InformationGatherer {
         };
     }
 
-    getNodeInfo(node: any): any {
+    getNodeInfo(node: ComfyNode): NodeInfo {
         return {
             id: node.id,
             title: node.title || "Untitled",
@@ -203,7 +193,7 @@ export class InformationGatherer {
         };
     }
 
-    getWidgetUnderCursor(node: any, localPos: { x: number, y: number }): any {
+    getWidgetUnderCursor(node: ComfyNode, localPos: { x: number, y: number }): ComfyWidget | null {
         if (!node.widgets || !node.widgets.length) return null;
 
         const titleHeight = 30;
@@ -222,7 +212,7 @@ export class InformationGatherer {
         return null;
     }
 
-    getWidgetInfo(widget: any): any {
+    getWidgetInfo(widget: ComfyWidget): WidgetInfo {
         return {
             name: widget.name,
             type: widget.type,
@@ -234,22 +224,36 @@ export class InformationGatherer {
         };
     }
 
-    getMediaInfo(mediaElement: HTMLImageElement | HTMLVideoElement): any {
-        const info: any = {
+    getMediaInfo(mediaElement: HTMLImageElement | HTMLVideoElement): MediaInfo {
+        const info: MediaInfo = {
+            type: mediaElement instanceof HTMLImageElement ? 'image' : 'video',
             tagName: mediaElement.tagName,
-            src: mediaElement.src ? mediaElement.src.substring(mediaElement.src.lastIndexOf('/') + 1) : "No source"
+            src: mediaElement.src ? mediaElement.src.substring(mediaElement.src.lastIndexOf('/') + 1) : 'No source',
+            naturalWidth: 0,
+            naturalHeight: 0,
+            displayWidth: 0,
+            displayHeight: 0,
+            aspectRatio: ''
         };
 
         if (mediaElement instanceof HTMLImageElement) {
-            info.naturalSize = `${mediaElement.naturalWidth}×${mediaElement.naturalHeight}`;
-            info.displaySize = `${Math.round(mediaElement.width)}×${Math.round(mediaElement.height)}`;
-            info.complete = mediaElement.complete;
+            info.naturalWidth = mediaElement.naturalWidth;
+            info.naturalHeight = mediaElement.naturalHeight;
+            info.displayWidth = Math.round(mediaElement.width);
+            info.displayHeight = Math.round(mediaElement.height);
+            if (mediaElement.naturalWidth && mediaElement.naturalHeight) {
+                info.aspectRatio = (mediaElement.naturalWidth / mediaElement.naturalHeight).toFixed(2);
+            }
         } else if (mediaElement instanceof HTMLVideoElement) {
-            info.videoSize = `${mediaElement.videoWidth}×${mediaElement.videoHeight}`;
-            info.duration = mediaElement.duration ? `${mediaElement.duration.toFixed(2)}s` : "Unknown";
-            info.currentTime = `${mediaElement.currentTime.toFixed(2)}s`;
-            info.paused = mediaElement.paused;
-            info.readyState = mediaElement.readyState;
+            info.naturalWidth = mediaElement.videoWidth;
+            info.naturalHeight = mediaElement.videoHeight;
+            info.displayWidth = Math.round(mediaElement.width);
+            info.displayHeight = Math.round(mediaElement.height);
+            info.duration = mediaElement.duration;
+            info.currentTime = mediaElement.currentTime;
+            if (mediaElement.videoWidth && mediaElement.videoHeight) {
+                info.aspectRatio = (mediaElement.videoWidth / mediaElement.videoHeight).toFixed(2);
+            }
         }
 
         return info;
@@ -257,16 +261,16 @@ export class InformationGatherer {
 
     getNodeModeText(mode: number): string {
         const modes: { [key: number]: string } = {
-            0: "Always",
-            1: "On Event",
-            2: "Never",
-            3: "On Trigger",
-            4: "On Request"
+            0: 'Always',
+            1: 'On Event',
+            2: 'Never',
+            3: 'On Trigger',
+            4: 'On Request'
         };
         return modes[mode] || `Mode ${mode}`;
     }
 
-    detectNodeRegion(localPos: { x: number, y: number }, node: any): string {
+    detectNodeRegion(localPos: { x: number, y: number }, node: ComfyNode): string {
         const titleHeight = 30;
         const regions: string[] = [];
 
@@ -301,7 +305,7 @@ export class InformationGatherer {
         return regions.length > 0 ? regions.join(", ") : "Unknown";
     }
 
-    formatValue(value: any): string {
+    formatValue(value: unknown): string {
         if (value === null) return "null";
         if (value === undefined) return "undefined";
         if (typeof value === "string") {

@@ -262,4 +262,125 @@ export interface MagnifyGlassRenderer {
     updateTextureFiltering(filtering: string): void;
 }
 
+// ============================================================================
+// Info Panel Types
+// ============================================================================
+
+/**
+ * Information gathered about the current cursor position.
+ * Returned by InformationGatherer.gatherInformation()
+ */
+export interface GatheredInfo {
+    timestamp: number;
+    cursor: {
+        screenX: number;
+        screenY: number;
+        canvasX: number;
+        canvasY: number;
+    };
+    zoom: number;
+    nodeCount: number;
+    hoveredNode: NodeInfo | null;
+    hoveredWidget: WidgetInfo | null;
+    mediaElement: MediaInfo | null;
+}
+
+/**
+ * Detailed information about a node.
+ * Structure matches InformationGatherer.getDetailedNodeInfo() output.
+ */
+export interface NodeInfo {
+    id: number;
+    title: string;
+    type: string;
+    mode: string | number;
+    position: {
+        x: number;
+        y: number;
+        formatted?: string;
+    } | string;
+    size: {
+        width: number;
+        height: number;
+        formatted?: string;
+    } | string;
+    localPosition?: {
+        x: number;
+        y: number;
+        formatted?: string;
+        percentage?: { x: string; y: string };
+    };
+    counts?: {
+        widgets: number;
+        inputs: number;
+        outputs: number;
+        properties: number;
+    };
+    widgets: ComfyWidget[];
+    inputs: ComfyInput[];
+    outputs: ComfyOutput[];
+    properties: Record<string, unknown>;
+    hoverRegion?: string;
+}
+
+/**
+ * Information about a widget.
+ */
+export interface WidgetInfo {
+    name: string;
+    type: string;
+    value: string;
+    options?: unknown;
+    min?: number;
+    max?: number;
+    step?: number;
+}
+
+/**
+ * Information about a media element (image or video).
+ */
+export interface MediaInfo {
+    type: 'image' | 'video';
+    tagName: string;
+    src: string;
+    naturalWidth: number;
+    naturalHeight: number;
+    displayWidth: number;
+    displayHeight: number;
+    aspectRatio: string;
+    duration?: number;
+    currentTime?: number;
+}
+
+/**
+ * A section in the info panel display.
+ */
+export interface SectionData {
+    id: string;
+    title: string;
+    icon: string;
+    visible: boolean;
+    expanded: boolean;
+    content: ParameterItem[];
+}
+
+/**
+ * A parameter item displayed in a section.
+ */
+export interface ParameterItem {
+    label: string;
+    value: unknown;
+    formattedValue?: string;
+    highlight?: boolean;
+}
+
+/**
+ * Settings change tracking.
+ */
+export interface SettingsChange {
+    old: unknown;
+    new: unknown;
+}
+
 export { };
+

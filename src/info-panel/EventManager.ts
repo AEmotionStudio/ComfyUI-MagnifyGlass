@@ -6,9 +6,10 @@
  */
 
 import { StateManager } from './StateManager';
-import { UIManager } from './UIManager'; // Kept for type compatibility if needed, though we use HTMLElement mostly
+import { UIManager } from './UIManager';
 import { PositionManager } from './PositionManager';
 import { isUserTyping } from '../shared/utils';
+import { Logger } from '../shared/logger';
 
 export interface EventCallbacks {
     toggleVisibility: () => void;
@@ -199,7 +200,7 @@ export class EventManager {
 
         // Toggle visibility
         if (key === (settings["🔍MagnifyGlass.ToggleHotkey"] as string).toLowerCase()) {
-            console.log("[InfoPanel] Toggle visibility hotkey matched!");
+            Logger.debug('Toggle visibility hotkey matched!');
             e.preventDefault();
             this.callbacks?.toggleVisibility();
         }

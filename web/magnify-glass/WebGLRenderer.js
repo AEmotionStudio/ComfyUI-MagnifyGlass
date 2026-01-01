@@ -1,6 +1,7 @@
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
+import { Logger } from "../shared/logger.js";
 class WebGLRenderer {
   constructor(config, state, ui) {
     __publicField(this, "config");
@@ -207,7 +208,7 @@ class WebGLRenderer {
         this.lastSourceWidth = this.state.sourceWidth;
         this.lastSourceHeight = this.state.sourceHeight;
         if (this.config.debugMode && this.textureUploadSkipCount > 0) {
-          console.log(`[MagnifyGlass] Texture uploaded after skipping ${this.textureUploadSkipCount} frames`);
+          Logger.debug(`Texture uploaded after skipping ${this.textureUploadSkipCount} frames`);
         }
         this.textureUploadSkipCount = 0;
       } catch (e) {
@@ -217,7 +218,7 @@ class WebGLRenderer {
     } else {
       this.textureUploadSkipCount++;
       if (this.config.debugMode && this.textureUploadSkipCount % 60 === 0) {
-        console.log(`[MagnifyGlass] Texture upload skipped (${this.textureUploadSkipCount} frames cached)`);
+        Logger.debug(`Texture upload skipped (${this.textureUploadSkipCount} frames cached)`);
       }
     }
     const uvX = this.state.sourceX / sourceCanvas.width;

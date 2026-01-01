@@ -5,7 +5,9 @@
  * Main class that orchestrates all info panel components.
  */
 
+import type { MagnifyGlassInstance } from '../types/comfyui';
 import { registerPanelSettings } from '../shared/settings';
+import { Logger } from '../shared/logger';
 import { StateManager } from './StateManager';
 import { UIManager } from './UIManager';
 import { PositionManager } from './PositionManager';
@@ -17,14 +19,14 @@ import { InformationGatherer } from './InformationGatherer';
  * Orchestrates all the other components for the info panel.
  */
 export class InfoPanel {
-    magnifyGlass: any;
+    magnifyGlass: MagnifyGlassInstance;
     stateManager: StateManager;
     uiManager: UIManager;
     positionManager: PositionManager;
     eventManager: EventManager;
     informationGatherer: InformationGatherer;
 
-    constructor(magnifyGlass: any) {
+    constructor(magnifyGlass: MagnifyGlassInstance) {
         this.magnifyGlass = magnifyGlass;
 
         // Initialize Managers
@@ -56,7 +58,7 @@ export class InfoPanel {
         // Register settings with ComfyUI
         registerPanelSettings(this.stateManager, this.uiManager, this.positionManager);
 
-        console.log("ComfyUI Magnify Info Panel Pro V2: Initialized successfully");
+        Logger.info('Info Panel initialized successfully');
     }
 
     hookIntoMagnifyGlass(): void {

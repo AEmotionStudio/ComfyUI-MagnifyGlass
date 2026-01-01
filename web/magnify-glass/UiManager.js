@@ -3,6 +3,7 @@ var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { en
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 import { Z_INDEX, DEFAULT_PADDING } from "../shared/constants.js";
 import { Icons } from "../shared/icons.js";
+import { Logger } from "../shared/logger.js";
 class UiManager {
   constructor(config, state, onToggle) {
     __publicField(this, "config");
@@ -267,7 +268,7 @@ class UiManager {
       }
       if (anchorBtn && anchorBtn.parentElement) {
         if (anchorBtn.parentElement.querySelector(".magnify-toggle-btn")) return true;
-        console.log("[MagnifyGlass] Found menu anchor:", anchorBtn.title || anchorBtn.getAttribute("aria-label") || "Unknown Button");
+        Logger.debug("Found menu anchor:", anchorBtn.title || anchorBtn.getAttribute("aria-label") || "Unknown Button");
         const btn = document.createElement("button");
         btn.className = anchorBtn.className + " magnify-toggle-btn";
         const computed = window.getComputedStyle(anchorBtn);
@@ -302,7 +303,7 @@ class UiManager {
         } else {
           anchorBtn.parentElement.insertBefore(btn, anchorBtn);
         }
-        console.log("[MagnifyGlass] Menu toggle button injected successfully");
+        Logger.debug("Menu toggle button injected successfully");
         return true;
       }
       return false;

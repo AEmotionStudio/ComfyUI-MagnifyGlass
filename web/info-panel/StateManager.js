@@ -33,7 +33,7 @@ class StateManager {
       updateScheduled: false,
       isInitialLoading: false,
       // Current data
-      currentInfo: {},
+      currentInfo: null,
       // Settings cache
       settings: {},
       // Auto-detected theme

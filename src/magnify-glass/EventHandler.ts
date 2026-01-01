@@ -5,6 +5,7 @@
  */
 
 import { isUserTyping } from '../shared/utils';
+import { Logger } from '../shared/logger';
 import { DEFAULT_PADDING } from '../shared/constants';
 import type { MagnifyGlass } from './MagnifyGlass';
 
@@ -55,11 +56,10 @@ export class EventHandler {
         }
 
         // Magnifier activation
-        console.log(`[MagnifyGlass] KeyDown: ${e.key} (config: ${config.activationKey}, active: ${state.active})`);
+        Logger.debug(`KeyDown: ${e.key} (config: ${config.activationKey}, active: ${state.active})`);
         if (e.key.toLowerCase() === config.activationKey &&
             (!config.altRequired || e.altKey)) {
-            console.log("[MagnifyGlass] Activation key matched!");
-            console.log("[MagnifyGlass] Activation key matched!");
+            Logger.debug('Activation key matched!');
             if (config.alwaysActiveMode) {
                 this.magnifyGlass.toggle();
             } else {

@@ -59,7 +59,7 @@ export class PositionManager {
         if (!magnifyGlass || !this.panelElement) return;
 
         const settings = this.stateManager.state.settings;
-        const panelWidth = settings["🔍MagnifyGlass.InfoPanelWidth"] || 300;
+        const panelWidth = Number(settings["🔍MagnifyGlass.InfoPanelWidth"]) || 300;
         const panelHeight = this.panelElement.offsetHeight || 400;
 
         let left: number;

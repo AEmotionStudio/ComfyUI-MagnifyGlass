@@ -7,6 +7,7 @@
 import type { ConfigManager } from './ConfigManager';
 import type { MagnifierState } from './MagnifierState';
 import type { UiManager } from './UiManager';
+import { Logger } from '../shared/logger';
 
 interface UniformLocations {
     sourceTexture: WebGLUniformLocation | null;
@@ -293,7 +294,7 @@ export class WebGLRenderer {
 
                 // Reset skip counter and log if debug mode
                 if (this.config.debugMode && this.textureUploadSkipCount > 0) {
-                    console.log(`[MagnifyGlass] Texture uploaded after skipping ${this.textureUploadSkipCount} frames`);
+                    Logger.debug(`Texture uploaded after skipping ${this.textureUploadSkipCount} frames`);
                 }
                 this.textureUploadSkipCount = 0;
             } catch (e) {
@@ -306,7 +307,7 @@ export class WebGLRenderer {
 
             // Periodic debug logging
             if (this.config.debugMode && this.textureUploadSkipCount % 60 === 0) {
-                console.log(`[MagnifyGlass] Texture upload skipped (${this.textureUploadSkipCount} frames cached)`);
+                Logger.debug(`Texture upload skipped (${this.textureUploadSkipCount} frames cached)`);
             }
         }
 

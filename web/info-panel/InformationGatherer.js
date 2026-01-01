@@ -2,51 +2,42 @@ class InformationGatherer {
   constructor() {
   }
   gatherInformation() {
+    var _a, _b;
     const magnifyGlass = window.comfyUIMagnifyGlass;
-    if (!magnifyGlass) return {};
+    if (!magnifyGlass) {
+      return {
+        timestamp: Date.now(),
+        cursor: { screenX: 0, screenY: 0, canvasX: 0, canvasY: 0 },
+        zoom: 1,
+        nodeCount: 0,
+        hoveredNode: null,
+        hoveredWidget: null,
+        mediaElement: null
+      };
+    }
     const info = {
       timestamp: Date.now(),
       cursor: {
-        canvas: { x: magnifyGlass.state.x, y: magnifyGlass.state.y },
-        screen: {
-          x: magnifyGlass.lastKnownMousePosition.x,
-          y: magnifyGlass.lastKnownMousePosition.y
-        }
+        screenX: magnifyGlass.lastKnownMousePosition.x,
+        screenY: magnifyGlass.lastKnownMousePosition.y,
+        canvasX: magnifyGlass.state.x,
+        canvasY: magnifyGlass.state.y
       },
-      canvas: {
-        scale: magnifyGlass.state.canvasScale,
-        offset: {
-          x: magnifyGlass.state.canvasOffsetX,
-          y: magnifyGlass.state.canvasOffsetY
-        }
-      },
-      magnifier: {
-        zoomFactor: magnifyGlass.config.zoomFactor,
-        offsetX: magnifyGlass.config.offsetX,
-        offsetY: magnifyGlass.config.offsetY,
-        sourceRegion: {
-          x: magnifyGlass.state.sourceX,
-          y: magnifyGlass.state.sourceY,
-          width: magnifyGlass.state.sourceWidth,
-          height: magnifyGlass.state.sourceHeight
-        }
-      },
+      zoom: magnifyGlass.state.canvasScale,
+      nodeCount: ((_b = (_a = app.graph) == null ? void 0 : _a._nodes) == null ? void 0 : _b.length) ?? 0,
       hoveredNode: null,
-      node: null,
-      widget: null,
-      connection: null,
-      media: null
+      hoveredWidget: null,
+      mediaElement: null
     };
     if (magnifyGlass.isOverMedia && magnifyGlass.currentMediaElement) {
-      info.media = this.getMediaInfo(magnifyGlass.currentMediaElement);
+      info.mediaElement = this.getMediaInfo(magnifyGlass.currentMediaElement);
     }
     const nodeUnderCursor = this.getNodeUnderCursor();
     if (nodeUnderCursor) {
       info.hoveredNode = this.getDetailedNodeInfo(nodeUnderCursor.node, nodeUnderCursor.localPos);
-      info.node = this.getNodeInfo(nodeUnderCursor.node);
       const widget = this.getWidgetUnderCursor(nodeUnderCursor.node, nodeUnderCursor.localPos);
       if (widget) {
-        info.widget = this.getWidgetInfo(widget);
+        info.hoveredWidget = this.getWidgetInfo(widget);
       }
     }
     return info;
@@ -191,19 +182,33 @@ class InformationGatherer {
   }
   getMediaInfo(mediaElement) {
     const info = {
+      type: mediaElement instanceof HTMLImageElement ? "image" : "video",
       tagName: mediaElement.tagName,
-      src: mediaElement.src ? mediaElement.src.substring(mediaElement.src.lastIndexOf("/") + 1) : "No source"
+      src: mediaElement.src ? mediaElement.src.substring(mediaElement.src.lastIndexOf("/") + 1) : "No source",
+      naturalWidth: 0,
+      naturalHeight: 0,
+      displayWidth: 0,
+      displayHeight: 0,
+      aspectRatio: ""
     };
     if (mediaElement instanceof HTMLImageElement) {
-      info.naturalSize = `${mediaElement.naturalWidth}×${mediaElement.naturalHeight}`;
-      info.displaySize = `${Math.round(mediaElement.width)}×${Math.round(mediaElement.height)}`;
-      info.complete = mediaElement.complete;
+      info.naturalWidth = mediaElement.naturalWidth;
+      info.naturalHeight = mediaElement.naturalHeight;
+      info.displayWidth = Math.round(mediaElement.width);
+      info.displayHeight = Math.round(mediaElement.height);
+      if (mediaElement.naturalWidth && mediaElement.naturalHeight) {
+        info.aspectRatio = (mediaElement.naturalWidth / mediaElement.naturalHeight).toFixed(2);
+      }
     } else if (mediaElement instanceof HTMLVideoElement) {
-      info.videoSize = `${mediaElement.videoWidth}×${mediaElement.videoHeight}`;
-      info.duration = mediaElement.duration ? `${mediaElement.duration.toFixed(2)}s` : "Unknown";
-      info.currentTime = `${mediaElement.currentTime.toFixed(2)}s`;
-      info.paused = mediaElement.paused;
-      info.readyState = mediaElement.readyState;
+      info.naturalWidth = mediaElement.videoWidth;
+      info.naturalHeight = mediaElement.videoHeight;
+      info.displayWidth = Math.round(mediaElement.width);
+      info.displayHeight = Math.round(mediaElement.height);
+      info.duration = mediaElement.duration;
+      info.currentTime = mediaElement.currentTime;
+      if (mediaElement.videoWidth && mediaElement.videoHeight) {
+        info.aspectRatio = (mediaElement.videoWidth / mediaElement.videoHeight).toFixed(2);
+      }
     }
     return info;
   }

@@ -4,6 +4,7 @@
  * Centralized state management for the information panel.
  */
 
+import type { GatheredInfo, SettingsChange } from '../types/comfyui';
 import { getSettingValue } from '../shared/utils';
 import { DEFAULT_PANEL_SETTINGS } from '../shared/settings';
 
@@ -37,10 +38,10 @@ export interface InfoPanelStateData {
     isInitialLoading: boolean;
 
     // Current data
-    currentInfo: any;
+    currentInfo: GatheredInfo | null;
 
-    // Settings cache
-    settings: { [key: string]: any };
+    // Settings cache - using index signature for dynamic ComfyUI settings
+    settings: { [key: string]: string | number | boolean };
 
     // Auto-detected theme
     currentTheme: string;
@@ -84,7 +85,7 @@ export class StateManager {
             isInitialLoading: false,
 
             // Current data
-            currentInfo: {},
+            currentInfo: null,
 
             // Settings cache
             settings: {},
@@ -292,12 +293,12 @@ export class StateManager {
         this.state.settings["🔍MagnifyGlass.InfoPanelTheme"] = this.state.currentTheme;
     }
 
-    updateSettings(): { [key: string]: { old: any, new: any } } {
+    updateSettings(): Record<string, SettingsChange> {
         const oldSettings = { ...this.state.settings };
         this.loadSettings();
 
         // Return what changed for reactive updates
-        const changes: { [key: string]: { old: any, new: any } } = {};
+        const changes: Record<string, SettingsChange> = {};
         Object.keys(this.state.settings).forEach(key => {
             if (oldSettings[key] !== this.state.settings[key]) {
                 changes[key] = {
@@ -373,7 +374,7 @@ export class StateManager {
         this.state.lastPinnedPosition = { x, y };
     }
 
-    setCurrentInfo(info: any): void {
+    setCurrentInfo(info: GatheredInfo): void {
         this.state.currentInfo = info;
     }
 

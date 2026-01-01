@@ -2,6 +2,7 @@ var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 import { Icons } from "../shared/icons.js";
+import { Logger } from "../shared/logger.js";
 class UIManager {
   constructor(stateManager) {
     __publicField(this, "stateManager");
@@ -95,7 +96,7 @@ class UIManager {
       const button = target.closest("button[data-action]");
       if (!button) return;
       const action = button.getAttribute("data-action");
-      console.log(`[InfoPanel] Control button clicked: ${action}`);
+      Logger.debug(`Control button clicked: ${action}`);
       switch (action) {
         case "pin":
           this.stateManager.togglePinning();
@@ -138,7 +139,7 @@ class UIManager {
           break;
       }
     });
-    const controlsPosition = this.stateManager.state.settings["🔍MagnifyGlass.ControlsPosition"] || "top-right";
+    const controlsPosition = String(this.stateManager.state.settings["🔍MagnifyGlass.ControlsPosition"] || "top-right");
     this.updateControlsLayout(controlsPosition);
     this.updateControlStates();
   }
@@ -212,17 +213,17 @@ class UIManager {
     if (!this.elements.panel) return;
     const settings = this.stateManager.state.settings;
     const textColor = settings["🔍MagnifyGlass.InfoPanelTextColor"];
-    if (textColor) {
+    if (textColor && typeof textColor === "string") {
       const normalizedTextColor = textColor.startsWith("#") ? textColor : `#${textColor}`;
       this.elements.panel.style.setProperty("--info-panel-text-color", normalizedTextColor);
     }
     const accentColor = settings["🔍MagnifyGlass.InfoPanelAccentColor"];
-    if (accentColor) {
+    if (accentColor && typeof accentColor === "string") {
       const normalizedAccentColor = accentColor.startsWith("#") ? accentColor : `#${accentColor}`;
       this.elements.panel.style.setProperty("--info-panel-accent-color", normalizedAccentColor);
     }
     if (this.stateManager.state.isPanelVisible) {
-      const opacityPercent = settings["🔍MagnifyGlass.InfoPanelOpacity"];
+      const opacityPercent = Number(settings["🔍MagnifyGlass.InfoPanelOpacity"]) || 100;
       this.elements.panel.style.opacity = (opacityPercent / 100).toString();
     }
     this.elements.panel.style.cssText = `
@@ -237,8 +238,8 @@ class UIManager {
             pointer-events: auto;
             user-select: none;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            ${textColor ? `--info-panel-text-color: ${textColor.startsWith("#") ? textColor : `#${textColor}`};` : ""}
-            ${accentColor ? `--info-panel-accent-color: ${accentColor.startsWith("#") ? accentColor : `#${accentColor}`};` : ""}
+            ${textColor && typeof textColor === "string" ? `--info-panel-text-color: ${textColor.startsWith("#") ? textColor : `#${textColor}`};` : ""}
+            ${accentColor && typeof accentColor === "string" ? `--info-panel-accent-color: ${accentColor.startsWith("#") ? accentColor : `#${accentColor}`};` : ""}
         `;
   }
   /**
@@ -248,7 +249,7 @@ class UIManager {
     if (!this.elements.panel) return;
     if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"]) {
       this.elements.panel.style.display = "block";
-      const opacityPercent = this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelOpacity"];
+      const opacityPercent = Number(this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelOpacity"]) || 100;
       this.elements.panel.style.opacity = (opacityPercent / 100).toString();
       this.elements.panel.offsetHeight;
       this.elements.panel.classList.add("visible");
@@ -499,16 +500,16 @@ class UIManager {
     if (!this.elements.header) return;
     const subtitleElement = this.elements.header.querySelector(".header-subtitle");
     if (subtitleElement) {
-      const accentColor = this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelAccentColor"];
+      const accentColor = String(this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelAccentColor"] || "");
       if (info.hoveredNode) {
         subtitleElement.textContent = `Analyzing: ${info.hoveredNode.title}`;
-        subtitleElement.style.color = accentColor || "";
+        subtitleElement.style.color = accentColor;
       } else if (info.media) {
         subtitleElement.textContent = `Media: ${info.media.tagName}`;
-        subtitleElement.style.color = accentColor || "";
+        subtitleElement.style.color = accentColor;
       } else if (info.connection) {
         subtitleElement.textContent = `Connection: ${info.connection.type}`;
-        subtitleElement.style.color = accentColor || "";
+        subtitleElement.style.color = accentColor;
       } else {
         subtitleElement.textContent = "Real-time analysis";
         subtitleElement.style.color = "";

@@ -3,7 +3,8 @@ var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { en
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 import { findLiteGraphCanvas, rectsOverlap } from "../shared/utils.js";
 import { DEFAULT_PADDING } from "../shared/constants.js";
-import { registerGlassSettings } from "../shared/settings.js";
+import { registerGlassSettings } from "../shared/settings/glassSettings.js";
+import "/scripts/app.js";
 import { ConfigManager } from "./ConfigManager.js";
 import { MagnifierState } from "./MagnifierState.js";
 import { UiManager } from "./UiManager.js";

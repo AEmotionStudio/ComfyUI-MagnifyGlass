@@ -3,6 +3,8 @@ var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { en
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 import { Icons } from "../shared/icons.js";
 import { Logger } from "../shared/logger.js";
+import { formatValue, getValueClass, getValueAttributes } from "./ValueFormatter.js";
+import { getCheckpointInfo, getImageInfo, getTextBoxContent, getImportantNodeParameters } from "./NodeDataExtractor.js";
 class UIManager {
   constructor(stateManager) {
     __publicField(this, "stateManager");
@@ -356,28 +358,28 @@ class UIManager {
       const isSaveNode = nodeType.includes("save") && !nodeType.includes("checkpoint") && !nodeType.includes("model") && !nodeType.includes("preview");
       const showAllWidgets = info.hoveredNode.type && (nodeType.includes("ksampler") || nodeType.includes("sampler") || nodeType.includes("k_samplers") || nodeType.includes("checkpoint") || nodeType.includes("model") || nodeType.includes("lora") || nodeType.includes("controlnet") || nodeType.includes("advanced") || nodeType.includes("detailer") || nodeType.includes("inpaint") || nodeType.includes("upscale") || nodeType.includes("clip") || nodeType.includes("text") || nodeType.includes("encode")) && !isSaveNode;
       if (!showAllWidgets) {
-        const checkpointInfo = this.getCheckpointInfo(info.hoveredNode);
-        if (checkpointInfo) {
-          nodeContent.push({ label: "Model", value: checkpointInfo });
+        const checkpoint = getCheckpointInfo(info.hoveredNode);
+        if (checkpoint) {
+          nodeContent.push({ label: "Model", value: checkpoint });
         }
-        const imageInfo = this.getImageInfo(info.hoveredNode);
-        if (imageInfo) {
-          if (typeof imageInfo === "string") {
-            nodeContent.push({ label: "Image", value: imageInfo });
-          } else if (typeof imageInfo === "object" && imageInfo !== null) {
-            const imgInfoAny = imageInfo;
-            nodeContent.push({ label: "Image Size", value: `${imgInfoAny.width}×${imgInfoAny.height}` });
-            if (imgInfoAny.src) {
-              nodeContent.push({ label: "Image Source", value: imgInfoAny.src });
+        const imgInfo = getImageInfo(info.hoveredNode);
+        if (imgInfo) {
+          if (typeof imgInfo === "string") {
+            nodeContent.push({ label: "Image", value: imgInfo });
+          } else if (typeof imgInfo === "object" && imgInfo !== null) {
+            const imgResult = imgInfo;
+            nodeContent.push({ label: "Image Size", value: `${imgResult.width}×${imgResult.height}` });
+            if (imgResult.src) {
+              nodeContent.push({ label: "Image Source", value: imgResult.src });
             }
           }
         }
-        const textBoxContent = this.getTextBoxContent(info.hoveredNode);
-        if (textBoxContent) {
-          nodeContent.push({ label: "Text", value: textBoxContent });
+        const textContent = getTextBoxContent(info.hoveredNode);
+        if (textContent) {
+          nodeContent.push({ label: "Text", value: textContent });
         }
       }
-      const importantParameters = this.getImportantNodeParameters(info.hoveredNode);
+      const importantParameters = getImportantNodeParameters(info.hoveredNode);
       nodeContent.push(...importantParameters);
       sections.push({
         id: "node",
@@ -415,9 +417,9 @@ class UIManager {
                 <div class="section-content">
                     <div class="section-body">
                         ${section.content.map((item) => {
-      const value = this.formatValue(item.value, item.label);
-      const valueClass = this.getValueClass(item.value);
-      const valueAttributes = this.getValueAttributes(item.value);
+      const value = formatValue(item.value, item.label);
+      const valueClass = getValueClass(item.value);
+      const valueAttributes = getValueAttributes(item.value);
       return `
                             <div class="info-row">
                                 <span class="info-label">${item.label}</span>
@@ -452,47 +454,6 @@ class UIManager {
     });
   }
   /**
-   * Format a value for display.
-   * @param value 
-   * @param label
-   * @returns 
-   */
-  formatValue(value, label) {
-    if (value === null || value === void 0) return "";
-    const str = String(value);
-    if (label && (label.toLowerCase().includes("text") || label.toLowerCase().includes("prompt") || label.toLowerCase().includes("model") || label.toLowerCase().includes("file") || label.toLowerCase().includes("conditioning") || label.toLowerCase().includes("positive") || label.toLowerCase().includes("negative"))) {
-      return str;
-    }
-    return str;
-  }
-  /**
-   * Get value class for styling.
-   * @param value 
-   * @returns 
-   */
-  getValueClass(value) {
-    if (!value) return "";
-    const str = String(value);
-    let classes = [];
-    if (str.length > 100) {
-      classes.push("long-text");
-    }
-    return classes.join(" ");
-  }
-  /**
-   * Get value attributes.
-   * @param value 
-   * @returns 
-   */
-  getValueAttributes(value) {
-    if (!value) return "";
-    const str = String(value);
-    if (str.length > 500) {
-      return `title="${str.replace(/"/g, "&quot;")}"`;
-    }
-    return "";
-  }
-  /**
    * Update header subtitle.
    * @param info 
    */
@@ -515,256 +476,6 @@ class UIManager {
         subtitleElement.style.color = "";
       }
     }
-  }
-  // ============== Helper methods for node information extraction ==============
-  /**
-   * Get checkpoint/model info from a node.
-   * @param nodeInfo 
-   * @returns 
-   */
-  getCheckpointInfo(nodeInfo) {
-    if (nodeInfo.type && (nodeInfo.type.includes("CheckpointLoader") || nodeInfo.type.includes("LoadCheckpoint") || nodeInfo.type.includes("ModelLoader") || nodeInfo.type.includes("UNETLoader") || nodeInfo.type.includes("VAELoader") || nodeInfo.type.includes("LoraLoader"))) {
-      if (nodeInfo.widgets && nodeInfo.widgets.length > 0) {
-        for (const widget of nodeInfo.widgets) {
-          if (widget.name && (widget.name.toLowerCase().includes("model") || widget.name.toLowerCase().includes("checkpoint") || widget.name.toLowerCase().includes("ckpt") || widget.name.toLowerCase().includes("lora") || widget.name.toLowerCase().includes("vae") || widget.name.toLowerCase().includes("file"))) {
-            const value = String(widget.value);
-            const filename = value.split(/[\/\\]/).pop();
-            return filename || value;
-          }
-        }
-      }
-    }
-    return null;
-  }
-  /**
-   * Get image info from a node.
-   * @param nodeInfo 
-   * @returns 
-   */
-  getImageInfo(nodeInfo) {
-    if (nodeInfo.type && (nodeInfo.type.includes("SaveImage") || nodeInfo.type.includes("PreviewImage") || nodeInfo.type.includes("VisionOutput") || nodeInfo.type.includes("ImageOutput") || nodeInfo.type.includes("LoadImage") || nodeInfo.type.includes("Display"))) {
-      if (nodeInfo.widgets) {
-        for (const widget of nodeInfo.widgets) {
-          if (widget.name && (widget.name.toLowerCase().includes("image") || widget.name.toLowerCase().includes("filename") || widget.name.toLowerCase().includes("file"))) {
-            return widget.value;
-          }
-        }
-      }
-      if (nodeInfo.properties && nodeInfo.properties.img) {
-        const img = nodeInfo.properties.img;
-        return {
-          width: img.width || "unknown",
-          height: img.height || "unknown",
-          src: img.src ? img.src.split(/[\/\\]/).pop() : "Preview available"
-        };
-      }
-      if (nodeInfo.outputs) {
-        for (const output of nodeInfo.outputs) {
-          if (output.links && output.links.length > 0) {
-            return "Image connected to " + output.links.length + " node(s)";
-          }
-        }
-      }
-      return "Image node";
-    }
-    return null;
-  }
-  /**
-   * Get text box content from a node.
-   * @param nodeInfo 
-   * @returns 
-   */
-  getTextBoxContent(nodeInfo) {
-    if (nodeInfo.widgets && nodeInfo.widgets.length > 0) {
-      if (nodeInfo.type && nodeInfo.type.includes("CLIPTextEncode")) {
-        for (const widget of nodeInfo.widgets) {
-          if (widget.name === "text" && typeof widget.value === "string") {
-            return widget.value;
-          }
-        }
-      }
-      for (const widget of nodeInfo.widgets) {
-        if ((widget.name.toLowerCase().includes("prompt") || widget.name.toLowerCase().includes("conditioning")) && typeof widget.value === "string" && widget.value.length > 0) {
-          return widget.value;
-        }
-      }
-      for (const widget of nodeInfo.widgets) {
-        if ((widget.type === "text" || widget.type === "textarea" || widget.type === "string" || widget.name.toLowerCase().includes("text")) && typeof widget.value === "string" && widget.value.length > 0) {
-          return widget.value;
-        }
-      }
-    }
-    return null;
-  }
-  /**
-   * Get important node parameters based on node type.
-   * @param nodeInfo 
-   * @returns 
-   */
-  getImportantNodeParameters(nodeInfo) {
-    const parameters = [];
-    const nodeType = nodeInfo.type ? nodeInfo.type.toLowerCase() : "";
-    const isSaveNode = nodeType.includes("save") && !nodeType.includes("checkpoint") && !nodeType.includes("model") && !nodeType.includes("preview");
-    const showAllWidgets = nodeInfo.type && (nodeType.includes("ksampler") || nodeType.includes("sampler") || nodeType.includes("k_samplers") || nodeType.includes("checkpoint") || nodeType.includes("model") || nodeType.includes("lora") || nodeType.includes("controlnet") || nodeType.includes("advanced") || nodeType.includes("detailer") || nodeType.includes("inpaint") || nodeType.includes("upscale") || nodeType.includes("clip") || nodeType.includes("text") || nodeType.includes("encode")) && !isSaveNode;
-    if (showAllWidgets) {
-      if (nodeInfo.widgets && nodeInfo.widgets.length > 0) {
-        for (const widget of nodeInfo.widgets) {
-          if (widget.name && widget.name !== "") {
-            const widgetName = widget.name.toLowerCase();
-            if (widgetName.includes("title") || widgetName === "node" || widgetName === "id" || widgetName === "type" || widgetName === "mode") {
-              continue;
-            }
-            parameters.push({
-              label: widget.name,
-              value: this.formatWidgetValue(widget.value)
-            });
-          }
-        }
-      }
-      return parameters;
-    }
-    let importantParams;
-    if (isSaveNode) {
-      importantParams = [
-        "filename_prefix",
-        "filename",
-        "directory",
-        "path",
-        "format",
-        "quality",
-        "extension"
-      ];
-    } else {
-      importantParams = [
-        "seed",
-        "steps",
-        "cfg",
-        "scale",
-        "sampler",
-        "scheduler",
-        "positive",
-        "negative",
-        "width",
-        "height",
-        "denoise",
-        "strength",
-        "noise",
-        "count",
-        "batch",
-        "size",
-        "phase",
-        "color",
-        "intensity",
-        // KSampler specific parameters (for other samplers)
-        "control_after_generate",
-        "control",
-        "after",
-        "generate",
-        "start_at_step",
-        "end_at_step",
-        "start",
-        "end",
-        "return_with_leftover_noise",
-        "leftover",
-        "noise_return",
-        // Additional common parameters (but avoid duplicates with specific extractors)
-        "model",
-        "vae",
-        "clip",
-        "lora",
-        "checkpoint",
-        "latent",
-        "image",
-        "mask",
-        "filename",
-        "directory",
-        "prompt",
-        "conditioning",
-        "filename_prefix",
-        // New detection vocabulary
-        "resolution",
-        "num_chunks",
-        "seconds",
-        "aspect_ratio",
-        "style_type",
-        "background",
-        "n",
-        "human",
-        "raw",
-        "guidance",
-        "skip_preprocessing",
-        "movement_amplitude",
-        "animation",
-        "material_type",
-        "b1",
-        "b2",
-        "s1",
-        "s2",
-        "type",
-        "channel",
-        "sigma",
-        "rho",
-        // Additional detection vocabulary
-        "alpha",
-        "base_shift",
-        "shift",
-        "stretch",
-        "terminal",
-        "spacing",
-        "style",
-        "eta",
-        "norm_threshold",
-        "momentum",
-        "hypernetwork_name",
-        "reuse_threshold",
-        "verbose",
-        "layers",
-        "set_cond_area",
-        "audioui",
-        // Camera and 3D parameters
-        "camera_pose",
-        "fx",
-        "cx",
-        "fy",
-        "cy"
-        // Note: 'text' and 'string' removed to avoid duplication with getTextBoxContent
-      ];
-    }
-    if (nodeInfo.widgets && nodeInfo.widgets.length > 0) {
-      for (const widget of nodeInfo.widgets) {
-        const paramName = widget.name.toLowerCase();
-        if (importantParams.some((param) => paramName.includes(param))) {
-          parameters.push({
-            label: widget.name,
-            value: this.formatWidgetValue(widget.value)
-          });
-        }
-      }
-    }
-    return parameters;
-  }
-  /**
-   * Format widget value for display.
-   * @param value 
-   * @returns 
-   */
-  formatWidgetValue(value) {
-    if (value === null) return "null";
-    if (value === void 0) return "undefined";
-    if (typeof value === "string") {
-      return value;
-    }
-    if (typeof value === "number") {
-      return Number.isInteger(value) ? value.toString() : value.toFixed(3);
-    }
-    if (typeof value === "boolean") return value.toString();
-    if (Array.isArray(value)) {
-      return `Array(${value.length})`;
-    }
-    if (typeof value === "object") {
-      return "Object";
-    }
-    return String(value);
   }
   /**
    * Inject CSS styles by loading external stylesheet.

@@ -2,7 +2,8 @@ var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 import { getSettingValue } from "../shared/utils.js";
-import { DEFAULT_PANEL_SETTINGS } from "../shared/settings.js";
+import { DEFAULT_PANEL_SETTINGS } from "../shared/settings/defaults.js";
+import "/scripts/app.js";
 class StateManager {
   constructor() {
     __publicField(this, "state");

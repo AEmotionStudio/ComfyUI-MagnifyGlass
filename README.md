@@ -1,249 +1,121 @@
+<div align="center">
+
 # ComfyUI-MagnifyGlass
 
-![Version](https://img.shields.io/badge/version-1.5.0-blue.svg)
-![ComfyUI](https://img.shields.io/badge/ComfyUI-compatible-green)
-![License](https://img.shields.io/badge/license-GPL--3.0-brightgreen.svg)
-![Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen.svg)
+![Version](https://img.shields.io/badge/version-1.5.0-blue.svg?style=flat-square)
+![License](https://img.shields.io/badge/license-GPL--3.0-brightgreen.svg?style=flat-square)
+![ComfyUI](https://img.shields.io/badge/ComfyUI-Compatible-green?style=flat-square)
 
-A powerful, customizable magnifying glass extension for ComfyUI. Inspect fine details in your generated images, node connections, and canvas with ease.
+**A powerful, customizable magnifying glass extension for ComfyUI.**  
+*Inspect fine details in your generated images, node connections, and canvas with ease.*
 
-> [!TIP]
-> Perfect for inspecting fine details in your generated images, node connections, or any part of the ComfyUI canvas.
+[Features](#features) • [Installation](#installation) • [Usage](#usage) • [Configuration](#configuration) • [Changelog](CHANGELOG.md)
 
-![Magnify Glass in Action](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/magnify_glass_action.webp)
-
----
-
-## Recent Updates
-
-### v1.5.0 — December 2024
-
-**UI Modernization & Theme Support**
-- Professional SVG icons replacing emojis throughout the UI
-- Full theme support for all 6 ComfyUI themes (Dark, Light, Solarized, Arc, Nord, GitHub)
-- External CSS stylesheet (`info-panel.css`) for easier customization
-- Improved button click handling for all floating controls
-
-**TypeScript Migration & Architecture**
-- Migrated entire codebase from JavaScript to TypeScript
-- Removed Vue.js dependency for reduced bundle size
-- Vite-based build system with proper module bundling
-- Enhanced type safety and modular class architecture
-
-### v1.4.5 — August 2024
-
-**Smart Input Detection & UI Improvements**
-- Hotkeys now detect when you're typing in input fields and won't activate
-- Pin button properly toggles between unlocked and locked states
-- 'U' key unlocks panel to mouse location without requiring Alt
-- Updated default border colors to gray (#6b7280) for better UI integration
-- Customizable info panel text and accent colors with smart defaults
-- Automatic theme synchronization with ComfyUI frontend
-- Percentage-based controls for opacity (10-100%) and zoom factor (100-1000%)
-- Reset key ('O') now properly resets both panels to default positions
-
-### v1.3.0 — June 2024
-
-**Inspector Information Panel**
-- New dockable panel providing real-time data about hovered canvas elements
-- Detailed node analysis, media information, and technical Inspector tab
-- Highly customizable: pin, lock, move, and style the panel
+</div>
 
 ---
 
-## Features
+## 🚀 Latest Updates (v1.5.0)
 
-### Magnifying Glass
+We've completely overhauled the UI and workflow for a seamless experience. Major highlights include:
 
-![Magnify Glass Settings](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/magnify_glass_settings.png)
+*   **Modernized UI**: Professional SVG icons and full support for all ComfyUI themes (Dark, Solarized, Nord, etc.).
+*   **Smart Workflow**: The Inspector Panel now intelligently pins/unpins based on your usage, allowing for both "Follow Glass" and "Free Floating" modes.
+*   **Quick Access**: New toolbar toggle for instant access.
+*   **Persistent State**: Your preferences and panel visibility are preserved between sessions.
 
-- **Smooth Zooming** — Magnify any part of the canvas with configurable zoom factor
-- **Cursor Interaction** — Follow cursor or activate at fixed position
-- **Customizable Appearance** — Adjust size, border, color, and shape (Circle, Square, Rounded Square)
-- **Keyboard Controls** — Configurable activation key with optional Alt modifier
-- **WebGL Powered** — Efficient rendering for smooth performance
-- **Text Overlay** — Magnifies text within input widgets for better readability
-- **Texture Filtering** — Linear (smooth) or Nearest (pixelated) rendering
-- **Always Active Mode** — Toggle magnifier to stay on without holding keys
-
-### Information Panel
-
-![Inspector Preview](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/inspector_preview_2.webp)
-
-- **Node Analysis** — View title, type, parameters (seed, steps, CFG), and text box content
-- **Media Details** — Information on images and other media elements
-- **Inspector Tab** — Technical details: cursor coordinates, canvas scale, zoom level
-- **Dockable & Customizable** — Pin, lock, move, and style the panel to your preference
-
-![Always Active Mode](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/always_active_action.webp)
-*Always Active & Toggle Follow Key: Position the glass preview anywhere on the canvas.*
+> 📄 **See [CHANGELOG.md](CHANGELOG.md) for the complete version history and detailed patch notes.**
 
 ---
 
-## Installation
+## ✨ Features
+
+### 🔍 Magnifying Glass
+*   **High Performance**: WebGL-powered rendering for smooth zooming.
+*   **Smart Interactions**: Follows your cursor or stays fixed. Toggles transparently to let you click through to nodes.
+*   **Customizable**: Adjust zoom level (up to 10x), size, border, and shape (Circle/Square).
+
+### ℹ️ Inspector Panel
+*   **Deep Analysis**: Hover over any node to see parameters (Seed, CFG, Steps), text content, and image details.
+*   **Dockable Interface**: Pin the panel to the screen to keep it stable, or let it follow the glass.
+*   **Inspector Tab**: Technical breakdown of coordinate space and scaling for power users.
+
+<div align="center">
+  <img src="https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/magnify_glass_action.webp" width="800" alt="Magnify Glass Demo">
+</div>
+
+---
+
+## 📦 Installation
 
 ### Option 1: ComfyUI Manager (Recommended)
+1.  Open **ComfyUI Manager**.
+2.  Search for **`ComfyUI-MagnifyGlass`**.
+3.  Click **Install**.
 
-1. Install [ComfyUI Manager](https://github.com/ltdrdata/ComfyUI-Manager) if not already installed
-2. Open ComfyUI and navigate to the **Manager** tab
-3. Click **Install Custom Nodes**
-4. Search for "**ComfyUI-MagnifyGlass**" and click **Install**
-5. Restart ComfyUI
-
-### Option 2: Manual Installation
-
+### Option 2: Manual Install
 ```bash
 cd /path/to/ComfyUI/custom_nodes
 git clone https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass.git
 ```
 
-Restart ComfyUI after installation. No additional dependencies required.
-
 ---
 
-## Usage
-
-### Activation
-
-- Press `X` to activate the magnifying glass (default key)
-- In Always Active Mode, this toggles the magnifier on/off
-- Activation key and Alt requirement are configurable in settings
-
-### Controls
+## 🎮 Usage
 
 | Key | Action |
-|-----|--------|
-| `X` | Activate/toggle magnifier |
-| Arrow Keys | Nudge magnified view |
-| Shift + Arrow Keys | Larger nudge step |
-| `O` | Reset offset to zero |
-| `H` | Toggle Follow Cursor |
-| `I` | Toggle Info Panel |
-| `G` | Toggle Glass Preview |
-| `U` | Unlock panel to mouse location |
+| :--- | :--- |
+| **`X`** | **Activate / Toggle Tool** (Master Switch) |
+| **`H`** | Toggle Follow Cursor Mode |
+| **`I`** | Toggle Inspector Panel Visibility |
+| **`G`** | Toggle Glass Preview (Enters "Inspector Only" Mode) |
+| **`U`** | Pin/Unpin Inspector Panel |
+| **`O`** | Reset Offsets |
+| **Arrows** | Nudge Glass Position |
 
-### Configuration
-
-Access settings via the gear icon (⚙️) in ComfyUI, then find the "Magnify Glass" section.
-
-![Usage Example](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/magnify_glass_usage.webp)
-*Debug Mode & Arrow Keys: Some flickering may occur with VHS Combine Node Preview.*
+> **Pro Tip:** Toggle the **Glass Preview (`G`)** off to keep the Inspector Panel active but hide the magnifying circle. This is perfect for analyzing nodes without visual obstruction.
 
 ---
 
-## Configuration Reference
+## ⚙️ Configuration
 
-### Magnify Glass Settings
+Access settings via the ComfyUI Settings (⚙️) menu.
 
-| Option | Description | Default |
-|--------|-------------|---------|
-| Zoom Factor | Magnification level (e.g., 300 = 3x zoom) | `300` |
-| Glass Size | Diameter in pixels | `300` |
-| Border Width | Border thickness in pixels | `1` |
-| Border Color | Border color | `#6b7280` |
-| Activation Key | Key to activate magnifier | `x` |
-| Require Alt/Option | Require modifier key | `No` |
-| Follow Cursor | Magnifier follows mouse | `No` |
-| Offset Step | Arrow key adjustment step | `5` |
-| Reset Key | Key to reset offset | `o` |
-| Debug Mode | Show debug overlay | `No` |
-| Glass Position | Position relative to cursor | `Bottom` |
-| Shape | Circle, Square, or Rounded Square | `Rounded Square` |
-| Show Border | Display border | `Yes` |
-| Texture Filtering | Linear or Nearest | `Linear` |
-| Always Active Mode | Stay on until toggled | `Yes` |
-| Toggle Follow Key | Key to toggle follow mode | `h` |
+**Magnify Glass**
+| Setting | Default | Description |
+| :--- | :--- | :--- |
+| **Zoom Factor** | `300` | Magnification level (300 = 3x). |
+| **Glass Size** | `300px` | Diameter of the lens. |
+| **Shape** | `Rounded` | Circle, Square, or Rounded Square. |
+| **Activation Key** | `X` | Hotkey to toggle the tool. |
 
-### Information Panel Settings
-
-| Option | Description | Default |
-|--------|-------------|---------|
-| Info Panel | Enable/disable panel | `Enabled` |
-| Position | Relative to magnifying glass | `Left` |
-| Width | Panel width in pixels | `320` |
-| Opacity | Background opacity (10-100%) | `100` |
-| Max Height | Maximum height in pixels | `500` |
-| Theme | Color theme | `Automatic` |
-| Animations | Enable animations | `Disabled` |
-| Show Inspector Tab | Show technical details tab | `Disabled` |
-| Toggle Hotkey | Key to toggle panel | `i` |
-| Preview Toggle | Key to toggle glass preview | `g` |
-| Pin Hotkey | Key to pin panel at mouse | `u` |
-| Show Hover Controls | Show floating controls | `Enabled` |
-| Controls Position | Floating controls position | `bottom-centered` |
+**Information Panel**
+| Setting | Default | Description |
+| :--- | :--- | :--- |
+| **Theme** | `Auto` | Syncs with ComfyUI theme automatically. |
+| **Opacity** | `100%` | Transparency of the panel background. |
+| **Show Hover Controls** | `On` | Displays the quick-action toolbar on the panel. |
 
 ---
 
-## Troubleshooting
+## 🤝 Contributing
 
-**Magnifier not appearing**
-- Verify you're pressing the correct activation key (check settings)
-- Open browser console (F12) and look for errors mentioning "ComfyUI Magnifying Glass"
+Contributions are welcome! Please submit a Pull Request or open an Issue on GitHub.
 
-**Performance issues**
-- WebGL is used for efficiency, but complex scenes may impact performance
-- Try reducing Glass Size if issues occur
-
-**Text not sharp**
-- Ensure browser zoom is at 100%
+1.  Fork the Project
+2.  Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
+3.  Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
+4.  Push to the Branch (`git push origin feature/AmazingFeature`)
+5.  Open a Pull Request
 
 ---
 
-## Contributing
+<div align="center">
 
-Contributions are welcome. Please follow these steps:
+**Developed by [AEmotionStudio](https://aemotionstudio.org/)**
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/your-feature`)
-3. Commit your changes (`git commit -m 'Add your feature'`)
-4. Push to the branch (`git push origin feature/your-feature`)
-5. Open a Pull Request
+[![YouTube](https://img.shields.io/badge/YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/@aemotionstudio/videos)
+[![Discord](https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/UzC9353mfp)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-F16061?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/aemotionstudio)
 
-### Development Setup
-
-This project uses TypeScript. To build from source:
-
-```bash
-cd ComfyUI-MagnifyGlass
-pnpm install
-pnpm build
-```
-
----
-
-## Acknowledgements
-
-- The ComfyUI team for creating a flexible and powerful platform
-- The LiteGraph.js library
-- Users and contributors who provide feedback and suggestions
-
----
-
-## Connect
-
-- **YouTube**: [AEmotionStudio](https://www.youtube.com/@aemotionstudio/videos)
-- **GitHub**: [AEmotionStudio](https://github.com/AEmotionStudio)
-- **Discord**: [Join our community](https://discord.gg/UzC9353mfp)
-- **Website**: [aemotionstudio.org](https://aemotionstudio.org/)
-
----
-
-## Support
-
-If you find ComfyUI-MagnifyGlass useful, consider supporting its development:
-
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/aemotionstudio)
-
-**Other ways to support:**
-- Star the repository
-- Share it with others
-- Contribute to development
-
-For business inquiries or professional support, contact via [website](https://aemotionstudio.org/) or [Discord](https://discord.gg/UzC9353mfp).
-
----
-
-## License
-
-This project is licensed under the **GNU General Public License v3.0**.
-See the [LICENSE](LICENSE) file for details.
+</div>

@@ -8,11 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.5.0] - 2024-12-31
 
 ### Added
+- **Quick Toggle Button**: Integrated Magnify Glass toggle into the main ComfyUI toolbar (bottom-right).
+- **Inspector Persistence**: Panel now remembers if it was open or closed when toggling the tool.
+- **Glass Preview Toggle**: New specific toggle for the visual glass circle (allowing "Inspector Only" mode).
+- **Smart Workflow Logic**: 
+    - Auto-Pin Inspector (Unlocked Mode) when hiding Glass Preview.
+    - Auto-Lock Inspector (Follow Mode) when showing Glass Preview.
 - Professional SVG icons replacing emoji icons throughout the UI
 - Full theme support for ComfyUI themes: Dark, Light, Solarized, Arc, Nord, GitHub
 - External CSS stylesheet for easier customization
 - Click event handlers for all floating control buttons
 - Section expand/collapse functionality in info panel
+
+### Improved
+- **Drag Safety**: Dragging is now disabled when following the glass to prevent position fighting.
+- **Visibility Interlocks**: 
+    - "Unpin" button disabled when glass is hidden (prevents following invisible cursor).
+    - "Hide Inspector" button disabled when glass is hidden (prevents hiding all UI).
+- **Global Toggle**: The 'X' key/button now acts as a master switch, preserving your exact workspace state.
 
 ### Changed
 - Migrated from inline CSS-in-JS to external `info-panel.css` file

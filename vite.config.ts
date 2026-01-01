@@ -1,13 +1,8 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
-import vue from '@vitejs/plugin-vue';
 
 export default defineConfig({
-    define: {
-        'process.env': {}
-    },
-    plugins: [vue()],
     build: {
         lib: {
             entry: {
@@ -41,7 +36,7 @@ export default defineConfig({
         }
     },
     test: {
-        environment: 'happy-dom', // or jsdom, useful for component testing
+        environment: 'happy-dom',
         globals: true
     }
 });

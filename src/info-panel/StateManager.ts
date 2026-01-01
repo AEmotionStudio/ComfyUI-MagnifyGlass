@@ -126,61 +126,71 @@ export class StateManager {
     detectCurrentTheme(): boolean {
         let detectedTheme = 'dark'; // Default fallback
 
-        const body = document.body;
-        const html = document.documentElement;
-        const vueApp = document.querySelector('#vue-app');
-        const sidebar = document.querySelector('.comfy-menu, .sidebar, .menu, [class*="sidebar"], [class*="menu"]');
+        // Method 1: Try to read from ComfyUI's color palette setting
+        try {
+            // ComfyUI stores theme in 'Comfy.ColorPalette' setting
+            const colorPalette = getSettingValue('Comfy.ColorPalette', '');
 
-        // Get all possible theme-related elements
-        const allElements = [body, html, vueApp, sidebar].filter(Boolean) as Element[];
+            if (colorPalette) {
+                // Extract theme name from various possible formats
+                const paletteStr = String(colorPalette).toLowerCase();
 
-        // Check CSS variables
-        const rootStyles = window.getComputedStyle(html);
-        const bodyStyles = window.getComputedStyle(body);
-
-        // Method 2: Analyze background colors of multiple elements
-        const backgrounds = allElements.map(el => {
-            const styles = window.getComputedStyle(el);
-            return {
-                element: el.tagName || el.className,
-                backgroundColor: styles.backgroundColor,
-                color: styles.color
-            };
-        });
-
-        // Method 3: Check for light backgrounds
-        for (const bg of backgrounds) {
-            if (bg.backgroundColor && bg.backgroundColor !== 'rgba(0, 0, 0, 0)' && bg.backgroundColor !== 'transparent') {
-                const rgbMatch = bg.backgroundColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-                if (rgbMatch) {
-                    const [, r, g, b] = rgbMatch.map(Number);
-                    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-                    if (brightness > 180) { // Higher threshold for light detection
-                        detectedTheme = 'light';
-                        break;
-                    }
+                if (paletteStr.includes('solarized')) {
+                    detectedTheme = 'solarized';
+                } else if (paletteStr.includes('arc')) {
+                    detectedTheme = 'arc';
+                } else if (paletteStr.includes('nord')) {
+                    detectedTheme = 'nord';
+                } else if (paletteStr.includes('github')) {
+                    detectedTheme = 'github';
+                } else if (paletteStr.includes('light')) {
+                    detectedTheme = 'light';
+                } else if (paletteStr.includes('dark')) {
+                    detectedTheme = 'dark';
                 }
+            }
+        } catch (e) {
+            // Fallback to brightness-based detection
+            console.warn('ComfyUI Info Panel: Could not read theme from settings, using fallback detection');
+        }
+
+        // Method 2: Fallback - check body/html for theme classes or data attributes
+        if (detectedTheme === 'dark') {
+            const body = document.body;
+            const html = document.documentElement;
+
+            // Check for data-theme attribute
+            const dataTheme = body.getAttribute('data-theme') || html.getAttribute('data-theme');
+            if (dataTheme) {
+                detectedTheme = dataTheme.toLowerCase();
+            }
+
+            // Check for theme classes
+            const classes = (body.className + ' ' + html.className).toLowerCase();
+            if (classes.includes('theme-solarized') || classes.includes('solarized')) {
+                detectedTheme = 'solarized';
+            } else if (classes.includes('theme-arc') || classes.includes('arc-theme')) {
+                detectedTheme = 'arc';
+            } else if (classes.includes('theme-nord') || classes.includes('nord-theme')) {
+                detectedTheme = 'nord';
+            } else if (classes.includes('theme-github') || classes.includes('github-theme')) {
+                detectedTheme = 'github';
+            } else if (classes.includes('theme-light') || classes.includes('light-theme')) {
+                detectedTheme = 'light';
             }
         }
 
-        // Method 5: Force light theme detection if we see light backgrounds
+        // Method 3: Last resort - brightness detection for light vs dark
         if (detectedTheme === 'dark') {
-            // Look for any element with very light background
-            const lightElements = document.querySelectorAll('*');
-            for (let i = 0; i < Math.min(lightElements.length, 50); i++) { // Check first 50 elements
-                const el = lightElements[i];
-                const styles = window.getComputedStyle(el);
-                const bgColor = styles.backgroundColor;
-
-                if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
-                    const rgbMatch = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-                    if (rgbMatch) {
-                        const [, r, g, b] = rgbMatch.map(Number);
-                        const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-                        if (brightness > 200) { // Very light elements
-                            detectedTheme = 'light';
-                            break;
-                        }
+            const bodyStyles = window.getComputedStyle(document.body);
+            const bgColor = bodyStyles.backgroundColor;
+            if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
+                const rgbMatch = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+                if (rgbMatch) {
+                    const [, r, g, b] = rgbMatch.map(Number);
+                    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+                    if (brightness > 180) {
+                        detectedTheme = 'light';
                     }
                 }
             }

@@ -62,49 +62,57 @@ class StateManager {
   }
   detectCurrentTheme() {
     let detectedTheme = "dark";
-    const body = document.body;
-    const html = document.documentElement;
-    const vueApp = document.querySelector("#vue-app");
-    const sidebar = document.querySelector('.comfy-menu, .sidebar, .menu, [class*="sidebar"], [class*="menu"]');
-    const allElements = [body, html, vueApp, sidebar].filter(Boolean);
-    window.getComputedStyle(html);
-    window.getComputedStyle(body);
-    const backgrounds = allElements.map((el) => {
-      const styles = window.getComputedStyle(el);
-      return {
-        element: el.tagName || el.className,
-        backgroundColor: styles.backgroundColor,
-        color: styles.color
-      };
-    });
-    for (const bg of backgrounds) {
-      if (bg.backgroundColor && bg.backgroundColor !== "rgba(0, 0, 0, 0)" && bg.backgroundColor !== "transparent") {
-        const rgbMatch = bg.backgroundColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    try {
+      const colorPalette = getSettingValue("Comfy.ColorPalette", "");
+      if (colorPalette) {
+        const paletteStr = String(colorPalette).toLowerCase();
+        if (paletteStr.includes("solarized")) {
+          detectedTheme = "solarized";
+        } else if (paletteStr.includes("arc")) {
+          detectedTheme = "arc";
+        } else if (paletteStr.includes("nord")) {
+          detectedTheme = "nord";
+        } else if (paletteStr.includes("github")) {
+          detectedTheme = "github";
+        } else if (paletteStr.includes("light")) {
+          detectedTheme = "light";
+        } else if (paletteStr.includes("dark")) {
+          detectedTheme = "dark";
+        }
+      }
+    } catch (e) {
+      console.warn("ComfyUI Info Panel: Could not read theme from settings, using fallback detection");
+    }
+    if (detectedTheme === "dark") {
+      const body = document.body;
+      const html = document.documentElement;
+      const dataTheme = body.getAttribute("data-theme") || html.getAttribute("data-theme");
+      if (dataTheme) {
+        detectedTheme = dataTheme.toLowerCase();
+      }
+      const classes = (body.className + " " + html.className).toLowerCase();
+      if (classes.includes("theme-solarized") || classes.includes("solarized")) {
+        detectedTheme = "solarized";
+      } else if (classes.includes("theme-arc") || classes.includes("arc-theme")) {
+        detectedTheme = "arc";
+      } else if (classes.includes("theme-nord") || classes.includes("nord-theme")) {
+        detectedTheme = "nord";
+      } else if (classes.includes("theme-github") || classes.includes("github-theme")) {
+        detectedTheme = "github";
+      } else if (classes.includes("theme-light") || classes.includes("light-theme")) {
+        detectedTheme = "light";
+      }
+    }
+    if (detectedTheme === "dark") {
+      const bodyStyles = window.getComputedStyle(document.body);
+      const bgColor = bodyStyles.backgroundColor;
+      if (bgColor && bgColor !== "rgba(0, 0, 0, 0)" && bgColor !== "transparent") {
+        const rgbMatch = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
         if (rgbMatch) {
           const [, r, g, b] = rgbMatch.map(Number);
           const brightness = (r * 299 + g * 587 + b * 114) / 1e3;
           if (brightness > 180) {
             detectedTheme = "light";
-            break;
-          }
-        }
-      }
-    }
-    if (detectedTheme === "dark") {
-      const lightElements = document.querySelectorAll("*");
-      for (let i = 0; i < Math.min(lightElements.length, 50); i++) {
-        const el = lightElements[i];
-        const styles = window.getComputedStyle(el);
-        const bgColor = styles.backgroundColor;
-        if (bgColor && bgColor !== "rgba(0, 0, 0, 0)" && bgColor !== "transparent") {
-          const rgbMatch = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-          if (rgbMatch) {
-            const [, r, g, b] = rgbMatch.map(Number);
-            const brightness = (r * 299 + g * 587 + b * 114) / 1e3;
-            if (brightness > 200) {
-              detectedTheme = "light";
-              break;
-            }
           }
         }
       }

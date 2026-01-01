@@ -6,7 +6,6 @@
  */
 
 // import { Z_INDEX } from '../shared/constants'; // Not used in original code? Kept for reference if needed
-import { getInfoPanelCSS } from './styles';
 import { StateManager } from './StateManager';
 
 interface InfoPanelElements {
@@ -817,14 +816,16 @@ export class UIManager {
     }
 
     /**
-     * Inject CSS styles.
+     * Inject CSS styles by loading external stylesheet.
      */
     injectStyles(): void {
         if (!document.getElementById('magnify-info-panel-styles-v2')) {
-            const style = document.createElement('style');
-            style.id = 'magnify-info-panel-styles-v2';
-            style.textContent = getInfoPanelCSS();
-            document.head.appendChild(style);
+            const link = document.createElement('link');
+            link.id = 'magnify-info-panel-styles-v2';
+            link.rel = 'stylesheet';
+            link.type = 'text/css';
+            link.href = 'extensions/comfyui-magnifyglass/info-panel.css';
+            document.head.appendChild(link);
         }
     }
 

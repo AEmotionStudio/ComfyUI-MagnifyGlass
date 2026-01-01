@@ -1,7 +1,6 @@
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-import { getInfoPanelCSS } from "./styles.js";
 class UIManager {
   constructor(stateManager) {
     __publicField(this, "stateManager");
@@ -669,14 +668,16 @@ class UIManager {
     return String(value);
   }
   /**
-   * Inject CSS styles.
+   * Inject CSS styles by loading external stylesheet.
    */
   injectStyles() {
     if (!document.getElementById("magnify-info-panel-styles-v2")) {
-      const style = document.createElement("style");
-      style.id = "magnify-info-panel-styles-v2";
-      style.textContent = getInfoPanelCSS();
-      document.head.appendChild(style);
+      const link = document.createElement("link");
+      link.id = "magnify-info-panel-styles-v2";
+      link.rel = "stylesheet";
+      link.type = "text/css";
+      link.href = "extensions/comfyui-magnifyglass/info-panel.css";
+      document.head.appendChild(link);
     }
   }
   cleanup() {

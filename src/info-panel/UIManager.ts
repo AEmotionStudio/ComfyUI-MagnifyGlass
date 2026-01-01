@@ -184,14 +184,30 @@ export class UIManager {
                     break;
                 case 'toggle-glass':
                     this.stateManager.state.isGlassPreviewVisible = !this.stateManager.state.isGlassPreviewVisible;
-                    this.updateControlStates();
-                    // Toggle glass visibility on the magnify glass
-                    if (window.comfyUIMagnifyGlass) {
-                        if (this.stateManager.state.isGlassPreviewVisible) {
-                            window.comfyUIMagnifyGlass.ui.show();
-                        } else {
-                            window.comfyUIMagnifyGlass.ui.hide();
+
+                    // Link Glass Visibility to Panel Pinning
+                    if (!this.stateManager.state.isGlassPreviewVisible) {
+                        // Glass Hidden -> Enter "Unlocked Mode" (Pinned to Screen, Draggable)
+                        if (this.elements.panel) {
+                            const rect = this.elements.panel.getBoundingClientRect();
+                            this.stateManager.state.pinnedPosition = { x: rect.left, y: rect.top };
                         }
+                        this.stateManager.state.isPanelPinned = true;
+                        this.stateManager.state.isPanelLocked = false; // Ensure dragging is allowed
+                    } else {
+                        // Glass Shown -> Enter "Locked Position" (Follow Glass)
+                        this.stateManager.state.isPanelPinned = false;
+                        // Note: Dragging is automatically disabled when !isPanelPinned by EventManager logic
+                    }
+
+                    this.updateControlStates();
+                    this.updatePinnedState(); // Update visual class
+
+                    // Toggle ONLY the visual visibility (opacity) of the glass preview
+                    // The tool remains active so the inspector can track position
+                    const magnifyGlass = (window as any).comfyUIMagnifyGlass;
+                    if (magnifyGlass && magnifyGlass.ui?.setPreviewVisibility) {
+                        magnifyGlass.ui.setPreviewVisibility(this.stateManager.state.isGlassPreviewVisible);
                     }
                     break;
             }
@@ -215,19 +231,26 @@ export class UIManager {
         const lockBtn = this.elements.controls.querySelector('[data-action="lock"]') as HTMLButtonElement;
         const visibilityBtn = this.elements.controls.querySelector('[data-action="toggle-panel"]') as HTMLButtonElement;
         const glassBtn = this.elements.controls.querySelector('[data-action="toggle-glass"]') as HTMLButtonElement;
+        const isPanelVisible = this.stateManager.state.isPanelVisible;
+        const isGlassVisible = this.stateManager.state.isGlassPreviewVisible;
 
         if (pinBtn) {
             pinBtn.classList.toggle('active', this.stateManager.state.isPanelPinned);
             pinBtn.title = this.stateManager.state.isPanelPinned ? "Lock Panel" : "Unlock Panel";
             pinBtn.innerHTML = this.stateManager.state.isPanelPinned ? Icons.lock : Icons.unlock;
-        }
-
-        // Hide unlock/pin buttons when panel is not visible
-        const isPanelVisible = this.stateManager.state.isPanelVisible;
-
-        if (pinBtn) {
             // Hide unlock button when panel is hidden
             pinBtn.style.display = isPanelVisible ? 'flex' : 'none';
+
+            // Disable unlock (unpin) button if glass is hidden
+            // This prevents entering "Follow Mouse" mode when glass is invisible
+            if (!isGlassVisible) {
+                pinBtn.disabled = true;
+                pinBtn.style.opacity = '0.5';
+                pinBtn.title = "Cannot unlock panel from screen when glass preview is hidden";
+            } else {
+                pinBtn.disabled = false;
+                pinBtn.style.opacity = '';
+            }
         }
 
         if (lockBtn) {
@@ -243,11 +266,24 @@ export class UIManager {
             // Active means "Panel is Visible"
             visibilityBtn.classList.toggle('active', isPanelVisible);
             visibilityBtn.title = isPanelVisible ? "Hide Panel" : "Show Panel";
+
+            // Disable hide button if glass is hidden (prevent hiding everything)
+            if (!isGlassVisible) {
+                visibilityBtn.disabled = true;
+                visibilityBtn.style.opacity = '0.5';
+                visibilityBtn.title = "Cannot hide panel when glass preview is hidden";
+            } else {
+                visibilityBtn.disabled = false;
+                visibilityBtn.style.opacity = '';
+            }
         }
 
         if (glassBtn) {
-            glassBtn.classList.toggle('active', this.stateManager.state.isGlassPreviewVisible);
-            glassBtn.title = this.stateManager.state.isGlassPreviewVisible ? "Hide Glass Preview" : "Show Glass Preview";
+            glassBtn.classList.toggle('active', isGlassVisible);
+            glassBtn.title = isGlassVisible ? "Hide Glass Preview" : "Show Glass Preview";
+
+            // Only show glass toggle button if the inspector panel is visible
+            glassBtn.style.display = isPanelVisible ? 'flex' : 'none';
         }
     }
 

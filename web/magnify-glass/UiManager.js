@@ -99,6 +99,16 @@ class UiManager {
     }
   }
   /**
+   * Set the visual visibility of the glass preview (opacity).
+   * This allows the tool to remain "Active" (tracking mouse) but invisible,
+   * so that the Inspector Panel can be used in "Inspector Only" mode.
+   */
+  setPreviewVisibility(visible) {
+    if (this.glassDiv) {
+      this.glassDiv.style.opacity = visible ? "1" : "0";
+    }
+  }
+  /**
    * Hide the magnifying glass.
    */
   hide() {

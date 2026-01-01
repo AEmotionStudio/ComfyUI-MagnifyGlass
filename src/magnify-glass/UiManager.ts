@@ -116,10 +116,24 @@ export class UiManager {
      */
     show(): void {
         if (this.glassDiv) {
-            this.glassDiv.style.display = "block";
+            this.glassDiv.style.display = 'block';
+            // We do NOT modify opacity here, allowing it to be controlled independently
         }
         if (this.config.debugMode && this.debugCanvas) {
             this.debugCanvas.style.display = "block";
+        }
+    }
+
+    /**
+     * Set the visual visibility of the glass preview (opacity).
+     * This allows the tool to remain "Active" (tracking mouse) but invisible,
+     * so that the Inspector Panel can be used in "Inspector Only" mode.
+     */
+    setPreviewVisibility(visible: boolean): void {
+        if (this.glassDiv) {
+            this.glassDiv.style.opacity = visible ? '1' : '0';
+            // Disable pointer events when hidden to be safe, though usually they are none anyway
+            // this.glassDiv.style.pointerEvents = visible ? 'none' : 'none'; 
         }
     }
 
@@ -128,7 +142,7 @@ export class UiManager {
      */
     hide(): void {
         if (this.glassDiv) {
-            this.glassDiv.style.display = "none";
+            this.glassDiv.style.display = 'none';
         }
         if (this.config.debugMode && this.debugCanvas) {
             this.debugCanvas.style.display = "none";

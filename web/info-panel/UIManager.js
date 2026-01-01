@@ -90,6 +90,7 @@ class UIManager {
     this.elements.controls.style.left = "-9999px";
     this.elements.controls.style.top = "-9999px";
     this.elements.controls.addEventListener("click", (e) => {
+      var _a;
       const target = e.target;
       const button = target.closest("button[data-action]");
       if (!button) return;
@@ -118,13 +119,21 @@ class UIManager {
           break;
         case "toggle-glass":
           this.stateManager.state.isGlassPreviewVisible = !this.stateManager.state.isGlassPreviewVisible;
-          this.updateControlStates();
-          if (window.comfyUIMagnifyGlass) {
-            if (this.stateManager.state.isGlassPreviewVisible) {
-              window.comfyUIMagnifyGlass.ui.show();
-            } else {
-              window.comfyUIMagnifyGlass.ui.hide();
+          if (!this.stateManager.state.isGlassPreviewVisible) {
+            if (this.elements.panel) {
+              const rect = this.elements.panel.getBoundingClientRect();
+              this.stateManager.state.pinnedPosition = { x: rect.left, y: rect.top };
             }
+            this.stateManager.state.isPanelPinned = true;
+            this.stateManager.state.isPanelLocked = false;
+          } else {
+            this.stateManager.state.isPanelPinned = false;
+          }
+          this.updateControlStates();
+          this.updatePinnedState();
+          const magnifyGlass = window.comfyUIMagnifyGlass;
+          if (magnifyGlass && ((_a = magnifyGlass.ui) == null ? void 0 : _a.setPreviewVisibility)) {
+            magnifyGlass.ui.setPreviewVisibility(this.stateManager.state.isGlassPreviewVisible);
           }
           break;
       }
@@ -142,14 +151,21 @@ class UIManager {
     const lockBtn = this.elements.controls.querySelector('[data-action="lock"]');
     const visibilityBtn = this.elements.controls.querySelector('[data-action="toggle-panel"]');
     const glassBtn = this.elements.controls.querySelector('[data-action="toggle-glass"]');
+    const isPanelVisible = this.stateManager.state.isPanelVisible;
+    const isGlassVisible = this.stateManager.state.isGlassPreviewVisible;
     if (pinBtn) {
       pinBtn.classList.toggle("active", this.stateManager.state.isPanelPinned);
       pinBtn.title = this.stateManager.state.isPanelPinned ? "Lock Panel" : "Unlock Panel";
       pinBtn.innerHTML = this.stateManager.state.isPanelPinned ? Icons.lock : Icons.unlock;
-    }
-    const isPanelVisible = this.stateManager.state.isPanelVisible;
-    if (pinBtn) {
       pinBtn.style.display = isPanelVisible ? "flex" : "none";
+      if (!isGlassVisible) {
+        pinBtn.disabled = true;
+        pinBtn.style.opacity = "0.5";
+        pinBtn.title = "Cannot unlock panel from screen when glass preview is hidden";
+      } else {
+        pinBtn.disabled = false;
+        pinBtn.style.opacity = "";
+      }
     }
     if (lockBtn) {
       const showLockBtn = isPanelVisible && this.stateManager.state.isPanelPinned;
@@ -161,10 +177,19 @@ class UIManager {
     if (visibilityBtn) {
       visibilityBtn.classList.toggle("active", isPanelVisible);
       visibilityBtn.title = isPanelVisible ? "Hide Panel" : "Show Panel";
+      if (!isGlassVisible) {
+        visibilityBtn.disabled = true;
+        visibilityBtn.style.opacity = "0.5";
+        visibilityBtn.title = "Cannot hide panel when glass preview is hidden";
+      } else {
+        visibilityBtn.disabled = false;
+        visibilityBtn.style.opacity = "";
+      }
     }
     if (glassBtn) {
-      glassBtn.classList.toggle("active", this.stateManager.state.isGlassPreviewVisible);
-      glassBtn.title = this.stateManager.state.isGlassPreviewVisible ? "Hide Glass Preview" : "Show Glass Preview";
+      glassBtn.classList.toggle("active", isGlassVisible);
+      glassBtn.title = isGlassVisible ? "Hide Glass Preview" : "Show Glass Preview";
+      glassBtn.style.display = isPanelVisible ? "flex" : "none";
     }
   }
   /**

@@ -84,6 +84,10 @@ export class EventManager {
             // Button 2 (pin icon, data-action="lock") prevents dragging
             if (this.stateManager.state.isPanelLocked) return;
 
+            // Also prevent dragging if we are "Following Glass" (not pinned to screen)
+            // This prevents fighting with the auto-positioner and accidental drags
+            if (!this.stateManager.state.isPanelPinned) return;
+
             e.preventDefault();
             e.stopPropagation();
 

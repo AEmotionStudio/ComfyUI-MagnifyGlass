@@ -5,6 +5,7 @@
  */
 
 import { Z_INDEX, DEFAULT_PADDING } from '../shared/constants';
+import { Icons } from '../shared/icons';
 import type { ConfigManager } from './ConfigManager';
 import type { MagnifierState } from './MagnifierState';
 
@@ -20,8 +21,9 @@ export class UiManager {
     debugCanvas: HTMLCanvasElement | null;
     debugCtx: CanvasRenderingContext2D | null;
     htmlOverlayContainer: HTMLDivElement | null;
+    onToggle: (() => void) | undefined;
 
-    constructor(config: ConfigManager, state: MagnifierState) {
+    constructor(config: ConfigManager, state: MagnifierState, onToggle?: () => void) {
         this.config = config;
         this.state = state;
         this.glassDiv = null;
@@ -29,6 +31,7 @@ export class UiManager {
         this.debugCanvas = null;
         this.debugCtx = null;
         this.htmlOverlayContainer = null;
+        this.onToggle = onToggle;
     }
 
     /**
@@ -79,6 +82,9 @@ export class UiManager {
         if (this.config.debugMode) {
             this.createDebugCanvas();
         }
+
+        // Inject menu button
+        this.injectMenuButton();
     }
 
     /**
@@ -275,5 +281,124 @@ export class UiManager {
     cleanup(): void {
         if (this.glassDiv) this.glassDiv.remove();
         if (this.debugCanvas) this.debugCanvas.remove();
+        // Remove menu button if needed (though hard to track references here without saving it)
+        const btn = document.querySelector('.magnify-toggle-btn');
+        if (btn) btn.remove();
+    }
+
+    /**
+     * Inject a quick toggle button into the ComfyUI menu.
+     */
+    /**
+     * Inject a quick toggle button into the ComfyUI menu.
+     */
+    injectMenuButton(): void {
+        // Stop after 30 seconds
+        const stopTime = Date.now() + 30000;
+
+        // Define check function
+        const attemptInjection = () => {
+            const buttons = Array.from(document.querySelectorAll('button'));
+
+            // Try to find an anchor button (Minimap or Links)
+            // Priority 1: Minimap
+            let anchorBtn = buttons.find(b => {
+                const title = (b.title || '').toLowerCase();
+                const aria = (b.getAttribute('aria-label') || '').toLowerCase();
+                const text = (b.textContent || '').toLowerCase();
+                return (title.includes('map') && !title.includes('open')) ||
+                    (aria.includes('map') && !aria.includes('open')) ||
+                    (text.includes('map'));
+            });
+
+            // Priority 2: Link Visibility
+            if (!anchorBtn) {
+                anchorBtn = buttons.find(b => {
+                    const title = (b.title || '').toLowerCase();
+                    const aria = (b.getAttribute('aria-label') || '').toLowerCase();
+                    return title.includes('link') || aria.includes('link');
+                });
+            }
+
+            if (anchorBtn && anchorBtn.parentElement) {
+                // Determine success BEFORE creating elements to allow early return if duplicate
+                if (anchorBtn.parentElement.querySelector('.magnify-toggle-btn')) return true;
+
+                console.log("[MagnifyGlass] Found menu anchor:", anchorBtn.title || anchorBtn.getAttribute('aria-label') || "Unknown Button");
+
+                const btn = document.createElement('button');
+                // Copy all classes to match theme/library (e.g. p-button, comfy-btn, etc)
+                btn.className = anchorBtn.className + ' magnify-toggle-btn';
+
+                // Copy key styles that might define shape/size
+                const computed = window.getComputedStyle(anchorBtn);
+                btn.style.height = computed.height;
+                btn.style.minHeight = computed.minHeight;
+                // btn.style.width = computed.width; // Don't copy width, let it adapt
+
+                btn.title = "Toggle Magnify Glass";
+                btn.innerHTML = Icons.magnifyGlass;
+
+                // Ensure specific display props
+                btn.style.display = "inline-flex";
+                btn.style.alignItems = "center";
+                btn.style.justifyContent = "center";
+                btn.style.padding = "0 8px";
+                btn.style.cursor = "pointer";
+                btn.style.border = anchorBtn.style.border || computed.border;
+                btn.style.borderRadius = anchorBtn.style.borderRadius || computed.borderRadius;
+                // Use cssText if available for background/color specific overrides
+                if (!btn.style.background) btn.style.background = computed.background;
+                if (!btn.style.color) btn.style.color = computed.color;
+
+                // Add active state tracking
+                btn.addEventListener('click', () => {
+                    if (this.onToggle) {
+                        this.onToggle();
+                        // Try to apply common active classes found in modern UI frameworks
+                        btn.classList.toggle('active');
+                        btn.classList.toggle('p-highlight'); // PrimeVue
+                        btn.classList.toggle('selected');
+                    }
+                });
+
+                // Insert logic:
+                const isMinimap = (anchorBtn.title || '').toLowerCase().includes('map') ||
+                    (anchorBtn.getAttribute('aria-label') || '').toLowerCase().includes('map');
+
+                if (isMinimap) {
+                    // Insert AFTER Minimap
+                    if (anchorBtn.nextSibling) {
+                        anchorBtn.parentElement.insertBefore(btn, anchorBtn.nextSibling);
+                    } else {
+                        anchorBtn.parentElement.appendChild(btn);
+                    }
+                } else {
+                    // It's likely links, Insert BEFORE
+                    anchorBtn.parentElement.insertBefore(btn, anchorBtn);
+                }
+
+                console.log("[MagnifyGlass] Menu toggle button injected successfully");
+                return true;
+            }
+            return false;
+        };
+
+        // Run immediately first
+        if (attemptInjection()) return;
+
+        // Then poll rapidly
+        const checkForMenu = setInterval(() => {
+            if (Date.now() > stopTime) {
+                console.warn("[MagnifyGlass] Menu injection timed out. Found buttons:",
+                    Array.from(document.querySelectorAll('button')).map(b => b.title || b.getAttribute('aria-label') || b.textContent || b.className).slice(0, 5));
+                clearInterval(checkForMenu);
+                return;
+            }
+
+            if (attemptInjection()) {
+                clearInterval(checkForMenu);
+            }
+        }, 100);
     }
 }

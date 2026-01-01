@@ -47,6 +47,7 @@ class EventManager {
       if (!header) return;
       if (target.closest("button")) return;
       if (this.stateManager.state.isPanelLocked) return;
+      if (!this.stateManager.state.isPanelPinned) return;
       e.preventDefault();
       e.stopPropagation();
       isDragging = true;

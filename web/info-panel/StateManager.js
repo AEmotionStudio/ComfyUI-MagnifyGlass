@@ -9,6 +9,7 @@ class StateManager {
     this.state = {
       // Panel visibility and positioning
       isPanelVisible: false,
+      wasPanelVisibleBeforeHide: false,
       isPanelMinimized: false,
       isPanelPinned: false,
       isPanelLocked: false,

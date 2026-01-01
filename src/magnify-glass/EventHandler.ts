@@ -59,20 +59,12 @@ export class EventHandler {
         if (e.key.toLowerCase() === config.activationKey &&
             (!config.altRequired || e.altKey)) {
             console.log("[MagnifyGlass] Activation key matched!");
+            console.log("[MagnifyGlass] Activation key matched!");
             if (config.alwaysActiveMode) {
-                if (state.active) {
-                    state.active = false;
-                    this.magnifyGlass.ui.hide();
-                } else {
-                    state.active = true;
-                    this.magnifyGlass.ui.show();
-                    this.updateInitialPosition();
-                }
+                this.magnifyGlass.toggle();
             } else {
                 if (!state.active) {
-                    state.active = true;
-                    this.magnifyGlass.ui.show();
-                    this.updateInitialPosition();
+                    this.magnifyGlass.toggle();
                 }
             }
         }

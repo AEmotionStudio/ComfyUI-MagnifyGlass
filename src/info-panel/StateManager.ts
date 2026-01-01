@@ -10,6 +10,7 @@ import { DEFAULT_PANEL_SETTINGS } from '../shared/settings';
 export interface InfoPanelStateData {
     // Panel visibility and positioning
     isPanelVisible: boolean;
+    wasPanelVisibleBeforeHide: boolean; // Persist state across glass toggles
     isPanelMinimized: boolean;
     isPanelPinned: boolean;
     isPanelLocked: boolean; // New lock state
@@ -56,6 +57,7 @@ export class StateManager {
         this.state = {
             // Panel visibility and positioning
             isPanelVisible: false,
+            wasPanelVisibleBeforeHide: false,
             isPanelMinimized: false,
             isPanelPinned: false,
             isPanelLocked: false, // New lock state

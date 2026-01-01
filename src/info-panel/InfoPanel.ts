@@ -78,18 +78,44 @@ export class InfoPanel {
         this.magnifyGlass.ui.show = (() => {
             originalShow();
             if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"]) {
-                this.uiManager.show();
-                // Position controls after showing
-                setTimeout(() => {
-                    this.positionManager.positionPanel();
-                    this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
-                }, 10);
+                // Restore state: If it was visible before hide, make it visible now.
+                // Otherwise only show controls.
+                if (this.stateManager.state.wasPanelVisibleBeforeHide) {
+                    this.uiManager.show();
+
+                    // Position properly
+                    setTimeout(() => {
+                        this.positionManager.positionPanel();
+                        this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
+                    }, 10);
+                } else {
+                    // Do NOT force panel visible. Only show controls.
+                    const showControls = this.stateManager.state.settings["🔍MagnifyGlass.ShowHoveringControls"] !== false;
+                    if (showControls && this.uiManager.elements.controls) {
+                        this.uiManager.elements.controls.style.display = 'flex';
+                    }
+
+                    // Ensure states are updated
+                    this.uiManager.updateControlStates();
+
+                    // Position controls after showing (relative to glass since panel is hidden)
+                    setTimeout(() => {
+                        this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
+                    }, 10);
+                }
             }
         }).bind(this);
 
         this.magnifyGlass.ui.hide = (() => {
+            // Save state before hiding
+            this.stateManager.state.wasPanelVisibleBeforeHide = this.stateManager.state.isPanelVisible;
+
             originalHide();
             this.uiManager.hide();
+            // Explicitly hide floating controls when glass is disabled
+            if (this.uiManager.elements.controls) {
+                this.uiManager.elements.controls.style.display = 'none';
+            }
         }).bind(this);
     }
 
@@ -104,7 +130,16 @@ export class InfoPanel {
     }
 
     updateInfo(): void {
-        if (!this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"] || !this.magnifyGlass.state.active) return;
+        const settings = this.stateManager.state.settings;
+        const isActive = this.magnifyGlass.state.active;
+
+        // Safety: If disabled or inactive, ensure hidden and return
+        if (!settings["🔍MagnifyGlass.InfoPanelEnabled"] || !isActive) {
+            if (this.uiManager.elements.controls && this.uiManager.elements.controls.style.display !== 'none') {
+                this.uiManager.elements.controls.style.display = 'none';
+            }
+            return;
+        }
 
         const info = this.informationGatherer.gatherInformation();
         this.stateManager.setCurrentInfo(info);

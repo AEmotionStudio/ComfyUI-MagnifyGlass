@@ -51,16 +51,31 @@ class InfoPanel {
     this.magnifyGlass.ui.show = (() => {
       originalShow();
       if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"]) {
-        this.uiManager.show();
-        setTimeout(() => {
-          this.positionManager.positionPanel();
-          this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
-        }, 10);
+        if (this.stateManager.state.wasPanelVisibleBeforeHide) {
+          this.uiManager.show();
+          setTimeout(() => {
+            this.positionManager.positionPanel();
+            this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
+          }, 10);
+        } else {
+          const showControls = this.stateManager.state.settings["🔍MagnifyGlass.ShowHoveringControls"] !== false;
+          if (showControls && this.uiManager.elements.controls) {
+            this.uiManager.elements.controls.style.display = "flex";
+          }
+          this.uiManager.updateControlStates();
+          setTimeout(() => {
+            this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
+          }, 10);
+        }
       }
     }).bind(this);
     this.magnifyGlass.ui.hide = (() => {
+      this.stateManager.state.wasPanelVisibleBeforeHide = this.stateManager.state.isPanelVisible;
       originalHide();
       this.uiManager.hide();
+      if (this.uiManager.elements.controls) {
+        this.uiManager.elements.controls.style.display = "none";
+      }
     }).bind(this);
   }
   scheduleInfoUpdate() {
@@ -72,7 +87,14 @@ class InfoPanel {
     });
   }
   updateInfo() {
-    if (!this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"] || !this.magnifyGlass.state.active) return;
+    const settings = this.stateManager.state.settings;
+    const isActive = this.magnifyGlass.state.active;
+    if (!settings["🔍MagnifyGlass.InfoPanelEnabled"] || !isActive) {
+      if (this.uiManager.elements.controls && this.uiManager.elements.controls.style.display !== "none") {
+        this.uiManager.elements.controls.style.display = "none";
+      }
+      return;
+    }
     const info = this.informationGatherer.gatherInformation();
     this.stateManager.setCurrentInfo(info);
     this.uiManager.displayInfo(info);

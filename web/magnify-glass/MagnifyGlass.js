@@ -28,7 +28,7 @@ class MagnifyGlass {
     __publicField(this, "currentMediaElement");
     this.config = new ConfigManager();
     this.state = new MagnifierState();
-    this.ui = new UiManager(this.config, this.state);
+    this.ui = new UiManager(this.config, this.state, () => this.toggle());
     this.renderer = null;
     this.debugger = new DebugManager(this.config, this.state, this.ui);
     this.eventHandler = new EventHandler(this);
@@ -65,6 +65,23 @@ class MagnifyGlass {
     this.eventHandler.attachListeners();
     registerGlassSettings(this);
     this.debugger.log(`Initialized (WebGL) with Smart Input Detection. Press ${this.config.altRequired ? "Alt+" : ""}${this.config.activationKey.toUpperCase()} to activate.`);
+  }
+  /**
+   * Toggle the magnifying glass active state.
+   */
+  toggle() {
+    const state = this.state;
+    this.config;
+    if (state.active) {
+      state.active = false;
+      this.ui.hide();
+    } else {
+      state.active = true;
+      this.ui.show();
+      if (this.eventHandler) {
+        this.eventHandler.updateInitialPosition();
+      }
+    }
   }
   /**
    * Update the magnified view.
@@ -260,17 +277,6 @@ class MagnifyGlass {
     this.ui.applyStyles();
     if ((_a = this.renderer) == null ? void 0 : _a.gl) {
       this.renderer.updateViewport();
-    }
-  }
-  /**
-   * Toggle the magnify glass on/off.
-   */
-  toggle() {
-    this.state.active = !this.state.active;
-    if (this.state.active) {
-      this.ui.show();
-    } else {
-      this.ui.hide();
     }
   }
   /**

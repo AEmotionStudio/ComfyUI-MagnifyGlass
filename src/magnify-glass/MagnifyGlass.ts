@@ -46,7 +46,7 @@ export class MagnifyGlass {
     constructor() {
         this.config = new ConfigManager();
         this.state = new MagnifierState();
-        this.ui = new UiManager(this.config, this.state);
+        this.ui = new UiManager(this.config, this.state, () => this.toggle());
         this.renderer = null;
         this.debugger = new DebugManager(this.config, this.state, this.ui);
         this.eventHandler = new EventHandler(this);
@@ -105,6 +105,26 @@ export class MagnifyGlass {
         registerGlassSettings(this);
 
         this.debugger.log(`Initialized (WebGL) with Smart Input Detection. Press ${this.config.altRequired ? 'Alt+' : ''}${this.config.activationKey.toUpperCase()} to activate.`);
+    }
+
+    /**
+     * Toggle the magnifying glass active state.
+     */
+    toggle(): void {
+        const state = this.state;
+        const config = this.config;
+
+        if (state.active) {
+            state.active = false;
+            this.ui.hide();
+        } else {
+            state.active = true;
+            this.ui.show();
+            // Update initial position if needed
+            if (this.eventHandler) {
+                this.eventHandler.updateInitialPosition();
+            }
+        }
     }
 
     /**
@@ -350,17 +370,7 @@ export class MagnifyGlass {
         }
     }
 
-    /**
-     * Toggle the magnify glass on/off.
-     */
-    toggle(): void {
-        this.state.active = !this.state.active;
-        if (this.state.active) {
-            this.ui.show();
-        } else {
-            this.ui.hide();
-        }
-    }
+
 
     /**
      * Reset offsets and panel positions to defaults.

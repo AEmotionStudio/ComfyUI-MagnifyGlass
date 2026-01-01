@@ -2,8 +2,9 @@ var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 import { Z_INDEX, DEFAULT_PADDING } from "../shared/constants.js";
+import { Icons } from "../shared/icons.js";
 class UiManager {
-  constructor(config, state) {
+  constructor(config, state, onToggle) {
     __publicField(this, "config");
     __publicField(this, "state");
     __publicField(this, "glassDiv");
@@ -11,6 +12,7 @@ class UiManager {
     __publicField(this, "debugCanvas");
     __publicField(this, "debugCtx");
     __publicField(this, "htmlOverlayContainer");
+    __publicField(this, "onToggle");
     this.config = config;
     this.state = state;
     this.glassDiv = null;
@@ -18,6 +20,7 @@ class UiManager {
     this.debugCanvas = null;
     this.debugCtx = null;
     this.htmlOverlayContainer = null;
+    this.onToggle = onToggle;
   }
   /**
    * Create all DOM elements for the magnifying glass.
@@ -59,6 +62,7 @@ class UiManager {
     if (this.config.debugMode) {
       this.createDebugCanvas();
     }
+    this.injectMenuButton();
   }
   /**
    * Create the debug canvas overlay.
@@ -225,6 +229,88 @@ class UiManager {
   cleanup() {
     if (this.glassDiv) this.glassDiv.remove();
     if (this.debugCanvas) this.debugCanvas.remove();
+    const btn = document.querySelector(".magnify-toggle-btn");
+    if (btn) btn.remove();
+  }
+  /**
+   * Inject a quick toggle button into the ComfyUI menu.
+   */
+  /**
+   * Inject a quick toggle button into the ComfyUI menu.
+   */
+  injectMenuButton() {
+    const stopTime = Date.now() + 3e4;
+    const attemptInjection = () => {
+      const buttons = Array.from(document.querySelectorAll("button"));
+      let anchorBtn = buttons.find((b) => {
+        const title = (b.title || "").toLowerCase();
+        const aria = (b.getAttribute("aria-label") || "").toLowerCase();
+        const text = (b.textContent || "").toLowerCase();
+        return title.includes("map") && !title.includes("open") || aria.includes("map") && !aria.includes("open") || text.includes("map");
+      });
+      if (!anchorBtn) {
+        anchorBtn = buttons.find((b) => {
+          const title = (b.title || "").toLowerCase();
+          const aria = (b.getAttribute("aria-label") || "").toLowerCase();
+          return title.includes("link") || aria.includes("link");
+        });
+      }
+      if (anchorBtn && anchorBtn.parentElement) {
+        if (anchorBtn.parentElement.querySelector(".magnify-toggle-btn")) return true;
+        console.log("[MagnifyGlass] Found menu anchor:", anchorBtn.title || anchorBtn.getAttribute("aria-label") || "Unknown Button");
+        const btn = document.createElement("button");
+        btn.className = anchorBtn.className + " magnify-toggle-btn";
+        const computed = window.getComputedStyle(anchorBtn);
+        btn.style.height = computed.height;
+        btn.style.minHeight = computed.minHeight;
+        btn.title = "Toggle Magnify Glass";
+        btn.innerHTML = Icons.magnifyGlass;
+        btn.style.display = "inline-flex";
+        btn.style.alignItems = "center";
+        btn.style.justifyContent = "center";
+        btn.style.padding = "0 8px";
+        btn.style.cursor = "pointer";
+        btn.style.border = anchorBtn.style.border || computed.border;
+        btn.style.borderRadius = anchorBtn.style.borderRadius || computed.borderRadius;
+        if (!btn.style.background) btn.style.background = computed.background;
+        if (!btn.style.color) btn.style.color = computed.color;
+        btn.addEventListener("click", () => {
+          if (this.onToggle) {
+            this.onToggle();
+            btn.classList.toggle("active");
+            btn.classList.toggle("p-highlight");
+            btn.classList.toggle("selected");
+          }
+        });
+        const isMinimap = (anchorBtn.title || "").toLowerCase().includes("map") || (anchorBtn.getAttribute("aria-label") || "").toLowerCase().includes("map");
+        if (isMinimap) {
+          if (anchorBtn.nextSibling) {
+            anchorBtn.parentElement.insertBefore(btn, anchorBtn.nextSibling);
+          } else {
+            anchorBtn.parentElement.appendChild(btn);
+          }
+        } else {
+          anchorBtn.parentElement.insertBefore(btn, anchorBtn);
+        }
+        console.log("[MagnifyGlass] Menu toggle button injected successfully");
+        return true;
+      }
+      return false;
+    };
+    if (attemptInjection()) return;
+    const checkForMenu = setInterval(() => {
+      if (Date.now() > stopTime) {
+        console.warn(
+          "[MagnifyGlass] Menu injection timed out. Found buttons:",
+          Array.from(document.querySelectorAll("button")).map((b) => b.title || b.getAttribute("aria-label") || b.textContent || b.className).slice(0, 5)
+        );
+        clearInterval(checkForMenu);
+        return;
+      }
+      if (attemptInjection()) {
+        clearInterval(checkForMenu);
+      }
+    }, 100);
   }
 }
 export {

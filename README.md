@@ -18,11 +18,17 @@ A powerful, customizable magnifying glass extension for ComfyUI. Inspect fine de
 
 ### v1.5.0 — December 2024
 
-**TypeScript Migration & Architecture Improvements**
-- Migrated entire codebase from JavaScript to TypeScript for improved maintainability
-- Added Vite build system with proper module bundling
-- Enhanced type safety and IDE support for contributors
-- Cleaner separation of concerns with modular class architecture
+**UI Modernization & Theme Support**
+- Professional SVG icons replacing emojis throughout the UI
+- Full theme support for all 6 ComfyUI themes (Dark, Light, Solarized, Arc, Nord, GitHub)
+- External CSS stylesheet (`info-panel.css`) for easier customization
+- Improved button click handling for all floating controls
+
+**TypeScript Migration & Architecture**
+- Migrated entire codebase from JavaScript to TypeScript
+- Removed Vue.js dependency for reduced bundle size
+- Vite-based build system with proper module bundling
+- Enhanced type safety and modular class architecture
 
 ### v1.4.5 — August 2024
 

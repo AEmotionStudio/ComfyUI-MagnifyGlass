@@ -96,7 +96,7 @@ class UIManager {
    */
   createFloatingControls() {
     this.elements.controls = document.createElement("div");
-    this.elements.controls.className = "floating-controls vertical-layout";
+    this.elements.controls.className = `floating-controls vertical-layout theme-${this.stateManager.state.currentTheme}`;
     this.elements.controls.innerHTML = `
             <button class="control-btn unlock-btn" title="Unlock/Lock Panel from Glass" data-action="pin">${Icons.unlock}</button>
             <button class="control-btn pin-btn" title="Pin/Unpin Panel Position (Prevent Drag)" data-action="lock">${Icons.pin}</button>
@@ -322,6 +322,9 @@ class UIManager {
   updateTheme(newTheme) {
     if (this.elements.panel) {
       this.elements.panel.className = this.elements.panel.className.replace(/theme-\w+/, `theme-${newTheme.toLowerCase()}`);
+    }
+    if (this.elements.controls) {
+      this.elements.controls.className = this.elements.controls.className.replace(/theme-\w+/, `theme-${newTheme.toLowerCase()}`);
     }
   }
   /**

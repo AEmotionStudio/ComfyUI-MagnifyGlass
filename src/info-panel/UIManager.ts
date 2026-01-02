@@ -146,7 +146,7 @@ export class UIManager {
      */
     createFloatingControls(): void {
         this.elements.controls = document.createElement("div");
-        this.elements.controls.className = "floating-controls vertical-layout"; // Default to vertical
+        this.elements.controls.className = `floating-controls vertical-layout theme-${this.stateManager.state.currentTheme}`; // Default to vertical + theme
 
         /**
          * BUTTON MAPPING DOCUMENTATION:
@@ -476,6 +476,9 @@ export class UIManager {
     updateTheme(newTheme: string): void {
         if (this.elements.panel) {
             this.elements.panel.className = this.elements.panel.className.replace(/theme-\w+/, `theme-${newTheme.toLowerCase()}`);
+        }
+        if (this.elements.controls) {
+            this.elements.controls.className = this.elements.controls.className.replace(/theme-\w+/, `theme-${newTheme.toLowerCase()}`);
         }
     }
 

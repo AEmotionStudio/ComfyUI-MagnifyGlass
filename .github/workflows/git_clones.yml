@@ -73,6 +73,9 @@ jobs:
           git fetch origin badges:badges || true
           git checkout badges || git checkout --orphan badges
           
+          # Clean the branch to ensure it only has the JSON
+          git rm -rf .
+          
           # Restore the files
           mv /tmp/traffic_stats.json traffic_stats.json
           mv /tmp/git_clones.json git_clones.json

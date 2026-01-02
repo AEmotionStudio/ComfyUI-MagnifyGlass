@@ -82,19 +82,41 @@ export class UIManager {
         }
         document.body.appendChild(this.elements.panel);
 
-        // Hover-expand: Remove inline max-height on hover to show all content
+        // Hover-expand: Add/remove 'is-expanded' class and reposition for full content
+        let originalTop: number | null = null;
+
         this.elements.panel.addEventListener('mouseenter', () => {
             if (!this.stateManager.state.isPanelMinimized && this.elements.panel) {
-                this.elements.panel.style.maxHeight = 'none';
-                this.elements.panel.style.overflow = 'visible';
+                // Save original position
+                originalTop = this.elements.panel.offsetTop;
+
+                // Add expanded class
+                this.elements.panel.classList.add('is-expanded');
+
+                // After a short delay, check if panel extends below viewport and adjust
+                requestAnimationFrame(() => {
+                    if (!this.elements.panel) return;
+                    const rect = this.elements.panel.getBoundingClientRect();
+                    const bottomOverflow = rect.bottom - window.innerHeight;
+
+                    if (bottomOverflow > 0) {
+                        // Panel extends below viewport - move it up
+                        const newTop = Math.max(10, originalTop! - bottomOverflow - 10);
+                        this.elements.panel.style.top = `${newTop}px`;
+                    }
+                });
             }
         });
 
         this.elements.panel.addEventListener('mouseleave', () => {
             if (this.elements.panel) {
-                const maxHeight = this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelMaxHeight"];
-                this.elements.panel.style.maxHeight = `${maxHeight}px`;
-                this.elements.panel.style.overflow = '';
+                this.elements.panel.classList.remove('is-expanded');
+
+                // Restore original position
+                if (originalTop !== null) {
+                    this.elements.panel.style.top = `${originalTop}px`;
+                    originalTop = null;
+                }
             }
         });
 
@@ -358,13 +380,10 @@ export class UIManager {
 
         // 1. Apply dimensions
         this.elements.panel.style.width = `${settings["🔍MagnifyGlass.InfoPanelWidth"]}px`;
-        // Set height to auto so panel grows with content, up to max-height
-        // Skip max-height if panel is hovered (allow full expansion)
+        // Set max-height via CSS variable so CSS :hover rules can override
         const maxHeight = settings["🔍MagnifyGlass.InfoPanelMaxHeight"];
+        this.elements.panel.style.setProperty('--panel-max-height', `${maxHeight}px`);
         this.elements.panel.style.height = 'auto';
-        if (!this.stateManager.state.isPanelHovered) {
-            this.elements.panel.style.maxHeight = `${maxHeight}px`;
-        }
 
         // 2. Apply static styles (only needed once or if overwritten, but safe to set)
         this.elements.panel.style.position = 'absolute';

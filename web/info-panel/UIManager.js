@@ -47,17 +47,29 @@ class UIManager {
       this.elements.panel.classList.add("panel-minimized");
     }
     document.body.appendChild(this.elements.panel);
+    let originalTop = null;
     this.elements.panel.addEventListener("mouseenter", () => {
       if (!this.stateManager.state.isPanelMinimized && this.elements.panel) {
-        this.elements.panel.style.maxHeight = "none";
-        this.elements.panel.style.overflow = "visible";
+        originalTop = this.elements.panel.offsetTop;
+        this.elements.panel.classList.add("is-expanded");
+        requestAnimationFrame(() => {
+          if (!this.elements.panel) return;
+          const rect = this.elements.panel.getBoundingClientRect();
+          const bottomOverflow = rect.bottom - window.innerHeight;
+          if (bottomOverflow > 0) {
+            const newTop = Math.max(10, originalTop - bottomOverflow - 10);
+            this.elements.panel.style.top = `${newTop}px`;
+          }
+        });
       }
     });
     this.elements.panel.addEventListener("mouseleave", () => {
       if (this.elements.panel) {
-        const maxHeight = this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelMaxHeight"];
-        this.elements.panel.style.maxHeight = `${maxHeight}px`;
-        this.elements.panel.style.overflow = "";
+        this.elements.panel.classList.remove("is-expanded");
+        if (originalTop !== null) {
+          this.elements.panel.style.top = `${originalTop}px`;
+          originalTop = null;
+        }
       }
     });
     this.elements.panel.addEventListener("click", (e) => {
@@ -237,10 +249,8 @@ class UIManager {
     console.log(`[UIManager] applyStyles - MaxHeight: ${settings["🔍MagnifyGlass.InfoPanelMaxHeight"]}`);
     this.elements.panel.style.width = `${settings["🔍MagnifyGlass.InfoPanelWidth"]}px`;
     const maxHeight = settings["🔍MagnifyGlass.InfoPanelMaxHeight"];
+    this.elements.panel.style.setProperty("--panel-max-height", `${maxHeight}px`);
     this.elements.panel.style.height = "auto";
-    if (!this.stateManager.state.isPanelHovered) {
-      this.elements.panel.style.maxHeight = `${maxHeight}px`;
-    }
     this.elements.panel.style.position = "absolute";
     this.elements.panel.style.zIndex = "99999";
     this.elements.panel.style.transform = "translateY(-10px)";

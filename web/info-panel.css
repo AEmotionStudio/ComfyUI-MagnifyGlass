@@ -46,7 +46,7 @@
     border-radius: 12px;
     backdrop-filter: blur(20px);
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1);
-    overflow: hidden;
+    overflow: visible;
     font-size: 16px;
     line-height: 1.6;
     pointer-events: auto;
@@ -178,15 +178,15 @@
     transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* Hover-expand: Temporarily remove max-height limit when hovering to show all content */
-.magnify-info-panel:hover:not(.panel-minimized) {
+/* Hover-expand: Show ALL content at once - no scrollbar, full expansion */
+.magnify-info-panel.is-expanded:not(.panel-minimized) {
     max-height: none !important;
-    overflow: visible;
+    overflow: visible !important;
 }
 
-.magnify-info-panel:hover:not(.panel-minimized) .panel-content {
+.magnify-info-panel.is-expanded:not(.panel-minimized) .panel-content {
     max-height: none !important;
-    overflow-y: visible;
+    overflow: visible !important;
 }
 
 .floating-controls {
@@ -390,8 +390,7 @@
     padding: 0;
     flex: 1;
     min-height: 0;
-    overflow-y: auto;
-    scrollbar-width: thin;
+    overflow: visible;
 }
 
 .panel-content::-webkit-scrollbar {

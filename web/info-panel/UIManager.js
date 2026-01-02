@@ -289,7 +289,7 @@ class UIManager {
     this.elements.panel.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
     const fontSize = settings["🔍MagnifyGlass.InfoPanelFontSize"] || 14;
     this.elements.panel.style.fontSize = `${fontSize}px`;
-    this.elements.panel.style.transition = settings["🔍MagnifyGlass.InfoPanelAnimations"] ? "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)" : "none";
+    this.elements.panel.style.transition = "none";
     const textColor = settings["🔍MagnifyGlass.InfoPanelTextColor"];
     if (textColor && typeof textColor === "string") {
       const normalizedTextColor = textColor.startsWith("#") ? textColor : `#${textColor}`;
@@ -334,11 +334,10 @@ class UIManager {
   hide() {
     if (!this.elements.panel) return;
     this.elements.panel.classList.remove("visible");
-    setTimeout(() => {
-      if (!this.stateManager.state.isPanelVisible && this.elements.panel) {
-        this.elements.panel.style.display = "none";
-      }
-    }, this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelAnimations"] ? 300 : 0);
+    this.elements.panel.classList.remove("visible");
+    if (this.elements.panel) {
+      this.elements.panel.style.display = "none";
+    }
     this.stateManager.state.isPanelVisible = false;
     this.updateControlStates();
   }

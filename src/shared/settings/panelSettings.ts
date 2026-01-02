@@ -145,20 +145,6 @@ export function registerPanelSettings(stateManager: any, uiManager: any, positio
     });
 
     app.ui.settings.addSetting({
-        id: "🔍MagnifyGlass.InfoPanelAnimations",
-        name: "📊 Info Panel: Animations",
-        type: "combo",
-        options: [{ value: true, text: "Enabled" }, { value: false, text: "Disabled" }],
-        defaultValue: settings["🔍MagnifyGlass.InfoPanelAnimations"],
-        tooltip: "Enable or disable animations for the info panel.",
-        onChange: (value: any) => {
-            if (stateManager) {
-                stateManager.state.settings["🔍MagnifyGlass.InfoPanelAnimations"] = !!value;
-            }
-        }
-    });
-
-    app.ui.settings.addSetting({
         id: "🔍MagnifyGlass.ShowInspectorTab",
         name: "📊 Info Panel: Show Inspector Tab",
         type: "combo",

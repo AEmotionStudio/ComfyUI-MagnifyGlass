@@ -441,9 +441,7 @@ export class UIManager {
         this.elements.panel.style.fontSize = `${fontSize}px`;
 
         // 3. Apply transition
-        this.elements.panel.style.transition = settings["🔍MagnifyGlass.InfoPanelAnimations"]
-            ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
-            : 'none';
+        this.elements.panel.style.transition = 'none';
 
         // 4. Apply Custom Colors (CSS Variables)
         const textColor = settings["🔍MagnifyGlass.InfoPanelTextColor"] as string | undefined;
@@ -505,15 +503,10 @@ export class UIManager {
         if (!this.elements.panel) return;
 
         this.elements.panel.classList.remove('visible');
-        setTimeout(() => {
-            if (!this.stateManager.state.isPanelVisible && this.elements.panel) {
-                this.elements.panel.style.display = "none";
-                // Do NOT hide controls when panel is hidden - they should remain visible on glass
-                // if (this.elements.controls) {
-                //    this.elements.controls.style.display = "none";
-                // }
-            }
-        }, this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelAnimations"] ? 300 : 0);
+        this.elements.panel.classList.remove('visible');
+        if (this.elements.panel) {
+            this.elements.panel.style.display = "none";
+        }
         this.stateManager.state.isPanelVisible = false;
         this.updateControlStates();
     }

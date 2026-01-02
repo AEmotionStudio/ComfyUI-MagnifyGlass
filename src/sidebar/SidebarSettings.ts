@@ -580,12 +580,6 @@ export function renderSettingsPanel(container: HTMLElement): void {
         }
     ));
 
-    panelSection.body.appendChild(createToggle('Animations',
-        getSettingValue('🔍MagnifyGlass.InfoPanelAnimations', false),
-        (checked) => setSettingValue('🔍MagnifyGlass.InfoPanelAnimations', checked),
-        'Enable smooth animations for panel updates'
-    ));
-
     panelSection.body.appendChild(createToggle('Hover Controls',
         getSettingValue('🔍MagnifyGlass.ShowHoveringControls', true),
         (checked) => setSettingValue('🔍MagnifyGlass.ShowHoveringControls', checked),

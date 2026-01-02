@@ -15,32 +15,47 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Fetch Clone Stats and Save JSON
+      - name: Fetch Traffic Stats and Save JSON
         uses: actions/github-script@v6
         with:
           script: |
             try {
               const { owner, repo } = context.repo;
-              // Add a small delay/retry logic if needed, but direct call usually works
-              const result = await github.rest.repos.getClones({
+              
+              // 1. Fetch Clones
+              const clones = await github.rest.repos.getClones({
                 owner,
                 repo,
               });
               
-              const clones = result.data;
-              console.log(`Clones: ${clones.count}, Uniques: ${clones.uniques}`);
+              // 2. Fetch Views (Visitors)
+              const views = await github.rest.repos.getViews({
+                owner,
+                repo,
+              });
               
               const fs = require('fs');
               const data = {
-                count: clones.count,
-                uniques: clones.uniques,
+                clones: {
+                  count: clones.data.count,
+                  uniques: clones.data.uniques,
+                },
+                views: {
+                  count: views.data.count,
+                  uniques: views.data.uniques,
+                },
                 timestamp: new Date().toISOString()
               };
               
-              fs.writeFileSync('git_clones.json', JSON.stringify(data, null, 2));
+              console.log('Stats fetched:', JSON.stringify(data));
+              
+              // Write to a generic stats file
+              fs.writeFileSync('traffic_stats.json', JSON.stringify(data, null, 2));
+              // Maintain the old file for backward compatibility if needed, or just switch everything
+              fs.writeFileSync('git_clones.json', JSON.stringify(data.clones, null, 2));
+              
             } catch (error) {
-              console.error('Error fetching clone stats:', error);
-              // Fail the workflow if we can't get data
+              console.error('Error fetching stats:', error);
               process.exit(1); 
             }
 
@@ -49,20 +64,18 @@ jobs:
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           
-          # Stash the json file we just created
+          # Stash the files
+          mv traffic_stats.json /tmp/traffic_stats.json
           mv git_clones.json /tmp/git_clones.json
           
           # Fetch the badges branch or create it
           git fetch origin badges:badges || true
           git checkout badges || git checkout --orphan badges
           
-          # Clean the branch to ensure it only has the JSON (optional but cleaner)
-          git rm -rf .
-          
-          # Restore the json file
+          # Restore the files
+          mv /tmp/traffic_stats.json traffic_stats.json
           mv /tmp/git_clones.json git_clones.json
           
           # Commit and push
-          git add git_clones.json
-          # Only commit if there are changes
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Update clone statistics" && git push origin badges)
+          git add traffic_stats.json git_clones.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update traffic statistics" && git push origin badges)

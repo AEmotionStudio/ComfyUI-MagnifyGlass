@@ -7,8 +7,8 @@
 [![License](https://img.shields.io/badge/License-GPLv3-red?style=for-the-badge)](LICENSE)
 [![Version](https://img.shields.io/badge/Version-1.5.0-orange?style=for-the-badge)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases)
 [![Downloads](https://img.shields.io/github/downloads/AEmotionStudio/ComfyUI-MagnifyGlass/total?style=for-the-badge&color=blueviolet)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases)
-![Visitor Count](https://komarev.com/ghpvc/?username=AEmotionStudio-ComfyUI-MagnifyGlass&label=Views&style=for-the-badge&color=blue)
-[![Clones](https://img.shields.io/badge/dynamic/json?color=success&label=Clone%20Count&query=count&url=https://raw.githubusercontent.com/AEmotionStudio/ComfyUI-MagnifyGlass/badges/git_clones.json&logo=github&style=for-the-badge)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/graphs/traffic)
+![Visitors](https://img.shields.io/badge/dynamic/json?color=blue&label=Visitors&query=views.uniques&url=https://raw.githubusercontent.com/AEmotionStudio/ComfyUI-MagnifyGlass/badges/traffic_stats.json&style=for-the-badge&logo=github)
+[![Clones](https://img.shields.io/badge/dynamic/json?color=success&label=Clones&query=clones.uniques&url=https://raw.githubusercontent.com/AEmotionStudio/ComfyUI-MagnifyGlass/badges/traffic_stats.json&style=for-the-badge&logo=github)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/graphs/traffic)
 
 **A powerful, customizable magnifying glass extension for ComfyUI.**  
 *Inspect fine details in your generated images, node connections, and canvas with ease.*

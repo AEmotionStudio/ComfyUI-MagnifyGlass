@@ -19,7 +19,7 @@
 
 ---
 
-## 🚀 What's New in v1.6.0
+## 🚀 What's New in v1.6.0 (January 2, 2025)
 
 This release focuses on accessibility and polish:
 

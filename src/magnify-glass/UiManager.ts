@@ -44,6 +44,7 @@ export class UiManager {
         this.glassDiv.id = "comfyui-magnify-glass";
         this.glassDiv.style.cssText = `
             position: absolute;
+            box-sizing: border-box;
             width: ${this.config.glassSize}px;
             height: ${this.config.glassSize}px;
             border-radius: ${this.config.glassShape === "Circle" ? "50%" : "0px"};

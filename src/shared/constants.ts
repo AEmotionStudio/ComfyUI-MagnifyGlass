@@ -51,8 +51,8 @@ export const RESET_KEYS = ["r", "o", "p", "k", "l"] as const;
 export const TOGGLE_FOLLOW_KEYS = ["f", "g", "h", "j", "k"] as const;
 
 // UI Constants
-export const DEFAULT_PADDING = 20;
-export const DEFAULT_GLASS_Y_OFFSET = 120; // Starting Y position offset (below top bar)
+export const DEFAULT_PADDING = 4;
+export const DEFAULT_GLASS_Y_OFFSET = 110; // Starting Y position offset (below top bar with 3px gap)
 export const DEFAULT_GLASS_SIZE = 300;
 export const DEFAULT_ZOOM_FACTOR = 300; // 3x as percentage
 export const DEFAULT_BORDER_WIDTH = 1;

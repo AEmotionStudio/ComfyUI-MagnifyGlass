@@ -211,7 +211,9 @@ export class EventHandler {
 
             if (!this.magnifyGlass.state.wasActivatedBefore && this.magnifyGlass.ui.glassDiv) {
                 // First activation - position at top right of the window
-                this.magnifyGlass.ui.glassDiv.style.left = `${window.innerWidth - glassSize - DEFAULT_PADDING}px`;
+                const leftPos = window.innerWidth - glassSize - DEFAULT_PADDING;
+                console.log(`[MagnifyGlass] Initial position - innerWidth: ${window.innerWidth}, glassSize: ${glassSize}, padding: ${DEFAULT_PADDING}, left: ${leftPos}, yOffset: ${DEFAULT_GLASS_Y_OFFSET}`);
+                this.magnifyGlass.ui.glassDiv.style.left = `${leftPos}px`;
                 this.magnifyGlass.ui.glassDiv.style.top = `${DEFAULT_GLASS_Y_OFFSET}px`;
                 this.magnifyGlass.state.wasActivatedBefore = true;
             } else {

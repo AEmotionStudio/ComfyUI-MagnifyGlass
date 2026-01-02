@@ -45,7 +45,7 @@ export class PositionManager {
 
         const panelWidth = this.panelElement.offsetWidth || 300;
         const panelHeight = this.panelElement.offsetHeight || 400;
-        const margin = 10;
+        const margin = 4;
 
         const boundedX = Math.max(margin, Math.min(x, window.innerWidth - panelWidth - margin));
         const boundedY = Math.max(margin, Math.min(y, window.innerHeight - panelHeight - margin));
@@ -64,7 +64,7 @@ export class PositionManager {
 
         let left: number;
         let top: number;
-        const margin = 15;
+        const margin = 4;
 
         // Check for valid glass rect first
         const glassRect = magnifyGlass.ui.glassDiv?.getBoundingClientRect();
@@ -120,8 +120,8 @@ export class PositionManager {
             top = 100;
         }
 
-        left = Math.max(10, Math.min(left, window.innerWidth - panelWidth - 10));
-        top = Math.max(10, Math.min(top, window.innerHeight - panelHeight - 10));
+        left = Math.max(4, Math.min(left, window.innerWidth - panelWidth - 4));
+        top = Math.max(4, Math.min(top, window.innerHeight - panelHeight - 4));
 
         this.panelElement.style.left = `${left}px`;
         this.panelElement.style.top = `${top}px`;
@@ -160,7 +160,7 @@ export class PositionManager {
         if (!referenceRect) return;
 
         const controlsPosition = this.stateManager.state.settings["🔍MagnifyGlass.ControlsPosition"] || "right";
-        const margin = 8;
+        const margin = 4;
 
         let left: number;
         let top: number;

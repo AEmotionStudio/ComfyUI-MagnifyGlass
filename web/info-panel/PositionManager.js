@@ -29,7 +29,7 @@ class PositionManager {
     }
     const panelWidth = this.panelElement.offsetWidth || 300;
     const panelHeight = this.panelElement.offsetHeight || 400;
-    const margin = 10;
+    const margin = 4;
     const boundedX = Math.max(margin, Math.min(x, window.innerWidth - panelWidth - margin));
     const boundedY = Math.max(margin, Math.min(y, window.innerHeight - panelHeight - margin));
     this.panelElement.style.left = `${boundedX}px`;
@@ -44,7 +44,7 @@ class PositionManager {
     const panelHeight = this.panelElement.offsetHeight || 400;
     let left;
     let top;
-    const margin = 15;
+    const margin = 4;
     const glassRect = (_a = magnifyGlass.ui.glassDiv) == null ? void 0 : _a.getBoundingClientRect();
     const hasValidGlassRect = glassRect && (glassRect.right > 0 || glassRect.top > 0);
     const mouseX = ((_b = magnifyGlass.lastKnownMousePosition) == null ? void 0 : _b.x) || 0;
@@ -89,8 +89,8 @@ class PositionManager {
       left = window.innerWidth - panelWidth - 50;
       top = 100;
     }
-    left = Math.max(10, Math.min(left, window.innerWidth - panelWidth - 10));
-    top = Math.max(10, Math.min(top, window.innerHeight - panelHeight - 10));
+    left = Math.max(4, Math.min(left, window.innerWidth - panelWidth - 4));
+    top = Math.max(4, Math.min(top, window.innerHeight - panelHeight - 4));
     this.panelElement.style.left = `${left}px`;
     this.panelElement.style.top = `${top}px`;
   }
@@ -118,7 +118,7 @@ class PositionManager {
     }
     if (!referenceRect) return;
     const controlsPosition = this.stateManager.state.settings["🔍MagnifyGlass.ControlsPosition"] || "right";
-    const margin = 8;
+    const margin = 4;
     let left;
     let top;
     switch (controlsPosition) {

@@ -215,6 +215,7 @@ export interface MagnifyGlassInstance {
     updateMagnifiedView(): void;
     applyUiChanges(): void;
     toggle(): void;
+    resetOffsets(): void;
 }
 
 export interface MagnifyGlassState {

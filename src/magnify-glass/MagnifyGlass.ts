@@ -6,7 +6,7 @@
 
 import type { ComfyApp, ComfyNode } from '../types/comfyui';
 import { findLiteGraphCanvas, rectsOverlap, Rectangle } from '../shared/utils';
-import { DEFAULT_PADDING } from '../shared/constants';
+import { DEFAULT_PADDING, DEFAULT_GLASS_Y_OFFSET } from '../shared/constants';
 import { registerGlassSettings } from '../shared/settings';
 import { ConfigManager } from './ConfigManager';
 import { MagnifierState } from './MagnifierState';
@@ -378,6 +378,9 @@ export class MagnifyGlass {
     resetOffsets(): void {
         this.config.resetOffsets();
 
+        // Also disable follow cursor
+        this.config.followCursor = false;
+
         if (this.state.active) {
             this.updateMagnifiedView();
         }
@@ -386,7 +389,7 @@ export class MagnifyGlass {
         if (this.ui.glassDiv) {
             const glassSize = this.config.glassSize;
             this.ui.glassDiv.style.left = `${window.innerWidth - glassSize - DEFAULT_PADDING}px`;
-            this.ui.glassDiv.style.top = `${DEFAULT_PADDING}px`;
+            this.ui.glassDiv.style.top = `${DEFAULT_GLASS_Y_OFFSET}px`;
             this.state.wasActivatedBefore = false;
         }
 

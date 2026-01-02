@@ -99,6 +99,11 @@ class PositionManager {
    */
   positionFloatingControls(controlsElement) {
     if (!controlsElement) return;
+    const settings = this.stateManager.state.settings;
+    if (settings["🔍MagnifyGlass.ShowHoveringControls"] === false) {
+      controlsElement.style.display = "none";
+      return;
+    }
     const isPanelVisible = this.stateManager.state.isPanelVisible;
     const magnifyGlass = window.comfyUIMagnifyGlass;
     let referenceRect = null;

@@ -59,7 +59,7 @@ export class StateManager {
             // Panel visibility and positioning
             isPanelVisible: false,
             wasPanelVisibleBeforeHide: false,
-            isPanelMinimized: false,
+            isPanelMinimized: true,
             isPanelPinned: false,
             isPanelLocked: false, // New lock state
             isAutoPinned: false, // Track if panel was auto-pinned by glass hide
@@ -259,7 +259,7 @@ export class StateManager {
                 target.textContent?.toLowerCase().includes('light') ||
                 target.textContent?.toLowerCase().includes('dark') ||
                 target.title?.toLowerCase().includes('theme') ||
-                target.className?.toLowerCase().includes('theme');
+                (typeof target.className === 'string' && target.className.toLowerCase().includes('theme'));
 
             if (isThemeButton) {
                 setTimeout(() => {

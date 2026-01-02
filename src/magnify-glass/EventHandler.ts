@@ -6,7 +6,7 @@
 
 import { isUserTyping } from '../shared/utils';
 import { Logger } from '../shared/logger';
-import { DEFAULT_PADDING } from '../shared/constants';
+import { DEFAULT_PADDING, DEFAULT_GLASS_Y_OFFSET } from '../shared/constants';
 import type { MagnifyGlass } from './MagnifyGlass';
 
 /**
@@ -212,7 +212,7 @@ export class EventHandler {
             if (!this.magnifyGlass.state.wasActivatedBefore && this.magnifyGlass.ui.glassDiv) {
                 // First activation - position at top right of the window
                 this.magnifyGlass.ui.glassDiv.style.left = `${window.innerWidth - glassSize - DEFAULT_PADDING}px`;
-                this.magnifyGlass.ui.glassDiv.style.top = `${DEFAULT_PADDING}px`;
+                this.magnifyGlass.ui.glassDiv.style.top = `${DEFAULT_GLASS_Y_OFFSET}px`;
                 this.magnifyGlass.state.wasActivatedBefore = true;
             } else {
                 this.magnifyGlass.ui.positionGlass(clientX, clientY);

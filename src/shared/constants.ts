@@ -52,6 +52,7 @@ export const TOGGLE_FOLLOW_KEYS = ["f", "g", "h", "j", "k"] as const;
 
 // UI Constants
 export const DEFAULT_PADDING = 20;
+export const DEFAULT_GLASS_Y_OFFSET = 120; // Starting Y position offset (below top bar)
 export const DEFAULT_GLASS_SIZE = 300;
 export const DEFAULT_ZOOM_FACTOR = 300; // 3x as percentage
 export const DEFAULT_BORDER_WIDTH = 1;
@@ -59,8 +60,8 @@ export const DEFAULT_BORDER_COLOR = "#6b7280";
 export const DEFAULT_OFFSET_STEP = 5;
 
 // Panel Constants
-export const DEFAULT_PANEL_WIDTH = 320;
-export const DEFAULT_PANEL_MAX_HEIGHT = 1000;
+export const DEFAULT_PANEL_WIDTH = 300;
+export const DEFAULT_PANEL_MAX_HEIGHT = 300;
 export const DEFAULT_PANEL_OPACITY = 100;
 
 // Z-Index hierarchy

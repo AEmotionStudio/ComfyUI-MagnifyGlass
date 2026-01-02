@@ -123,6 +123,7 @@ class InfoPanel {
     this.uiManager.applyStyles();
     if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"] && this.magnifyGlass.state.active) {
       this.uiManager.show();
+      this.positionManager.positionPanel();
     } else {
       this.uiManager.hide();
     }

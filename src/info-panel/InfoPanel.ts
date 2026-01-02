@@ -176,6 +176,8 @@ export class InfoPanel {
 
         if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"] && this.magnifyGlass.state.active) {
             this.uiManager.show();
+            // Ensure position is updated after potential dimension changes
+            this.positionManager.positionPanel();
         } else {
             this.uiManager.hide();
         }

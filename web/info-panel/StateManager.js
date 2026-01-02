@@ -11,7 +11,7 @@ class StateManager {
       // Panel visibility and positioning
       isPanelVisible: false,
       wasPanelVisibleBeforeHide: false,
-      isPanelMinimized: false,
+      isPanelMinimized: true,
       isPanelPinned: false,
       isPanelLocked: false,
       // New lock state
@@ -155,9 +155,9 @@ class StateManager {
   }
   setupThemeButtonListeners() {
     document.addEventListener("click", (e) => {
-      var _a, _b, _c, _d, _e;
+      var _a, _b, _c, _d;
       const target = e.target;
-      const isThemeButton = ((_a = target.textContent) == null ? void 0 : _a.toLowerCase().includes("theme")) || ((_b = target.textContent) == null ? void 0 : _b.toLowerCase().includes("light")) || ((_c = target.textContent) == null ? void 0 : _c.toLowerCase().includes("dark")) || ((_d = target.title) == null ? void 0 : _d.toLowerCase().includes("theme")) || ((_e = target.className) == null ? void 0 : _e.toLowerCase().includes("theme"));
+      const isThemeButton = ((_a = target.textContent) == null ? void 0 : _a.toLowerCase().includes("theme")) || ((_b = target.textContent) == null ? void 0 : _b.toLowerCase().includes("light")) || ((_c = target.textContent) == null ? void 0 : _c.toLowerCase().includes("dark")) || ((_d = target.title) == null ? void 0 : _d.toLowerCase().includes("theme")) || typeof target.className === "string" && target.className.toLowerCase().includes("theme");
       if (isThemeButton) {
         setTimeout(() => {
           if (this.detectCurrentTheme()) {

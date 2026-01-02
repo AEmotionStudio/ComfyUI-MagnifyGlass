@@ -3,7 +3,7 @@ var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { en
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 import { isUserTyping } from "../shared/utils.js";
 import { Logger } from "../shared/logger.js";
-import { DEFAULT_PADDING } from "../shared/constants.js";
+import { DEFAULT_PADDING, DEFAULT_GLASS_Y_OFFSET } from "../shared/constants.js";
 class EventHandler {
   constructor(magnifyGlass) {
     __publicField(this, "magnifyGlass");
@@ -156,7 +156,7 @@ class EventHandler {
       const glassSize = this.magnifyGlass.config.glassSize;
       if (!this.magnifyGlass.state.wasActivatedBefore && this.magnifyGlass.ui.glassDiv) {
         this.magnifyGlass.ui.glassDiv.style.left = `${window.innerWidth - glassSize - DEFAULT_PADDING}px`;
-        this.magnifyGlass.ui.glassDiv.style.top = `${DEFAULT_PADDING}px`;
+        this.magnifyGlass.ui.glassDiv.style.top = `${DEFAULT_GLASS_Y_OFFSET}px`;
         this.magnifyGlass.state.wasActivatedBefore = true;
       } else {
         this.magnifyGlass.ui.positionGlass(clientX, clientY);

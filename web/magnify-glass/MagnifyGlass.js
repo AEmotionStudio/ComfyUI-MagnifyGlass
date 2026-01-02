@@ -2,7 +2,7 @@ var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 import { findLiteGraphCanvas, rectsOverlap } from "../shared/utils.js";
-import { DEFAULT_PADDING } from "../shared/constants.js";
+import { DEFAULT_PADDING, DEFAULT_GLASS_Y_OFFSET } from "../shared/constants.js";
 import { registerGlassSettings } from "../shared/settings/glassSettings.js";
 import "/scripts/app.js";
 import { ConfigManager } from "./ConfigManager.js";
@@ -285,13 +285,14 @@ class MagnifyGlass {
    */
   resetOffsets() {
     this.config.resetOffsets();
+    this.config.followCursor = false;
     if (this.state.active) {
       this.updateMagnifiedView();
     }
     if (this.ui.glassDiv) {
       const glassSize = this.config.glassSize;
       this.ui.glassDiv.style.left = `${window.innerWidth - glassSize - DEFAULT_PADDING}px`;
-      this.ui.glassDiv.style.top = `${DEFAULT_PADDING}px`;
+      this.ui.glassDiv.style.top = `${DEFAULT_GLASS_Y_OFFSET}px`;
       this.state.wasActivatedBefore = false;
     }
     const extensions = window.comfyUIMagnifyGlassExtensions;

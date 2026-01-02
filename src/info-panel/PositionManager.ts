@@ -133,6 +133,13 @@ export class PositionManager {
     positionFloatingControls(controlsElement: HTMLElement | null): void {
         if (!controlsElement) return;
 
+        // Check if controls should be visible based on settings
+        const settings = this.stateManager.state.settings;
+        if (settings["🔍MagnifyGlass.ShowHoveringControls"] === false) {
+            controlsElement.style.display = 'none';
+            return;
+        }
+
         const isPanelVisible = this.stateManager.state.isPanelVisible;
         const magnifyGlass = window.comfyUIMagnifyGlass;
         let referenceRect: DOMRect | null = null;

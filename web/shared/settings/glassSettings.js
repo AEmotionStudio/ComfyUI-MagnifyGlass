@@ -250,6 +250,77 @@ function registerGlassSettings(magnifyGlass) {
       }
     }
   });
+  app.ui.settings.addSetting({
+    id: "🔍MagnifyGlass.Action.ResetPosition",
+    name: "🔄 Magnify Glass: Reset Position",
+    type: "boolean",
+    defaultValue: false,
+    tooltip: "Toggle to reset the glass position and disable follow cursor.",
+    onChange: (value) => {
+      if (value) {
+        if (magnifyGlass == null ? void 0 : magnifyGlass.resetOffsets) {
+          magnifyGlass.resetOffsets();
+        }
+        setTimeout(() => {
+          try {
+            app.ui.settings.setSettingValue("🔍MagnifyGlass.Action.ResetPosition", false);
+          } catch (e) {
+          }
+        }, 500);
+      }
+    }
+  });
+  app.ui.settings.addSetting({
+    id: "🔍MagnifyGlass.Action.ResetAll",
+    name: "⚠️ Magnify Glass: Reset ALL Settings",
+    type: "boolean",
+    defaultValue: false,
+    tooltip: "Toggle to reset ALL settings to defaults.",
+    onChange: (value) => {
+      if (value) {
+        if (confirm("Reset ALL Magnify Glass settings?")) {
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.ZoomFactor", 300);
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.GlassSize", 250);
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.GlassShape", "Rounded Square");
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.GlassPosition", "Top-Right");
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.TextureFiltering", "Linear");
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.BorderWidth", 2);
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.BorderColor", "#ffffff");
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.BorderEnabled", true);
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.FollowCursor", false);
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.AlwaysActiveMode", true);
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.ActivationKey", "x");
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.ResetKey", "o");
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.ToggleFollowCursorKey", "h");
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.AltRequired", false);
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.OffsetStep", 10);
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.DebugMode", false);
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelEnabled", true);
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelPosition", "Bottom");
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelWidth", 300);
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelMaxHeight", 300);
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelOpacity", 95);
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelTextColor", "#6b7280");
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelAccentColor", "#3b82f6");
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelAnimations", false);
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.ShowHoveringControls", true);
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.ControlsPosition", "bottom");
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.ToggleHotkey", "i");
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.GlassPreviewToggleHotkey", "g");
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.PinPanelHotkey", "u");
+          if (magnifyGlass == null ? void 0 : magnifyGlass.resetOffsets) {
+            magnifyGlass.resetOffsets();
+          }
+        }
+        setTimeout(() => {
+          try {
+            app.ui.settings.setSettingValue("🔍MagnifyGlass.Action.ResetAll", false);
+          } catch (e) {
+          }
+        }, 500);
+      }
+    }
+  });
 }
 export {
   registerGlassSettings

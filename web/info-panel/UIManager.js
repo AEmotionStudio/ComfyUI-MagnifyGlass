@@ -43,6 +43,9 @@ class UIManager {
     this.elements.panel.appendChild(this.elements.header);
     this.elements.panel.appendChild(this.elements.content);
     this.applyStyles();
+    if (this.stateManager.state.isPanelMinimized) {
+      this.elements.panel.classList.add("panel-minimized");
+    }
     document.body.appendChild(this.elements.panel);
     this.elements.panel.addEventListener("click", (e) => {
       const target = e.target;
@@ -70,7 +73,7 @@ class UIManager {
         }
       }
     });
-    if (this.stateManager.state.settings["🔍MagnifyGlass.ShowHoveringControls"]) {
+    if (!this.elements.controls) {
       this.createFloatingControls();
       this.updateControlStates();
     }
@@ -214,6 +217,18 @@ class UIManager {
   applyStyles() {
     if (!this.elements.panel) return;
     const settings = this.stateManager.state.settings;
+    console.log(`[UIManager] applyStyles - MaxHeight: ${settings["🔍MagnifyGlass.InfoPanelMaxHeight"]}`);
+    this.elements.panel.style.width = `${settings["🔍MagnifyGlass.InfoPanelWidth"]}px`;
+    const maxHeight = settings["🔍MagnifyGlass.InfoPanelMaxHeight"];
+    this.elements.panel.style.height = `${maxHeight}px`;
+    this.elements.panel.style.maxHeight = `${maxHeight}px`;
+    this.elements.panel.style.position = "absolute";
+    this.elements.panel.style.zIndex = "99999";
+    this.elements.panel.style.transform = "translateY(-10px)";
+    this.elements.panel.style.pointerEvents = "auto";
+    this.elements.panel.style.userSelect = "none";
+    this.elements.panel.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    this.elements.panel.style.transition = settings["🔍MagnifyGlass.InfoPanelAnimations"] ? "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)" : "none";
     const textColor = settings["🔍MagnifyGlass.InfoPanelTextColor"];
     if (textColor && typeof textColor === "string") {
       const normalizedTextColor = textColor.startsWith("#") ? textColor : `#${textColor}`;
@@ -227,22 +242,9 @@ class UIManager {
     if (this.stateManager.state.isPanelVisible) {
       const opacityPercent = Number(settings["🔍MagnifyGlass.InfoPanelOpacity"]) || 100;
       this.elements.panel.style.opacity = (opacityPercent / 100).toString();
+    } else {
+      this.elements.panel.style.opacity = "0";
     }
-    this.elements.panel.style.cssText = `
-            position: absolute;
-            width: ${settings["🔍MagnifyGlass.InfoPanelWidth"]}px;
-            max-height: ${settings["🔍MagnifyGlass.InfoPanelMaxHeight"]}px;
-            z-index: 99999;
-            display: none;
-            opacity: 0;
-            transform: translateY(-10px);
-            transition: ${settings["🔍MagnifyGlass.InfoPanelAnimations"] ? "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)" : "none"};
-            pointer-events: auto;
-            user-select: none;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            ${textColor && typeof textColor === "string" ? `--info-panel-text-color: ${textColor.startsWith("#") ? textColor : `#${textColor}`};` : ""}
-            ${accentColor && typeof accentColor === "string" ? `--info-panel-accent-color: ${accentColor.startsWith("#") ? accentColor : `#${accentColor}`};` : ""}
-        `;
   }
   /**
    * Show the panel.
@@ -321,7 +323,7 @@ class UIManager {
   buildSections(info) {
     const sections = [];
     const settings = this.stateManager.state.settings;
-    if (settings["🔍MagnifyGlass.ShowInspectorTab"]) {
+    if (settings["🔍MagnifyGlass.ShowInspectorTab"] && info.cursor && info.cursor.canvas) {
       const inspectorContent = [
         { label: "Cursor Canvas", value: `(${Math.round(info.cursor.canvas.x)}, ${Math.round(info.cursor.canvas.y)})` },
         { label: "Canvas Scale", value: `${(info.canvas.scale * 100).toFixed(1)}%` },

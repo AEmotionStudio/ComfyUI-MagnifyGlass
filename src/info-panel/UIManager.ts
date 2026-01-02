@@ -76,6 +76,10 @@ export class UIManager {
         this.elements.panel.appendChild(this.elements.content);
 
         this.applyStyles();
+        // Apply initial minimized state if set
+        if (this.stateManager.state.isPanelMinimized) {
+            this.elements.panel.classList.add('panel-minimized');
+        }
         document.body.appendChild(this.elements.panel);
 
         // Add click event delegation for panel elements
@@ -114,7 +118,7 @@ export class UIManager {
         });
 
         // Create floating controls after panel is in DOM
-        if (this.stateManager.state.settings["🔍MagnifyGlass.ShowHoveringControls"]) {
+        if (!this.elements.controls) {
             this.createFloatingControls();
             // Update control states immediately after creation
             this.updateControlStates();
@@ -321,43 +325,52 @@ export class UIManager {
 
         const settings = this.stateManager.state.settings;
 
-        // Apply custom text color via CSS variable if provided
+        // Debug Log
+        console.log(`[UIManager] applyStyles - MaxHeight: ${settings["🔍MagnifyGlass.InfoPanelMaxHeight"]}`);
+
+        // 1. Apply dimensions
+        this.elements.panel.style.width = `${settings["🔍MagnifyGlass.InfoPanelWidth"]}px`;
+        // Set both height and max-height so the panel always shows at this size
+        const maxHeight = settings["🔍MagnifyGlass.InfoPanelMaxHeight"];
+        this.elements.panel.style.height = `${maxHeight}px`;
+        this.elements.panel.style.maxHeight = `${maxHeight}px`;
+
+        // 2. Apply static styles (only needed once or if overwritten, but safe to set)
+        this.elements.panel.style.position = 'absolute';
+        this.elements.panel.style.zIndex = '99999';
+        this.elements.panel.style.transform = 'translateY(-10px)';
+        this.elements.panel.style.pointerEvents = 'auto';
+        this.elements.panel.style.userSelect = 'none';
+        this.elements.panel.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+
+        // 3. Apply transition
+        this.elements.panel.style.transition = settings["🔍MagnifyGlass.InfoPanelAnimations"]
+            ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+            : 'none';
+
+        // 4. Apply Custom Colors (CSS Variables)
         const textColor = settings["🔍MagnifyGlass.InfoPanelTextColor"] as string | undefined;
         if (textColor && typeof textColor === 'string') {
-            // Ensure color has # symbol
             const normalizedTextColor = textColor.startsWith('#') ? textColor : `#${textColor}`;
             this.elements.panel.style.setProperty('--info-panel-text-color', normalizedTextColor);
         }
 
-        // Apply custom accent color via CSS variable if provided
         const accentColor = settings["🔍MagnifyGlass.InfoPanelAccentColor"] as string | undefined;
         if (accentColor && typeof accentColor === 'string') {
-            // Ensure color has # symbol
             const normalizedAccentColor = accentColor.startsWith('#') ? accentColor : `#${accentColor}`;
             this.elements.panel.style.setProperty('--info-panel-accent-color', normalizedAccentColor);
         }
 
-        // Apply opacity setting if panel is visible (convert percentage to decimal)
+        // 5. Apply Opacity
+        // Logic: If visible, use setting. If hidden, use 0.
+        // We do NOT touch 'display' here to avoid hiding it if it's currently shown.
+        // 'display' is managed by show() / hide() methods exclusively.
         if (this.stateManager.state.isPanelVisible) {
             const opacityPercent = Number(settings["🔍MagnifyGlass.InfoPanelOpacity"]) || 100;
             this.elements.panel.style.opacity = (opacityPercent / 100).toString();
+        } else {
+            this.elements.panel.style.opacity = '0';
         }
-
-        this.elements.panel.style.cssText = `
-            position: absolute;
-            width: ${settings["🔍MagnifyGlass.InfoPanelWidth"]}px;
-            max-height: ${settings["🔍MagnifyGlass.InfoPanelMaxHeight"]}px;
-            z-index: 99999;
-            display: none;
-            opacity: 0;
-            transform: translateY(-10px);
-            transition: ${settings["🔍MagnifyGlass.InfoPanelAnimations"] ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'none'};
-            pointer-events: auto;
-            user-select: none;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            ${textColor && typeof textColor === 'string' ? `--info-panel-text-color: ${textColor.startsWith('#') ? textColor : `#${textColor}`};` : ''}
-            ${accentColor && typeof accentColor === 'string' ? `--info-panel-accent-color: ${accentColor.startsWith('#') ? accentColor : `#${accentColor}`};` : ''}
-        `;
     }
 
     /**
@@ -456,7 +469,7 @@ export class UIManager {
         const settings = this.stateManager.state.settings;
 
         // Inspector section
-        if (settings["🔍MagnifyGlass.ShowInspectorTab"]) {
+        if (settings["🔍MagnifyGlass.ShowInspectorTab"] && info.cursor && info.cursor.canvas) {
             const inspectorContent = [
                 { label: 'Cursor Canvas', value: `(${Math.round(info.cursor.canvas.x)}, ${Math.round(info.cursor.canvas.y)})` },
                 { label: 'Canvas Scale', value: `${(info.canvas.scale * 100).toFixed(1)}%` },

@@ -50,8 +50,6 @@
     font-size: 16px;
     line-height: 1.6;
     pointer-events: auto;
-    display: flex;
-    flex-direction: column;
 }
 
 .magnify-info-panel * {
@@ -165,16 +163,9 @@
     transition: none !important;
 }
 
-.magnify-info-panel.panel-minimized {
-    height: auto !important;
-}
-
 .magnify-info-panel.panel-minimized .panel-content {
     max-height: 0 !important;
-    height: 0 !important;
     overflow: hidden;
-    padding: 0 !important;
-    margin: 0 !important;
     transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
@@ -319,8 +310,7 @@
 
 .panel-content {
     padding: 0;
-    flex: 1;
-    min-height: 0;
+    max-height: calc(100% - 60px);
     overflow-y: auto;
     scrollbar-width: thin;
 }

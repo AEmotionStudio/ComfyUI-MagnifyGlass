@@ -51,6 +51,9 @@ class UIManager {
     let originalFontSize = null;
     const MARGIN = 20;
     this.elements.panel.addEventListener("mouseenter", () => {
+      if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"]) {
+        return;
+      }
       if (!this.stateManager.state.isPanelMinimized && this.elements.panel) {
         originalTop = this.elements.panel.offsetTop;
         originalFontSize = parseFloat(getComputedStyle(this.elements.panel).fontSize);
@@ -69,6 +72,9 @@ class UIManager {
       }
     });
     this.elements.panel.addEventListener("mouseleave", () => {
+      if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"]) {
+        return;
+      }
       if (this.elements.panel) {
         this.elements.panel.classList.remove("is-expanded");
         if (originalTop !== null) {
@@ -155,6 +161,7 @@ class UIManager {
         case "persist":
           this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"] = !this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"];
           this.updateControlStates();
+          this.applyStyles();
           break;
         case "toggle-panel":
           if (this.stateManager.state.isPanelVisible) {
@@ -298,6 +305,12 @@ class UIManager {
       this.elements.panel.style.opacity = (opacityPercent / 100).toString();
     } else {
       this.elements.panel.style.opacity = "0";
+    }
+    const isPersist = !!settings["🔍MagnifyGlass.InfoPanelPersist"];
+    if (isPersist) {
+      this.elements.panel.classList.add("persist-active");
+    } else {
+      this.elements.panel.classList.remove("persist-active");
     }
   }
   /**

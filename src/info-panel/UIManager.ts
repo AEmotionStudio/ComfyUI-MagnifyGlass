@@ -89,6 +89,11 @@ export class UIManager {
         const MARGIN = 20; // Minimum margin from viewport edges
 
         this.elements.panel.addEventListener('mouseenter', () => {
+            // FIX: If in Sticky Mode (Persist), disable this behavior to prevent bouncing
+            if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"]) {
+                return;
+            }
+
             if (!this.stateManager.state.isPanelMinimized && this.elements.panel) {
                 // Save original position
                 originalTop = this.elements.panel.offsetTop;
@@ -117,6 +122,11 @@ export class UIManager {
         });
 
         this.elements.panel.addEventListener('mouseleave', () => {
+            // FIX: If in Sticky Mode (Persist), disable this behavior to prevent bouncing
+            if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"]) {
+                return;
+            }
+
             if (this.elements.panel) {
                 this.elements.panel.classList.remove('is-expanded');
 
@@ -246,6 +256,7 @@ export class UIManager {
                 case 'persist':
                     this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"] = !this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"];
                     this.updateControlStates();
+                    this.applyStyles(); // Update persist-active class
                     // Sync sidebar setting if needed (optional, sidebar updates on reopen usually)
                     break;
                 case 'toggle-panel':
@@ -456,6 +467,14 @@ export class UIManager {
             this.elements.panel.style.opacity = (opacityPercent / 100).toString();
         } else {
             this.elements.panel.style.opacity = '0';
+        }
+
+        // 6. Apply Persist Mode Class
+        const isPersist = !!settings["🔍MagnifyGlass.InfoPanelPersist"];
+        if (isPersist) {
+            this.elements.panel.classList.add('persist-active');
+        } else {
+            this.elements.panel.classList.remove('persist-active');
         }
     }
 

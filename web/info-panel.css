@@ -189,6 +189,28 @@
     overflow: visible !important;
 }
 
+/* 
+ * STIICKY MODE (PERSIST) OVERRIDES
+ * When sticky mode is active, we enforce the max-height and enable scrolling.
+ * This overrides the hover-expansion behavior to ensure the panel stays within bounds.
+ */
+.magnify-info-panel.persist-active:not(.panel-minimized) {
+    /* Use viewport height limit instead of user setting to allow full expansion */
+    max-height: 85vh !important;
+    /* Ensure flex column layout for scrolling content */
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+.magnify-info-panel.persist-active:not(.panel-minimized) .panel-content {
+    /* Allow scrolling inside the content area */
+    overflow-y: auto !important;
+    /* Reset max-height so it fills the parent (which is constrained) */
+    max-height: none !important;
+    /* Ensure it takes available space */
+    flex: 1 1 auto;
+}
+
 .floating-controls {
     position: fixed;
     display: none;

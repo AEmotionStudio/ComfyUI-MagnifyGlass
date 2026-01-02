@@ -111,6 +111,26 @@ export class EventHandler {
                 e.preventDefault();
             }
 
+            // Toggle Glass Preview Key (G) - mimics the hover controls button
+            if (e.key.toLowerCase() === config.toggleGlassPreviewKey &&
+                (!config.altRequired || e.altKey)) {
+                // Find and click the toggle-glass button in the info panel hover controls
+                const toggleGlassBtn = document.querySelector('[data-action="toggle-glass"]') as HTMLElement;
+                if (toggleGlassBtn) {
+                    toggleGlassBtn.click();
+                    this.magnifyGlass.debugger.log(`Glass Preview Toggled (via button)`);
+                } else {
+                    // Fallback: toggle via UI directly if button not found
+                    const glassDiv = this.magnifyGlass.ui.glassDiv;
+                    if (glassDiv) {
+                        const isVisible = glassDiv.style.display !== 'none' && glassDiv.style.opacity !== '0';
+                        this.magnifyGlass.ui.setPreviewVisibility(!isVisible);
+                        this.magnifyGlass.debugger.log(`Glass Preview Toggled (fallback): ${!isVisible ? 'ON' : 'OFF'}`);
+                    }
+                }
+                e.preventDefault();
+            }
+
             if (offsetChanged) {
                 config.saveOffsets();
                 this.magnifyGlass.updateMagnifiedView();

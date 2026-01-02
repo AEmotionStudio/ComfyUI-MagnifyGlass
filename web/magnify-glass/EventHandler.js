@@ -83,6 +83,21 @@ class EventHandler {
         }
         e.preventDefault();
       }
+      if (e.key.toLowerCase() === config.toggleGlassPreviewKey && (!config.altRequired || e.altKey)) {
+        const toggleGlassBtn = document.querySelector('[data-action="toggle-glass"]');
+        if (toggleGlassBtn) {
+          toggleGlassBtn.click();
+          this.magnifyGlass.debugger.log(`Glass Preview Toggled (via button)`);
+        } else {
+          const glassDiv = this.magnifyGlass.ui.glassDiv;
+          if (glassDiv) {
+            const isVisible = glassDiv.style.display !== "none" && glassDiv.style.opacity !== "0";
+            this.magnifyGlass.ui.setPreviewVisibility(!isVisible);
+            this.magnifyGlass.debugger.log(`Glass Preview Toggled (fallback): ${!isVisible ? "ON" : "OFF"}`);
+          }
+        }
+        e.preventDefault();
+      }
       if (offsetChanged) {
         config.saveOffsets();
         this.magnifyGlass.updateMagnifiedView();

@@ -6,6 +6,9 @@
 [![Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen?style=for-the-badge&color=blue)](package.json)
 [![License](https://img.shields.io/badge/License-GPLv3-red?style=for-the-badge)](LICENSE)
 [![Version](https://img.shields.io/badge/Version-1.5.0-orange?style=for-the-badge)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases)
+[![Downloads](https://img.shields.io/github/downloads/AEmotionStudio/ComfyUI-MagnifyGlass/total?style=for-the-badge&color=blueviolet)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases)
+[![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2FAEmotionStudio%2FComfyUI-MagnifyGlass&count_bg=%2379C83D&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=hits&edge_flat=false)](https://hits.seeyoufarm.com)
+[![Clones](https://img.shields.io/badge/dynamic/json?color=success&label=Clone%20Count&query=count&url=https://raw.githubusercontent.com/AEmotionStudio/ComfyUI-MagnifyGlass/badges/git_clones.json&logo=github&style=for-the-badge)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/graphs/traffic)
 
 **A powerful, customizable magnifying glass extension for ComfyUI.**  
 *Inspect fine details in your generated images, node connections, and canvas with ease.*

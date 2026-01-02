@@ -1,0 +1,68 @@
+name: Update Clone Count Badge
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Runs daily at midnight
+  workflow_dispatch: # Allows manual trigger
+
+jobs:
+  update-badge:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Needed to push to the branch
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Fetch Clone Stats and Save JSON
+        uses: actions/github-script@v6
+        with:
+          script: |
+            try {
+              const { owner, repo } = context.repo;
+              // Add a small delay/retry logic if needed, but direct call usually works
+              const result = await github.rest.repos.getClones({
+                owner,
+                repo,
+              });
+              
+              const clones = result.data;
+              console.log(`Clones: ${clones.count}, Uniques: ${clones.uniques}`);
+              
+              const fs = require('fs');
+              const data = {
+                count: clones.count,
+                uniques: clones.uniques,
+                timestamp: new Date().toISOString()
+              };
+              
+              fs.writeFileSync('git_clones.json', JSON.stringify(data, null, 2));
+            } catch (error) {
+              console.error('Error fetching clone stats:', error);
+              // Fail the workflow if we can't get data
+              process.exit(1); 
+            }
+
+      - name: Push to Badges Branch
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          
+          # Stash the json file we just created
+          mv git_clones.json /tmp/git_clones.json
+          
+          # Fetch the badges branch or create it
+          git fetch origin badges:badges || true
+          git checkout badges || git checkout --orphan badges
+          
+          # Clean the branch to ensure it only has the JSON (optional but cleaner)
+          git rm -rf .
+          
+          # Restore the json file
+          mv /tmp/git_clones.json git_clones.json
+          
+          # Commit and push
+          git add git_clones.json
+          # Only commit if there are changes
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update clone statistics" && git push origin badges)

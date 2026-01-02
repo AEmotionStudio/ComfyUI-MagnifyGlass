@@ -105,6 +105,26 @@ class InformationGatherer {
     return null;
   }
   getDetailedNodeInfo(node, localPos) {
+    var _a, _b, _c, _d;
+    let author;
+    let category;
+    let executionOrder;
+    try {
+      const nodeData = (_a = node.constructor) == null ? void 0 : _a.nodeData;
+      if (nodeData) {
+        author = nodeData.author || ((_b = nodeData.python_module) == null ? void 0 : _b.split(".")[0]);
+        category = nodeData.category;
+      }
+      if (!author && typeof LiteGraph !== "undefined") {
+        const nodeType = (_c = LiteGraph.registered_node_types) == null ? void 0 : _c[node.type];
+        if (nodeType) {
+          author = ((_d = nodeType.nodeData) == null ? void 0 : _d.author) || nodeType.author;
+          category = nodeType.category || category;
+        }
+      }
+      executionOrder = node.order;
+    } catch (e) {
+    }
     return {
       id: node.id,
       title: node.title || "Untitled Node",
@@ -139,7 +159,10 @@ class InformationGatherer {
       inputs: node.inputs || [],
       outputs: node.outputs || [],
       properties: node.properties || {},
-      hoverRegion: this.detectNodeRegion(localPos, node)
+      hoverRegion: this.detectNodeRegion(localPos, node),
+      executionOrder,
+      author,
+      category
     };
   }
   getNodeInfo(node) {

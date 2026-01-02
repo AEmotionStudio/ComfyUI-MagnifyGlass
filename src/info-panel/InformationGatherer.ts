@@ -140,6 +140,34 @@ export class InformationGatherer {
     }
 
     getDetailedNodeInfo(node: ComfyNode, localPos: { x: number, y: number }): NodeInfo {
+        // Try to get author and category from node constructor or registered node types
+        let author: string | undefined;
+        let category: string | undefined;
+        let executionOrder: number | undefined;
+
+        try {
+            // Check for node.constructor.nodeData (ComfyUI stores metadata here)
+            const nodeData = (node as any).constructor?.nodeData;
+            if (nodeData) {
+                author = nodeData.author || nodeData.python_module?.split('.')[0];
+                category = nodeData.category;
+            }
+
+            // Try to get from LiteGraph registered node types
+            if (!author && typeof LiteGraph !== 'undefined') {
+                const nodeType = (LiteGraph as any).registered_node_types?.[node.type];
+                if (nodeType) {
+                    author = nodeType.nodeData?.author || nodeType.author;
+                    category = nodeType.category || category;
+                }
+            }
+
+            // Execution order - try to get from node.order (set during graph execution)
+            executionOrder = (node as any).order;
+        } catch (e) {
+            // Silently ignore errors accessing node metadata
+        }
+
         return {
             id: node.id,
             title: node.title || "Untitled Node",
@@ -174,7 +202,10 @@ export class InformationGatherer {
             inputs: node.inputs || [],
             outputs: node.outputs || [],
             properties: node.properties || {},
-            hoverRegion: this.detectNodeRegion(localPos, node)
+            hoverRegion: this.detectNodeRegion(localPos, node),
+            executionOrder,
+            author,
+            category
         };
     }
 

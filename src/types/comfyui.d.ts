@@ -322,6 +322,9 @@ export interface NodeInfo {
     outputs: ComfyOutput[];
     properties: Record<string, unknown>;
     hoverRegion?: string;
+    executionOrder?: number;
+    author?: string;
+    category?: string;
 }
 
 /**

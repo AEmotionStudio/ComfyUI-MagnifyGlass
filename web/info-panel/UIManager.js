@@ -48,19 +48,45 @@ class UIManager {
     }
     document.body.appendChild(this.elements.panel);
     let originalTop = null;
+    let originalFontSize = null;
+    const MARGIN = 20;
     this.elements.panel.addEventListener("mouseenter", () => {
       if (!this.stateManager.state.isPanelMinimized && this.elements.panel) {
         originalTop = this.elements.panel.offsetTop;
+        originalFontSize = parseFloat(getComputedStyle(this.elements.panel).fontSize);
         this.elements.panel.classList.add("is-expanded");
-        requestAnimationFrame(() => {
+        setTimeout(() => {
           if (!this.elements.panel) return;
+          const viewportHeight = window.innerHeight;
           const rect = this.elements.panel.getBoundingClientRect();
-          const bottomOverflow = rect.bottom - window.innerHeight;
-          if (bottomOverflow > 0) {
-            const newTop = Math.max(10, originalTop - bottomOverflow - 10);
-            this.elements.panel.style.top = `${newTop}px`;
+          const content = this.elements.panel.querySelector(".panel-content");
+          const lastSection = this.elements.panel.querySelector(".info-section:last-child");
+          let contentBottom = rect.bottom;
+          if (lastSection) {
+            const lastRect = lastSection.getBoundingClientRect();
+            contentBottom = lastRect.bottom;
+          } else if (content) {
+            const contentRect = content.getBoundingClientRect();
+            contentBottom = contentRect.bottom;
           }
-        });
+          const overflow = contentBottom - (viewportHeight - MARGIN);
+          console.log(`[InfoPanel] Viewport: ${viewportHeight}, PanelTop: ${rect.top}, ContentBottom: ${contentBottom}, Overflow: ${overflow}`);
+          if (overflow <= 0) {
+            if (rect.bottom > viewportHeight - MARGIN) {
+              const newTop = Math.max(MARGIN, originalTop - (rect.bottom - viewportHeight + MARGIN));
+              this.elements.panel.style.top = `${newTop}px`;
+            }
+            return;
+          }
+          const totalContentHeight = contentBottom - rect.top;
+          const availableHeight = viewportHeight - MARGIN * 2;
+          const scaleFactor = availableHeight / totalContentHeight;
+          const clampedScale = Math.max(0.5, Math.min(1, scaleFactor));
+          console.log(`[InfoPanel] ContentHeight: ${totalContentHeight}, Available: ${availableHeight}, Scale: ${clampedScale}`);
+          this.elements.panel.style.transformOrigin = "top left";
+          this.elements.panel.style.transform = `scale(${clampedScale})`;
+          this.elements.panel.style.top = `${MARGIN}px`;
+        }, 50);
       }
     });
     this.elements.panel.addEventListener("mouseleave", () => {
@@ -70,6 +96,12 @@ class UIManager {
           this.elements.panel.style.top = `${originalTop}px`;
           originalTop = null;
         }
+        if (originalFontSize !== null) {
+          this.elements.panel.style.fontSize = `${originalFontSize}px`;
+          originalFontSize = null;
+        }
+        this.elements.panel.style.transform = "";
+        this.elements.panel.style.transformOrigin = "";
       }
     });
     this.elements.panel.addEventListener("click", (e) => {
@@ -388,6 +420,15 @@ class UIManager {
       const nodeContent = [
         { label: "Title", value: info.hoveredNode.title }
       ];
+      if (info.hoveredNode.executionOrder !== void 0) {
+        nodeContent.push({ label: "Exec Order", value: info.hoveredNode.executionOrder });
+      }
+      if (info.hoveredNode.category) {
+        nodeContent.push({ label: "Category", value: info.hoveredNode.category });
+      }
+      if (info.hoveredNode.author) {
+        nodeContent.push({ label: "Author", value: info.hoveredNode.author });
+      }
       const nodeType = info.hoveredNode.type ? info.hoveredNode.type.toLowerCase() : "";
       const isSaveNode = nodeType.includes("save") && !nodeType.includes("checkpoint") && !nodeType.includes("model") && !nodeType.includes("preview");
       const showAllWidgets = info.hoveredNode.type && (nodeType.includes("ksampler") || nodeType.includes("sampler") || nodeType.includes("k_samplers") || nodeType.includes("checkpoint") || nodeType.includes("model") || nodeType.includes("lora") || nodeType.includes("controlnet") || nodeType.includes("advanced") || nodeType.includes("detailer") || nodeType.includes("inpaint") || nodeType.includes("upscale") || nodeType.includes("clip") || nodeType.includes("text") || nodeType.includes("encode")) && !isSaveNode;

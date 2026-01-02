@@ -82,29 +82,71 @@ export class UIManager {
         }
         document.body.appendChild(this.elements.panel);
 
-        // Hover-expand: Add/remove 'is-expanded' class and reposition for full content
+        // Hover-expand: Add/remove 'is-expanded' class, reposition, and resize font if needed
         let originalTop: number | null = null;
+        let originalFontSize: number | null = null;
+        const MIN_FONT_SIZE = 10; // Minimum font size in pixels
+        const MARGIN = 20; // Minimum margin from viewport edges
 
         this.elements.panel.addEventListener('mouseenter', () => {
             if (!this.stateManager.state.isPanelMinimized && this.elements.panel) {
-                // Save original position
+                // Save original position and font size
                 originalTop = this.elements.panel.offsetTop;
+                originalFontSize = parseFloat(getComputedStyle(this.elements.panel).fontSize);
 
                 // Add expanded class
                 this.elements.panel.classList.add('is-expanded');
 
-                // After a short delay, check if panel extends below viewport and adjust
-                requestAnimationFrame(() => {
+                // Use setTimeout to ensure DOM is fully updated after class change
+                setTimeout(() => {
                     if (!this.elements.panel) return;
-                    const rect = this.elements.panel.getBoundingClientRect();
-                    const bottomOverflow = rect.bottom - window.innerHeight;
 
-                    if (bottomOverflow > 0) {
-                        // Panel extends below viewport - move it up
-                        const newTop = Math.max(10, originalTop! - bottomOverflow - 10);
-                        this.elements.panel.style.top = `${newTop}px`;
+                    const viewportHeight = window.innerHeight;
+                    const rect = this.elements.panel.getBoundingClientRect();
+
+                    // Check the actual content by finding the last visible element
+                    const content = this.elements.panel.querySelector('.panel-content');
+                    const lastSection = this.elements.panel.querySelector('.info-section:last-child');
+
+                    // Get the actual bottom of content
+                    let contentBottom = rect.bottom;
+                    if (lastSection) {
+                        const lastRect = lastSection.getBoundingClientRect();
+                        contentBottom = lastRect.bottom;
+                    } else if (content) {
+                        const contentRect = content.getBoundingClientRect();
+                        contentBottom = contentRect.bottom;
                     }
-                });
+
+                    // Calculate how much content overflows the viewport
+                    const overflow = contentBottom - (viewportHeight - MARGIN);
+
+                    console.log(`[InfoPanel] Viewport: ${viewportHeight}, PanelTop: ${rect.top}, ContentBottom: ${contentBottom}, Overflow: ${overflow}`);
+
+                    // If no overflow, just reposition if needed
+                    if (overflow <= 0) {
+                        if (rect.bottom > viewportHeight - MARGIN) {
+                            const newTop = Math.max(MARGIN, originalTop! - (rect.bottom - viewportHeight + MARGIN));
+                            this.elements.panel.style.top = `${newTop}px`;
+                        }
+                        return;
+                    }
+
+                    // Content overflows - calculate scale factor to fit
+                    const totalContentHeight = contentBottom - rect.top;
+                    const availableHeight = viewportHeight - (MARGIN * 2);
+                    const scaleFactor = availableHeight / totalContentHeight;
+                    const clampedScale = Math.max(0.5, Math.min(1, scaleFactor)); // Between 50% and 100%
+
+                    console.log(`[InfoPanel] ContentHeight: ${totalContentHeight}, Available: ${availableHeight}, Scale: ${clampedScale}`);
+
+                    // Apply transform scale
+                    this.elements.panel.style.transformOrigin = 'top left';
+                    this.elements.panel.style.transform = `scale(${clampedScale})`;
+
+                    // Position at top of viewport
+                    this.elements.panel.style.top = `${MARGIN}px`;
+                }, 50);
             }
         });
 
@@ -117,6 +159,16 @@ export class UIManager {
                     this.elements.panel.style.top = `${originalTop}px`;
                     originalTop = null;
                 }
+
+                // Restore original font size
+                if (originalFontSize !== null) {
+                    this.elements.panel.style.fontSize = `${originalFontSize}px`;
+                    originalFontSize = null;
+                }
+
+                // Reset transform (used for scaling when panel is too tall)
+                this.elements.panel.style.transform = '';
+                this.elements.panel.style.transformOrigin = '';
             }
         });
 
@@ -562,6 +614,21 @@ export class UIManager {
             const nodeContent = [
                 { label: 'Title', value: info.hoveredNode.title }
             ];
+
+            // Add execution order if available
+            if (info.hoveredNode.executionOrder !== undefined) {
+                nodeContent.push({ label: 'Exec Order', value: info.hoveredNode.executionOrder });
+            }
+
+            // Add category if available
+            if (info.hoveredNode.category) {
+                nodeContent.push({ label: 'Category', value: info.hoveredNode.category });
+            }
+
+            // Add author if available
+            if (info.hoveredNode.author) {
+                nodeContent.push({ label: 'Author', value: info.hoveredNode.author });
+            }
 
             // Check if this is a complex node that shows all widgets
             const nodeType = info.hoveredNode.type ? info.hoveredNode.type.toLowerCase() : '';

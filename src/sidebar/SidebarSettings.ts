@@ -127,7 +127,8 @@ function createSelect(
     value: string,
     options: readonly string[] | string[],
     onChange: (value: string) => void,
-    tooltip?: string
+    tooltip?: string,
+    onInput?: (value: string) => void
 ): HTMLElement {
     const row = document.createElement('div');
     row.className = 'magnify-control-row';
@@ -147,7 +148,14 @@ function createSelect(
         select.appendChild(option);
     });
 
-    select.addEventListener('change', () => onChange(select.value));
+    select.addEventListener('change', () => {
+        // Call onInput first for live preview
+        if (onInput) {
+            onInput(select.value);
+        }
+        // Then persist the setting
+        onChange(select.value);
+    });
 
     row.appendChild(labelEl);
     row.appendChild(select);
@@ -542,10 +550,21 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     panelSection.body.appendChild(createSelect('Controls Position',
-        getSettingValue('🔍MagnifyGlass.ControlsPosition', 'bottom'),
+        getSettingValue('🔍MagnifyGlass.ControlsPosition', 'left'),
         ['top', 'bottom', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right'],
         (value) => setSettingValue('🔍MagnifyGlass.ControlsPosition', value),
-        'Position of floating control buttons'
+        'Position of floating control buttons',
+        (value) => {
+            // Live update controls position
+            const infoPanel = (window as any).infoPanelManager;
+            if (infoPanel?.stateManager?.state?.settings) {
+                infoPanel.stateManager.state.settings['🔍MagnifyGlass.ControlsPosition'] = value;
+                infoPanel.uiManager.updateControlsLayout(value);
+                if (infoPanel.magnifyGlass.state.active) {
+                    infoPanel.positionManager.positionFloatingControls();
+                }
+            }
+        }
     ));
 
     container.appendChild(panelSection.section);
@@ -635,12 +654,12 @@ export function renderSettingsPanel(container: HTMLElement): void {
 
         // Default glass settings
         setSettingValue('🔍MagnifyGlass.ZoomFactor', 300);
-        setSettingValue('🔍MagnifyGlass.GlassSize', 250);
+        setSettingValue('🔍MagnifyGlass.GlassSize', 300);
         setSettingValue('🔍MagnifyGlass.GlassShape', 'Rounded Square');
         setSettingValue('🔍MagnifyGlass.GlassPosition', 'Top-Right');
         setSettingValue('🔍MagnifyGlass.TextureFiltering', 'Linear');
-        setSettingValue('🔍MagnifyGlass.BorderWidth', 2);
-        setSettingValue('🔍MagnifyGlass.BorderColor', '#ffffff');
+        setSettingValue('🔍MagnifyGlass.BorderWidth', 1);
+        setSettingValue('🔍MagnifyGlass.BorderColor', '#6b7280');
         setSettingValue('🔍MagnifyGlass.BorderEnabled', true);
         setSettingValue('🔍MagnifyGlass.FollowCursor', false);
         setSettingValue('🔍MagnifyGlass.AlwaysActiveMode', true);
@@ -648,20 +667,20 @@ export function renderSettingsPanel(container: HTMLElement): void {
         setSettingValue('🔍MagnifyGlass.ResetKey', 'o');
         setSettingValue('🔍MagnifyGlass.ToggleFollowCursorKey', 'h');
         setSettingValue('🔍MagnifyGlass.AltRequired', false);
-        setSettingValue('🔍MagnifyGlass.OffsetStep', 10);
+        setSettingValue('🔍MagnifyGlass.OffsetStep', 5);
         setSettingValue('🔍MagnifyGlass.DebugMode', false);
 
         // Default panel settings
         setSettingValue('🔍MagnifyGlass.InfoPanelEnabled', true);
         setSettingValue('🔍MagnifyGlass.InfoPanelPosition', 'Bottom');
         setSettingValue('🔍MagnifyGlass.InfoPanelWidth', 300);
-        setSettingValue('🔍MagnifyGlass.InfoPanelMaxHeight', 600);
-        setSettingValue('🔍MagnifyGlass.InfoPanelOpacity', 95);
+        setSettingValue('🔍MagnifyGlass.InfoPanelMaxHeight', 300);
+        setSettingValue('🔍MagnifyGlass.InfoPanelOpacity', 100);
         setSettingValue('🔍MagnifyGlass.InfoPanelTextColor', '#6b7280');
         setSettingValue('🔍MagnifyGlass.InfoPanelAccentColor', '#3b82f6');
         setSettingValue('🔍MagnifyGlass.InfoPanelAnimations', false);
         setSettingValue('🔍MagnifyGlass.ShowHoveringControls', true);
-        setSettingValue('🔍MagnifyGlass.ControlsPosition', 'bottom');
+        setSettingValue('🔍MagnifyGlass.ControlsPosition', 'left');
         setSettingValue('🔍MagnifyGlass.ToggleHotkey', 'i');
         setSettingValue('🔍MagnifyGlass.GlassPreviewToggleHotkey', 'g');
         setSettingValue('🔍MagnifyGlass.PinPanelHotkey', 'u');

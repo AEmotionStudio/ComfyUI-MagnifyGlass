@@ -29,7 +29,7 @@ const DEFAULT_PANEL_SETTINGS = {
   "🔍MagnifyGlass.GlassPreviewToggleHotkey": "g",
   "🔍MagnifyGlass.PinPanelHotkey": "u",
   "🔍MagnifyGlass.ShowHoveringControls": true,
-  "🔍MagnifyGlass.ControlsPosition": "bottom",
+  "🔍MagnifyGlass.ControlsPosition": "left",
   "🔍MagnifyGlass.InfoPanelTextColor": "#6b7280",
   "🔍MagnifyGlass.InfoPanelAccentColor": "#3b82f6"
 };

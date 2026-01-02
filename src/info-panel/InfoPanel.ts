@@ -131,6 +131,9 @@ export class InfoPanel {
         });
     }
 
+    // State for persistence
+    private lastValidNodeInfo: any = null;
+
     updateInfo(): void {
         const settings = this.stateManager.state.settings;
         const isActive = this.magnifyGlass.state.active;
@@ -143,7 +146,23 @@ export class InfoPanel {
             return;
         }
 
-        const info = this.informationGatherer.gatherInformation();
+        let info = this.informationGatherer.gatherInformation();
+
+        // PERSISTENCE LOGIC START
+        if (info.hoveredNode) {
+            // We have a valid node, update our cache
+            this.lastValidNodeInfo = info;
+        } else if (settings["🔍MagnifyGlass.InfoPanelPersist"] && this.lastValidNodeInfo) {
+            // No node hovered, but persistence is ON and we have a cache.
+            // Merge the CACHED node info into the CURRENT info (so we keep current cursor pos/zoom but show old node)
+            info = {
+                ...info, // Current timestamp, cursor, zoom
+                hoveredNode: this.lastValidNodeInfo.hoveredNode,
+                hoveredWidget: this.lastValidNodeInfo.hoveredWidget
+            };
+        }
+        // PERSISTENCE LOGIC END
+
         this.stateManager.setCurrentInfo(info);
 
         // Update the UI
@@ -161,10 +180,13 @@ export class InfoPanel {
             }
         } else {
             this.stateManager.state.isHoveringNode = false;
-            if (this.stateManager.state.lastNodeId !== null) {
-                this.stateManager.state.lastNodeId = null;
-                if (!this.stateManager.state.isPanelHovered) {
-                    this.stateManager.scheduleAutoCollapse();
+            // Only collapse if we are NOT persisting
+            if (!settings["🔍MagnifyGlass.InfoPanelPersist"]) {
+                if (this.stateManager.state.lastNodeId !== null) {
+                    this.stateManager.state.lastNodeId = null;
+                    if (!this.stateManager.state.isPanelHovered) {
+                        this.stateManager.scheduleAutoCollapse();
+                    }
                 }
             }
         }

@@ -123,6 +123,7 @@ class UIManager {
     this.elements.controls.innerHTML = `
             <button class="control-btn unlock-btn" title="Unlock/Lock Panel from Glass" data-action="pin">${Icons.unlock}</button>
             <button class="control-btn pin-btn" title="Pin/Unpin Panel Position (Prevent Drag)" data-action="lock">${Icons.pin}</button>
+            <button class="control-btn persist-btn" title="Toggle Persist Mode (Sticky Info)" data-action="persist">${Icons.magnet}</button>
             <button class="control-btn visibility-btn" title="Toggle Panel Visibility (I)" data-action="toggle-panel">${Icons.eye}</button>
             <button class="control-btn glass-btn" title="Toggle Glass Preview (G)" data-action="toggle-glass">${Icons.magnifyGlass}</button>
         `;
@@ -150,6 +151,10 @@ class UIManager {
           if (this.elements.panel) {
             this.elements.panel.classList.toggle("panel-locked", this.stateManager.state.isPanelLocked);
           }
+          break;
+        case "persist":
+          this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"] = !this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"];
+          this.updateControlStates();
           break;
         case "toggle-panel":
           if (this.stateManager.state.isPanelVisible) {
@@ -219,6 +224,13 @@ class UIManager {
       lockBtn.classList.toggle("active", this.stateManager.state.isPanelLocked);
       lockBtn.title = this.stateManager.state.isPanelLocked ? "Unpin Panel Position" : "Pin Panel Position";
       lockBtn.disabled = !this.stateManager.state.isPanelPinned;
+    }
+    const persistBtn = this.elements.controls.querySelector('[data-action="persist"]');
+    if (persistBtn) {
+      const isPersistConfigured = !!this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"];
+      persistBtn.classList.toggle("active", isPersistConfigured);
+      persistBtn.title = isPersistConfigured ? "Disable Sticky Info" : "Enable Sticky Info (Persist)";
+      persistBtn.style.display = isPanelVisible ? "flex" : "none";
     }
     if (visibilityBtn) {
       visibilityBtn.classList.toggle("active", isPanelVisible);

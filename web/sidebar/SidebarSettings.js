@@ -271,6 +271,18 @@ function renderSettingsPanel(container) {
     (checked) => setSettingValue("🔍MagnifyGlass.AlwaysActiveMode", checked),
     `When enabled, glass stays visible. Toggle with ${activationKey}`
   ));
+  glassSection.body.appendChild(createToggle(
+    "Persist Info",
+    getSettingValue("🔍MagnifyGlass.InfoPanelPersist", false),
+    (checked) => {
+      setSettingValue("🔍MagnifyGlass.InfoPanelPersist", checked);
+      const infoPanel = window.infoPanelManager;
+      if (infoPanel == null ? void 0 : infoPanel.uiManager) {
+        infoPanel.uiManager.updateControlStates();
+      }
+    },
+    "Keep displaying the last node info when hovering empty space"
+  ));
   container.appendChild(glassSection.section);
   const hotkeySection = createSection("Hotkeys", true);
   hotkeySection.body.appendChild(createSelect(
@@ -320,6 +332,18 @@ function renderSettingsPanel(container) {
     getSettingValue("🔍MagnifyGlass.InfoPanelEnabled", true),
     (checked) => setSettingValue("🔍MagnifyGlass.InfoPanelEnabled", checked),
     `Show info panel with node details. Toggle: ${toggleHotkey}`
+  ));
+  panelSection.body.appendChild(createToggle(
+    "Persist Info",
+    getSettingValue("🔍MagnifyGlass.InfoPanelPersist", false),
+    (checked) => {
+      setSettingValue("🔍MagnifyGlass.InfoPanelPersist", checked);
+      const infoPanel = window.infoPanelManager;
+      if (infoPanel == null ? void 0 : infoPanel.uiManager) {
+        infoPanel.uiManager.updateControlStates();
+      }
+    },
+    "Keep displaying the last node info when hovering empty space"
   ));
   panelSection.body.appendChild(createSelect(
     "Position",
@@ -565,6 +589,7 @@ function renderSettingsPanel(container) {
     setSettingValue("🔍MagnifyGlass.InfoPanelMaxHeight", 300);
     setSettingValue("🔍MagnifyGlass.InfoPanelOpacity", 100);
     setSettingValue("🔍MagnifyGlass.InfoPanelFontSize", 14);
+    setSettingValue("🔍MagnifyGlass.InfoPanelPersist", false);
     setSettingValue("🔍MagnifyGlass.InfoPanelTextColor", "#6b7280");
     setSettingValue("🔍MagnifyGlass.InfoPanelAccentColor", "#3b82f6");
     setSettingValue("🔍MagnifyGlass.InfoPanelAnimations", false);

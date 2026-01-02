@@ -17,6 +17,8 @@ class InfoPanel {
     __publicField(this, "positionManager");
     __publicField(this, "eventManager");
     __publicField(this, "informationGatherer");
+    // State for persistence
+    __publicField(this, "lastValidNodeInfo", null);
     this.magnifyGlass = magnifyGlass;
     this.stateManager = new StateManager();
     this.uiManager = new UIManager(this.stateManager);
@@ -97,7 +99,17 @@ class InfoPanel {
       }
       return;
     }
-    const info = this.informationGatherer.gatherInformation();
+    let info = this.informationGatherer.gatherInformation();
+    if (info.hoveredNode) {
+      this.lastValidNodeInfo = info;
+    } else if (settings["🔍MagnifyGlass.InfoPanelPersist"] && this.lastValidNodeInfo) {
+      info = {
+        ...info,
+        // Current timestamp, cursor, zoom
+        hoveredNode: this.lastValidNodeInfo.hoveredNode,
+        hoveredWidget: this.lastValidNodeInfo.hoveredWidget
+      };
+    }
     this.stateManager.setCurrentInfo(info);
     this.uiManager.displayInfo(info);
     this.positionManager.positionPanel();
@@ -110,10 +122,12 @@ class InfoPanel {
       }
     } else {
       this.stateManager.state.isHoveringNode = false;
-      if (this.stateManager.state.lastNodeId !== null) {
-        this.stateManager.state.lastNodeId = null;
-        if (!this.stateManager.state.isPanelHovered) {
-          this.stateManager.scheduleAutoCollapse();
+      if (!settings["🔍MagnifyGlass.InfoPanelPersist"]) {
+        if (this.stateManager.state.lastNodeId !== null) {
+          this.stateManager.state.lastNodeId = null;
+          if (!this.stateManager.state.isPanelHovered) {
+            this.stateManager.scheduleAutoCollapse();
+          }
         }
       }
     }

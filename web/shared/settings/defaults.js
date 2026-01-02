@@ -32,7 +32,8 @@ const DEFAULT_PANEL_SETTINGS = {
   "🔍MagnifyGlass.ControlsPosition": "left",
   "🔍MagnifyGlass.InfoPanelTextColor": "#6b7280",
   "🔍MagnifyGlass.InfoPanelAccentColor": "#3b82f6",
-  "🔍MagnifyGlass.InfoPanelFontSize": 14
+  "🔍MagnifyGlass.InfoPanelFontSize": 14,
+  "🔍MagnifyGlass.InfoPanelPersist": false
 };
 export {
   DEFAULT_GLASS_SETTINGS,

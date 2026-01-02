@@ -108,6 +108,21 @@ function registerPanelSettings(stateManager, uiManager, positionManager) {
     }
   });
   app.ui.settings.addSetting({
+    id: "🔍MagnifyGlass.InfoPanelPersist",
+    name: "📊 Info Panel: Persist Node Info",
+    type: "boolean",
+    defaultValue: settings["🔍MagnifyGlass.InfoPanelPersist"],
+    tooltip: "Keep displaying the last node's info until you hover over another node.",
+    onChange: (value) => {
+      if (stateManager) {
+        stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"] = !!value;
+        if (uiManager) {
+          uiManager.updateControlStates();
+        }
+      }
+    }
+  });
+  app.ui.settings.addSetting({
     id: "🔍MagnifyGlass.InfoPanelAnimations",
     name: "📊 Info Panel: Animations",
     type: "combo",

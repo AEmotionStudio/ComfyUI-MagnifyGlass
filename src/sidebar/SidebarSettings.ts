@@ -396,6 +396,23 @@ export function renderSettingsPanel(container: HTMLElement): void {
         `When enabled, glass stays visible. Toggle with ${activationKey}`
     ));
 
+    // The instruction implies this should be in glassSection, but the content suggests info panel.
+    // Placing it in glassSection as per instruction, assuming createToggle is intended.
+    // The condition `if (getSettingValue("🔍MagnifyGlass.InfoPanelEnabled", true))` is removed
+    // as it doesn't make sense for a glass setting to depend on info panel being enabled.
+    // The tooltip and callback logic are kept as provided.
+    glassSection.body.appendChild(createToggle('Persist Info',
+        getSettingValue('🔍MagnifyGlass.InfoPanelPersist', false),
+        (checked) => {
+            setSettingValue('🔍MagnifyGlass.InfoPanelPersist', checked);
+            // Sync with UI controls if needed
+            const infoPanel = (window as any).infoPanelManager;
+            if (infoPanel?.uiManager) {
+                infoPanel.uiManager.updateControlStates();
+            }
+        }, 'Keep displaying the last node info when hovering empty space'
+    ));
+
     container.appendChild(glassSection.section);
 
     // ===== Hotkeys Section =====
@@ -444,6 +461,19 @@ export function renderSettingsPanel(container: HTMLElement): void {
         getSettingValue('🔍MagnifyGlass.InfoPanelEnabled', true),
         (checked) => setSettingValue('🔍MagnifyGlass.InfoPanelEnabled', checked),
         `Show info panel with node details. Toggle: ${toggleHotkey}`
+    ));
+
+    panelSection.body.appendChild(createToggle('Persist Info',
+        getSettingValue('🔍MagnifyGlass.InfoPanelPersist', false),
+        (checked) => {
+            setSettingValue('🔍MagnifyGlass.InfoPanelPersist', checked);
+            // Sync with UI controls if needed
+            const infoPanel = (window as any).infoPanelManager;
+            if (infoPanel?.uiManager) {
+                infoPanel.uiManager.updateControlStates();
+            }
+        },
+        'Keep displaying the last node info when hovering empty space'
     ));
 
     panelSection.body.appendChild(createSelect('Position',
@@ -690,6 +720,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
         setSettingValue('🔍MagnifyGlass.InfoPanelMaxHeight', 300);
         setSettingValue('🔍MagnifyGlass.InfoPanelOpacity', 100);
         setSettingValue('🔍MagnifyGlass.InfoPanelFontSize', 14);
+        setSettingValue('🔍MagnifyGlass.InfoPanelPersist', false);
         setSettingValue('🔍MagnifyGlass.InfoPanelTextColor', '#6b7280');
         setSettingValue('🔍MagnifyGlass.InfoPanelAccentColor', '#3b82f6');
         setSettingValue('🔍MagnifyGlass.InfoPanelAnimations', false);

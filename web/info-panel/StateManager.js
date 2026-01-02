@@ -209,6 +209,8 @@ class StateManager {
     if (!this.state.isPanelPinned) {
       this.state.isPanelLocked = false;
       this.state.isAutoPinned = false;
+    } else {
+      this.state.isAutoPinned = false;
     }
     if (this.state.isPanelPinned && this.state.lastPinnedPosition) {
       this.state.pinnedPosition = { ...this.state.lastPinnedPosition };

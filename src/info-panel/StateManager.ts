@@ -329,6 +329,9 @@ export class StateManager {
         if (!this.state.isPanelPinned) {
             this.state.isPanelLocked = false;
             this.state.isAutoPinned = false; // Clear auto-pin flag when manually unpinning
+        } else {
+            // When manually pinning, also clear auto-pin flag (this is a user-initiated pin)
+            this.state.isAutoPinned = false;
         }
 
         if (this.state.isPanelPinned && this.state.lastPinnedPosition) {

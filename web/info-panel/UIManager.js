@@ -126,14 +126,24 @@ class UIManager {
         case "toggle-glass":
           this.stateManager.state.isGlassPreviewVisible = !this.stateManager.state.isGlassPreviewVisible;
           if (!this.stateManager.state.isGlassPreviewVisible) {
-            if (this.elements.panel) {
-              const rect = this.elements.panel.getBoundingClientRect();
-              this.stateManager.state.pinnedPosition = { x: rect.left, y: rect.top };
+            console.log(`[MagnifyGlass Debug] Glass Hidden. pinned=${this.stateManager.state.isPanelPinned}, autoPinned=${this.stateManager.state.isAutoPinned}`);
+            if (!this.stateManager.state.isPanelPinned) {
+              if (this.elements.panel) {
+                const rect = this.elements.panel.getBoundingClientRect();
+                this.stateManager.state.pinnedPosition = { x: rect.left, y: rect.top };
+              }
+              this.stateManager.state.isPanelPinned = true;
+              this.stateManager.state.isAutoPinned = true;
+              console.log(`[MagnifyGlass Debug] Auto-Pinned panel.`);
             }
-            this.stateManager.state.isPanelPinned = true;
             this.stateManager.state.isPanelLocked = false;
           } else {
-            this.stateManager.state.isPanelPinned = false;
+            console.log(`[MagnifyGlass Debug] Glass Shown. pinned=${this.stateManager.state.isPanelPinned}, autoPinned=${this.stateManager.state.isAutoPinned}`);
+            if (this.stateManager.state.isAutoPinned) {
+              this.stateManager.state.isPanelPinned = false;
+              this.stateManager.state.isAutoPinned = false;
+              console.log(`[MagnifyGlass Debug] Auto-Unpinned panel.`);
+            }
           }
           this.updateControlStates();
           this.updatePinnedState();

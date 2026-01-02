@@ -199,17 +199,29 @@ export class UIManager {
 
                     // Link Glass Visibility to Panel Pinning
                     if (!this.stateManager.state.isGlassPreviewVisible) {
-                        // Glass Hidden -> Enter "Unlocked Mode" (Pinned to Screen, Draggable)
-                        if (this.elements.panel) {
-                            const rect = this.elements.panel.getBoundingClientRect();
-                            this.stateManager.state.pinnedPosition = { x: rect.left, y: rect.top };
+                        // Glass Hidden
+                        console.log(`[MagnifyGlass Debug] Glass Hidden. pinned=${this.stateManager.state.isPanelPinned}, autoPinned=${this.stateManager.state.isAutoPinned}`);
+                        // Only auto-pin if not already pinned by the user
+                        if (!this.stateManager.state.isPanelPinned) {
+                            if (this.elements.panel) {
+                                const rect = this.elements.panel.getBoundingClientRect();
+                                this.stateManager.state.pinnedPosition = { x: rect.left, y: rect.top };
+                            }
+                            this.stateManager.state.isPanelPinned = true;
+                            this.stateManager.state.isAutoPinned = true; // Track that this was auto-pinned
+                            console.log(`[MagnifyGlass Debug] Auto-Pinned panel.`);
                         }
-                        this.stateManager.state.isPanelPinned = true;
                         this.stateManager.state.isPanelLocked = false; // Ensure dragging is allowed
                     } else {
-                        // Glass Shown -> Enter "Locked Position" (Follow Glass)
-                        this.stateManager.state.isPanelPinned = false;
-                        // Note: Dragging is automatically disabled when !isPanelPinned by EventManager logic
+                        // Glass Shown
+                        console.log(`[MagnifyGlass Debug] Glass Shown. pinned=${this.stateManager.state.isPanelPinned}, autoPinned=${this.stateManager.state.isAutoPinned}`);
+                        // Only unpin if it was auto-pinned (not user-pinned)
+                        if (this.stateManager.state.isAutoPinned) {
+                            this.stateManager.state.isPanelPinned = false;
+                            this.stateManager.state.isAutoPinned = false;
+                            console.log(`[MagnifyGlass Debug] Auto-Unpinned panel.`);
+                        }
+                        // If user manually pinned, keep the panel pinned
                     }
 
                     this.updateControlStates();

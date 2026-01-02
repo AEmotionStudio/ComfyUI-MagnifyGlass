@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+.eggs/
+
+# Node.js / TypeScript build tooling
+node_modules/
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build artifacts (optional - see note below)
+# Note: The web/ directory contains the compiled JS that ComfyUI serves.
+# You should COMMIT web/ so users don't need to build from source.
+# But these specific build artifacts can be ignored:
+web/node_modules/
+
+# TypeScript build cache
+*.tsbuildinfo
+
+# Test artifacts
+test-results/
+playwright-report/
+.playwright/
+
+# Debug files
+Broswer_Console_Errors.md
+
+# Environment
+.env
+.env.local

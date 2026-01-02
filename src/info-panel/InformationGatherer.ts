@@ -144,12 +144,14 @@ export class InformationGatherer {
         let author: string | undefined;
         let category: string | undefined;
         let executionOrder: number | undefined;
+        let pythonModule: string | undefined;
 
         try {
             // Check for node.constructor.nodeData (ComfyUI stores metadata here)
             const nodeData = (node as any).constructor?.nodeData;
             if (nodeData) {
-                author = nodeData.author || nodeData.python_module?.split('.')[0];
+                pythonModule = nodeData.python_module;
+                author = nodeData.author || pythonModule?.split('.')[0];
                 category = nodeData.category;
             }
 
@@ -159,6 +161,9 @@ export class InformationGatherer {
                 if (nodeType) {
                     author = nodeType.nodeData?.author || nodeType.author;
                     category = nodeType.category || category;
+                    if (!pythonModule && nodeType.nodeData?.python_module) {
+                        pythonModule = nodeType.nodeData.python_module;
+                    }
                 }
             }
 
@@ -203,9 +208,10 @@ export class InformationGatherer {
             outputs: node.outputs || [],
             properties: node.properties || {},
             hoverRegion: this.detectNodeRegion(localPos, node),
-            executionOrder,
-            author,
-            category
+            executionOrder: executionOrder,
+            author: author,
+            category: category,
+            pythonModule: pythonModule
         };
     }
 

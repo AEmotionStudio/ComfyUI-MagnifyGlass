@@ -268,6 +268,8 @@ class UIManager {
     this.elements.panel.style.pointerEvents = "auto";
     this.elements.panel.style.userSelect = "none";
     this.elements.panel.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    const fontSize = settings["🔍MagnifyGlass.InfoPanelFontSize"] || 14;
+    this.elements.panel.style.fontSize = `${fontSize}px`;
     this.elements.panel.style.transition = settings["🔍MagnifyGlass.InfoPanelAnimations"] ? "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)" : "none";
     const textColor = settings["🔍MagnifyGlass.InfoPanelTextColor"];
     if (textColor && typeof textColor === "string") {
@@ -405,8 +407,9 @@ class UIManager {
       if (info.hoveredNode.category) {
         nodeContent.push({ label: "Category", value: info.hoveredNode.category });
       }
-      if (info.hoveredNode.author) {
-        nodeContent.push({ label: "Author", value: info.hoveredNode.author });
+      if (info.hoveredNode.pythonModule) {
+        const path = info.hoveredNode.pythonModule.replace(/\./g, "/") + ".py";
+        nodeContent.push({ label: "Path", value: path });
       }
       const nodeType = info.hoveredNode.type ? info.hoveredNode.type.toLowerCase() : "";
       const isSaveNode = nodeType.includes("save") && !nodeType.includes("checkpoint") && !nodeType.includes("model") && !nodeType.includes("preview");

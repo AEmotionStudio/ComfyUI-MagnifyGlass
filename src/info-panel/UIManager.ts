@@ -411,6 +411,10 @@ export class UIManager {
         this.elements.panel.style.userSelect = 'none';
         this.elements.panel.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
 
+        // Apply Font Size
+        const fontSize = settings["🔍MagnifyGlass.InfoPanelFontSize"] || 14;
+        this.elements.panel.style.fontSize = `${fontSize}px`;
+
         // 3. Apply transition
         this.elements.panel.style.transition = settings["🔍MagnifyGlass.InfoPanelAnimations"]
             ? 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
@@ -591,9 +595,10 @@ export class UIManager {
                 nodeContent.push({ label: 'Category', value: info.hoveredNode.category });
             }
 
-            // Add author if available
-            if (info.hoveredNode.author) {
-                nodeContent.push({ label: 'Author', value: info.hoveredNode.author });
+            // Add python module path if available
+            if (info.hoveredNode.pythonModule) {
+                const path = info.hoveredNode.pythonModule.replace(/\./g, '/') + '.py';
+                nodeContent.push({ label: 'Path', value: path });
             }
 
             // Check if this is a complex node that shows all widgets

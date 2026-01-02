@@ -325,6 +325,7 @@ export interface NodeInfo {
     executionOrder?: number;
     author?: string;
     category?: string;
+    pythonModule?: string;
 }
 
 /**

@@ -109,17 +109,22 @@ class InformationGatherer {
     let author;
     let category;
     let executionOrder;
+    let pythonModule;
     try {
       const nodeData = (_a = node.constructor) == null ? void 0 : _a.nodeData;
       if (nodeData) {
-        author = nodeData.author || ((_b = nodeData.python_module) == null ? void 0 : _b.split(".")[0]);
+        pythonModule = nodeData.python_module;
+        author = nodeData.author || (pythonModule == null ? void 0 : pythonModule.split(".")[0]);
         category = nodeData.category;
       }
       if (!author && typeof LiteGraph !== "undefined") {
-        const nodeType = (_c = LiteGraph.registered_node_types) == null ? void 0 : _c[node.type];
+        const nodeType = (_b = LiteGraph.registered_node_types) == null ? void 0 : _b[node.type];
         if (nodeType) {
-          author = ((_d = nodeType.nodeData) == null ? void 0 : _d.author) || nodeType.author;
+          author = ((_c = nodeType.nodeData) == null ? void 0 : _c.author) || nodeType.author;
           category = nodeType.category || category;
+          if (!pythonModule && ((_d = nodeType.nodeData) == null ? void 0 : _d.python_module)) {
+            pythonModule = nodeType.nodeData.python_module;
+          }
         }
       }
       executionOrder = node.order;
@@ -162,7 +167,8 @@ class InformationGatherer {
       hoverRegion: this.detectNodeRegion(localPos, node),
       executionOrder,
       author,
-      category
+      category,
+      pythonModule
     };
   }
   getNodeInfo(node) {

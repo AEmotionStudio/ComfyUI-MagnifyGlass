@@ -347,11 +347,11 @@
 
 .header-title {
     font-weight: 600;
-    font-size: 18px;
+    font-size: 1.125em;
 }
 
 .header-subtitle {
-    font-size: 14px;
+    font-size: 0.875em;
     opacity: 0.7;
     font-style: italic;
 }
@@ -531,7 +531,7 @@
 
 .section-title {
     flex: 1;
-    font-size: 16px;
+    font-size: 1em;
     font-weight: 600;
     letter-spacing: 0.3px;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
@@ -542,7 +542,7 @@
     color: #8bb3ff;
     padding: 3px 10px;
     border-radius: 10px;
-    font-size: 13px;
+    font-size: 0.81em;
     font-weight: 500;
 }
 
@@ -614,7 +614,7 @@
 .info-label {
     font-weight: 500;
     opacity: 0.85;
-    font-size: 15px;
+    font-size: 0.94em;
     min-width: 80px;
     padding-right: 12px;
     line-height: 1.5;
@@ -622,7 +622,7 @@
 
 .info-value {
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    font-size: 14px;
+    font-size: 0.88em;
     color: var(--info-panel-accent-color, #a0d468);
     background: rgba(160, 212, 104, 0.12);
     padding: 4px 10px;

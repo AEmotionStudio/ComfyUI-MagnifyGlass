@@ -90,6 +90,24 @@ function registerPanelSettings(stateManager, uiManager, positionManager) {
     }
   });
   app.ui.settings.addSetting({
+    id: "🔍MagnifyGlass.InfoPanelFontSize",
+    name: "📊 Info Panel: Font Size (px)",
+    type: "slider",
+    defaultValue: settings["🔍MagnifyGlass.InfoPanelFontSize"],
+    min: 8,
+    max: 24,
+    step: 1,
+    tooltip: "Font size of the information panel text.",
+    onChange: (value) => {
+      if (stateManager) {
+        stateManager.state.settings["🔍MagnifyGlass.InfoPanelFontSize"] = parseInt(String(value), 10);
+        if (uiManager) {
+          uiManager.applyStyles();
+        }
+      }
+    }
+  });
+  app.ui.settings.addSetting({
     id: "🔍MagnifyGlass.InfoPanelAnimations",
     name: "📊 Info Panel: Animations",
     type: "combo",

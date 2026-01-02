@@ -44,6 +44,7 @@ export interface PanelSettings {
     "🔍MagnifyGlass.ControlsPosition": string;
     "🔍MagnifyGlass.InfoPanelTextColor": string;
     "🔍MagnifyGlass.InfoPanelAccentColor": string;
+    "🔍MagnifyGlass.InfoPanelFontSize": number;
     [key: string]: string | number | boolean; // Allow indexing
 }
 

@@ -498,6 +498,19 @@ export function renderSettingsPanel(container: HTMLElement): void {
         }
     ));
 
+    panelSection.body.appendChild(createSlider('Font Size',
+        getSettingValue('🔍MagnifyGlass.InfoPanelFontSize', 14), 8, 24, 1, 'px',
+        (value) => setSettingValue('🔍MagnifyGlass.InfoPanelFontSize', value),
+        'Font size of text in the info panel',
+        (value) => {
+            const infoPanel = (window as any).infoPanelManager;
+            if (infoPanel?.stateManager?.state?.settings) {
+                infoPanel.stateManager.state.settings['🔍MagnifyGlass.InfoPanelFontSize'] = value;
+                infoPanel.uiManager.applyStyles();
+            }
+        }
+    ));
+
     panelSection.body.appendChild(createSlider('Opacity',
         getSettingValue('🔍MagnifyGlass.InfoPanelOpacity', 95), 10, 100, 5, '%',
         (value) => setSettingValue('🔍MagnifyGlass.InfoPanelOpacity', value),
@@ -676,6 +689,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
         setSettingValue('🔍MagnifyGlass.InfoPanelWidth', 300);
         setSettingValue('🔍MagnifyGlass.InfoPanelMaxHeight', 300);
         setSettingValue('🔍MagnifyGlass.InfoPanelOpacity', 100);
+        setSettingValue('🔍MagnifyGlass.InfoPanelFontSize', 14);
         setSettingValue('🔍MagnifyGlass.InfoPanelTextColor', '#6b7280');
         setSettingValue('🔍MagnifyGlass.InfoPanelAccentColor', '#3b82f6');
         setSettingValue('🔍MagnifyGlass.InfoPanelAnimations', false);

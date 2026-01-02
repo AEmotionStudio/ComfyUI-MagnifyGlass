@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2025-01-02
+
+### Added
+- **Dedicated Sidebar Panel**: All settings now accessible via a new sidebar tab in the ComfyUI sidebar, featuring organized sections for Magnify Glass, Info Panel, and Inspector settings.
+- **Live Setting Previews**: Changes to settings like "Controls Position" now update in real-time without requiring a refresh.
+- **Reset Buttons**: Individual and global reset options to restore default settings.
+- **Hover Expand for Info Panel**: Panel now smoothly expands to show full content when hovered, and collapses when the mouse leaves.
+- **Themed Floating Controls**: Hover controls now dynamically adopt the current ComfyUI theme colors, matching the main UI.
+- **Pin State Persistence**: Inspector panel now correctly retains its manually pinned state when toggling the glass preview.
+- **Shared Logger**: Internal logging system for cleaner console output with `[MagnifyGlass]` and `[InfoPanel]` prefixes.
+- **Unit Tests**: Added Vitest-based testing framework with tests for `MagnifierState` and `ConfigManager`.
+
+### Improved
+- **Modularity**: Refactored codebase by extracting node data extraction logic into `InformationGatherer.ts` and restructuring settings management into a dedicated `shared/settings` directory.
+- **Default Values**: Adjusted default glass Y-offset and UI padding for a more balanced layout out-of-the-box.
+- **Code Quality**: Replaced `console.log` calls with structured `Logger.debug` calls throughout `UIManager`.
+
+### Fixed
+- **UI Padding**: Corrected padding and offset values for improved layout consistency.
+- **Glass Y-Offset**: Fixed an issue where the glass Y-offset setting wasn't applying correctly.
+
+---
+
 ## [1.5.0] - 2024-12-31
 
 ### Added
@@ -14,11 +37,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Smart Workflow Logic**: 
     - Auto-Pin Inspector (Unlocked Mode) when hiding Glass Preview.
     - Auto-Lock Inspector (Follow Mode) when showing Glass Preview.
-- Professional SVG icons replacing emoji icons throughout the UI
-- Full theme support for ComfyUI themes: Dark, Light, Solarized, Arc, Nord, GitHub
-- External CSS stylesheet for easier customization
-- Click event handlers for all floating control buttons
-- Section expand/collapse functionality in info panel
+- Professional SVG icons replacing emoji icons throughout the UI.
+- Full theme support for ComfyUI themes: Dark, Light, Solarized, Arc, Nord, GitHub.
+- External CSS stylesheet for easier customization.
+- Click event handlers for all floating control buttons.
+- Section expand/collapse functionality in info panel.
 
 ### Improved
 - **Drag Safety**: Dragging is now disabled when following the glass to prevent position fighting.
@@ -28,28 +51,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Global Toggle**: The 'X' key/button now acts as a master switch, preserving your exact workspace state.
 
 ### Changed
-- Migrated from inline CSS-in-JS to external `info-panel.css` file
-- Improved theme detection using ComfyUI's `Comfy.ColorPalette` setting
-- More professional appearance with custom SVG icon set
+- Migrated from inline CSS-in-JS to external `info-panel.css` file.
+- Improved theme detection using ComfyUI's `Comfy.ColorPalette` setting.
+- More professional appearance with custom SVG icon set.
 
 ### Removed
-- Vue.js dependency (reduces bundle size)
-- Emoji icons (replaced with SVG for better scaling and consistency)
-- Inline CSS injection (now uses external stylesheet)
+- Vue.js dependency (reduces bundle size).
+- Emoji icons (replaced with SVG for better scaling and consistency).
+- Inline CSS injection (now uses external stylesheet).
 
 ### Fixed
-- Button click handlers now properly attached to floating controls
-- Theme switching now works across all 6 ComfyUI themes
-- Removed stale build artifacts that caused module loading errors
+- Button click handlers now properly attached to floating controls.
+- Theme switching now works across all 6 ComfyUI themes.
+- Removed stale build artifacts that caused module loading errors.
+
+---
 
 ## [1.4.0] - Previous Release
 
 ### Added
-- TypeScript source code
-- WebGL-based magnification
-- Info panel with node, media, and inspector sections
-- Floating control buttons
-- Multiple glass shapes and positions
+- TypeScript source code.
+- WebGL-based magnification.
+- Info panel with node, media, and inspector sections.
+- Floating control buttons.
+- Multiple glass shapes and positions.
 
 ---
 

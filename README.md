@@ -5,7 +5,7 @@
 [![ComfyUI](https://img.shields.io/badge/ComfyUI-Extension-green?style=for-the-badge)](https://github.com/comfyanonymous/ComfyUI)
 [![Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen?style=for-the-badge&color=blue)](package.json)
 [![License](https://img.shields.io/badge/License-GPLv3-red?style=for-the-badge)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.5.0-orange?style=for-the-badge)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases)
+[![Version](https://img.shields.io/badge/Version-1.6.0-orange?style=for-the-badge)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases)
 [![Downloads](https://img.shields.io/github/downloads/AEmotionStudio/ComfyUI-MagnifyGlass/total?style=for-the-badge&color=blueviolet)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases)
 ![Visitors](https://img.shields.io/badge/dynamic/json?color=blue&label=Visitors&query=views.uniques&url=https://raw.githubusercontent.com/AEmotionStudio/ComfyUI-MagnifyGlass/refs/heads/badges/traffic_stats.json&style=for-the-badge&logo=github)
 [![Clones](https://img.shields.io/badge/dynamic/json?color=success&label=Clones&query=clones.uniques&url=https://raw.githubusercontent.com/AEmotionStudio/ComfyUI-MagnifyGlass/refs/heads/badges/traffic_stats.json&style=for-the-badge&logo=github)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/graphs/traffic)
@@ -13,21 +13,22 @@
 **A powerful, customizable magnifying glass extension for ComfyUI.**  
 *Inspect fine details in your generated images, node connections, and canvas with ease.*
 
-[Features](#features) • [Installation](#installation) • [Usage](#usage) • [Configuration](#configuration) • [Changelog](CHANGELOG.md)
+[Features](#-features) • [Installation](#-installation) • [Usage](#-usage) • [Configuration](#️-configuration) • [Changelog](CHANGELOG.md)
 
 </div>
 
 ---
 
-## 🚀 Latest Updates (v1.5.0)
+## 🚀 What's New in v1.6.0
 
-I've completely overhauled the UI and workflow for a seamless experience. Major highlights include:
+This release focuses on accessibility and polish:
 
-*   **Modernized UI**: Professional SVG icons and full support for all ComfyUI themes (Dark, Solarized, Nord, etc.).
-*   **Smart Workflow**: The Inspector Panel now intelligently pins/unpins based on your usage, allowing for both "Follow Glass" and "Free Floating" modes.
-*   **Quick Access**: New toolbar toggle for instant access.
+*   **Dedicated Sidebar Panel**: All settings are now integrated into a new sidebar tab, making configuration easier than ever.
+*   **Live Setting Previews**: See changes instantly as you adjust settings.
+*   **Themed Floating Controls**: Hover controls now match your active ComfyUI theme.
+*   **Hover Expand**: Info panel smoothly expands on hover to reveal full content.
 
-> 📄 **See [CHANGELOG.md](CHANGELOG.md) for the complete version history and detailed patch notes.**
+> 📄 **See [CHANGELOG.md](CHANGELOG.md) for the complete version history.**
 
 ---
 
@@ -38,14 +39,19 @@ I've completely overhauled the UI and workflow for a seamless experience. Major 
 </div>
 
 ### 🔍 Magnifying Glass
-*   **High Performance**: WebGL-powered rendering for smooth zooming.
-*   **Smart Interactions**: Follows your cursor or stays fixed. Toggles transparently to let you click through to nodes.
-*   **Customizable**: Adjust zoom level (up to 10x), size, border, and shape (Circle/Square).
+*   **WebGL-Powered**: Smooth, high-performance rendering at any zoom level.
+*   **Smart Interactions**: Follows your cursor or stays fixed. Toggles transparently for click-through.
+*   **Customizable**: Adjust zoom (up to 10x), size, border, and shape (Circle/Square/Rounded).
 
 ### ℹ️ Inspector Panel
-*   **Deep Analysis**: Hover over any node to see parameters (Seed, CFG, Steps), text content, and image details.
-*   **Dockable Interface**: Pin the panel to the screen to keep it stable, or let it follow the glass.
-*   **Inspector Tab**: Technical breakdown of coordinate space and scaling for power users.
+*   **Deep Analysis**: View node parameters (Seed, CFG, Steps), text content, and image details on hover.
+*   **Dockable Interface**: Pin the panel to keep it stable, or let it follow the glass.
+*   **Themed**: Automatically matches any ComfyUI theme (Dark, Light, Solarized, Arc, Nord, GitHub).
+
+### ⚙️ Sidebar Integration
+*   **Organized Settings**: All Magnify Glass and Info Panel settings in one place.
+*   **Live Previews**: Changes apply instantly without needing to refresh.
+*   **Reset Options**: Quickly restore defaults with individual or global reset buttons.
 
 ---
 
@@ -82,7 +88,7 @@ git clone https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass.git
 
 ## ⚙️ Configuration
 
-Access settings via the ComfyUI Settings (⚙️) menu.
+Access settings via the **new Sidebar Panel** or the ComfyUI Settings (⚙️) menu.
 
 **Magnify Glass**
 | Setting | Default | Description |
@@ -98,6 +104,13 @@ Access settings via the ComfyUI Settings (⚙️) menu.
 | **Theme** | `Auto` | Syncs with ComfyUI theme automatically. |
 | **Opacity** | `100%` | Transparency of the panel background. |
 | **Show Hover Controls** | `On` | Displays the quick-action toolbar on the panel. |
+| **Controls Position** | `Top` | Position of hover controls (Top/Bottom). |
+
+---
+
+## 📝 License
+
+This project is licensed under the [GPL-3.0](LICENSE) License - see the [LICENSE](LICENSE) file for details.
 
 ---
 

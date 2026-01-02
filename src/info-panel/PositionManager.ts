@@ -8,6 +8,9 @@ import { StateManager } from './StateManager';
 export class PositionManager {
     stateManager: StateManager;
     panelElement: HTMLElement;
+    // Cache the calculated position to avoid getBoundingClientRect() and layout thrashing
+    // This also ensures controls move in perfect sync with the panel, ignoring CSS transitions
+    cachedPanelPosition: { x: number, y: number, width: number, height: number } | null = null;
 
     constructor(stateManager: StateManager, panelElement: HTMLElement) {
         this.stateManager = stateManager;
@@ -52,6 +55,8 @@ export class PositionManager {
 
         this.panelElement.style.left = `${boundedX}px`;
         this.panelElement.style.top = `${boundedY}px`;
+
+        this.cachedPanelPosition = { x: boundedX, y: boundedY, width: panelWidth, height: panelHeight };
     }
 
     calculateNormalPosition(): void {
@@ -125,6 +130,8 @@ export class PositionManager {
 
         this.panelElement.style.left = `${left}px`;
         this.panelElement.style.top = `${top}px`;
+
+        this.cachedPanelPosition = { x: left, y: top, width: panelWidth, height: panelHeight };
     }
 
     /**
@@ -144,11 +151,26 @@ export class PositionManager {
         const magnifyGlass = window.comfyUIMagnifyGlass;
         let referenceRect: DOMRect | null = null;
 
+        // 1. Position relative to PANEL (Preferred if visible)
         if (isPanelVisible && this.panelElement) {
-            // Position relative to panel
-            referenceRect = this.panelElement.getBoundingClientRect();
-        } else if (magnifyGlass && magnifyGlass.ui && magnifyGlass.ui.glassDiv) {
-            // Position relative to magnify glass
+            // Priority: Use Cached Position (Logical) -> Avoids 'chasing' CSS transitions
+            if (this.cachedPanelPosition) {
+                // Convert simple object to Rect-like interface for compatibility
+                referenceRect = {
+                    left: this.cachedPanelPosition.x,
+                    top: this.cachedPanelPosition.y,
+                    right: this.cachedPanelPosition.x + this.cachedPanelPosition.width,
+                    bottom: this.cachedPanelPosition.y + this.cachedPanelPosition.height,
+                    width: this.cachedPanelPosition.width,
+                    height: this.cachedPanelPosition.height
+                } as DOMRect;
+            } else {
+                // Fallback: Read DOM (May cause layout thrashing/lag)
+                referenceRect = this.panelElement.getBoundingClientRect();
+            }
+        }
+        // 2. Position relative to GLASS (Fallback if panel hidden)
+        else if (magnifyGlass && magnifyGlass.ui && magnifyGlass.ui.glassDiv) {
             referenceRect = magnifyGlass.ui.glassDiv.getBoundingClientRect();
             // Don't show controls if glass is hidden/invalid
             if (referenceRect.width === 0 || referenceRect.height === 0) {
@@ -158,6 +180,9 @@ export class PositionManager {
         }
 
         if (!referenceRect) return;
+
+        // Enforce no transition on controls to prevent 'rubber-banding'
+        controlsElement.style.transition = 'none';
 
         const controlsPosition = this.stateManager.state.settings["🔍MagnifyGlass.ControlsPosition"] || "right";
         const margin = 4;

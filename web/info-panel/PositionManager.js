@@ -5,6 +5,9 @@ class PositionManager {
   constructor(stateManager, panelElement) {
     __publicField(this, "stateManager");
     __publicField(this, "panelElement");
+    // Cache the calculated position to avoid getBoundingClientRect() and layout thrashing
+    // This also ensures controls move in perfect sync with the panel, ignoring CSS transitions
+    __publicField(this, "cachedPanelPosition", null);
     this.stateManager = stateManager;
     this.panelElement = panelElement;
   }
@@ -34,6 +37,7 @@ class PositionManager {
     const boundedY = Math.max(margin, Math.min(y, window.innerHeight - panelHeight - margin));
     this.panelElement.style.left = `${boundedX}px`;
     this.panelElement.style.top = `${boundedY}px`;
+    this.cachedPanelPosition = { x: boundedX, y: boundedY, width: panelWidth, height: panelHeight };
   }
   calculateNormalPosition() {
     var _a, _b, _c;
@@ -93,6 +97,7 @@ class PositionManager {
     top = Math.max(4, Math.min(top, window.innerHeight - panelHeight - 4));
     this.panelElement.style.left = `${left}px`;
     this.panelElement.style.top = `${top}px`;
+    this.cachedPanelPosition = { x: left, y: top, width: panelWidth, height: panelHeight };
   }
   /**
    * Position the floating controls relative to the panel.
@@ -108,7 +113,18 @@ class PositionManager {
     const magnifyGlass = window.comfyUIMagnifyGlass;
     let referenceRect = null;
     if (isPanelVisible && this.panelElement) {
-      referenceRect = this.panelElement.getBoundingClientRect();
+      if (this.cachedPanelPosition) {
+        referenceRect = {
+          left: this.cachedPanelPosition.x,
+          top: this.cachedPanelPosition.y,
+          right: this.cachedPanelPosition.x + this.cachedPanelPosition.width,
+          bottom: this.cachedPanelPosition.y + this.cachedPanelPosition.height,
+          width: this.cachedPanelPosition.width,
+          height: this.cachedPanelPosition.height
+        };
+      } else {
+        referenceRect = this.panelElement.getBoundingClientRect();
+      }
     } else if (magnifyGlass && magnifyGlass.ui && magnifyGlass.ui.glassDiv) {
       referenceRect = magnifyGlass.ui.glassDiv.getBoundingClientRect();
       if (referenceRect.width === 0 || referenceRect.height === 0) {
@@ -117,6 +133,7 @@ class PositionManager {
       }
     }
     if (!referenceRect) return;
+    controlsElement.style.transition = "none";
     const controlsPosition = this.stateManager.state.settings["🔍MagnifyGlass.ControlsPosition"] || "right";
     const margin = 4;
     let left;

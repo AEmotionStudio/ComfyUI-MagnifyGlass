@@ -18,6 +18,7 @@ jobs:
       - name: Fetch Traffic Stats and Save JSON
         uses: actions/github-script@v6
         with:
+          github-token: ${{ secrets.TRAFFIC_TOKEN }}
           script: |
             try {
               const { owner, repo } = context.repo;

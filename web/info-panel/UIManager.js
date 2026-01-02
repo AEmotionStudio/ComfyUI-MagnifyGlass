@@ -55,38 +55,17 @@ class UIManager {
         originalTop = this.elements.panel.offsetTop;
         originalFontSize = parseFloat(getComputedStyle(this.elements.panel).fontSize);
         this.elements.panel.classList.add("is-expanded");
-        setTimeout(() => {
-          if (!this.elements.panel) return;
-          const viewportHeight = window.innerHeight;
-          const rect = this.elements.panel.getBoundingClientRect();
-          const content = this.elements.panel.querySelector(".panel-content");
-          const lastSection = this.elements.panel.querySelector(".info-section:last-child");
-          let contentBottom = rect.bottom;
-          if (lastSection) {
-            const lastRect = lastSection.getBoundingClientRect();
-            contentBottom = lastRect.bottom;
-          } else if (content) {
-            const contentRect = content.getBoundingClientRect();
-            contentBottom = contentRect.bottom;
-          }
-          const overflow = contentBottom - (viewportHeight - MARGIN);
-          console.log(`[InfoPanel] Viewport: ${viewportHeight}, PanelTop: ${rect.top}, ContentBottom: ${contentBottom}, Overflow: ${overflow}`);
-          if (overflow <= 0) {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            if (!this.elements.panel) return;
+            const viewportHeight = window.innerHeight;
+            const rect = this.elements.panel.getBoundingClientRect();
             if (rect.bottom > viewportHeight - MARGIN) {
               const newTop = Math.max(MARGIN, originalTop - (rect.bottom - viewportHeight + MARGIN));
               this.elements.panel.style.top = `${newTop}px`;
             }
-            return;
-          }
-          const totalContentHeight = contentBottom - rect.top;
-          const availableHeight = viewportHeight - MARGIN * 2;
-          const scaleFactor = availableHeight / totalContentHeight;
-          const clampedScale = Math.max(0.5, Math.min(1, scaleFactor));
-          console.log(`[InfoPanel] ContentHeight: ${totalContentHeight}, Available: ${availableHeight}, Scale: ${clampedScale}`);
-          this.elements.panel.style.transformOrigin = "top left";
-          this.elements.panel.style.transform = `scale(${clampedScale})`;
-          this.elements.panel.style.top = `${MARGIN}px`;
-        }, 50);
+          });
+        });
       }
     });
     this.elements.panel.addEventListener("mouseleave", () => {
@@ -503,8 +482,7 @@ class UIManager {
     }).join("")}
                     </div>
                 </div>
-            </div>
-        `).join("");
+            </div>`).join("");
   }
   /**
    * Update section expansion states.
@@ -538,13 +516,13 @@ class UIManager {
     if (subtitleElement) {
       const accentColor = String(this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelAccentColor"] || "");
       if (info.hoveredNode) {
-        subtitleElement.textContent = `Analyzing: ${info.hoveredNode.title}`;
+        subtitleElement.textContent = `Analyzing: ${info.hoveredNode.title} `;
         subtitleElement.style.color = accentColor;
       } else if (info.media) {
-        subtitleElement.textContent = `Media: ${info.media.tagName}`;
+        subtitleElement.textContent = `Media: ${info.media.tagName} `;
         subtitleElement.style.color = accentColor;
       } else if (info.connection) {
-        subtitleElement.textContent = `Connection: ${info.connection.type}`;
+        subtitleElement.textContent = `Connection: ${info.connection.type} `;
         subtitleElement.style.color = accentColor;
       } else {
         subtitleElement.textContent = "Real-time analysis";

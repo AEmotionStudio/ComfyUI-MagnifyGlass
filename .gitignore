@@ -37,6 +37,7 @@ playwright-report/
 
 # Debug files
 Broswer_Console_Errors.md
+font_resizing_attempts.md
 
 # Environment
 .env

@@ -90,63 +90,29 @@ export class UIManager {
 
         this.elements.panel.addEventListener('mouseenter', () => {
             if (!this.stateManager.state.isPanelMinimized && this.elements.panel) {
-                // Save original position and font size
+                // Save original position
                 originalTop = this.elements.panel.offsetTop;
+                // Save original font size just in case, though we won't change it
                 originalFontSize = parseFloat(getComputedStyle(this.elements.panel).fontSize);
 
                 // Add expanded class
                 this.elements.panel.classList.add('is-expanded');
 
-                // Use setTimeout to ensure DOM is fully updated after class change
-                setTimeout(() => {
-                    if (!this.elements.panel) return;
+                // Simple repositioning logic only (no font scaling)
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        if (!this.elements.panel) return;
 
-                    const viewportHeight = window.innerHeight;
-                    const rect = this.elements.panel.getBoundingClientRect();
+                        const viewportHeight = window.innerHeight;
+                        const rect = this.elements.panel.getBoundingClientRect();
 
-                    // Check the actual content by finding the last visible element
-                    const content = this.elements.panel.querySelector('.panel-content');
-                    const lastSection = this.elements.panel.querySelector('.info-section:last-child');
-
-                    // Get the actual bottom of content
-                    let contentBottom = rect.bottom;
-                    if (lastSection) {
-                        const lastRect = lastSection.getBoundingClientRect();
-                        contentBottom = lastRect.bottom;
-                    } else if (content) {
-                        const contentRect = content.getBoundingClientRect();
-                        contentBottom = contentRect.bottom;
-                    }
-
-                    // Calculate how much content overflows the viewport
-                    const overflow = contentBottom - (viewportHeight - MARGIN);
-
-                    console.log(`[InfoPanel] Viewport: ${viewportHeight}, PanelTop: ${rect.top}, ContentBottom: ${contentBottom}, Overflow: ${overflow}`);
-
-                    // If no overflow, just reposition if needed
-                    if (overflow <= 0) {
+                        // Position the panel to fit (move up if needed)
                         if (rect.bottom > viewportHeight - MARGIN) {
                             const newTop = Math.max(MARGIN, originalTop! - (rect.bottom - viewportHeight + MARGIN));
                             this.elements.panel.style.top = `${newTop}px`;
                         }
-                        return;
-                    }
-
-                    // Content overflows - calculate scale factor to fit
-                    const totalContentHeight = contentBottom - rect.top;
-                    const availableHeight = viewportHeight - (MARGIN * 2);
-                    const scaleFactor = availableHeight / totalContentHeight;
-                    const clampedScale = Math.max(0.5, Math.min(1, scaleFactor)); // Between 50% and 100%
-
-                    console.log(`[InfoPanel] ContentHeight: ${totalContentHeight}, Available: ${availableHeight}, Scale: ${clampedScale}`);
-
-                    // Apply transform scale
-                    this.elements.panel.style.transformOrigin = 'top left';
-                    this.elements.panel.style.transform = `scale(${clampedScale})`;
-
-                    // Position at top of viewport
-                    this.elements.panel.style.top = `${MARGIN}px`;
-                }, 50);
+                    });
+                });
             }
         });
 
@@ -160,13 +126,13 @@ export class UIManager {
                     originalTop = null;
                 }
 
-                // Restore original font size
+                // Restore original font size (if it was somehow changed)
                 if (originalFontSize !== null) {
                     this.elements.panel.style.fontSize = `${originalFontSize}px`;
                     originalFontSize = null;
                 }
 
-                // Reset transform (used for scaling when panel is too tall)
+                // Clear any inline styles that might have been set
                 this.elements.panel.style.transform = '';
                 this.elements.panel.style.transformOrigin = '';
             }
@@ -734,8 +700,7 @@ export class UIManager {
         }).join('')}
                     </div>
                 </div>
-            </div>
-        `).join('');
+            </div>`).join('');
     }
 
     /**
@@ -775,13 +740,13 @@ export class UIManager {
         if (subtitleElement) {
             const accentColor = String(this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelAccentColor"] || '');
             if (info.hoveredNode) {
-                subtitleElement.textContent = `Analyzing: ${info.hoveredNode.title}`;
+                subtitleElement.textContent = `Analyzing: ${info.hoveredNode.title} `;
                 subtitleElement.style.color = accentColor;
             } else if (info.media) {
-                subtitleElement.textContent = `Media: ${info.media.tagName}`;
+                subtitleElement.textContent = `Media: ${info.media.tagName} `;
                 subtitleElement.style.color = accentColor;
             } else if (info.connection) {
-                subtitleElement.textContent = `Connection: ${info.connection.type}`;
+                subtitleElement.textContent = `Connection: ${info.connection.type} `;
                 subtitleElement.style.color = accentColor;
             } else {
                 subtitleElement.textContent = 'Real-time analysis';

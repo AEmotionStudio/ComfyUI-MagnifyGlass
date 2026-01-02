@@ -82,6 +82,22 @@ export class UIManager {
         }
         document.body.appendChild(this.elements.panel);
 
+        // Hover-expand: Remove inline max-height on hover to show all content
+        this.elements.panel.addEventListener('mouseenter', () => {
+            if (!this.stateManager.state.isPanelMinimized && this.elements.panel) {
+                this.elements.panel.style.maxHeight = 'none';
+                this.elements.panel.style.overflow = 'visible';
+            }
+        });
+
+        this.elements.panel.addEventListener('mouseleave', () => {
+            if (this.elements.panel) {
+                const maxHeight = this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelMaxHeight"];
+                this.elements.panel.style.maxHeight = `${maxHeight}px`;
+                this.elements.panel.style.overflow = '';
+            }
+        });
+
         // Add click event delegation for panel elements
         this.elements.panel.addEventListener('click', (e: MouseEvent) => {
             const target = e.target as HTMLElement;
@@ -342,10 +358,13 @@ export class UIManager {
 
         // 1. Apply dimensions
         this.elements.panel.style.width = `${settings["🔍MagnifyGlass.InfoPanelWidth"]}px`;
-        // Set both height and max-height so the panel always shows at this size
+        // Set height to auto so panel grows with content, up to max-height
+        // Skip max-height if panel is hovered (allow full expansion)
         const maxHeight = settings["🔍MagnifyGlass.InfoPanelMaxHeight"];
-        this.elements.panel.style.height = `${maxHeight}px`;
-        this.elements.panel.style.maxHeight = `${maxHeight}px`;
+        this.elements.panel.style.height = 'auto';
+        if (!this.stateManager.state.isPanelHovered) {
+            this.elements.panel.style.maxHeight = `${maxHeight}px`;
+        }
 
         // 2. Apply static styles (only needed once or if overwritten, but safe to set)
         this.elements.panel.style.position = 'absolute';

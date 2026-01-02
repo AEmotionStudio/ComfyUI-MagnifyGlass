@@ -178,6 +178,17 @@
     transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Hover-expand: Temporarily remove max-height limit when hovering to show all content */
+.magnify-info-panel:hover:not(.panel-minimized) {
+    max-height: none !important;
+    overflow: visible;
+}
+
+.magnify-info-panel:hover:not(.panel-minimized) .panel-content {
+    max-height: none !important;
+    overflow-y: visible;
+}
+
 .floating-controls {
     position: fixed;
     display: none;

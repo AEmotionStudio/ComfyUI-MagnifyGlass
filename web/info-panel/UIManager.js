@@ -47,6 +47,19 @@ class UIManager {
       this.elements.panel.classList.add("panel-minimized");
     }
     document.body.appendChild(this.elements.panel);
+    this.elements.panel.addEventListener("mouseenter", () => {
+      if (!this.stateManager.state.isPanelMinimized && this.elements.panel) {
+        this.elements.panel.style.maxHeight = "none";
+        this.elements.panel.style.overflow = "visible";
+      }
+    });
+    this.elements.panel.addEventListener("mouseleave", () => {
+      if (this.elements.panel) {
+        const maxHeight = this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelMaxHeight"];
+        this.elements.panel.style.maxHeight = `${maxHeight}px`;
+        this.elements.panel.style.overflow = "";
+      }
+    });
     this.elements.panel.addEventListener("click", (e) => {
       const target = e.target;
       const minimizeBtn = target.closest('[data-action="minimize"]');
@@ -224,8 +237,10 @@ class UIManager {
     console.log(`[UIManager] applyStyles - MaxHeight: ${settings["🔍MagnifyGlass.InfoPanelMaxHeight"]}`);
     this.elements.panel.style.width = `${settings["🔍MagnifyGlass.InfoPanelWidth"]}px`;
     const maxHeight = settings["🔍MagnifyGlass.InfoPanelMaxHeight"];
-    this.elements.panel.style.height = `${maxHeight}px`;
-    this.elements.panel.style.maxHeight = `${maxHeight}px`;
+    this.elements.panel.style.height = "auto";
+    if (!this.stateManager.state.isPanelHovered) {
+      this.elements.panel.style.maxHeight = `${maxHeight}px`;
+    }
     this.elements.panel.style.position = "absolute";
     this.elements.panel.style.zIndex = "99999";
     this.elements.panel.style.transform = "translateY(-10px)";

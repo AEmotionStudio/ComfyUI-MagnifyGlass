@@ -82,6 +82,10 @@ export class MagnifyGlass {
         // Create UI elements
         this.ui.createElements();
 
+        // Ensure glass is validly positioned (within viewport) right away
+        // This handles cases where config has saved positions from a different monitor size
+        this.ui.updateResponsivePosition();
+
         // Setup WebGL renderer
         this.renderer = new WebGLRenderer(this.config, this.state, this.ui);
         if (!this.renderer.isValid()) {
@@ -387,10 +391,24 @@ export class MagnifyGlass {
 
         // Reset magnify glass position to top-right corner
         if (this.ui.glassDiv) {
-            const glassSize = this.config.glassSize;
-            this.ui.glassDiv.style.left = `${window.innerWidth - glassSize - DEFAULT_PADDING}px`;
-            this.ui.glassDiv.style.top = `${DEFAULT_GLASS_Y_OFFSET}px`;
-            this.state.wasActivatedBefore = false;
+            // If it's the first activation, position at top right of the window (Anchored)
+            // Otherwise, reset to the last known position or default if not active.
+            if (!this.state.wasActivatedBefore) {
+                const padding = DEFAULT_PADDING;
+                // Using style.right ensures it stays on the right even if window resizes before first usage
+                this.ui.glassDiv.style.right = `${padding}px`;
+                this.ui.glassDiv.style.top = `${DEFAULT_GLASS_Y_OFFSET}px`;
+                this.ui.glassDiv.style.left = 'auto'; // Ensure left is unset
+                this.state.wasActivatedBefore = true;
+            } else {
+                // If it was already activated, and we are resetting, we might want to keep its current position
+                // or explicitly reset it to the initial anchored position.
+                // For now, let's re-apply the anchored position on reset if it was already activated.
+                const padding = DEFAULT_PADDING;
+                this.ui.glassDiv.style.right = `${padding}px`;
+                this.ui.glassDiv.style.top = `${DEFAULT_GLASS_Y_OFFSET}px`;
+                this.ui.glassDiv.style.left = 'auto';
+            }
         }
 
         // Reset inspector panel position if exists

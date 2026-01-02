@@ -19,10 +19,10 @@ export class EventHandler {
     constructor(magnifyGlass: MagnifyGlass) {
         this.magnifyGlass = magnifyGlass;
 
-        // Bind methods to maintain context
         this.handleKeyDown = this.handleKeyDown.bind(this);
         this.handleKeyUp = this.handleKeyUp.bind(this);
         this.handleMouseMove = this.handleMouseMove.bind(this);
+        this.handleResize = this.handleResize.bind(this);
     }
 
     /**
@@ -32,6 +32,7 @@ export class EventHandler {
         document.addEventListener("keydown", this.handleKeyDown);
         document.addEventListener("keyup", this.handleKeyUp);
         document.addEventListener("mousemove", this.handleMouseMove);
+        window.addEventListener("resize", this.handleResize);
     }
 
     /**
@@ -41,6 +42,22 @@ export class EventHandler {
         document.removeEventListener("keydown", this.handleKeyDown);
         document.removeEventListener("keyup", this.handleKeyUp);
         document.removeEventListener("mousemove", this.handleMouseMove);
+        window.removeEventListener("resize", this.handleResize);
+    }
+
+    /**
+     * Handle window resize events.
+     */
+    handleResize(): void {
+        if (this.magnifyGlass && this.magnifyGlass.ui) {
+            this.magnifyGlass.ui.updateResponsivePosition();
+            // Also update panel position if it exists
+            const infoPanel = (window as any).infoPanelManager;
+            if (infoPanel && infoPanel.positionManager) {
+                // Determine if we should move it
+                infoPanel.positionManager.positionPanel();
+            }
+        }
     }
 
     /**
@@ -230,11 +247,11 @@ export class EventHandler {
             const glassSize = this.magnifyGlass.config.glassSize;
 
             if (!this.magnifyGlass.state.wasActivatedBefore && this.magnifyGlass.ui.glassDiv) {
-                // First activation - position at top right of the window
-                const leftPos = window.innerWidth - glassSize - DEFAULT_PADDING;
-                console.log(`[MagnifyGlass] Initial position - innerWidth: ${window.innerWidth}, glassSize: ${glassSize}, padding: ${DEFAULT_PADDING}, left: ${leftPos}, yOffset: ${DEFAULT_GLASS_Y_OFFSET}`);
-                this.magnifyGlass.ui.glassDiv.style.left = `${leftPos}px`;
+                // First activation - position at top right of the window (Anchored)
+                // Using style.right ensures it stays on the right even if window resizes before first usage
+                this.magnifyGlass.ui.glassDiv.style.right = `${DEFAULT_PADDING}px`;
                 this.magnifyGlass.ui.glassDiv.style.top = `${DEFAULT_GLASS_Y_OFFSET}px`;
+                this.magnifyGlass.ui.glassDiv.style.left = 'auto'; // Ensure left is unset
                 this.magnifyGlass.state.wasActivatedBefore = true;
             } else {
                 this.magnifyGlass.ui.positionGlass(clientX, clientY);

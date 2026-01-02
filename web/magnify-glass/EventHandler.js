@@ -11,6 +11,7 @@ class EventHandler {
     this.handleKeyDown = this.handleKeyDown.bind(this);
     this.handleKeyUp = this.handleKeyUp.bind(this);
     this.handleMouseMove = this.handleMouseMove.bind(this);
+    this.handleResize = this.handleResize.bind(this);
   }
   /**
    * Attach all event listeners.
@@ -19,6 +20,7 @@ class EventHandler {
     document.addEventListener("keydown", this.handleKeyDown);
     document.addEventListener("keyup", this.handleKeyUp);
     document.addEventListener("mousemove", this.handleMouseMove);
+    window.addEventListener("resize", this.handleResize);
   }
   /**
    * Detach all event listeners.
@@ -27,6 +29,19 @@ class EventHandler {
     document.removeEventListener("keydown", this.handleKeyDown);
     document.removeEventListener("keyup", this.handleKeyUp);
     document.removeEventListener("mousemove", this.handleMouseMove);
+    window.removeEventListener("resize", this.handleResize);
+  }
+  /**
+   * Handle window resize events.
+   */
+  handleResize() {
+    if (this.magnifyGlass && this.magnifyGlass.ui) {
+      this.magnifyGlass.ui.updateResponsivePosition();
+      const infoPanel = window.infoPanelManager;
+      if (infoPanel && infoPanel.positionManager) {
+        infoPanel.positionManager.positionPanel();
+      }
+    }
   }
   /**
    * Handle keydown events.
@@ -168,12 +183,11 @@ class EventHandler {
       const pixelY = cssMouseYOnCanvas * scaleY;
       this.magnifyGlass.state.x = pixelX;
       this.magnifyGlass.state.y = pixelY;
-      const glassSize = this.magnifyGlass.config.glassSize;
+      this.magnifyGlass.config.glassSize;
       if (!this.magnifyGlass.state.wasActivatedBefore && this.magnifyGlass.ui.glassDiv) {
-        const leftPos = window.innerWidth - glassSize - DEFAULT_PADDING;
-        console.log(`[MagnifyGlass] Initial position - innerWidth: ${window.innerWidth}, glassSize: ${glassSize}, padding: ${DEFAULT_PADDING}, left: ${leftPos}, yOffset: ${DEFAULT_GLASS_Y_OFFSET}`);
-        this.magnifyGlass.ui.glassDiv.style.left = `${leftPos}px`;
+        this.magnifyGlass.ui.glassDiv.style.right = `${DEFAULT_PADDING}px`;
         this.magnifyGlass.ui.glassDiv.style.top = `${DEFAULT_GLASS_Y_OFFSET}px`;
+        this.magnifyGlass.ui.glassDiv.style.left = "auto";
         this.magnifyGlass.state.wasActivatedBefore = true;
       } else {
         this.magnifyGlass.ui.positionGlass(clientX, clientY);

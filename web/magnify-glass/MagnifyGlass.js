@@ -51,6 +51,7 @@ class MagnifyGlass {
     this.config.loadSavedOffsets();
     this.debugger.printCanvasInfo();
     this.ui.createElements();
+    this.ui.updateResponsivePosition();
     this.renderer = new WebGLRenderer(this.config, this.state, this.ui);
     if (!this.renderer.isValid()) {
       this.ui.cleanup();
@@ -290,10 +291,18 @@ class MagnifyGlass {
       this.updateMagnifiedView();
     }
     if (this.ui.glassDiv) {
-      const glassSize = this.config.glassSize;
-      this.ui.glassDiv.style.left = `${window.innerWidth - glassSize - DEFAULT_PADDING}px`;
-      this.ui.glassDiv.style.top = `${DEFAULT_GLASS_Y_OFFSET}px`;
-      this.state.wasActivatedBefore = false;
+      if (!this.state.wasActivatedBefore) {
+        const padding = DEFAULT_PADDING;
+        this.ui.glassDiv.style.right = `${padding}px`;
+        this.ui.glassDiv.style.top = `${DEFAULT_GLASS_Y_OFFSET}px`;
+        this.ui.glassDiv.style.left = "auto";
+        this.state.wasActivatedBefore = true;
+      } else {
+        const padding = DEFAULT_PADDING;
+        this.ui.glassDiv.style.right = `${padding}px`;
+        this.ui.glassDiv.style.top = `${DEFAULT_GLASS_Y_OFFSET}px`;
+        this.ui.glassDiv.style.left = "auto";
+      }
     }
     const extensions = window.comfyUIMagnifyGlassExtensions;
     if (extensions && extensions.length > 0) {

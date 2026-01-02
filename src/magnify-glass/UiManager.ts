@@ -4,7 +4,7 @@
  * Handles creation and management of DOM elements for the magnifying glass.
  */
 
-import { Z_INDEX, DEFAULT_PADDING } from '../shared/constants';
+import { Z_INDEX, DEFAULT_PADDING, DEFAULT_GLASS_Y_OFFSET } from '../shared/constants';
 import { Icons } from '../shared/icons';
 import { Logger } from '../shared/logger';
 import type { ConfigManager } from './ConfigManager';
@@ -160,57 +160,95 @@ export class UiManager {
      * @param clientX - Client X coordinate
      * @param clientY - Client Y coordinate
      */
+    /**
+     * Position the glass relative to cursor.
+     * Uses dynamic anchoring (Left/Right, Top/Bottom) based on screen quadrant.
+     * @param clientX - Client X coordinate
+     * @param clientY - Client Y coordinate
+     */
     positionGlass(clientX: number, clientY: number): void {
         if (!this.config.followCursor || !this.glassDiv) return;
 
         const glassSize = this.config.glassSize;
         const offsetAmount = DEFAULT_PADDING;
-        let newLeft: number;
-        let newTop: number;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
 
+        // Determine base coordinates (top-left based)
+        let targetX: number;
+        let targetY: number;
+
+        // Calculate standard Top-Left based positions first
         switch (this.config.glassPosition) {
             case "Top":
-                newLeft = clientX - (glassSize / 2);
-                newTop = clientY - glassSize - offsetAmount;
+                targetX = clientX - (glassSize / 2);
+                targetY = clientY - glassSize - offsetAmount;
                 break;
             case "Bottom":
-                newLeft = clientX - (glassSize / 2);
-                newTop = clientY + offsetAmount;
+                targetX = clientX - (glassSize / 2);
+                targetY = clientY + offsetAmount;
                 break;
             case "Left":
-                newLeft = clientX - glassSize - offsetAmount;
-                newTop = clientY - (glassSize / 2);
+                targetX = clientX - glassSize - offsetAmount;
+                targetY = clientY - (glassSize / 2);
                 break;
             case "Right":
-                newLeft = clientX + offsetAmount;
-                newTop = clientY - (glassSize / 2);
+                targetX = clientX + offsetAmount;
+                targetY = clientY - (glassSize / 2);
                 break;
             case "Top-Left":
-                newLeft = clientX - glassSize - offsetAmount;
-                newTop = clientY - glassSize - offsetAmount;
+                targetX = clientX - glassSize - offsetAmount;
+                targetY = clientY - glassSize - offsetAmount;
                 break;
             case "Top-Right":
-                newLeft = clientX + offsetAmount;
-                newTop = clientY - glassSize - offsetAmount;
+                targetX = clientX + offsetAmount;
+                targetY = clientY - glassSize - offsetAmount;
                 break;
             case "Bottom-Left":
-                newLeft = clientX - glassSize - offsetAmount;
-                newTop = clientY + offsetAmount;
+                targetX = clientX - glassSize - offsetAmount;
+                targetY = clientY + offsetAmount;
                 break;
             case "Bottom-Right":
-                newLeft = clientX + offsetAmount;
-                newTop = clientY + offsetAmount;
+                targetX = clientX + offsetAmount;
+                targetY = clientY + offsetAmount;
                 break;
             default:
-                newLeft = clientX - (glassSize / 2);
-                newTop = clientY + offsetAmount;
+                targetX = clientX - (glassSize / 2);
+                targetY = clientY + offsetAmount;
                 break;
         }
 
-        this.glassDiv.style.left = `${newLeft}px`;
-        this.glassDiv.style.top = `${newTop}px`;
+        // Apply Dynamic Anchoring based on resulting position's center relative to screen
+        const glassCenterX = targetX + (glassSize / 2);
+        const glassCenterY = targetY + (glassSize / 2);
 
-        this.adjustForBoundaries(clientX, clientY);
+        // Horizontal Anchor
+        if (glassCenterX > vw / 2) {
+            // Anchor Right
+            const rightPos = vw - (targetX + glassSize);
+            this.glassDiv.style.right = `${rightPos}px`;
+            this.glassDiv.style.left = 'auto';
+        } else {
+            // Anchor Left
+            this.glassDiv.style.left = `${targetX}px`;
+            this.glassDiv.style.right = 'auto';
+        }
+
+        // Vertical Anchor
+        if (glassCenterY > vh / 2) {
+            // Anchor Bottom
+            const bottomPos = vh - (targetY + glassSize);
+            this.glassDiv.style.bottom = `${bottomPos}px`;
+            this.glassDiv.style.top = 'auto';
+        } else {
+            // Anchor Top
+            this.glassDiv.style.top = `${targetY}px`;
+            this.glassDiv.style.bottom = 'auto';
+        }
+
+        // We run a lightweight clamp to ensure it doesn't bleed offscreen during movement
+        // (Though the anchor logic implicitly handles resize, dragging near edges might need clamping)
+        this.adjustForBoundaries();
     }
 
     /**
@@ -218,32 +256,58 @@ export class UiManager {
      * @param clientX - Client X coordinate
      * @param clientY - Client Y coordinate
      */
-    adjustForBoundaries(clientX: number, clientY: number): void {
+    /**
+     * Adjust glass position to stay within viewport boundaries.
+     * Respects the current anchor (Left/Right, Top/Bottom).
+     */
+    adjustForBoundaries(): void {
         if (!this.glassDiv) return;
 
-        const glassRect = this.glassDiv.getBoundingClientRect();
+        const glassSize = this.config.glassSize;
+        const padding = DEFAULT_PADDING;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
 
-        // Check right boundary
-        if (glassRect.right > window.innerWidth) {
-            this.glassDiv.style.left = `${clientX - glassRect.width - DEFAULT_PADDING}px`;
+        // Check if anchored Right or Left
+        const isAnchoredRight = this.glassDiv.style.right !== 'auto' && this.glassDiv.style.right !== '';
+
+        if (isAnchoredRight) {
+            let currentRight = parseFloat(this.glassDiv.style.right) || padding;
+            // Clamp Right: max(padding, min(current, vw - size - padding))
+            // Ensure it doesn't go off left side (vw - size - padding)
+            currentRight = Math.max(padding, Math.min(currentRight, vw - glassSize - padding));
+            this.glassDiv.style.right = `${currentRight}px`;
+        } else {
+            // Anchor Left
+            let currentLeft = parseFloat(this.glassDiv.style.left) || padding;
+            currentLeft = Math.max(padding, Math.min(currentLeft, vw - glassSize - padding));
+            this.glassDiv.style.left = `${currentLeft}px`;
         }
 
-        // Check left boundary
-        const currentRectLeft = this.glassDiv.getBoundingClientRect();
-        if (currentRectLeft.left < 0) {
-            this.glassDiv.style.left = "10px";
-        }
+        // Check if anchored Bottom or Top
+        const isAnchoredBottom = this.glassDiv.style.bottom !== 'auto' && this.glassDiv.style.bottom !== '';
 
-        // Check bottom boundary
-        if (glassRect.bottom > window.innerHeight) {
-            this.glassDiv.style.top = `${clientY - glassRect.height - DEFAULT_PADDING}px`;
+        if (isAnchoredBottom) {
+            let currentBottom = parseFloat(this.glassDiv.style.bottom) || padding;
+            currentBottom = Math.max(padding, Math.min(currentBottom, vh - glassSize - padding));
+            this.glassDiv.style.bottom = `${currentBottom}px`;
+        } else {
+            // Anchor Top
+            let currentTop = parseFloat(this.glassDiv.style.top) || padding;
+            currentTop = Math.max(padding, Math.min(currentTop, vh - glassSize - padding));
+            this.glassDiv.style.top = `${currentTop}px`;
         }
+    }
 
-        // Check top boundary
-        const currentRectTop = this.glassDiv.getBoundingClientRect();
-        if (currentRectTop.top < 0) {
-            this.glassDiv.style.top = "10px";
-        }
+    /**
+     * Update position safely on resize.
+     * Since we use dynamic anchoring in positionGlass, CSS handles most resize cases.
+     * This method ensures we verify boundaries (clamping) and fix anchors if we cross thresholds drastically.
+     */
+    updateResponsivePosition(): void {
+        if (!this.glassDiv) return;
+        // Re-run boundary adjustments to clamp if resize pushed us offscreen
+        this.adjustForBoundaries();
     }
 
     /**

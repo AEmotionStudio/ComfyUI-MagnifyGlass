@@ -136,7 +136,6 @@ class UIManager {
               this.stateManager.state.isAutoPinned = true;
               console.log(`[MagnifyGlass Debug] Auto-Pinned panel.`);
             }
-            this.stateManager.state.isPanelLocked = false;
           } else {
             console.log(`[MagnifyGlass Debug] Glass Shown. pinned=${this.stateManager.state.isPanelPinned}, autoPinned=${this.stateManager.state.isAutoPinned}`);
             if (this.stateManager.state.isAutoPinned) {
@@ -174,14 +173,9 @@ class UIManager {
       pinBtn.title = this.stateManager.state.isPanelPinned ? "Lock Panel" : "Unlock Panel";
       pinBtn.innerHTML = this.stateManager.state.isPanelPinned ? Icons.lock : Icons.unlock;
       pinBtn.style.display = isPanelVisible ? "flex" : "none";
-      if (!isGlassVisible) {
-        pinBtn.disabled = true;
-        pinBtn.style.opacity = "0.5";
-        pinBtn.title = "Cannot unlock panel from screen when glass preview is hidden";
-      } else {
-        pinBtn.disabled = false;
-        pinBtn.style.opacity = "";
-      }
+      pinBtn.disabled = false;
+      pinBtn.style.opacity = "";
+      if (!isGlassVisible && !this.stateManager.state.isPanelPinned) ;
     }
     if (lockBtn) {
       const showLockBtn = isPanelVisible && this.stateManager.state.isPanelPinned;

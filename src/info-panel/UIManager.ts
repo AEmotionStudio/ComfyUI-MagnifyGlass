@@ -211,7 +211,7 @@ export class UIManager {
                             this.stateManager.state.isAutoPinned = true; // Track that this was auto-pinned
                             console.log(`[MagnifyGlass Debug] Auto-Pinned panel.`);
                         }
-                        this.stateManager.state.isPanelLocked = false; // Ensure dragging is allowed
+                        // Do NOT reset isPanelLocked here - preserve user's lock state
                     } else {
                         // Glass Shown
                         console.log(`[MagnifyGlass Debug] Glass Shown. pinned=${this.stateManager.state.isPanelPinned}, autoPinned=${this.stateManager.state.isAutoPinned}`);
@@ -265,15 +265,15 @@ export class UIManager {
             // Hide unlock button when panel is hidden
             pinBtn.style.display = isPanelVisible ? 'flex' : 'none';
 
-            // Disable unlock (unpin) button if glass is hidden
-            // This prevents entering "Follow Mouse" mode when glass is invisible
-            if (!isGlassVisible) {
-                pinBtn.disabled = true;
-                pinBtn.style.opacity = '0.5';
-                pinBtn.title = "Cannot unlock panel from screen when glass preview is hidden";
-            } else {
-                pinBtn.disabled = false;
-                pinBtn.style.opacity = '';
+            // Do not disable the pin button even if glass is hidden.
+            // If the user unpins while glass is hidden, the panel will just attach to the hidden glass (and disappear).
+            pinBtn.disabled = false;
+            pinBtn.style.opacity = '';
+
+            // Only update title if glass is hidden to warn user
+            if (!isGlassVisible && !this.stateManager.state.isPanelPinned) {
+                // Optional: You could add a tooltip warning here if really needed, 
+                // but keeping it simple is better.
             }
         }
 

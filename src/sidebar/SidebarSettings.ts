@@ -554,6 +554,23 @@ export function renderSettingsPanel(container: HTMLElement): void {
         }
     ));
 
+    const fontFamilyOptions = [
+        'System Default', 'Inter', 'Roboto', 'JetBrains Mono', 'Fira Code',
+        'IBM Plex Sans', 'Space Grotesk', 'Lexend', 'Outfit', 'monospace'
+    ];
+    panelSection.body.appendChild(createSelect('Font Family',
+        getSettingValue('🔍MagnifyGlass.InfoPanelFontFamily', 'System Default'), fontFamilyOptions,
+        (value) => setSettingValue('🔍MagnifyGlass.InfoPanelFontFamily', value),
+        'Font family for the info panel text',
+        (value) => {
+            const infoPanel = (window as any).infoPanelManager;
+            if (infoPanel?.stateManager?.state?.settings) {
+                infoPanel.stateManager.state.settings['🔍MagnifyGlass.InfoPanelFontFamily'] = value;
+                infoPanel.uiManager.applyStyles();
+            }
+        }
+    ));
+
     panelSection.body.appendChild(createColorPicker('Text Color',
         getSettingValue('🔍MagnifyGlass.InfoPanelTextColor', '#6b7280'),
         (value) => setSettingValue('🔍MagnifyGlass.InfoPanelTextColor', value),
@@ -714,6 +731,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
         setSettingValue('🔍MagnifyGlass.InfoPanelMaxHeight', 300);
         setSettingValue('🔍MagnifyGlass.InfoPanelOpacity', 100);
         setSettingValue('🔍MagnifyGlass.InfoPanelFontSize', 14);
+        setSettingValue('🔍MagnifyGlass.InfoPanelFontFamily', 'System Default');
         setSettingValue('🔍MagnifyGlass.InfoPanelPersist', false);
         setSettingValue('🔍MagnifyGlass.InfoPanelTextColor', '#6b7280');
         setSettingValue('🔍MagnifyGlass.InfoPanelAccentColor', '#3b82f6');

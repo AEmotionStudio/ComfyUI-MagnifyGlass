@@ -129,6 +129,34 @@ export function registerPanelSettings(stateManager: any, uiManager: any, positio
     });
 
     app.ui.settings.addSetting({
+        id: "🔍MagnifyGlass.InfoPanelFontFamily",
+        name: "📊 Info Panel: Font Family",
+        type: "combo",
+        options: [
+            { value: "System Default", text: "System Default" },
+            { value: "Inter", text: "Inter" },
+            { value: "Roboto", text: "Roboto" },
+            { value: "JetBrains Mono", text: "JetBrains Mono" },
+            { value: "Fira Code", text: "Fira Code" },
+            { value: "IBM Plex Sans", text: "IBM Plex Sans" },
+            { value: "Space Grotesk", text: "Space Grotesk" },
+            { value: "Lexend", text: "Lexend" },
+            { value: "Outfit", text: "Outfit" },
+            { value: "monospace", text: "Monospace" },
+        ],
+        defaultValue: settings["🔍MagnifyGlass.InfoPanelFontFamily"],
+        tooltip: "Font family for the info panel text.",
+        onChange: (value: any) => {
+            if (stateManager) {
+                stateManager.state.settings["🔍MagnifyGlass.InfoPanelFontFamily"] = String(value);
+                if (uiManager) {
+                    uiManager.applyStyles();
+                }
+            }
+        }
+    });
+
+    app.ui.settings.addSetting({
         id: "🔍MagnifyGlass.InfoPanelPersist",
         name: "📊 Info Panel: Persist Node Info",
         type: "boolean",

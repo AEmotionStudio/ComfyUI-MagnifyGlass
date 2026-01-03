@@ -33,6 +33,7 @@ const DEFAULT_PANEL_SETTINGS = {
   "🔍MagnifyGlass.InfoPanelTextColor": "#6b7280",
   "🔍MagnifyGlass.InfoPanelAccentColor": "#3b82f6",
   "🔍MagnifyGlass.InfoPanelFontSize": 14,
+  "🔍MagnifyGlass.InfoPanelFontFamily": "System Default",
   "🔍MagnifyGlass.InfoPanelPersist": false
 };
 export {

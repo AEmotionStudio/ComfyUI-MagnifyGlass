@@ -419,6 +419,25 @@ export class UIManager {
     }
 
     /**
+     * Load a Google Font dynamically.
+     * @param fontName - Name of the font to load
+     */
+    loadGoogleFont(fontName: string): void {
+        // Skip if already loaded
+        const linkId = `google-font-${fontName.replace(/\s+/g, '-').toLowerCase()}`;
+        if (document.getElementById(linkId)) return;
+
+        // Create link element for Google Fonts
+        const link = document.createElement('link');
+        link.id = linkId;
+        link.rel = 'stylesheet';
+        link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontName)}:wght@400;500;600;700&display=swap`;
+        document.head.appendChild(link);
+
+        Logger.debug(`[UIManager] Loaded Google Font: ${fontName}`);
+    }
+
+    /**
      * Apply current styles to elements.
      */
     applyStyles(): void {
@@ -442,7 +461,18 @@ export class UIManager {
         this.elements.panel.style.transform = 'translateY(-10px)';
         this.elements.panel.style.pointerEvents = 'auto';
         this.elements.panel.style.userSelect = 'none';
-        this.elements.panel.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+
+        // Apply Font Family
+        const fontFamily = settings["🔍MagnifyGlass.InfoPanelFontFamily"] as string || "System Default";
+        if (fontFamily === "System Default" || fontFamily === "system-ui") {
+            this.elements.panel.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+        } else if (fontFamily === "monospace") {
+            this.elements.panel.style.fontFamily = "'JetBrains Mono', 'Fira Code', 'SF Mono', Monaco, monospace";
+        } else {
+            // Load Google Font dynamically
+            this.loadGoogleFont(fontFamily);
+            this.elements.panel.style.fontFamily = `'${fontFamily}', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
+        }
 
         // Apply Font Size
         const fontSize = settings["🔍MagnifyGlass.InfoPanelFontSize"] || 14;

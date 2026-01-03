@@ -440,6 +440,33 @@ function renderSettingsPanel(container) {
       }
     }
   ));
+  const fontFamilyOptions = [
+    "System Default",
+    "Inter",
+    "Roboto",
+    "JetBrains Mono",
+    "Fira Code",
+    "IBM Plex Sans",
+    "Space Grotesk",
+    "Lexend",
+    "Outfit",
+    "monospace"
+  ];
+  panelSection.body.appendChild(createSelect(
+    "Font Family",
+    getSettingValue("🔍MagnifyGlass.InfoPanelFontFamily", "System Default"),
+    fontFamilyOptions,
+    (value) => setSettingValue("🔍MagnifyGlass.InfoPanelFontFamily", value),
+    "Font family for the info panel text",
+    (value) => {
+      var _a, _b;
+      const infoPanel = window.infoPanelManager;
+      if ((_b = (_a = infoPanel == null ? void 0 : infoPanel.stateManager) == null ? void 0 : _a.state) == null ? void 0 : _b.settings) {
+        infoPanel.stateManager.state.settings["🔍MagnifyGlass.InfoPanelFontFamily"] = value;
+        infoPanel.uiManager.applyStyles();
+      }
+    }
+  ));
   panelSection.body.appendChild(createColorPicker(
     "Text Color",
     getSettingValue("🔍MagnifyGlass.InfoPanelTextColor", "#6b7280"),
@@ -583,6 +610,7 @@ function renderSettingsPanel(container) {
     setSettingValue("🔍MagnifyGlass.InfoPanelMaxHeight", 300);
     setSettingValue("🔍MagnifyGlass.InfoPanelOpacity", 100);
     setSettingValue("🔍MagnifyGlass.InfoPanelFontSize", 14);
+    setSettingValue("🔍MagnifyGlass.InfoPanelFontFamily", "System Default");
     setSettingValue("🔍MagnifyGlass.InfoPanelPersist", false);
     setSettingValue("🔍MagnifyGlass.InfoPanelTextColor", "#6b7280");
     setSettingValue("🔍MagnifyGlass.InfoPanelAccentColor", "#3b82f6");

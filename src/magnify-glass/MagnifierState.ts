@@ -45,6 +45,9 @@ export class MagnifierState {
     /** Flag to manage requestAnimationFrame */
     isRenderScheduled: boolean;
 
+    /** Whether glass drag mode is enabled (move icon on hover controls) */
+    isDragModeEnabled: boolean;
+
     constructor() {
         this.active = false;
         this.wasActivatedBefore = false;
@@ -58,6 +61,7 @@ export class MagnifierState {
         this.canvasOffsetX = 0;
         this.canvasOffsetY = 0;
         this.isRenderScheduled = false;
+        this.isDragModeEnabled = false;
     }
 
     /**

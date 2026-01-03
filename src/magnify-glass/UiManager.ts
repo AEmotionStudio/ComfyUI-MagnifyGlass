@@ -140,6 +140,99 @@ export class UiManager {
     }
 
     /**
+     * Enable or disable glass drag mode.
+     * When enabled, the glass can be dragged to a new position.
+     */
+    setDragMode(enabled: boolean): void {
+        if (!this.glassDiv) return;
+
+        if (enabled) {
+            this.glassDiv.style.cursor = 'move';
+            this.glassDiv.style.pointerEvents = 'auto';
+            this.glassDiv.classList.add('drag-mode');
+
+            // Add drag handlers
+            const onMouseDown = (e: MouseEvent) => {
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Calculate the fixed offset between mouse and glass top-left
+                // This maintains the "grab point" relative to the glass
+                const rect = this.glassDiv!.getBoundingClientRect();
+                const grabOffsetX = rect.left - e.clientX;
+                const grabOffsetY = rect.top - e.clientY;
+
+                // Clear opposite positioning props to ensure left/top works
+                this.glassDiv!.style.right = 'auto';
+                this.glassDiv!.style.bottom = 'auto';
+                this.glassDiv!.style.transform = 'none'; // Clear any centering transforms if they exist
+
+                const onMouseMove = (moveEvent: MouseEvent) => {
+                    moveEvent.preventDefault();
+                    moveEvent.stopPropagation();
+
+                    // 1:1 Movement: Glass moves exactly with mouse
+                    // New Pos = Mouse Pos + Initial Grab Offset
+                    const newLeft = moveEvent.clientX + grabOffsetX;
+                    const newTop = moveEvent.clientY + grabOffsetY;
+
+                    if (this.glassDiv) {
+                        this.glassDiv.style.left = `${newLeft}px`;
+                        this.glassDiv.style.top = `${newTop}px`;
+                    }
+
+                    // We do NOT update config.offsetX/Y here to prevent double-movement wrapping.
+                    // The offset relative to the cursor remains constant during a drag.
+                };
+
+                const onMouseUp = (upEvent: MouseEvent) => {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+
+                    // On release, we update the config offset so positionGlass() picks up where we left off
+                    if (this.config.followCursor) {
+                        // positionGlass logic: Target = Mouse (approx) + Offset.
+                        // CurrentGlass = Mouse + GrabOffset.
+                        // So implicitly, config.offsetX should arguably effectively capture this GrabOffset relative to the 'Standard' position?
+
+                        // Actually, sticking with the current offset works best for 1:1 dragging.
+                        // If we want to support "Dragging to change Offset", we would need to calculate:
+                        // config.offsetX = CurrentGlassLeft - (StandardTargetLeft based on glassPosition)
+
+                        // But simply maintaining the position is safer for now.
+                    }
+
+                    // Disable drag mode after drop
+                    this.state.isDragModeEnabled = false;
+                    this.setDragMode(false);
+
+                    // Update control states via info panel
+                    const infoPanel = (window as any).infoPanelManager;
+                    if (infoPanel?.uiManager) {
+                        infoPanel.uiManager.updateControlStates();
+                    }
+                };
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            };
+
+            this.glassDiv.addEventListener('mousedown', onMouseDown);
+            (this.glassDiv as any)._dragHandler = onMouseDown;
+        } else {
+            this.glassDiv.style.cursor = '';
+            this.glassDiv.style.pointerEvents = 'none';
+            this.glassDiv.classList.remove('drag-mode');
+
+            // Remove drag handler
+            if ((this.glassDiv as any)._dragHandler) {
+                this.glassDiv.removeEventListener('mousedown', (this.glassDiv as any)._dragHandler);
+                delete (this.glassDiv as any)._dragHandler;
+            }
+        }
+    }
+
+    /**
      * Hide the magnifying glass.
      */
     hide(): void {
@@ -167,7 +260,8 @@ export class UiManager {
      * @param clientY - Client Y coordinate
      */
     positionGlass(clientX: number, clientY: number): void {
-        if (!this.config.followCursor || !this.glassDiv) return;
+        // Skip positioning if drag mode is active (handled manually in setDragMode)
+        if (!this.config.followCursor || !this.glassDiv || this.state.isDragModeEnabled) return;
 
         const glassSize = this.config.glassSize;
         const offsetAmount = DEFAULT_PADDING;
@@ -175,46 +269,47 @@ export class UiManager {
         const vh = window.innerHeight;
 
         // Determine base coordinates (top-left based)
-        let targetX: number;
-        let targetY: number;
+        // Add manual offsets (from drag operations)
+        let targetX: number = this.config.offsetX || 0;
+        let targetY: number = this.config.offsetY || 0;
 
         // Calculate standard Top-Left based positions first
         switch (this.config.glassPosition) {
             case "Top":
-                targetX = clientX - (glassSize / 2);
-                targetY = clientY - glassSize - offsetAmount;
+                targetX += clientX - (glassSize / 2);
+                targetY += clientY - glassSize - offsetAmount;
                 break;
             case "Bottom":
-                targetX = clientX - (glassSize / 2);
-                targetY = clientY + offsetAmount;
+                targetX += clientX - (glassSize / 2);
+                targetY += clientY + offsetAmount;
                 break;
             case "Left":
-                targetX = clientX - glassSize - offsetAmount;
-                targetY = clientY - (glassSize / 2);
+                targetX += clientX - glassSize - offsetAmount;
+                targetY += clientY - (glassSize / 2);
                 break;
             case "Right":
-                targetX = clientX + offsetAmount;
-                targetY = clientY - (glassSize / 2);
+                targetX += clientX + offsetAmount;
+                targetY += clientY - (glassSize / 2);
                 break;
             case "Top-Left":
-                targetX = clientX - glassSize - offsetAmount;
-                targetY = clientY - glassSize - offsetAmount;
+                targetX += clientX - glassSize - offsetAmount;
+                targetY += clientY - glassSize - offsetAmount;
                 break;
             case "Top-Right":
-                targetX = clientX + offsetAmount;
-                targetY = clientY - glassSize - offsetAmount;
+                targetX += clientX + offsetAmount;
+                targetY += clientY - glassSize - offsetAmount;
                 break;
             case "Bottom-Left":
-                targetX = clientX - glassSize - offsetAmount;
-                targetY = clientY + offsetAmount;
+                targetX += clientX - glassSize - offsetAmount;
+                targetY += clientY + offsetAmount;
                 break;
             case "Bottom-Right":
-                targetX = clientX + offsetAmount;
-                targetY = clientY + offsetAmount;
+                targetX += clientX + offsetAmount;
+                targetY += clientY + offsetAmount;
                 break;
             default:
-                targetX = clientX - (glassSize / 2);
-                targetY = clientY + offsetAmount;
+                targetX += clientX - (glassSize / 2);
+                targetY += clientY + offsetAmount;
                 break;
         }
 

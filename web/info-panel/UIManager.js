@@ -132,6 +132,7 @@ class UIManager {
             <button class="control-btn persist-btn" title="Toggle Persist Mode (Sticky Info)" data-action="persist">${Icons.magnet}</button>
             <button class="control-btn visibility-btn" title="Toggle Panel Visibility (I)" data-action="toggle-panel">${Icons.eye}</button>
             <button class="control-btn glass-btn" title="Toggle Glass Preview (G)" data-action="toggle-glass">${Icons.magnifyGlass}</button>
+            <button class="control-btn drag-glass-btn" title="Move Glass Position" data-action="drag-glass">${Icons.move}</button>
             <button class="control-btn popout-btn" title="Open in New Tab (Shift+P)" data-action="popout">${Icons.externalLink}</button>
         `;
     document.body.appendChild(this.elements.controls);
@@ -206,6 +207,16 @@ class UIManager {
             glass.popOutManager.toggle();
           }
           break;
+        case "drag-glass":
+          const mglass = window.comfyUIMagnifyGlass;
+          if (mglass && mglass.state) {
+            mglass.state.isDragModeEnabled = !mglass.state.isDragModeEnabled;
+            this.updateControlStates();
+            if (mglass.ui && mglass.ui.setDragMode) {
+              mglass.ui.setDragMode(mglass.state.isDragModeEnabled);
+            }
+          }
+          break;
       }
     });
     const controlsPosition = String(this.stateManager.state.settings["🔍MagnifyGlass.ControlsPosition"] || "top-right");
@@ -216,6 +227,7 @@ class UIManager {
    * Update control button states.
    */
   updateControlStates() {
+    var _a;
     if (!this.elements.controls) return;
     const pinBtn = this.elements.controls.querySelector('[data-action="pin"]');
     const lockBtn = this.elements.controls.querySelector('[data-action="lock"]');
@@ -268,6 +280,14 @@ class UIManager {
       glassBtn.classList.toggle("active", isGlassVisible);
       glassBtn.title = isGlassVisible ? "Hide Glass Preview" : "Show Glass Preview";
       glassBtn.style.display = isPanelVisible ? "flex" : "none";
+    }
+    const dragGlassBtn = this.elements.controls.querySelector('[data-action="drag-glass"]');
+    if (dragGlassBtn) {
+      const mglass = window.comfyUIMagnifyGlass;
+      const isDragMode = ((_a = mglass == null ? void 0 : mglass.state) == null ? void 0 : _a.isDragModeEnabled) || false;
+      dragGlassBtn.classList.toggle("active", isDragMode);
+      dragGlassBtn.title = isDragMode ? "Cancel Move Mode" : "Move Glass Position";
+      dragGlassBtn.style.display = isGlassVisible ? "flex" : "none";
     }
   }
   /**

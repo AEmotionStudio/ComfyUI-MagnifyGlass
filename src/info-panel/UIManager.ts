@@ -220,6 +220,7 @@ export class UIManager {
             <button class="control-btn persist-btn" title="Toggle Persist Mode (Sticky Info)" data-action="persist">${Icons.magnet}</button>
             <button class="control-btn visibility-btn" title="Toggle Panel Visibility (I)" data-action="toggle-panel">${Icons.eye}</button>
             <button class="control-btn glass-btn" title="Toggle Glass Preview (G)" data-action="toggle-glass">${Icons.magnifyGlass}</button>
+            <button class="control-btn drag-glass-btn" title="Move Glass Position" data-action="drag-glass">${Icons.move}</button>
             <button class="control-btn popout-btn" title="Open in New Tab (Shift+P)" data-action="popout">${Icons.externalLink}</button>
         `;
 
@@ -315,6 +316,19 @@ export class UIManager {
                         glass.popOutManager.toggle();
                     }
                     break;
+                case 'drag-glass':
+                    // Toggle glass drag mode
+                    const mglass = (window as any).comfyUIMagnifyGlass;
+                    if (mglass && mglass.state) {
+                        mglass.state.isDragModeEnabled = !mglass.state.isDragModeEnabled;
+                        this.updateControlStates();
+
+                        // Update UI to indicate drag mode
+                        if (mglass.ui && mglass.ui.setDragMode) {
+                            mglass.ui.setDragMode(mglass.state.isDragModeEnabled);
+                        }
+                    }
+                    break;
             }
         });
 
@@ -397,6 +411,16 @@ export class UIManager {
 
             // Only show glass toggle button if the inspector panel is visible
             glassBtn.style.display = isPanelVisible ? 'flex' : 'none';
+        }
+
+        const dragGlassBtn = this.elements.controls.querySelector('[data-action="drag-glass"]') as HTMLButtonElement;
+        if (dragGlassBtn) {
+            const mglass = (window as any).comfyUIMagnifyGlass;
+            const isDragMode = mglass?.state?.isDragModeEnabled || false;
+            dragGlassBtn.classList.toggle('active', isDragMode);
+            dragGlassBtn.title = isDragMode ? "Cancel Move Mode" : "Move Glass Position";
+            // Only show drag button when glass is visible (even if panel is hidden)
+            dragGlassBtn.style.display = isGlassVisible ? 'flex' : 'none';
         }
     }
 

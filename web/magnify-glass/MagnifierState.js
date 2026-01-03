@@ -27,6 +27,8 @@ class MagnifierState {
     __publicField(this, "canvasOffsetY");
     /** Flag to manage requestAnimationFrame */
     __publicField(this, "isRenderScheduled");
+    /** Whether glass drag mode is enabled (move icon on hover controls) */
+    __publicField(this, "isDragModeEnabled");
     this.active = false;
     this.wasActivatedBefore = false;
     this.x = 0;
@@ -39,6 +41,7 @@ class MagnifierState {
     this.canvasOffsetX = 0;
     this.canvasOffsetY = 0;
     this.isRenderScheduled = false;
+    this.isDragModeEnabled = false;
   }
   /**
    * Reset state to initial values.

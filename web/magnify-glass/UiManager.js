@@ -111,6 +111,61 @@ class UiManager {
     }
   }
   /**
+   * Enable or disable glass drag mode.
+   * When enabled, the glass can be dragged to a new position.
+   */
+  setDragMode(enabled) {
+    if (!this.glassDiv) return;
+    if (enabled) {
+      this.glassDiv.style.cursor = "move";
+      this.glassDiv.style.pointerEvents = "auto";
+      this.glassDiv.classList.add("drag-mode");
+      const onMouseDown = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const rect = this.glassDiv.getBoundingClientRect();
+        const grabOffsetX = rect.left - e.clientX;
+        const grabOffsetY = rect.top - e.clientY;
+        this.glassDiv.style.right = "auto";
+        this.glassDiv.style.bottom = "auto";
+        this.glassDiv.style.transform = "none";
+        const onMouseMove = (moveEvent) => {
+          moveEvent.preventDefault();
+          moveEvent.stopPropagation();
+          const newLeft = moveEvent.clientX + grabOffsetX;
+          const newTop = moveEvent.clientY + grabOffsetY;
+          if (this.glassDiv) {
+            this.glassDiv.style.left = `${newLeft}px`;
+            this.glassDiv.style.top = `${newTop}px`;
+          }
+        };
+        const onMouseUp = (upEvent) => {
+          document.removeEventListener("mousemove", onMouseMove);
+          document.removeEventListener("mouseup", onMouseUp);
+          if (this.config.followCursor) ;
+          this.state.isDragModeEnabled = false;
+          this.setDragMode(false);
+          const infoPanel = window.infoPanelManager;
+          if (infoPanel == null ? void 0 : infoPanel.uiManager) {
+            infoPanel.uiManager.updateControlStates();
+          }
+        };
+        document.addEventListener("mousemove", onMouseMove);
+        document.addEventListener("mouseup", onMouseUp);
+      };
+      this.glassDiv.addEventListener("mousedown", onMouseDown);
+      this.glassDiv._dragHandler = onMouseDown;
+    } else {
+      this.glassDiv.style.cursor = "";
+      this.glassDiv.style.pointerEvents = "none";
+      this.glassDiv.classList.remove("drag-mode");
+      if (this.glassDiv._dragHandler) {
+        this.glassDiv.removeEventListener("mousedown", this.glassDiv._dragHandler);
+        delete this.glassDiv._dragHandler;
+      }
+    }
+  }
+  /**
    * Hide the magnifying glass.
    */
   hide() {
@@ -136,49 +191,49 @@ class UiManager {
    * @param clientY - Client Y coordinate
    */
   positionGlass(clientX, clientY) {
-    if (!this.config.followCursor || !this.glassDiv) return;
+    if (!this.config.followCursor || !this.glassDiv || this.state.isDragModeEnabled) return;
     const glassSize = this.config.glassSize;
     const offsetAmount = DEFAULT_PADDING;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    let targetX;
-    let targetY;
+    let targetX = this.config.offsetX || 0;
+    let targetY = this.config.offsetY || 0;
     switch (this.config.glassPosition) {
       case "Top":
-        targetX = clientX - glassSize / 2;
-        targetY = clientY - glassSize - offsetAmount;
+        targetX += clientX - glassSize / 2;
+        targetY += clientY - glassSize - offsetAmount;
         break;
       case "Bottom":
-        targetX = clientX - glassSize / 2;
-        targetY = clientY + offsetAmount;
+        targetX += clientX - glassSize / 2;
+        targetY += clientY + offsetAmount;
         break;
       case "Left":
-        targetX = clientX - glassSize - offsetAmount;
-        targetY = clientY - glassSize / 2;
+        targetX += clientX - glassSize - offsetAmount;
+        targetY += clientY - glassSize / 2;
         break;
       case "Right":
-        targetX = clientX + offsetAmount;
-        targetY = clientY - glassSize / 2;
+        targetX += clientX + offsetAmount;
+        targetY += clientY - glassSize / 2;
         break;
       case "Top-Left":
-        targetX = clientX - glassSize - offsetAmount;
-        targetY = clientY - glassSize - offsetAmount;
+        targetX += clientX - glassSize - offsetAmount;
+        targetY += clientY - glassSize - offsetAmount;
         break;
       case "Top-Right":
-        targetX = clientX + offsetAmount;
-        targetY = clientY - glassSize - offsetAmount;
+        targetX += clientX + offsetAmount;
+        targetY += clientY - glassSize - offsetAmount;
         break;
       case "Bottom-Left":
-        targetX = clientX - glassSize - offsetAmount;
-        targetY = clientY + offsetAmount;
+        targetX += clientX - glassSize - offsetAmount;
+        targetY += clientY + offsetAmount;
         break;
       case "Bottom-Right":
-        targetX = clientX + offsetAmount;
-        targetY = clientY + offsetAmount;
+        targetX += clientX + offsetAmount;
+        targetY += clientY + offsetAmount;
         break;
       default:
-        targetX = clientX - glassSize / 2;
-        targetY = clientY + offsetAmount;
+        targetX += clientX - glassSize / 2;
+        targetY += clientY + offsetAmount;
         break;
     }
     const glassCenterX = targetX + glassSize / 2;

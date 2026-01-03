@@ -19,30 +19,41 @@ let sidebarRegistered = false;
 /**
  * Load sidebar CSS
  */
-function loadSidebarStyles(): void {
-    if (!document.getElementById('magnify-sidebar-styles')) {
-        const link = document.createElement('link');
-        link.id = 'magnify-sidebar-styles';
-        link.rel = 'stylesheet';
-        link.type = 'text/css';
-        link.href = 'extensions/comfyui-magnifyglass/sidebar.css';
-        document.head.appendChild(link);
+function loadSidebarStyles(onLoaded?: () => void): void {
+    const existingLink = document.getElementById('magnify-sidebar-styles') as HTMLLinkElement;
+
+    if (existingLink) {
+        // Already exists, call callback immediately
+        if (onLoaded) onLoaded();
+        return;
     }
+
+    const link = document.createElement('link');
+    link.id = 'magnify-sidebar-styles';
+    link.rel = 'stylesheet';
+    link.type = 'text/css';
+    link.href = 'extensions/comfyui-magnifyglass/sidebar.css';
+
+    if (onLoaded) {
+        link.onload = onLoaded;
+        link.onerror = onLoaded; // Still show content even if CSS fails
+    }
+
+    document.head.appendChild(link);
 }
 
 /**
  * Render the sidebar content
  */
 function renderSidebar(container: HTMLElement): void {
-    // Load styles
-    loadSidebarStyles();
-
     // Clear existing content to prevent duplicates
     container.innerHTML = '';
 
-    // Create main container
+    // Create main container (hidden initially to prevent flash of unstyled content)
     const sidebar = document.createElement('div');
     sidebar.className = 'magnify-sidebar';
+    sidebar.style.visibility = 'hidden';
+    sidebar.style.opacity = '0';
 
     // Header
     const header = document.createElement('div');
@@ -59,6 +70,16 @@ function renderSidebar(container: HTMLElement): void {
 
     sidebar.appendChild(content);
     container.appendChild(sidebar);
+
+    // Load styles and show sidebar after loaded
+    loadSidebarStyles(() => {
+        // Small delay to ensure styles are applied
+        requestAnimationFrame(() => {
+            sidebar.style.visibility = 'visible';
+            sidebar.style.opacity = '1';
+            sidebar.style.transition = 'opacity 0.1s ease-in';
+        });
+    });
 }
 
 /**

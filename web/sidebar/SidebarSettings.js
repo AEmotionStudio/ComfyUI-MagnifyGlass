@@ -153,9 +153,13 @@ function createSection(title, defaultCollapsed = false) {
   header.innerHTML = `${Icons.chevronDown}<span>${title}</span>`;
   const body = document.createElement("div");
   body.className = `magnify-sidebar-section-body${collapsed ? " collapsed" : ""}`;
+  if (collapsed) {
+    body.style.display = "none";
+  }
   header.addEventListener("click", () => {
     const isCollapsed = header.classList.toggle("collapsed");
     body.classList.toggle("collapsed");
+    body.style.display = isCollapsed ? "none" : "";
     saveSectionState(title, isCollapsed);
   });
   section.appendChild(header);

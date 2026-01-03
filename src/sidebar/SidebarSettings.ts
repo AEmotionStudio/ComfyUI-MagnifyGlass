@@ -281,10 +281,16 @@ function createSection(title: string, defaultCollapsed: boolean = false): { sect
 
     const body = document.createElement('div');
     body.className = `magnify-sidebar-section-body${collapsed ? ' collapsed' : ''}`;
+    // Apply inline style to prevent flash before CSS loads
+    if (collapsed) {
+        body.style.display = 'none';
+    }
 
     header.addEventListener('click', () => {
         const isCollapsed = header.classList.toggle('collapsed');
         body.classList.toggle('collapsed');
+        // Also toggle inline style for immediate effect
+        body.style.display = isCollapsed ? 'none' : '';
         // Save the new state
         saveSectionState(title, isCollapsed);
     });

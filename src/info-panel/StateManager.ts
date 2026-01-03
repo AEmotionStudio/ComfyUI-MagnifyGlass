@@ -59,7 +59,7 @@ export class StateManager {
             // Panel visibility and positioning
             isPanelVisible: false,
             wasPanelVisibleBeforeHide: false,
-            isPanelMinimized: true,
+            isPanelMinimized: false,
             isPanelPinned: false,
             isPanelLocked: false, // New lock state
             isAutoPinned: false, // Track if panel was auto-pinned by glass hide

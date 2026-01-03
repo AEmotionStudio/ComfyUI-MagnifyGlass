@@ -11,7 +11,7 @@ class StateManager {
       // Panel visibility and positioning
       isPanelVisible: false,
       wasPanelVisibleBeforeHide: false,
-      isPanelMinimized: true,
+      isPanelMinimized: false,
       isPanelPinned: false,
       isPanelLocked: false,
       // New lock state

@@ -520,11 +520,16 @@ export class UiManager {
                 btn.style.justifyContent = "center";
                 btn.style.padding = "0 8px";
                 btn.style.cursor = "pointer";
-                btn.style.border = anchorBtn.style.border || computed.border;
-                btn.style.borderRadius = anchorBtn.style.borderRadius || computed.borderRadius;
-                // Use cssText if available for background/color specific overrides
-                if (!btn.style.background) btn.style.background = computed.background;
-                if (!btn.style.color) btn.style.color = computed.color;
+                // Copy border radius if available, but avoid copying colors/backgrounds to allow theme switching
+                if (anchorBtn.style.borderRadius) {
+                    btn.style.borderRadius = anchorBtn.style.borderRadius;
+                } else {
+                    // Fallback to computed only for structural properties, not colors
+                    btn.style.borderRadius = computed.borderRadius;
+                }
+
+                // Do NOT copy background/color/border from computed styles as they freeze the theme
+                // Rely on className to handle theme styling
 
                 // Add active state tracking
                 btn.addEventListener('click', () => {

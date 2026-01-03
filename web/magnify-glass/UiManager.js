@@ -383,10 +383,11 @@ class UiManager {
         btn.style.justifyContent = "center";
         btn.style.padding = "0 8px";
         btn.style.cursor = "pointer";
-        btn.style.border = anchorBtn.style.border || computed.border;
-        btn.style.borderRadius = anchorBtn.style.borderRadius || computed.borderRadius;
-        if (!btn.style.background) btn.style.background = computed.background;
-        if (!btn.style.color) btn.style.color = computed.color;
+        if (anchorBtn.style.borderRadius) {
+          btn.style.borderRadius = anchorBtn.style.borderRadius;
+        } else {
+          btn.style.borderRadius = computed.borderRadius;
+        }
         btn.addEventListener("click", () => {
           if (this.onToggle) {
             this.onToggle();

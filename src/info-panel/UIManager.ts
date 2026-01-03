@@ -221,6 +221,7 @@ export class UIManager {
             <button class="control-btn visibility-btn" title="Toggle Panel Visibility (I)" data-action="toggle-panel">${Icons.eye}</button>
             <button class="control-btn glass-btn" title="Toggle Glass Preview (G)" data-action="toggle-glass">${Icons.magnifyGlass}</button>
             <button class="control-btn drag-glass-btn" title="Move Glass Position" data-action="drag-glass">${Icons.move}</button>
+            <button class="control-btn reset-glass-btn" title="Reset Glass Position (O)" data-action="reset-glass">${Icons.reset}</button>
             <button class="control-btn popout-btn" title="Open in New Tab (Shift+P)" data-action="popout">${Icons.externalLink}</button>
         `;
 
@@ -329,6 +330,23 @@ export class UIManager {
                         }
                     }
                     break;
+                case 'reset-glass':
+                    // Reset glass offsets
+                    const rglass = (window as any).comfyUIMagnifyGlass;
+                    if (rglass) {
+                        rglass.resetOffsets();
+                        Logger.debug("Reset glass position via hover controls");
+
+                        // Disable drag mode if active
+                        if (rglass.state && rglass.state.isDragModeEnabled) {
+                            rglass.state.isDragModeEnabled = false;
+                            if (rglass.ui && rglass.ui.setDragMode) {
+                                rglass.ui.setDragMode(false);
+                            }
+                            this.updateControlStates();
+                        }
+                    }
+                    break;
             }
         });
 
@@ -421,6 +439,12 @@ export class UIManager {
             dragGlassBtn.title = isDragMode ? "Cancel Move Mode" : "Move Glass Position";
             // Only show drag button when glass is visible (even if panel is hidden)
             dragGlassBtn.style.display = isGlassVisible ? 'flex' : 'none';
+        }
+
+        const resetGlassBtn = this.elements.controls.querySelector('[data-action="reset-glass"]') as HTMLButtonElement;
+        if (resetGlassBtn) {
+            // Only show reset button when glass is visible (moves with drag/popout buttons)
+            resetGlassBtn.style.display = isGlassVisible ? 'flex' : 'none';
         }
     }
 

@@ -14,6 +14,7 @@ import { UiManager } from './UiManager';
 import { WebGLRenderer } from './WebGLRenderer';
 import { DebugManager } from './DebugManager';
 import { EventHandler } from './EventHandler';
+import { PopOutManager } from './PopOutManager';
 
 // External ComfyUI globals
 declare const app: ComfyApp;
@@ -30,6 +31,7 @@ export class MagnifyGlass {
     renderer: WebGLRenderer | null;
     debugger: DebugManager;
     eventHandler: EventHandler;
+    popOutManager: PopOutManager;
 
     /** The LiteGraph canvas */
     litegraphCanvas: HTMLCanvasElement | null;
@@ -46,7 +48,13 @@ export class MagnifyGlass {
     constructor() {
         this.config = new ConfigManager();
         this.state = new MagnifierState();
-        this.ui = new UiManager(this.config, this.state, () => this.toggle());
+        this.popOutManager = new PopOutManager();
+        this.ui = new UiManager(
+            this.config,
+            this.state,
+            () => this.toggle(),
+            () => this.popOutManager.toggle()
+        );
         this.renderer = null;
         this.debugger = new DebugManager(this.config, this.state, this.ui);
         this.eventHandler = new EventHandler(this);
@@ -161,6 +169,11 @@ export class MagnifyGlass {
 
                 // Render HTML overlays
                 this.renderHtmlOverlays();
+
+                // Send frame to pop-out tab if open
+                if (this.popOutManager.isPopOutOpen() && this.ui.glassCanvas) {
+                    this.popOutManager.sendFrame(this.ui.glassCanvas);
+                }
 
                 this.state.isRenderScheduled = false;
             });
@@ -440,6 +453,7 @@ export class MagnifyGlass {
      */
     cleanup(): void {
         this.eventHandler.detachListeners();
+        this.popOutManager.cleanup();
         this.ui.cleanup();
     }
 }

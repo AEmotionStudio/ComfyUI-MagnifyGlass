@@ -5,7 +5,7 @@ import { Z_INDEX, DEFAULT_PADDING } from "../shared/constants.js";
 import { Icons } from "../shared/icons.js";
 import { Logger } from "../shared/logger.js";
 class UiManager {
-  constructor(config, state, onToggle) {
+  constructor(config, state, onToggle, onPopOut) {
     __publicField(this, "config");
     __publicField(this, "state");
     __publicField(this, "glassDiv");
@@ -13,7 +13,9 @@ class UiManager {
     __publicField(this, "debugCanvas");
     __publicField(this, "debugCtx");
     __publicField(this, "htmlOverlayContainer");
+    __publicField(this, "popOutButton");
     __publicField(this, "onToggle");
+    __publicField(this, "onPopOut");
     this.config = config;
     this.state = state;
     this.glassDiv = null;
@@ -21,7 +23,9 @@ class UiManager {
     this.debugCanvas = null;
     this.debugCtx = null;
     this.htmlOverlayContainer = null;
+    this.popOutButton = null;
     this.onToggle = onToggle;
+    this.onPopOut = onPopOut;
   }
   /**
    * Create all DOM elements for the magnifying glass.
@@ -60,6 +64,59 @@ class UiManager {
             overflow: hidden; 
         `;
     this.glassDiv.appendChild(this.htmlOverlayContainer);
+    this.popOutButton = document.createElement("button");
+    this.popOutButton.id = "comfyui-magnify-popout-btn";
+    this.popOutButton.title = "Open in New Tab (Shift+P)";
+    this.popOutButton.innerHTML = Icons.externalLink;
+    this.popOutButton.style.cssText = `
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 24px;
+            height: 24px;
+            padding: 4px;
+            border: none;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.4);
+            color: rgba(255, 255, 255, 0.7);
+            cursor: pointer;
+            pointer-events: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s ease, background 0.2s ease, color 0.2s ease;
+            z-index: 10;
+        `;
+    this.popOutButton.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (this.onPopOut) {
+        this.onPopOut();
+      }
+    });
+    this.popOutButton.addEventListener("mouseenter", () => {
+      if (this.popOutButton) {
+        this.popOutButton.style.background = "rgba(99, 102, 241, 0.6)";
+        this.popOutButton.style.color = "#fff";
+      }
+    });
+    this.popOutButton.addEventListener("mouseleave", () => {
+      if (this.popOutButton) {
+        this.popOutButton.style.background = "rgba(0, 0, 0, 0.4)";
+        this.popOutButton.style.color = "rgba(255, 255, 255, 0.7)";
+      }
+    });
+    this.glassDiv.appendChild(this.popOutButton);
+    this.glassDiv.addEventListener("mouseenter", () => {
+      if (this.popOutButton) {
+        this.popOutButton.style.opacity = "1";
+      }
+    });
+    this.glassDiv.addEventListener("mouseleave", () => {
+      if (this.popOutButton) {
+        this.popOutButton.style.opacity = "0";
+      }
+    });
     document.body.appendChild(this.glassDiv);
     if (this.config.debugMode) {
       this.createDebugCanvas();

@@ -11,6 +11,7 @@ import { UiManager } from "./UiManager.js";
 import { WebGLRenderer } from "./WebGLRenderer.js";
 import { DebugManager } from "./DebugManager.js";
 import { EventHandler } from "./EventHandler.js";
+import { PopOutManager } from "./PopOutManager.js";
 class MagnifyGlass {
   constructor() {
     __publicField(this, "config");
@@ -19,6 +20,7 @@ class MagnifyGlass {
     __publicField(this, "renderer");
     __publicField(this, "debugger");
     __publicField(this, "eventHandler");
+    __publicField(this, "popOutManager");
     /** The LiteGraph canvas */
     __publicField(this, "litegraphCanvas");
     /** Last known mouse position for better initial positioning */
@@ -29,7 +31,13 @@ class MagnifyGlass {
     __publicField(this, "currentMediaElement");
     this.config = new ConfigManager();
     this.state = new MagnifierState();
-    this.ui = new UiManager(this.config, this.state, () => this.toggle());
+    this.popOutManager = new PopOutManager();
+    this.ui = new UiManager(
+      this.config,
+      this.state,
+      () => this.toggle(),
+      () => this.popOutManager.toggle()
+    );
     this.renderer = null;
     this.debugger = new DebugManager(this.config, this.state, this.ui);
     this.eventHandler = new EventHandler(this);
@@ -104,6 +112,9 @@ class MagnifyGlass {
         this.renderer.render(this.litegraphCanvas);
         this.debugger.updateDebugView();
         this.renderHtmlOverlays();
+        if (this.popOutManager.isPopOutOpen() && this.ui.glassCanvas) {
+          this.popOutManager.sendFrame(this.ui.glassCanvas);
+        }
         this.state.isRenderScheduled = false;
       });
     }
@@ -330,6 +341,7 @@ class MagnifyGlass {
    */
   cleanup() {
     this.eventHandler.detachListeners();
+    this.popOutManager.cleanup();
     this.ui.cleanup();
   }
 }

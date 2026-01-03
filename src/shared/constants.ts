@@ -84,3 +84,7 @@ export const STORAGE_KEYS = {
     OFFSET_X: 'comfyui_magnify_offset_x',
     OFFSET_Y: 'comfyui_magnify_offset_y'
 } as const;
+
+// BroadcastChannel for pop-out tab communication
+export const BROADCAST_CHANNEL_NAME = 'comfyui-magnifyglass-popout';
+

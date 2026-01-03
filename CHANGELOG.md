@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-01-02
+
+### Added
+- **Multi-Monitor Pop-Out Tab**: Open the magnified view in a separate browser tab that can be detached and moved to a secondary monitor.
+  - Pop-out button appears on hover in the top-right corner of the glass.
+  - Keyboard shortcut `Shift+P` to toggle pop-out when magnifier is active.
+  - Real-time sync at 30fps using BroadcastChannel API.
+  - Professional dark-themed viewer with connection status indicator.
+  - Viewer page automatically syncs glass shape and border styling.
+
+---
+
 ## [1.6.0] - 2025-01-02
 
 ### Added

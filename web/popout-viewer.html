@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔍 MagnifyGlass Viewer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f0f23 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 40px;
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 100;
+        }
+
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #93c5fd;
+        }
+
+        .header-title svg {
+            width: 18px;
+            height: 18px;
+            stroke: #93c5fd;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #6b7280;
+            transition: background-color 0.3s ease;
+        }
+
+        .status-dot.connected {
+            background: #22c55e;
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+        }
+
+        .status-text {
+            color: #9ca3af;
+        }
+
+        .canvas-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 1;
+            width: 100%;
+            padding: 60px 20px 20px;
+        }
+
+        #viewer-canvas {
+            max-width: 100%;
+            max-height: calc(100vh - 80px);
+            border-radius: 8px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+            border: 2px solid rgba(99, 102, 241, 0.3);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .disconnected-message {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+            text-align: center;
+        }
+
+        .disconnected-message.show {
+            display: flex;
+        }
+
+        .disconnected-icon {
+            font-size: 48px;
+            opacity: 0.6;
+        }
+
+        .disconnected-title {
+            font-size: 20px;
+            color: #9ca3af;
+        }
+
+        .disconnected-hint {
+            font-size: 14px;
+            color: #6b7280;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .connecting .status-dot {
+            animation: pulse 1.5s ease-in-out infinite;
+            background: #fbbf24;
+        }
+    </style>
+</head>
+<body class="connecting">
+    <header class="header">
+        <div class="header-title">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <span>MagnifyGlass Viewer</span>
+        </div>
+        <div class="status">
+            <span class="status-dot"></span>
+            <span class="status-text">Connecting...</span>
+        </div>
+    </header>
+
+    <div class="canvas-container">
+        <canvas id="viewer-canvas" width="300" height="300"></canvas>
+        <div class="disconnected-message">
+            <span class="disconnected-icon">🔍</span>
+            <p class="disconnected-title">Not Connected</p>
+            <p class="disconnected-hint">Activate MagnifyGlass in ComfyUI to start viewing</p>
+        </div>
+    </div>
+
+    <script>
+        const CHANNEL_NAME = 'comfyui-magnifyglass-popout';
+        
+        // DOM Elements
+        const canvas = document.getElementById('viewer-canvas');
+        const ctx = canvas.getContext('2d');
+        const statusDot = document.querySelector('.status-dot');
+        const statusText = document.querySelector('.status-text');
+        const disconnectedMessage = document.querySelector('.disconnected-message');
+        const body = document.body;
+
+        // State
+        let isConnected = false;
+        let lastFrameTime = 0;
+        let frameImage = new Image();
+        let connectionCheckInterval = null;
+
+        // Initialize BroadcastChannel
+        const channel = new BroadcastChannel(CHANNEL_NAME);
+        
+        channel.onmessage = (event) => {
+            const message = event.data;
+            
+            switch (message.type) {
+                case 'frame':
+                    handleFrame(message.data);
+                    break;
+                case 'config':
+                    handleConfig(message.data);
+                    break;
+                case 'ping':
+                    // Respond with pong
+                    channel.postMessage({ type: 'pong', timestamp: Date.now() });
+                    markConnected();
+                    break;
+                case 'close':
+                    handleClose();
+                    break;
+            }
+        };
+
+        function handleFrame(dataUrl) {
+            if (!dataUrl) return;
+            
+            frameImage.onload = () => {
+                // Resize canvas to match image dimensions
+                if (canvas.width !== frameImage.width || canvas.height !== frameImage.height) {
+                    canvas.width = frameImage.width;
+                    canvas.height = frameImage.height;
+                }
+                
+                // Draw the frame
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(frameImage, 0, 0);
+            };
+            
+            frameImage.src = dataUrl;
+            lastFrameTime = Date.now();
+            markConnected();
+        }
+
+        function handleConfig(config) {
+            if (!config) return;
+            
+            // Apply styling based on config
+            if (config.borderColor) {
+                canvas.style.borderColor = config.borderColor;
+            }
+            if (config.borderWidth) {
+                canvas.style.borderWidth = `${config.borderWidth}px`;
+            }
+            if (config.glassShape === 'Circle') {
+                canvas.style.borderRadius = '50%';
+            } else if (config.glassShape === 'Rounded Square') {
+                canvas.style.borderRadius = '20%';
+            } else {
+                canvas.style.borderRadius = '8px';
+            }
+        }
+
+        function handleClose() {
+            markDisconnected();
+            // Optionally close this tab
+            // window.close();
+        }
+
+        function markConnected() {
+            if (!isConnected) {
+                isConnected = true;
+                body.classList.remove('connecting');
+                statusDot.classList.add('connected');
+                statusText.textContent = 'Connected';
+                canvas.style.display = 'block';
+                disconnectedMessage.classList.remove('show');
+            }
+        }
+
+        function markDisconnected() {
+            isConnected = false;
+            body.classList.add('connecting');
+            statusDot.classList.remove('connected');
+            statusText.textContent = 'Disconnected';
+            canvas.style.display = 'none';
+            disconnectedMessage.classList.add('show');
+        }
+
+        // Check connection status periodically
+        connectionCheckInterval = setInterval(() => {
+            if (isConnected && Date.now() - lastFrameTime > 3000) {
+                markDisconnected();
+            }
+        }, 1000);
+
+        // Initial ping to source
+        channel.postMessage({ type: 'pong', timestamp: Date.now() });
+
+        // Cleanup on page unload
+        window.addEventListener('beforeunload', () => {
+            channel.postMessage({ type: 'close' });
+            channel.close();
+            clearInterval(connectionCheckInterval);
+        });
+
+        // Handle Escape key to close
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                channel.postMessage({ type: 'close' });
+                window.close();
+            }
+        });
+    </script>
+</body>
+</html>

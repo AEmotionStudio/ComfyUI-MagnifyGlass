@@ -117,6 +117,10 @@ class EventHandler {
         config.saveOffsets();
         this.magnifyGlass.updateMagnifiedView();
       }
+      if (e.shiftKey && e.key.toLowerCase() === "p") {
+        this.magnifyGlass.popOutManager.toggle();
+        e.preventDefault();
+      }
     }
   }
   /**

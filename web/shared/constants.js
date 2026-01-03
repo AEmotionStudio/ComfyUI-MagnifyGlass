@@ -40,8 +40,10 @@ const STORAGE_KEYS = {
   OFFSET_X: "comfyui_magnify_offset_x",
   OFFSET_Y: "comfyui_magnify_offset_y"
 };
+const BROADCAST_CHANNEL_NAME = "comfyui-magnifyglass-popout";
 export {
   ACTIVATION_KEYS,
+  BROADCAST_CHANNEL_NAME,
   DEFAULT_BORDER_COLOR,
   DEFAULT_BORDER_WIDTH,
   DEFAULT_GLASS_SIZE,

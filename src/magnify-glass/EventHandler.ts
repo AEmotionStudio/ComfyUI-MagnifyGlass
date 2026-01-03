@@ -152,6 +152,12 @@ export class EventHandler {
                 config.saveOffsets();
                 this.magnifyGlass.updateMagnifiedView();
             }
+
+            // Pop-out tab toggle (Shift+P)
+            if (e.shiftKey && e.key.toLowerCase() === 'p') {
+                this.magnifyGlass.popOutManager.toggle();
+                e.preventDefault();
+            }
         }
     }
 

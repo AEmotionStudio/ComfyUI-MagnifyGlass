@@ -10,6 +10,8 @@ class PopOutManager {
     __publicField(this, "lastPongTime", 0);
     __publicField(this, "pingInterval", null);
     __publicField(this, "viewerUrl");
+    __publicField(this, "currentTheme", "dark");
+    // Default theme
     /** Throttle frame sending to ~30fps */
     __publicField(this, "lastFrameTime", 0);
     __publicField(this, "FRAME_INTERVAL", 33);
@@ -72,6 +74,7 @@ class PopOutManager {
         if (!this.isOpen) {
           this.isOpen = true;
           Logger.debug("[PopOut] Viewer tab connected");
+          this.sendConfig({ theme: this.currentTheme });
         }
         break;
       case "close":
@@ -149,12 +152,32 @@ class PopOutManager {
   /**
    * Send configuration to the pop-out viewer.
    */
+  /**
+   * Send configuration to the pop-out viewer.
+   */
   sendConfig(config) {
     if (!this.channel) return;
+    const finalConfig = {
+      theme: this.currentTheme,
+      ...config
+    };
+    if (config.theme) {
+      this.currentTheme = config.theme;
+    }
     this.sendMessage({
       type: "config",
-      data: config
+      data: finalConfig
     });
+  }
+  /**
+   * Update the viewer theme.
+   * @param theme - Theme name (e.g. 'dark', 'light')
+   */
+  updateTheme(theme) {
+    if (this.currentTheme === theme) return;
+    this.currentTheme = theme;
+    this.sendConfig({ theme });
+    Logger.debug(`[PopOut] Theme updated to: ${theme}`);
   }
   /**
    * Send inspector info to the pop-out viewer.

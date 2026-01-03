@@ -13,7 +13,7 @@ import { Logger } from '../shared/logger';
  */
 interface PopOutMessage {
     type: 'frame' | 'config' | 'info' | 'close' | 'ping' | 'pong';
-    data?: string | PopOutConfig | PopOutInfo;
+    data?: string | Partial<PopOutConfig> | PopOutInfo;
     timestamp?: number;
 }
 
@@ -22,6 +22,7 @@ interface PopOutConfig {
     borderColor: string;
     borderWidth: number;
     glassShape: string;
+    theme?: string;
 }
 
 /**
@@ -59,6 +60,7 @@ export class PopOutManager {
     private lastPongTime: number = 0;
     private pingInterval: number | null = null;
     private viewerUrl: string;
+    private currentTheme: string = 'dark'; // Default theme
 
     /** Throttle frame sending to ~30fps */
     private lastFrameTime: number = 0;
@@ -138,6 +140,8 @@ export class PopOutManager {
                 if (!this.isOpen) {
                     this.isOpen = true;
                     Logger.debug('[PopOut] Viewer tab connected');
+                    // Send current theme immediately upon connection
+                    this.sendConfig({ theme: this.currentTheme });
                 }
                 break;
             case 'close':
@@ -230,13 +234,39 @@ export class PopOutManager {
     /**
      * Send configuration to the pop-out viewer.
      */
-    sendConfig(config: PopOutConfig): void {
+    /**
+     * Send configuration to the pop-out viewer.
+     */
+    sendConfig(config: Partial<PopOutConfig>): void {
         if (!this.channel) return;
+
+        // Merge with current theme if not provided
+        const finalConfig = {
+            theme: this.currentTheme,
+            ...config
+        };
+
+        // Update local theme cache if provided in config
+        if (config.theme) {
+            this.currentTheme = config.theme;
+        }
 
         this.sendMessage({
             type: 'config',
-            data: config
+            data: finalConfig
         });
+    }
+
+    /**
+     * Update the viewer theme.
+     * @param theme - Theme name (e.g. 'dark', 'light')
+     */
+    updateTheme(theme: string): void {
+        if (this.currentTheme === theme) return;
+
+        this.currentTheme = theme;
+        this.sendConfig({ theme });
+        Logger.debug(`[PopOut] Theme updated to: ${theme}`);
     }
 
     /**

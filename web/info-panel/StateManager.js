@@ -103,6 +103,12 @@ class StateManager {
         detectedTheme = "github";
       } else if (classes.includes("theme-light") || classes.includes("light-theme")) {
         detectedTheme = "light";
+      } else if (classes.includes("theme-dracula") || classes.includes("dracula-theme")) {
+        detectedTheme = "dracula";
+      } else if (classes.includes("theme-gruvbox") || classes.includes("gruvbox-theme")) {
+        detectedTheme = "gruvbox";
+      } else if (classes.includes("theme-monokai") || classes.includes("monokai-theme")) {
+        detectedTheme = "monokai";
       }
     }
     if (detectedTheme === "dark") {
@@ -171,6 +177,10 @@ class StateManager {
     this.state.settings["🔍MagnifyGlass.InfoPanelTheme"] = this.state.currentTheme;
     if (window.infoPanelManager && window.infoPanelManager.uiManager) {
       window.infoPanelManager.uiManager.updateTheme(this.state.currentTheme);
+    }
+    const magnifyGlass = window.comfyUIMagnifyGlass;
+    if (magnifyGlass && magnifyGlass.popOutManager) {
+      magnifyGlass.popOutManager.updateTheme(this.state.currentTheme);
     }
   }
   loadSettings() {

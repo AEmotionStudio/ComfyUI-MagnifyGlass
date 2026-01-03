@@ -180,6 +180,12 @@ export class StateManager {
                 detectedTheme = 'github';
             } else if (classes.includes('theme-light') || classes.includes('light-theme')) {
                 detectedTheme = 'light';
+            } else if (classes.includes('theme-dracula') || classes.includes('dracula-theme')) {
+                detectedTheme = 'dracula';
+            } else if (classes.includes('theme-gruvbox') || classes.includes('gruvbox-theme')) {
+                detectedTheme = 'gruvbox';
+            } else if (classes.includes('theme-monokai') || classes.includes('monokai-theme')) {
+                detectedTheme = 'monokai';
             }
         }
 
@@ -278,6 +284,12 @@ export class StateManager {
         // Notify UI components of theme change immediately
         if (window.infoPanelManager && window.infoPanelManager.uiManager) {
             window.infoPanelManager.uiManager.updateTheme(this.state.currentTheme);
+        }
+
+        // Notify Pop-Out Manager (if it exists on the main glass instance)
+        const magnifyGlass = (window as any).comfyUIMagnifyGlass;
+        if (magnifyGlass && magnifyGlass.popOutManager) {
+            magnifyGlass.popOutManager.updateTheme(this.state.currentTheme);
         }
     }
 

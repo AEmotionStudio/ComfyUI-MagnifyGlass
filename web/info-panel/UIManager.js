@@ -132,7 +132,7 @@ class UIManager {
             <button class="control-btn persist-btn" title="Toggle Persist Mode (Sticky Info)" data-action="persist">${Icons.magnet}</button>
             <button class="control-btn visibility-btn" title="Toggle Panel Visibility (I)" data-action="toggle-panel">${Icons.eye}</button>
             <button class="control-btn glass-btn" title="Toggle Glass Preview (G)" data-action="toggle-glass">${Icons.magnifyGlass}</button>
-            <button class="control-btn drag-glass-btn" title="Move Glass Position" data-action="drag-glass">${Icons.move}</button>
+            <button class="control-btn drag-glass-btn" title="Move Glass Position (H)" data-action="drag-glass">${Icons.move}</button>
             <button class="control-btn reset-glass-btn" title="Reset Glass Position (O)" data-action="reset-glass">${Icons.reset}</button>
             <button class="control-btn popout-btn" title="Open in New Tab (Shift+P)" data-action="popout">${Icons.externalLink}</button>
         `;
@@ -301,7 +301,7 @@ class UIManager {
       const mglass = window.comfyUIMagnifyGlass;
       const isDragMode = ((_a = mglass == null ? void 0 : mglass.state) == null ? void 0 : _a.isDragModeEnabled) || false;
       dragGlassBtn.classList.toggle("active", isDragMode);
-      dragGlassBtn.title = isDragMode ? "Cancel Move Mode" : "Move Glass Position";
+      dragGlassBtn.title = isDragMode ? "Cancel Move Mode (H)" : "Move Glass Position (H)";
       dragGlassBtn.style.display = isGlassVisible ? "flex" : "none";
     }
     const resetGlassBtn = this.elements.controls.querySelector('[data-action="reset-glass"]');

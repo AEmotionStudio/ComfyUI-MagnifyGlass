@@ -346,15 +346,15 @@ export class UIManager {
             // Hide unlock button when panel is hidden
             pinBtn.style.display = isPanelVisible ? 'flex' : 'none';
 
-            // Disable pin button when glass is hidden (no point unpinning to follow invisible glass)
+            // Disable lock button when glass is hidden (no point unlocking to follow invisible glass)
             if (!isGlassVisible) {
                 pinBtn.disabled = true;
                 pinBtn.style.opacity = '0.5';
-                pinBtn.title = "Cannot toggle pin when glass preview is hidden";
+                pinBtn.title = "Cannot toggle lock when glass preview is hidden";
             } else {
                 pinBtn.disabled = false;
                 pinBtn.style.opacity = '';
-                pinBtn.title = this.stateManager.state.isPanelPinned ? "Unpin from Glass (Follow)" : "Pin to Glass (Fixed)";
+                pinBtn.title = this.stateManager.state.isPanelPinned ? "Lock Panel Position (Follow Glass)" : "Unlock Panel Position (Drag Inspector)";
             }
         }
 

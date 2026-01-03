@@ -168,6 +168,11 @@ export class InfoPanel {
         // Update the UI
         this.uiManager.displayInfo(info);
 
+        // Send info to pop-out viewer if active
+        if (this.magnifyGlass.popOutManager && this.magnifyGlass.popOutManager.isPopOutOpen()) {
+            this.magnifyGlass.popOutManager.sendInfo(info as any);
+        }
+
         this.positionManager.positionPanel();
         this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
 

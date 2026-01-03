@@ -8,12 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.7.0] - 2026-01-02
 
 ### Added
-- **Multi-Monitor Pop-Out Tab**: Open the magnified view in a separate browser tab that can be detached and moved to a secondary monitor.
-  - Pop-out button appears on hover in the top-right corner of the glass.
-  - Keyboard shortcut `Shift+P` to toggle pop-out when magnifier is active.
-  - Real-time sync at 30fps using BroadcastChannel API.
-  - Professional dark-themed viewer with connection status indicator.
-  - Viewer page automatically syncs glass shape and border styling.
+- **Multi-Monitor Pop-Out Tab**: Open the magnified view in a separate browser tab for dual-monitor workflows.
+  - Professional dark-themed viewer with two-column layout
+  - Real-time inspector sidebar showing node details, cursor position, and canvas scale
+  - Pop-out button in hover controls + `Shift+P` keyboard shortcut
+  - FPS counter and resolution display in footer
+  - Frame sync at 30fps using BroadcastChannel API
+  - Connection status indicator with auto-reconnect
 
 ---
 

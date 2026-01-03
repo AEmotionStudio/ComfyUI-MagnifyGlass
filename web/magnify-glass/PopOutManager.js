@@ -23,13 +23,30 @@ class PopOutManager {
    * Get the URL for the pop-out viewer page.
    */
   getViewerUrl() {
+    const version = "v4";
     const scripts = document.querySelectorAll('script[src*="magnify"]');
+    Logger.debug(`[PopOut] Found ${scripts.length} magnify scripts`);
     if (scripts.length > 0) {
       const src = scripts[0].src;
-      const baseUrl = src.substring(0, src.lastIndexOf("/"));
-      return `${baseUrl}/popout-viewer.html`;
+      Logger.debug(`[PopOut] First script src: ${src}`);
+      const urlParts = src.split("/");
+      let extensionIndex = -1;
+      for (let i = 0; i < urlParts.length; i++) {
+        if (urlParts[i].toLowerCase().includes("magnify")) {
+          extensionIndex = i;
+          break;
+        }
+      }
+      if (extensionIndex >= 0) {
+        const baseUrl = urlParts.slice(0, extensionIndex + 1).join("/");
+        const viewerUrl = `${baseUrl}/popout-viewer.html?${version}`;
+        Logger.debug(`[PopOut] Using viewer URL: ${viewerUrl}`);
+        return viewerUrl;
+      }
     }
-    return "/extensions/comfyui-magnifyglass/popout-viewer.html";
+    const fallbackUrl = `/extensions/comfyui-magnifyglass/popout-viewer.html?${version}`;
+    Logger.debug(`[PopOut] Using fallback URL: ${fallbackUrl}`);
+    return fallbackUrl;
   }
   /**
    * Initialize the BroadcastChannel.
@@ -138,6 +155,68 @@ class PopOutManager {
       type: "config",
       data: config
     });
+  }
+  /**
+   * Send inspector info to the pop-out viewer.
+   * @param info - Inspector panel information
+   */
+  sendInfo(info) {
+    if (!this.isOpen || !this.channel) return;
+    const sanitizedInfo = this.sanitizeInfo(info);
+    this.sendMessage({
+      type: "info",
+      data: sanitizedInfo || void 0
+    });
+  }
+  /**
+   * Sanitize info object for BroadcastChannel transfer.
+   * Removes functions, circular references, and non-serializable data.
+   * Handles both GatheredInfo and PopOutInfo formats.
+   */
+  sanitizeInfo(info) {
+    var _a, _b, _c;
+    if (!info) return null;
+    try {
+      const sanitized = {};
+      if (info.hoveredNode) {
+        sanitized.hoveredNode = {
+          title: String(info.hoveredNode.title || ""),
+          type: String(info.hoveredNode.type || ""),
+          executionOrder: info.hoveredNode.executionOrder,
+          category: info.hoveredNode.category ? String(info.hoveredNode.category) : void 0
+        };
+      }
+      if (info.cursor) {
+        sanitized.cursor = {
+          canvas: {
+            x: Number(info.cursor.canvasX || ((_a = info.cursor.canvas) == null ? void 0 : _a.x) || 0),
+            y: Number(info.cursor.canvasY || ((_b = info.cursor.canvas) == null ? void 0 : _b.y) || 0)
+          }
+        };
+      }
+      if (info.zoom !== void 0 || info.canvas) {
+        sanitized.canvas = {
+          scale: Number(info.zoom || ((_c = info.canvas) == null ? void 0 : _c.scale) || 1)
+        };
+      }
+      const magnifyGlass = window.comfyUIMagnifyGlass;
+      if (magnifyGlass == null ? void 0 : magnifyGlass.config) {
+        sanitized.magnifier = {
+          zoomFactor: Number(magnifyGlass.config.zoomFactor || 1)
+        };
+      }
+      if (info.mediaElement || info.media) {
+        const media = info.mediaElement || info.media;
+        sanitized.media = {
+          tagName: String(media.tagName || media.type || ""),
+          naturalSize: media.naturalWidth && media.naturalHeight ? `${media.naturalWidth}×${media.naturalHeight}` : media.naturalSize
+        };
+      }
+      return sanitized;
+    } catch (e) {
+      Logger.error("[PopOut] Failed to sanitize info:", e);
+      return null;
+    }
   }
   /**
    * Send a message through the BroadcastChannel.

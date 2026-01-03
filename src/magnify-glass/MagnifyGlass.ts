@@ -52,8 +52,7 @@ export class MagnifyGlass {
         this.ui = new UiManager(
             this.config,
             this.state,
-            () => this.toggle(),
-            () => this.popOutManager.toggle()
+            () => this.toggle()
         );
         this.renderer = null;
         this.debugger = new DebugManager(this.config, this.state, this.ui);

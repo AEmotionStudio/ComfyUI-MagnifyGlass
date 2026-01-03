@@ -112,6 +112,9 @@ class InfoPanel {
     }
     this.stateManager.setCurrentInfo(info);
     this.uiManager.displayInfo(info);
+    if (this.magnifyGlass.popOutManager && this.magnifyGlass.popOutManager.isPopOutOpen()) {
+      this.magnifyGlass.popOutManager.sendInfo(info);
+    }
     this.positionManager.positionPanel();
     this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
     if (info.hoveredNode) {

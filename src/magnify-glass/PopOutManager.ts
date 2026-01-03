@@ -12,8 +12,8 @@ import { Logger } from '../shared/logger';
  * Message types for BroadcastChannel communication
  */
 interface PopOutMessage {
-    type: 'frame' | 'config' | 'close' | 'ping' | 'pong';
-    data?: string | PopOutConfig;
+    type: 'frame' | 'config' | 'info' | 'close' | 'ping' | 'pong';
+    data?: string | PopOutConfig | PopOutInfo;
     timestamp?: number;
 }
 
@@ -22,6 +22,31 @@ interface PopOutConfig {
     borderColor: string;
     borderWidth: number;
     glassShape: string;
+}
+
+/**
+ * Inspector info data structure for pop-out viewer
+ */
+interface PopOutInfo {
+    hoveredNode?: {
+        title: string;
+        type: string;
+        executionOrder?: number;
+        category?: string;
+    };
+    cursor?: {
+        canvas?: { x: number; y: number };
+    };
+    canvas?: {
+        scale: number;
+    };
+    magnifier?: {
+        zoomFactor: number;
+    };
+    media?: {
+        tagName: string;
+        naturalSize?: string;
+    };
 }
 
 /**
@@ -53,15 +78,39 @@ export class PopOutManager {
      * Get the URL for the pop-out viewer page.
      */
     private getViewerUrl(): string {
+        // Cache-busting version - increment to force refresh
+        const version = 'v4';
+
         // Find the extension's base URL from the loaded scripts
         const scripts = document.querySelectorAll('script[src*="magnify"]');
+        Logger.debug(`[PopOut] Found ${scripts.length} magnify scripts`);
+
         if (scripts.length > 0) {
             const src = (scripts[0] as HTMLScriptElement).src;
-            const baseUrl = src.substring(0, src.lastIndexOf('/'));
-            return `${baseUrl}/popout-viewer.html`;
+            Logger.debug(`[PopOut] First script src: ${src}`);
+
+            // src might be like: /extensions/comfyui-magnifyglass/magnify-glass/MagnifyGlass.js
+            // We need to get to the web root: /extensions/comfyui-magnifyglass/
+            const urlParts = src.split('/');
+            // Find the extension folder (contains 'magnify' in name)
+            let extensionIndex = -1;
+            for (let i = 0; i < urlParts.length; i++) {
+                if (urlParts[i].toLowerCase().includes('magnify')) {
+                    extensionIndex = i;
+                    break;
+                }
+            }
+            if (extensionIndex >= 0) {
+                const baseUrl = urlParts.slice(0, extensionIndex + 1).join('/');
+                const viewerUrl = `${baseUrl}/popout-viewer.html?${version}`;
+                Logger.debug(`[PopOut] Using viewer URL: ${viewerUrl}`);
+                return viewerUrl;
+            }
         }
         // Fallback: assume standard ComfyUI extension path
-        return '/extensions/comfyui-magnifyglass/popout-viewer.html';
+        const fallbackUrl = `/extensions/comfyui-magnifyglass/popout-viewer.html?${version}`;
+        Logger.debug(`[PopOut] Using fallback URL: ${fallbackUrl}`);
+        return fallbackUrl;
     }
 
     /**
@@ -188,6 +237,87 @@ export class PopOutManager {
             type: 'config',
             data: config
         });
+    }
+
+    /**
+     * Send inspector info to the pop-out viewer.
+     * @param info - Inspector panel information
+     */
+    sendInfo(info: PopOutInfo | null): void {
+        if (!this.isOpen || !this.channel) return;
+
+        // Sanitize the info object to remove non-serializable data
+        const sanitizedInfo = this.sanitizeInfo(info);
+
+        this.sendMessage({
+            type: 'info',
+            data: sanitizedInfo || undefined
+        });
+    }
+
+    /**
+     * Sanitize info object for BroadcastChannel transfer.
+     * Removes functions, circular references, and non-serializable data.
+     * Handles both GatheredInfo and PopOutInfo formats.
+     */
+    private sanitizeInfo(info: any): PopOutInfo | null {
+        if (!info) return null;
+
+        try {
+            // Extract only the serializable parts we need
+            const sanitized: PopOutInfo = {};
+
+            // Handle hoveredNode
+            if (info.hoveredNode) {
+                sanitized.hoveredNode = {
+                    title: String(info.hoveredNode.title || ''),
+                    type: String(info.hoveredNode.type || ''),
+                    executionOrder: info.hoveredNode.executionOrder,
+                    category: info.hoveredNode.category ? String(info.hoveredNode.category) : undefined
+                };
+            }
+
+            // Handle cursor - map from GatheredInfo format (canvasX/canvasY)
+            if (info.cursor) {
+                sanitized.cursor = {
+                    canvas: {
+                        x: Number(info.cursor.canvasX || info.cursor.canvas?.x || 0),
+                        y: Number(info.cursor.canvasY || info.cursor.canvas?.y || 0)
+                    }
+                };
+            }
+
+            // Handle canvas/zoom - map from GatheredInfo (zoom) to canvas.scale
+            if (info.zoom !== undefined || info.canvas) {
+                sanitized.canvas = {
+                    scale: Number(info.zoom || info.canvas?.scale || 1)
+                };
+            }
+
+            // Handle magnifier
+            const magnifyGlass = (window as any).comfyUIMagnifyGlass;
+            if (magnifyGlass?.config) {
+                sanitized.magnifier = {
+                    zoomFactor: Number(magnifyGlass.config.zoomFactor || 1)
+                };
+            }
+
+            // Handle media - map from GatheredInfo mediaElement
+            if (info.mediaElement || info.media) {
+                const media = info.mediaElement || info.media;
+                sanitized.media = {
+                    tagName: String(media.tagName || media.type || ''),
+                    naturalSize: media.naturalWidth && media.naturalHeight
+                        ? `${media.naturalWidth}×${media.naturalHeight}`
+                        : media.naturalSize
+                };
+            }
+
+            return sanitized;
+        } catch (e) {
+            Logger.error('[PopOut] Failed to sanitize info:', e);
+            return null;
+        }
     }
 
     /**

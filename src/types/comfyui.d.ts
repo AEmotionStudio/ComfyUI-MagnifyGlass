@@ -209,6 +209,11 @@ export interface MagnifyGlassInstance {
     config: MagnifyGlassConfig;
     ui: MagnifyGlassUI;
     renderer: MagnifyGlassRenderer | null;
+    popOutManager?: {
+        isPopOutOpen(): boolean;
+        sendInfo(info: unknown): void;
+        toggle(): void;
+    };
     lastKnownMousePosition: { x: number; y: number };
     isOverMedia: boolean;
     currentMediaElement: HTMLImageElement | HTMLVideoElement | null;

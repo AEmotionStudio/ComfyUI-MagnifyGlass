@@ -220,6 +220,7 @@ export class UIManager {
             <button class="control-btn persist-btn" title="Toggle Persist Mode (Sticky Info)" data-action="persist">${Icons.magnet}</button>
             <button class="control-btn visibility-btn" title="Toggle Panel Visibility (I)" data-action="toggle-panel">${Icons.eye}</button>
             <button class="control-btn glass-btn" title="Toggle Glass Preview (G)" data-action="toggle-glass">${Icons.magnifyGlass}</button>
+            <button class="control-btn popout-btn" title="Open in New Tab (Shift+P)" data-action="popout">${Icons.externalLink}</button>
         `;
 
         // Insert before the panel in the document body, not as a child
@@ -305,6 +306,13 @@ export class UIManager {
                     const magnifyGlass = (window as any).comfyUIMagnifyGlass;
                     if (magnifyGlass && magnifyGlass.ui?.setPreviewVisibility) {
                         magnifyGlass.ui.setPreviewVisibility(this.stateManager.state.isGlassPreviewVisible);
+                    }
+                    break;
+                case 'popout':
+                    // Toggle the pop-out tab
+                    const glass = (window as any).comfyUIMagnifyGlass;
+                    if (glass && glass.popOutManager) {
+                        glass.popOutManager.toggle();
                     }
                     break;
             }

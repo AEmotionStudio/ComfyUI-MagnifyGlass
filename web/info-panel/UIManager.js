@@ -132,6 +132,7 @@ class UIManager {
             <button class="control-btn persist-btn" title="Toggle Persist Mode (Sticky Info)" data-action="persist">${Icons.magnet}</button>
             <button class="control-btn visibility-btn" title="Toggle Panel Visibility (I)" data-action="toggle-panel">${Icons.eye}</button>
             <button class="control-btn glass-btn" title="Toggle Glass Preview (G)" data-action="toggle-glass">${Icons.magnifyGlass}</button>
+            <button class="control-btn popout-btn" title="Open in New Tab (Shift+P)" data-action="popout">${Icons.externalLink}</button>
         `;
     document.body.appendChild(this.elements.controls);
     this.elements.controls.style.display = "none";
@@ -197,6 +198,12 @@ class UIManager {
           const magnifyGlass = window.comfyUIMagnifyGlass;
           if (magnifyGlass && ((_a = magnifyGlass.ui) == null ? void 0 : _a.setPreviewVisibility)) {
             magnifyGlass.ui.setPreviewVisibility(this.stateManager.state.isGlassPreviewVisible);
+          }
+          break;
+        case "popout":
+          const glass = window.comfyUIMagnifyGlass;
+          if (glass && glass.popOutManager) {
+            glass.popOutManager.toggle();
           }
           break;
       }

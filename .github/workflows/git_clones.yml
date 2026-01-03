@@ -34,6 +34,33 @@ jobs:
                 owner,
                 repo,
               });
+
+              // 3. Fetch Releases for Smart Download Count
+              // We need to iterate through all releases to get the total count
+              let smartDownloadCount = 0;
+              let page = 1;
+              let releases = [];
+              
+              do {
+                const response = await github.rest.repos.listReleases({
+                  owner,
+                  repo,
+                  per_page: 100,
+                  page: page
+                });
+                releases = response.data;
+                
+                for (const release of releases) {
+                  let maxDownloads = 0;
+                  for (const asset of release.assets) {
+                    if (asset.download_count > maxDownloads) {
+                      maxDownloads = asset.download_count;
+                    }
+                  }
+                  smartDownloadCount += maxDownloads;
+                }
+                page++;
+              } while (releases.length === 100);
               
               const fs = require('fs');
               const data = {
@@ -44,6 +71,9 @@ jobs:
                 views: {
                   count: views.data.count,
                   uniques: views.data.uniques,
+                },
+                downloads: {
+                  smart_count: smartDownloadCount
                 },
                 timestamp: new Date().toISOString()
               };

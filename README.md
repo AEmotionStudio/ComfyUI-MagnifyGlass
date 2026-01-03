@@ -132,7 +132,7 @@ Contributions are welcome! Please submit a Pull Request or open an Issue on GitH
 
 <div align="center">
 
-**Developed by [AEmotionStudio](https://aemotionstudio.org/)**
+**Developed by [Æmotion Studio](https://aemotionstudio.org/)**
 
 [![YouTube](https://img.shields.io/badge/YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/@aemotionstudio/videos)
 [![Discord](https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/UzC9353mfp)

@@ -228,9 +228,15 @@ class UIManager {
       pinBtn.title = this.stateManager.state.isPanelPinned ? "Lock Panel" : "Unlock Panel";
       pinBtn.innerHTML = this.stateManager.state.isPanelPinned ? Icons.lock : Icons.unlock;
       pinBtn.style.display = isPanelVisible ? "flex" : "none";
-      pinBtn.disabled = false;
-      pinBtn.style.opacity = "";
-      if (!isGlassVisible && !this.stateManager.state.isPanelPinned) ;
+      if (!isGlassVisible) {
+        pinBtn.disabled = true;
+        pinBtn.style.opacity = "0.5";
+        pinBtn.title = "Cannot toggle pin when glass preview is hidden";
+      } else {
+        pinBtn.disabled = false;
+        pinBtn.style.opacity = "";
+        pinBtn.title = this.stateManager.state.isPanelPinned ? "Unpin from Glass (Follow)" : "Pin to Glass (Fixed)";
+      }
     }
     if (lockBtn) {
       const showLockBtn = isPanelVisible && this.stateManager.state.isPanelPinned;

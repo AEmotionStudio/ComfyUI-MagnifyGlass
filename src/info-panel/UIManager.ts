@@ -346,15 +346,15 @@ export class UIManager {
             // Hide unlock button when panel is hidden
             pinBtn.style.display = isPanelVisible ? 'flex' : 'none';
 
-            // Do not disable the pin button even if glass is hidden.
-            // If the user unpins while glass is hidden, the panel will just attach to the hidden glass (and disappear).
-            pinBtn.disabled = false;
-            pinBtn.style.opacity = '';
-
-            // Only update title if glass is hidden to warn user
-            if (!isGlassVisible && !this.stateManager.state.isPanelPinned) {
-                // Optional: You could add a tooltip warning here if really needed, 
-                // but keeping it simple is better.
+            // Disable pin button when glass is hidden (no point unpinning to follow invisible glass)
+            if (!isGlassVisible) {
+                pinBtn.disabled = true;
+                pinBtn.style.opacity = '0.5';
+                pinBtn.title = "Cannot toggle pin when glass preview is hidden";
+            } else {
+                pinBtn.disabled = false;
+                pinBtn.style.opacity = '';
+                pinBtn.title = this.stateManager.state.isPanelPinned ? "Unpin from Glass (Follow)" : "Pin to Glass (Fixed)";
             }
         }
 

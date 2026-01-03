@@ -5,16 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.7.0] - 2026-01-02
+## [1.7.0] - 2026-01-03
 
 ### Added
-- **Multi-Monitor Pop-Out Tab**: Open the magnified view in a separate browser tab for dual-monitor workflows.
+- **Multi-Monitor Pop-Out Viewer**: Open the magnified view in a separate browser tab for dual-monitor workflows.
   - Professional dark-themed viewer with two-column layout
   - Real-time inspector sidebar showing node details, cursor position, and canvas scale
   - Pop-out button in hover controls + `Shift+P` keyboard shortcut
+  - **Resizable canvas** with drag handle (size persists to localStorage)
   - FPS counter and resolution display in footer
   - Frame sync at 30fps using BroadcastChannel API
   - Connection status indicator with auto-reconnect
+  - Keyboard hint (`Esc` to close) in header
+
+### Improved
+- **Data Serialization**: Fixed DataCloneError by sanitizing inspector info before BroadcastChannel transfer
+- **Field Mapping**: Properly maps GatheredInfo format to PopOutInfo for the viewer
+
+### Fixed
+- Fixed pop-out button placement (moved to hover controls from glass UI)
+- Fixed type definitions for PopOutManager in MagnifyGlassInstance interface
 
 ---
 

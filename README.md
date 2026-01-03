@@ -3,7 +3,7 @@
 # ComfyUI-MagnifyGlass
 
 [![ComfyUI](https://img.shields.io/badge/ComfyUI-Extension-green?style=for-the-badge)](https://github.com/comfyanonymous/ComfyUI)
-[![Version](https://img.shields.io/badge/Version-1.6.0-orange?style=for-the-badge)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases)
+[![Version](https://img.shields.io/badge/Version-1.7.0-orange?style=for-the-badge)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases)
 [![License](https://img.shields.io/badge/License-GPLv3-red?style=for-the-badge)](LICENSE)
 [![Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen?style=for-the-badge&color=blue)](package.json)
 
@@ -23,14 +23,15 @@
 
 ---
 
-## 🚀 What's New in v1.6.0 (January 2, 2025)
+## 🚀 What's New in v1.7.0 (January 3, 2026)
 
-This release focuses on accessibility and polish:
+This release adds **Multi-Monitor Pop-Out Viewer** for dual-monitor workflows:
 
-*   **Dedicated Sidebar Panel**: All settings are now integrated into a new sidebar tab, making configuration easier than ever.
-*   **Live Setting Previews**: See changes instantly as you adjust settings.
-*   **Themed Floating Controls**: Hover controls now match your active ComfyUI theme.
-*   **Hover Expand**: Info panel smoothly expands on hover to reveal full content.
+*   **Pop-Out Tab**: Open the magnified view in a separate browser tab (`Shift+P`).
+*   **Professional Dark Theme**: Sleek two-column layout with inspector sidebar.
+*   **Real-Time Sync**: Frame sync at 30fps with live inspector updates.
+*   **Resizable Canvas**: Drag to resize the preview, size is remembered.
+*   **FPS & Resolution Display**: Performance metrics in the viewer footer.
 
 > 📄 **See [CHANGELOG.md](CHANGELOG.md) for the complete version history.**
 
@@ -57,6 +58,11 @@ This release focuses on accessibility and polish:
 *   **Live Previews**: Changes apply instantly without needing to refresh.
 *   **Reset Options**: Quickly restore defaults with individual or global reset buttons.
 
+### 🖥️ Multi-Monitor Pop-Out
+*   **Detachable Viewer**: Open the magnified view in a separate browser tab.
+*   **Inspector Sidebar**: Real-time node details, cursor position, and canvas scale.
+*   **Resizable Canvas**: Drag to resize, size persists across sessions.
+
 ---
 
 ## 📦 Installation
@@ -82,6 +88,7 @@ git clone https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass.git
 | **`H`** | Toggle Follow Cursor Mode |
 | **`I`** | Toggle Inspector Panel Visibility |
 | **`G`** | Toggle Glass Preview (Enters "Inspector Only" Mode) |
+| **`Shift+P`** | Open Pop-Out Viewer in New Tab |
 | **`U`** | Pin/Unpin Inspector Panel |
 | **`O`** | Reset Offsets |
 | **Arrows** | Nudge Glass Position |

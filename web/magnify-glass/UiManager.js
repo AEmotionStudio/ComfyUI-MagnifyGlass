@@ -117,7 +117,7 @@ class UiManager {
   setDragMode(enabled) {
     if (!this.glassDiv) return;
     if (enabled) {
-      this.glassDiv.style.cursor = "move";
+      this.glassDiv.style.cursor = "all-scroll";
       this.glassDiv.style.pointerEvents = "auto";
       this.glassDiv.classList.add("drag-mode");
       const onMouseDown = (e) => {
@@ -126,6 +126,8 @@ class UiManager {
         const rect = this.glassDiv.getBoundingClientRect();
         const grabOffsetX = rect.left - e.clientX;
         const grabOffsetY = rect.top - e.clientY;
+        this.glassDiv.style.left = `${rect.left}px`;
+        this.glassDiv.style.top = `${rect.top}px`;
         this.glassDiv.style.right = "auto";
         this.glassDiv.style.bottom = "auto";
         this.glassDiv.style.transform = "none";

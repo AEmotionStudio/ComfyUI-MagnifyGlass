@@ -147,7 +147,9 @@ export class UiManager {
         if (!this.glassDiv) return;
 
         if (enabled) {
-            this.glassDiv.style.cursor = 'move';
+            // Use 'all-scroll' which shows a 4-way arrow consistently across browsers
+            // Firefox shows 'move' as a grab/fist cursor which is confusing
+            this.glassDiv.style.cursor = 'all-scroll';
             this.glassDiv.style.pointerEvents = 'auto';
             this.glassDiv.classList.add('drag-mode');
 
@@ -162,7 +164,11 @@ export class UiManager {
                 const grabOffsetX = rect.left - e.clientX;
                 const grabOffsetY = rect.top - e.clientY;
 
-                // Clear opposite positioning props to ensure left/top works
+                // First, set left/top to current position to prevent jump
+                this.glassDiv!.style.left = `${rect.left}px`;
+                this.glassDiv!.style.top = `${rect.top}px`;
+
+                // Then clear opposite positioning props (now safe since left/top are set)
                 this.glassDiv!.style.right = 'auto';
                 this.glassDiv!.style.bottom = 'auto';
                 this.glassDiv!.style.transform = 'none'; // Clear any centering transforms if they exist

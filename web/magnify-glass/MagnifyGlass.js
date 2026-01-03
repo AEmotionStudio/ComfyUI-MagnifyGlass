@@ -235,7 +235,21 @@ class MagnifyGlass {
               clonedElement.style.backgroundColor = elementToProcess.style.backgroundColor || "#222";
               clonedElement.style.color = elementToProcess.style.color || "#DDD";
               clonedElement.style.border = elementToProcess.style.border || "1px solid #555";
+              clonedElement.style.overflow = "hidden";
               clonedElement.disabled = true;
+              const canvasScale = this.state.canvasScale;
+              const originalFontSize = parseFloat(window.getComputedStyle(elementToProcess).fontSize);
+              const threshold = 0.5;
+              let adaptedFontSize;
+              if (canvasScale < threshold) {
+                const shrinkFactor = canvasScale / threshold;
+                adaptedFontSize = Math.max(6, originalFontSize * shrinkFactor * 0.8);
+              } else {
+                const growFactor = 1 + (canvasScale - threshold) / (1 - threshold) * 0.5;
+                adaptedFontSize = originalFontSize * Math.min(1.5, growFactor);
+              }
+              clonedElement.style.fontSize = `${adaptedFontSize}px`;
+              clonedElement.style.lineHeight = canvasScale < threshold ? "1.2" : "1.4";
             } else if (isVideoElement) {
               const video = clonedElement;
               const originalVideo = elementToProcess;
@@ -265,10 +279,6 @@ class MagnifyGlass {
             clonedElement.style.height = `${widgetSourceRect.height}px`;
             clonedElement.style.transformOrigin = "top left";
             clonedElement.style.transform = `scale(${this.config.zoomFactor})`;
-            if (isTextElement && clonedElement.style.fontSize) {
-              const originalFontSize = parseFloat(window.getComputedStyle(elementToProcess).fontSize);
-              clonedElement.style.fontSize = `${originalFontSize}px`;
-            }
             this.ui.htmlOverlayContainer.appendChild(clonedElement);
           }
         }

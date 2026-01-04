@@ -119,6 +119,7 @@ class MagnifyGlass {
           }
         }
         this.renderer.render(sourceCanvas);
+        this.renderHtmlOverlays();
         if (this.popOutManager.isPopOutOpen() && this.ui.glassCanvas) {
           this.popOutManager.sendFrame(this.ui.glassCanvas);
         }
@@ -200,16 +201,13 @@ class MagnifyGlass {
       const widgets = node.widgets;
       if (!widgets) continue;
       for (const widget of widgets) {
-        let isTextElement = false;
         let isVideoElement = false;
         let isImageElement = false;
         let elementToProcess = null;
         if (widget.element) {
           const element = widget.element;
-          if (widget.type === "text" || widget.type === "string" || element.tagName === "TEXTAREA") {
-            isTextElement = true;
-            elementToProcess = element;
-          } else if (element.tagName === "VIDEO") {
+          if (widget.type === "text" || widget.type === "string" || element.tagName === "TEXTAREA") ;
+          else if (element.tagName === "VIDEO") {
             isVideoElement = true;
             elementToProcess = element;
           } else if (element.tagName === "IMG") {
@@ -229,15 +227,37 @@ class MagnifyGlass {
             }
           }
         }
-        if (elementToProcess && (isTextElement || isVideoElement || isImageElement)) {
+        if (elementToProcess && (isVideoElement || isImageElement)) {
           const widgetRect = elementToProcess.getBoundingClientRect();
           const canvasRect = this.litegraphCanvas.getBoundingClientRect();
-          const canvasToViewportScaleX = canvasRect.width > 0 ? this.litegraphCanvas.width / canvasRect.width : 1;
-          const canvasToViewportScaleY = canvasRect.height > 0 ? this.litegraphCanvas.height / canvasRect.height : 1;
-          const widgetCanvasX = (widgetRect.left - canvasRect.left) * canvasToViewportScaleX;
-          const widgetCanvasY = (widgetRect.top - canvasRect.top) * canvasToViewportScaleY;
-          const widgetCanvasWidth = widgetRect.width * canvasToViewportScaleX;
-          const widgetCanvasHeight = widgetRect.height * canvasToViewportScaleY;
+          const dpr = canvasRect.width > 0 ? this.litegraphCanvas.width / canvasRect.width : 1;
+          const currentScale = this.state.canvasScale;
+          const isVirtualZoomMode = currentScale < 0.7;
+          const widgetCssX = widgetRect.left - canvasRect.left;
+          const widgetCssY = widgetRect.top - canvasRect.top;
+          const widgetCssWidth = widgetRect.width;
+          const widgetCssHeight = widgetRect.height;
+          const pivotCssX = this.state.x / dpr;
+          const pivotCssY = this.state.y / dpr;
+          let finalWidgetCssX;
+          let finalWidgetCssY;
+          let finalWidgetCssWidth;
+          let finalWidgetCssHeight;
+          if (isVirtualZoomMode) {
+            finalWidgetCssX = (widgetCssX - pivotCssX) / currentScale + pivotCssX;
+            finalWidgetCssY = (widgetCssY - pivotCssY) / currentScale + pivotCssY;
+            finalWidgetCssWidth = widgetCssWidth / currentScale;
+            finalWidgetCssHeight = widgetCssHeight / currentScale;
+          } else {
+            finalWidgetCssX = widgetCssX;
+            finalWidgetCssY = widgetCssY;
+            finalWidgetCssWidth = widgetCssWidth;
+            finalWidgetCssHeight = widgetCssHeight;
+          }
+          const widgetCanvasX = finalWidgetCssX * dpr;
+          const widgetCanvasY = finalWidgetCssY * dpr;
+          const widgetCanvasWidth = finalWidgetCssWidth * dpr;
+          const widgetCanvasHeight = finalWidgetCssHeight * dpr;
           const widgetSourceRect = {
             x: widgetCanvasX,
             y: widgetCanvasY,
@@ -248,26 +268,7 @@ class MagnifyGlass {
             const clonedElement = elementToProcess.cloneNode(true);
             clonedElement.style.position = "absolute";
             clonedElement.style.pointerEvents = "none";
-            if (isTextElement) {
-              clonedElement.style.backgroundColor = elementToProcess.style.backgroundColor || "#222";
-              clonedElement.style.color = elementToProcess.style.color || "#DDD";
-              clonedElement.style.border = elementToProcess.style.border || "1px solid #555";
-              clonedElement.style.overflow = "hidden";
-              clonedElement.disabled = true;
-              const canvasScale = this.state.canvasScale;
-              const originalFontSize = parseFloat(window.getComputedStyle(elementToProcess).fontSize);
-              const threshold = 0.5;
-              let adaptedFontSize;
-              if (canvasScale < threshold) {
-                const shrinkFactor = canvasScale / threshold;
-                adaptedFontSize = Math.max(6, originalFontSize * shrinkFactor * 0.8);
-              } else {
-                const growFactor = 1 + (canvasScale - threshold) / (1 - threshold) * 0.5;
-                adaptedFontSize = originalFontSize * Math.min(1.5, growFactor);
-              }
-              clonedElement.style.fontSize = `${adaptedFontSize}px`;
-              clonedElement.style.lineHeight = canvasScale < threshold ? "1.2" : "1.4";
-            } else if (isVideoElement) {
+            if (isVideoElement) {
               const video = clonedElement;
               const originalVideo = elementToProcess;
               video.src = originalVideo.src;

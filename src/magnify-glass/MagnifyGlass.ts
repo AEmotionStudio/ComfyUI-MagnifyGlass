@@ -186,8 +186,8 @@ export class MagnifyGlass {
                 // Update debug visualization
 
 
-                // Note: HTML overlays disabled - virtual zoom capture provides clean text rendering
-                // this.renderHtmlOverlays();
+                // Render HTML overlays for text, video, and image widgets
+                this.renderHtmlOverlays();
 
                 // Send frame to pop-out tab if open
                 if (this.popOutManager.isPopOutOpen() && this.ui.glassCanvas) {
@@ -309,9 +309,10 @@ export class MagnifyGlass {
 
                 if (widget.element) {
                     const element = widget.element as HTMLElement;
+                    // Skip text elements - now rendered natively on canvas via OffscreenRenderer
                     if (widget.type === "text" || widget.type === "string" || element.tagName === 'TEXTAREA') {
-                        isTextElement = true;
-                        elementToProcess = element;
+                        // isTextElement = true; // DISABLED - using native canvas rendering
+                        // elementToProcess = element;
                     } else if (element.tagName === 'VIDEO') {
                         isVideoElement = true;
                         elementToProcess = element;
@@ -337,13 +338,47 @@ export class MagnifyGlass {
                     const widgetRect = elementToProcess.getBoundingClientRect();
                     const canvasRect = this.litegraphCanvas!.getBoundingClientRect();
 
-                    const canvasToViewportScaleX = canvasRect.width > 0 ? (this.litegraphCanvas!.width / canvasRect.width) : 1;
-                    const canvasToViewportScaleY = canvasRect.height > 0 ? (this.litegraphCanvas!.height / canvasRect.height) : 1;
+                    // DPR = backing pixels / CSS pixels
+                    const dpr = canvasRect.width > 0 ? (this.litegraphCanvas!.width / canvasRect.width) : 1;
+                    const currentScale = this.state.canvasScale;
+                    const isVirtualZoomMode = currentScale < 0.7;
 
-                    const widgetCanvasX = (widgetRect.left - canvasRect.left) * canvasToViewportScaleX;
-                    const widgetCanvasY = (widgetRect.top - canvasRect.top) * canvasToViewportScaleY;
-                    const widgetCanvasWidth = widgetRect.width * canvasToViewportScaleX;
-                    const widgetCanvasHeight = widgetRect.height * canvasToViewportScaleY;
+                    // Widget position in CSS coordinates relative to canvas
+                    const widgetCssX = widgetRect.left - canvasRect.left;
+                    const widgetCssY = widgetRect.top - canvasRect.top;
+                    const widgetCssWidth = widgetRect.width;
+                    const widgetCssHeight = widgetRect.height;
+
+                    // Pivot point (mouse position) in CSS coordinates
+                    const pivotCssX = this.state.x / dpr;
+                    const pivotCssY = this.state.y / dpr;
+
+                    let finalWidgetCssX: number;
+                    let finalWidgetCssY: number;
+                    let finalWidgetCssWidth: number;
+                    let finalWidgetCssHeight: number;
+
+                    if (isVirtualZoomMode) {
+                        // Virtual Zoom: Transform widget position to match virtual 1.0 scale capture
+                        // Formula: virtualCss = (widgetCss - pivotCss) / currentScale + pivotCss
+                        finalWidgetCssX = (widgetCssX - pivotCssX) / currentScale + pivotCssX;
+                        finalWidgetCssY = (widgetCssY - pivotCssY) / currentScale + pivotCssY;
+                        // Size also scales inversely
+                        finalWidgetCssWidth = widgetCssWidth / currentScale;
+                        finalWidgetCssHeight = widgetCssHeight / currentScale;
+                    } else {
+                        // Direct Capture: Use actual positions
+                        finalWidgetCssX = widgetCssX;
+                        finalWidgetCssY = widgetCssY;
+                        finalWidgetCssWidth = widgetCssWidth;
+                        finalWidgetCssHeight = widgetCssHeight;
+                    }
+
+                    // Convert to backing pixels for comparison with magnifyRect
+                    const widgetCanvasX = finalWidgetCssX * dpr;
+                    const widgetCanvasY = finalWidgetCssY * dpr;
+                    const widgetCanvasWidth = finalWidgetCssWidth * dpr;
+                    const widgetCanvasHeight = finalWidgetCssHeight * dpr;
 
                     const widgetSourceRect: Rectangle = {
                         x: widgetCanvasX,

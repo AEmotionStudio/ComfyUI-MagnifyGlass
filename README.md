@@ -3,7 +3,7 @@
 # ComfyUI-MagnifyGlass
 
 [![ComfyUI](https://img.shields.io/badge/ComfyUI-Extension-green?style=for-the-badge)](https://github.com/comfyanonymous/ComfyUI)
-[![Version](https://img.shields.io/badge/Version-1.7.0-orange?style=for-the-badge)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases)
+[![Version](https://img.shields.io/badge/Version-1.8.0-orange?style=for-the-badge)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases)
 [![License](https://img.shields.io/badge/License-GPLv3-red?style=for-the-badge)](LICENSE)
 [![Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen?style=for-the-badge&color=blue)](package.json)
 
@@ -23,15 +23,14 @@
 
 ---
 
-## 🚀 What's New in v1.7.0 (January 3, 2026)
+## 🚀 What's New in v1.8.0 (January 4, 2026)
 
-This release adds **Multi-Monitor Pop-Out Viewer** for dual-monitor workflows:
+This release brings a complete overhaul to the rendering engine for **native fidelity**:
 
-*   **Pop-Out Tab**: Open the magnified view in a separate browser tab (`Shift+P`).
-*   **Professional Dark Theme**: Sleek two-column layout with inspector sidebar.
-*   **Real-Time Sync**: Frame sync at 30fps with live inspector updates.
-*   **Resizable Canvas**: Drag to resize the preview, size is remembered.
-*   **FPS & Resolution Display**: Performance metrics in the viewer footer.
+*   **Native Text Rendering**: Widget text (prompts, values) now renders natively on the magnified canvas with sharper alignment.
+*   **Video & Image Support**: Fixed artifacts for video nodes and image previews in "Virtual Zoom" mode.
+*   **"Ghosting" Fix**: Eliminated visual glitches where original nodes would bleed through the magnified view.
+*   **Performance Boost**: Smarter render pipeline reduces overhead and DOM usage.
 
 > 📄 **See [CHANGELOG.md](CHANGELOG.md) for the complete version history.**
 

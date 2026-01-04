@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-01-04
+
+### Added
+- **Native Canvas Text Rendering**: Replaced HTML overlay text with high-fidelity native canvas rendering.
+  - Text now renders directly inside the magnified view with better alignment.
+  - Added support for **word wrapping**, dark background containers, and system font styling.
+  - Handles multi-line text and textareas correctly without floating or jitter using capture-time offsets.
+- **Native Image & Video Previews**: Implemented custom rendering for node images and video widgets.
+  - Fixes artifacts and missing content for standard ComfyUI `LoadImage`, `SaveImage`, and VHS video nodes during Virtual Zoom.
+  - Ensures previews are visible and crisp even at low zoom levels.
+
+### Improved
+- **Rendering Performance**: Optimized the `OffscreenRenderer` pipeline.
+  - "Direct Capture" mode is now used more intelligently to avoid expensive redraws when possible.
+  - Removed duplicate HTML overlays for text and media, reducing DOM overhead and double-rendering.
+- **Visual Stability**: Fixed "floating" text issues by correcting coordinate transforms between graph, screen, and canvas spaces.
+- **Ghosting Fix**: Added logic to temporarily hide original node widgets during capture to prevent visual artifacts ("ghosting") in the glass preview.
+
+### Fixed
+- Fixed bounds checking to correctly render widgets that are partially visible at the edge of the glass.
+- Fixed text positioning relative to nodes when panning or zooming the main canvas.
+
+---
+
 ## [1.7.0] - 2026-01-03
 
 ### Added

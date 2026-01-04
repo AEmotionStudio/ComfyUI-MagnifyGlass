@@ -35,7 +35,8 @@ const _OffscreenRenderer = class _OffscreenRenderer {
     const currentScale = lgCanvas.ds.scale;
     const rect = targetCanvas.getBoundingClientRect();
     const dpr = rect.width > 0 ? targetCanvas.width / rect.width : 1;
-    const useDirectCapture = currentScale >= 0.7;
+    const hasImagePreviewNodes = this.detectImagePreviewNodes(dpr, currentScale, lgCanvas.ds.offset);
+    const useDirectCapture = currentScale >= 0.7 || hasImagePreviewNodes;
     if (useDirectCapture) {
       this.cachedVirtualZoomResult = null;
       return this.renderDirectCapture(targetCanvas, renderSize, dpr);
@@ -50,6 +51,56 @@ const _OffscreenRenderer = class _OffscreenRenderer {
       this.cachedVirtualZoomResult = result;
       return result;
     }
+  }
+  /**
+   * Detect if there are nodes with image previews in the capture region.
+   * These nodes (Save Image, Preview Image, etc.) have images that are drawn
+   * via onDrawBackground/onDrawForeground and cause artifacts during Virtual Zoom.
+   */
+  detectImagePreviewNodes(dpr, scale, offset) {
+    var _a, _b;
+    const graph = app == null ? void 0 : app.graph;
+    if (!graph || !graph._nodes) return false;
+    const renderSize = this.config.glassSize;
+    const sourceSizeCss = renderSize / this.config.zoomFactor;
+    const pivotCssX = this.state.x / dpr;
+    const pivotCssY = this.state.y / dpr;
+    const captureLeft = pivotCssX - sourceSizeCss / 2;
+    const captureTop = pivotCssY - sourceSizeCss / 2;
+    const captureRight = captureLeft + sourceSizeCss;
+    const captureBottom = captureTop + sourceSizeCss;
+    const imagePreviewTypes = [
+      "SaveImage",
+      "PreviewImage",
+      "LoadImage",
+      "LoadImageMask",
+      "VHS_LoadVideo",
+      "VHS_VideoCombine",
+      // Video nodes
+      "ImagePreview",
+      "ShowImage"
+      // Common variants
+    ];
+    for (const node of graph._nodes) {
+      if (!node.pos || !node.size) continue;
+      if ((_a = node.flags) == null ? void 0 : _a.collapsed) continue;
+      const nodeType = node.type || node.comfyClass || "";
+      const hasImagePreview = imagePreviewTypes.some(
+        (t) => nodeType.toLowerCase().includes(t.toLowerCase())
+      ) || ((_b = node.imgs) == null ? void 0 : _b.length) > 0;
+      if (!hasImagePreview) continue;
+      const nodeCssX = node.pos[0] * scale + offset[0];
+      const nodeCssY = node.pos[1] * scale + offset[1];
+      const nodeCssWidth = node.size[0] * scale;
+      const nodeCssHeight = node.size[1] * scale;
+      const nodeRight = nodeCssX + nodeCssWidth;
+      const nodeBottom = nodeCssY + nodeCssHeight;
+      const overlaps = !(nodeRight < captureLeft || nodeCssX > captureRight || nodeBottom < captureTop || nodeCssY > captureBottom);
+      if (overlaps) {
+        return true;
+      }
+    }
+    return false;
   }
   /**
    * Mode 1: Direct Capture (Nuclear Fix)
@@ -96,8 +147,10 @@ const _OffscreenRenderer = class _OffscreenRenderer {
    * Uses LiteGraph's setZoom() API for correct pivot handling.
    */
   renderVirtualZoom(lgCanvas, targetCanvas, renderSize, currentScale, dpr) {
+    var _a;
     try {
       this.isCapturing = true;
+      window.__magnifyGlassCapturing = true;
       const pivotCssX = this.state.x / dpr;
       const pivotCssY = this.state.y / dpr;
       const targetScale = Math.max(1, currentScale);
@@ -115,7 +168,42 @@ const _OffscreenRenderer = class _OffscreenRenderer {
         lgCanvas.ds.offset[0] = newOffsetX;
         lgCanvas.ds.offset[1] = newOffsetY;
       }
-      lgCanvas.draw(true, true);
+      const hiddenNodeImages = /* @__PURE__ */ new Map();
+      const hiddenNodeWidgets = /* @__PURE__ */ new Map();
+      if ((_a = app == null ? void 0 : app.graph) == null ? void 0 : _a._nodes) {
+        for (const node of app.graph._nodes) {
+          if (node.imgs) {
+            hiddenNodeImages.set(node, node.imgs);
+            node.imgs = null;
+          }
+          if (node.widgets && Array.isArray(node.widgets)) {
+            const hasPreviewWidget = node.widgets.some((w) => {
+              const wName = String(w.name || "").toLowerCase();
+              const wType = String(w.type || "").toLowerCase();
+              return wName.includes("preview") || wName.includes("image") || wName.includes("gallery") || wName.includes("upload") || wType.includes("preview") || wType.includes("image");
+            });
+            if (hasPreviewWidget) {
+              hiddenNodeWidgets.set(node, node.widgets);
+              node.widgets = node.widgets.filter((w) => {
+                const wName = String(w.name || "").toLowerCase();
+                const wType = String(w.type || "").toLowerCase();
+                const isPreview = wName.includes("preview") || wName.includes("image") || wName.includes("gallery") || wName.includes("upload") || wType.includes("preview") || wType.includes("image");
+                return !isPreview;
+              });
+            }
+          }
+        }
+      }
+      try {
+        lgCanvas.draw(true, true);
+      } finally {
+        for (const [node, imgs] of hiddenNodeImages.entries()) {
+          node.imgs = imgs;
+        }
+        for (const [node, widgets] of hiddenNodeWidgets.entries()) {
+          node.widgets = widgets;
+        }
+      }
       const sourceSizeCss = renderSize / this.config.zoomFactor;
       const sourceWidth = sourceSizeCss * dpr;
       const sourceHeight = sourceSizeCss * dpr;
@@ -135,6 +223,7 @@ const _OffscreenRenderer = class _OffscreenRenderer {
       );
       const captureOffset = [lgCanvas.ds.offset[0], lgCanvas.ds.offset[1]];
       this.drawWidgetTextNatively(sourceX, sourceY, sourceWidth, sourceHeight, renderSize, targetScale, captureOffset);
+      this.drawImagePreviewsNatively(sourceX, sourceY, sourceWidth, sourceHeight, renderSize, targetScale, captureOffset);
       if (typeof lgCanvas.setZoom === "function") {
         lgCanvas.setZoom(origScale, [pivotCssX, pivotCssY]);
       } else {
@@ -144,12 +233,14 @@ const _OffscreenRenderer = class _OffscreenRenderer {
       }
       lgCanvas.draw(true, true);
       this.isCapturing = false;
+      window.__magnifyGlassCapturing = false;
       return this.offscreenCanvas;
     } catch (e) {
       console.warn("VirtualZoom failed", e);
       lgCanvas.ds.scale = currentScale;
       lgCanvas.draw(true, true);
       this.isCapturing = false;
+      window.__magnifyGlassCapturing = false;
       return null;
     }
   }
@@ -276,6 +367,176 @@ const _OffscreenRenderer = class _OffscreenRenderer {
         }
         widgetY += WIDGET_HEIGHT + WIDGET_MARGIN;
       }
+    }
+  }
+  /**
+   * Draw image and video previews natively on the offscreen canvas.
+   * This renders preview content that would otherwise cause errors during Virtual Zoom,
+   * because ComfyUI's ImagePreviewWidget fails when the canvas scale is manipulated.
+   * 
+   * Handles:
+   * - node.imgs[] array (standard ComfyUI SaveImage/PreviewImage nodes)
+   * - VHS-style DOM widget previews (video/image elements)
+   * 
+   * @param sourceX - Source X position in backing pixels
+   * @param sourceY - Source Y position in backing pixels
+   * @param sourceWidth - Source width in backing pixels
+   * @param sourceHeight - Source height in backing pixels
+   * @param renderSize - Output render size in pixels
+   * @param scale - Canvas scale used during capture
+   * @param offset - Canvas offset [x, y] used during capture
+   */
+  drawImagePreviewsNatively(sourceX, sourceY, sourceWidth, sourceHeight, renderSize, scale, offset) {
+    var _a;
+    const graph = app == null ? void 0 : app.graph;
+    if (!graph || !graph._nodes || !this.offscreenCtx) return;
+    const ctx = this.offscreenCtx;
+    const sourceSizeCss = renderSize / this.config.zoomFactor;
+    const actualDpr = sourceWidth / sourceSizeCss;
+    const captureScale = renderSize / sourceWidth;
+    const sourceCssX = sourceX / actualDpr;
+    const sourceCssY = sourceY / actualDpr;
+    const sourceCssWidth = sourceWidth / actualDpr;
+    const sourceCssHeight = sourceHeight / actualDpr;
+    for (const node of graph._nodes) {
+      if (!node.pos || !node.size) continue;
+      if ((_a = node.flags) == null ? void 0 : _a.collapsed) continue;
+      const nodeCssX = node.pos[0] * scale + offset[0];
+      const nodeCssY = node.pos[1] * scale + offset[1];
+      const nodeCssWidth = node.size[0] * scale;
+      const nodeCssHeight = node.size[1] * scale;
+      if (nodeCssX + nodeCssWidth < sourceCssX || nodeCssX > sourceCssX + sourceCssWidth) continue;
+      if (nodeCssY + nodeCssHeight < sourceCssY || nodeCssY > sourceCssY + sourceCssHeight) continue;
+      if (node.imgs && Array.isArray(node.imgs) && node.imgs.length > 0) {
+        this.drawNodeImages(
+          ctx,
+          node,
+          nodeCssX,
+          nodeCssY,
+          nodeCssWidth,
+          nodeCssHeight,
+          sourceCssX,
+          sourceCssY,
+          actualDpr,
+          captureScale,
+          renderSize,
+          scale
+        );
+      }
+      if (node.widgets) {
+        for (const widget of node.widgets) {
+          const widgetName = String(widget.name || "").toLowerCase();
+          if (widgetName === "videopreview" || widgetName === "audiopreview") {
+            this.drawDomWidgetPreview(
+              ctx,
+              widget,
+              node,
+              nodeCssX,
+              nodeCssY,
+              nodeCssWidth,
+              sourceCssX,
+              sourceCssY,
+              actualDpr,
+              captureScale,
+              renderSize,
+              scale
+            );
+          }
+        }
+      }
+    }
+  }
+  /**
+   * Draw images from node.imgs[] array onto the offscreen canvas.
+   */
+  drawNodeImages(ctx, node, nodeCssX, nodeCssY, nodeCssWidth, nodeCssHeight, sourceCssX, sourceCssY, actualDpr, captureScale, renderSize, scale) {
+    const TITLE_HEIGHT = 30;
+    const PADDING = 10;
+    const imageAreaY = nodeCssY + TITLE_HEIGHT * scale;
+    const imageAreaWidth = nodeCssWidth - PADDING * 2 * scale;
+    const imageAreaHeight = nodeCssHeight - TITLE_HEIGHT * scale - PADDING * scale;
+    if (imageAreaWidth <= 0 || imageAreaHeight <= 0) return;
+    const imgs = node.imgs;
+    const imageIndex = node.imageIndex ?? 0;
+    const img = imgs[Math.min(imageIndex, imgs.length - 1)];
+    if (!img || !(img instanceof HTMLImageElement) || !img.complete || img.naturalWidth === 0) {
+      return;
+    }
+    try {
+      const imgAspect = img.naturalWidth / img.naturalHeight;
+      const areaAspect = imageAreaWidth / imageAreaHeight;
+      let drawWidth = imageAreaWidth;
+      let drawHeight = imageAreaHeight;
+      if (imgAspect > areaAspect) {
+        drawHeight = drawWidth / imgAspect;
+      } else {
+        drawWidth = drawHeight * imgAspect;
+      }
+      const drawX = nodeCssX + PADDING * scale + (imageAreaWidth - drawWidth) / 2;
+      const drawY = imageAreaY + (imageAreaHeight - drawHeight) / 2;
+      const canvasX = (drawX - sourceCssX) * actualDpr * captureScale;
+      const canvasY = (drawY - sourceCssY) * actualDpr * captureScale;
+      const canvasWidth = drawWidth * actualDpr * captureScale;
+      const canvasHeight = drawHeight * actualDpr * captureScale;
+      if (canvasX + canvasWidth > 0 && canvasX < renderSize && canvasY + canvasHeight > 0 && canvasY < renderSize) {
+        ctx.save();
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(img, canvasX, canvasY, canvasWidth, canvasHeight);
+        ctx.restore();
+      }
+    } catch (e) {
+    }
+  }
+  /**
+   * Draw VHS-style DOM widget video/image preview onto the offscreen canvas.
+   */
+  drawDomWidgetPreview(ctx, widget, node, nodeCssX, nodeCssY, nodeCssWidth, sourceCssX, sourceCssY, actualDpr, captureScale, renderSize, scale) {
+    const videoEl = widget.videoEl;
+    const imgEl = widget.imgEl;
+    let sourceElement;
+    let sourceWidth = 0;
+    let sourceHeight = 0;
+    if (videoEl && !videoEl.hidden && videoEl.videoWidth > 0) {
+      sourceElement = videoEl;
+      sourceWidth = videoEl.videoWidth;
+      sourceHeight = videoEl.videoHeight;
+    } else if (imgEl && !imgEl.hidden && imgEl.naturalWidth > 0) {
+      sourceElement = imgEl;
+      sourceWidth = imgEl.naturalWidth;
+      sourceHeight = imgEl.naturalHeight;
+    }
+    if (!sourceElement || sourceWidth === 0 || sourceHeight === 0) return;
+    try {
+      const widgetY = widget.last_y ?? 30;
+      const widgetHeight = widget.computedHeight ?? 100;
+      const widgetCssY = nodeCssY + widgetY * scale;
+      const widgetCssWidth = nodeCssWidth - 20 * scale;
+      const widgetCssHeight = widgetHeight * scale;
+      if (widgetCssWidth <= 0 || widgetCssHeight <= 0) return;
+      const srcAspect = sourceWidth / sourceHeight;
+      const areaAspect = widgetCssWidth / widgetCssHeight;
+      let drawWidth = widgetCssWidth;
+      let drawHeight = widgetCssHeight;
+      if (srcAspect > areaAspect) {
+        drawHeight = drawWidth / srcAspect;
+      } else {
+        drawWidth = drawHeight * srcAspect;
+      }
+      const drawX = nodeCssX + 10 * scale + (widgetCssWidth - drawWidth) / 2;
+      const drawY = widgetCssY + (widgetCssHeight - drawHeight) / 2;
+      const canvasX = (drawX - sourceCssX) * actualDpr * captureScale;
+      const canvasY = (drawY - sourceCssY) * actualDpr * captureScale;
+      const canvasWidth = drawWidth * actualDpr * captureScale;
+      const canvasHeight = drawHeight * actualDpr * captureScale;
+      if (canvasX + canvasWidth > 0 && canvasX < renderSize && canvasY + canvasHeight > 0 && canvasY < renderSize) {
+        ctx.save();
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
+        ctx.drawImage(sourceElement, canvasX, canvasY, canvasWidth, canvasHeight);
+        ctx.restore();
+      }
+    } catch (e) {
     }
   }
   isAvailable() {

@@ -58,14 +58,6 @@ class MagnifyGlass {
       return;
     }
     this.debugger.log("LiteGraph and app ready.");
-    window.addEventListener("keydown", (e) => {
-      if (e.shiftKey && e.key.toLowerCase() === "q") {
-        console.log("MagnifyGlass GLOBAL DEBUG: Shift+Q detected. Toggling overlay.");
-        this.toggleDebugOverlay();
-        e.preventDefault();
-        e.stopImmediatePropagation();
-      }
-    }, true);
     this.config.loadSavedOffsets();
     this.ui.createElements();
     this.ui.updateResponsivePosition();

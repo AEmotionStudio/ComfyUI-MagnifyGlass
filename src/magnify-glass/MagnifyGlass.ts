@@ -83,15 +83,7 @@ export class MagnifyGlass {
         }
         this.debugger.log("LiteGraph and app ready.");
 
-        // Brute-force Global Debug Key (Shift+Q)
-        window.addEventListener('keydown', (e) => {
-            if (e.shiftKey && e.key.toLowerCase() === 'q') {
-                console.log("MagnifyGlass GLOBAL DEBUG: Shift+Q detected. Toggling overlay.");
-                this.toggleDebugOverlay();
-                e.preventDefault();
-                e.stopImmediatePropagation();
-            }
-        }, true); // Capture phase to beat other listeners
+
 
         // Load saved offsets first
         this.config.loadSavedOffsets();

@@ -245,7 +245,6 @@ export interface MagnifyGlassConfig {
     activationKey: string;
     altRequired: boolean;
     followCursor: boolean;
-    debugMode: boolean;
     offsetStep: number;
     offsetX: number;
     offsetY: number;

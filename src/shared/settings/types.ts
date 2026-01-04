@@ -15,7 +15,6 @@ export interface GlassSettings {
     "🔍MagnifyGlass.ActivationKey": string;
     "🔍MagnifyGlass.AltRequired": boolean;
     "🔍MagnifyGlass.FollowCursor": boolean;
-    "🔍MagnifyGlass.DebugMode": boolean;
     "🔍MagnifyGlass.OffsetStep": number;
     "🔍MagnifyGlass.GlassPosition": string;
     "🔍MagnifyGlass.ResetKey": string;

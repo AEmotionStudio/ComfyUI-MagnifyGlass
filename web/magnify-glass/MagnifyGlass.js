@@ -12,6 +12,7 @@ import { WebGLRenderer } from "./WebGLRenderer.js";
 import { DebugManager } from "./DebugManager.js";
 import { EventHandler } from "./EventHandler.js";
 import { PopOutManager } from "./PopOutManager.js";
+import { OffscreenRenderer } from "./OffscreenRenderer.js";
 class MagnifyGlass {
   constructor() {
     __publicField(this, "config");
@@ -21,6 +22,7 @@ class MagnifyGlass {
     __publicField(this, "debugger");
     __publicField(this, "eventHandler");
     __publicField(this, "popOutManager");
+    __publicField(this, "offscreenRenderer");
     /** The LiteGraph canvas */
     __publicField(this, "litegraphCanvas");
     /** Last known mouse position for better initial positioning */
@@ -38,6 +40,7 @@ class MagnifyGlass {
       () => this.toggle()
     );
     this.renderer = null;
+    this.offscreenRenderer = null;
     this.debugger = new DebugManager(this.config, this.state, this.ui);
     this.eventHandler = new EventHandler(this);
     this.litegraphCanvas = null;
@@ -55,8 +58,15 @@ class MagnifyGlass {
       return;
     }
     this.debugger.log("LiteGraph and app ready.");
+    window.addEventListener("keydown", (e) => {
+      if (e.shiftKey && e.key.toLowerCase() === "q") {
+        console.log("MagnifyGlass GLOBAL DEBUG: Shift+Q detected. Toggling overlay.");
+        this.toggleDebugOverlay();
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      }
+    }, true);
     this.config.loadSavedOffsets();
-    this.debugger.printCanvasInfo();
     this.ui.createElements();
     this.ui.updateResponsivePosition();
     this.renderer = new WebGLRenderer(this.config, this.state, this.ui);
@@ -71,6 +81,7 @@ class MagnifyGlass {
       this.ui.cleanup();
       return;
     }
+    this.offscreenRenderer = new OffscreenRenderer(this.config, this.state);
     this.eventHandler.attachListeners();
     registerGlassSettings(this);
     this.debugger.log(`Initialized (WebGL) with Smart Input Detection. Press ${this.config.altRequired ? "Alt+" : ""}${this.config.activationKey.toUpperCase()} to activate.`);
@@ -108,9 +119,14 @@ class MagnifyGlass {
           this.state.isRenderScheduled = false;
           return;
         }
-        this.renderer.render(this.litegraphCanvas);
-        this.debugger.updateDebugView();
-        this.renderHtmlOverlays();
+        let sourceCanvas = this.litegraphCanvas;
+        if (this.offscreenRenderer && this.offscreenRenderer.isAvailable()) {
+          const highResCanvas = this.offscreenRenderer.renderHighResRegion(this.litegraphCanvas);
+          if (highResCanvas) {
+            sourceCanvas = highResCanvas;
+          }
+        }
+        this.renderer.render(sourceCanvas);
         if (this.popOutManager.isPopOutOpen() && this.ui.glassCanvas) {
           this.popOutManager.sendFrame(this.ui.glassCanvas);
         }
@@ -148,18 +164,27 @@ class MagnifyGlass {
     const canvasOffsetX = this.state.canvasOffsetX;
     const canvasOffsetY = this.state.canvasOffsetY;
     if (canvasScale === 0) return;
-    const cursorGraphX = (cursorPixelX - canvasOffsetX) / canvasScale;
-    const cursorGraphY = (cursorPixelY - canvasOffsetY) / canvasScale;
+    if (!this.litegraphCanvas) return;
+    const rect = this.litegraphCanvas.getBoundingClientRect();
+    const dpr = rect.width > 0 ? this.litegraphCanvas.width / rect.width : 1;
+    const cursorCssX = cursorPixelX / dpr;
+    const cursorCssY = cursorPixelY / dpr;
+    const cursorGraphX = (cursorCssX - canvasOffsetX) / canvasScale;
+    const cursorGraphY = (cursorCssY - canvasOffsetY) / canvasScale;
     const targetGraphCenterX = cursorGraphX + this.config.offsetX;
     const targetGraphCenterY = cursorGraphY + this.config.offsetY;
     const sourceGraphWidth = this.config.glassSize / this.config.zoomFactor / canvasScale;
     const sourceGraphHeight = this.config.glassSize / this.config.zoomFactor / canvasScale;
     const sourceGraphX = targetGraphCenterX - sourceGraphWidth / 2;
     const sourceGraphY = targetGraphCenterY - sourceGraphHeight / 2;
-    this.state.sourceX = sourceGraphX * canvasScale + canvasOffsetX;
-    this.state.sourceY = sourceGraphY * canvasScale + canvasOffsetY;
-    this.state.sourceWidth = sourceGraphWidth * canvasScale;
-    this.state.sourceHeight = sourceGraphHeight * canvasScale;
+    const sourceCssX = sourceGraphX * canvasScale + canvasOffsetX;
+    const sourceCssY = sourceGraphY * canvasScale + canvasOffsetY;
+    const sourceCssWidth = sourceGraphWidth * canvasScale;
+    const sourceCssHeight = sourceGraphHeight * canvasScale;
+    this.state.sourceX = sourceCssX * dpr;
+    this.state.sourceY = sourceCssY * dpr;
+    this.state.sourceWidth = sourceCssWidth * dpr;
+    this.state.sourceHeight = sourceCssHeight * dpr;
   }
   /**
    * Render HTML overlays for text and media in the magnified view.

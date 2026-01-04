@@ -1,7 +1,6 @@
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-import { Logger } from "../shared/logger.js";
 class WebGLRenderer {
   constructor(config, state, ui) {
     __publicField(this, "config");
@@ -207,9 +206,6 @@ class WebGLRenderer {
         this.lastSourceY = this.state.sourceY;
         this.lastSourceWidth = this.state.sourceWidth;
         this.lastSourceHeight = this.state.sourceHeight;
-        if (this.config.debugMode && this.textureUploadSkipCount > 0) {
-          Logger.debug(`Texture uploaded after skipping ${this.textureUploadSkipCount} frames`);
-        }
         this.textureUploadSkipCount = 0;
       } catch (e) {
         console.error("ComfyUI Magnifying Glass ERROR: Error in texImage2D:", e);
@@ -217,14 +213,20 @@ class WebGLRenderer {
       }
     } else {
       this.textureUploadSkipCount++;
-      if (this.config.debugMode && this.textureUploadSkipCount % 60 === 0) {
-        Logger.debug(`Texture upload skipped (${this.textureUploadSkipCount} frames cached)`);
-      }
     }
-    const uvX = this.state.sourceX / sourceCanvas.width;
-    const uvY = this.state.sourceY / sourceCanvas.height;
-    const uvWidth = this.state.sourceWidth / sourceCanvas.width;
-    const uvHeight = this.state.sourceHeight / sourceCanvas.height;
+    const isOffscreenCanvas = sourceCanvas.width === this.config.glassSize && sourceCanvas.height === this.config.glassSize;
+    let uvX, uvY, uvWidth, uvHeight;
+    if (isOffscreenCanvas) {
+      uvX = 0;
+      uvY = 0;
+      uvWidth = 1;
+      uvHeight = 1;
+    } else {
+      uvX = this.state.sourceX / sourceCanvas.width;
+      uvY = this.state.sourceY / sourceCanvas.height;
+      uvWidth = this.state.sourceWidth / sourceCanvas.width;
+      uvHeight = this.state.sourceHeight / sourceCanvas.height;
+    }
     this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);
     this.gl.clearColor(0, 0, 0, 0);
     this.gl.clear(this.gl.COLOR_BUFFER_BIT);

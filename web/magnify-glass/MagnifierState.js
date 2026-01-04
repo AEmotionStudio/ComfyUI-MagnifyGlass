@@ -29,6 +29,16 @@ class MagnifierState {
     __publicField(this, "isRenderScheduled");
     /** Whether glass drag mode is enabled (move icon on hover controls) */
     __publicField(this, "isDragModeEnabled");
+    // --- Debug Metrics for Virtual Zoom ---
+    __publicField(this, "virtualMouseCssX");
+    __publicField(this, "virtualMouseCssY");
+    __publicField(this, "virtualGraphX");
+    __publicField(this, "virtualGraphY");
+    __publicField(this, "virtualNewOffsetX");
+    __publicField(this, "virtualNewOffsetY");
+    // --- Manual Calibration ---
+    __publicField(this, "virtualDebugOffsetX");
+    __publicField(this, "virtualDebugOffsetY");
     this.active = false;
     this.wasActivatedBefore = false;
     this.x = 0;
@@ -42,6 +52,14 @@ class MagnifierState {
     this.canvasOffsetY = 0;
     this.isRenderScheduled = false;
     this.isDragModeEnabled = false;
+    this.virtualMouseCssX = 0;
+    this.virtualMouseCssY = 0;
+    this.virtualGraphX = 0;
+    this.virtualGraphY = 0;
+    this.virtualNewOffsetX = 0;
+    this.virtualNewOffsetY = 0;
+    this.virtualDebugOffsetX = 0;
+    this.virtualDebugOffsetY = 0;
   }
   /**
    * Reset state to initial values.

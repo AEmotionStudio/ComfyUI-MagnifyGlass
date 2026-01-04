@@ -15,6 +15,7 @@ import { WebGLRenderer } from './WebGLRenderer';
 import { DebugManager } from './DebugManager';
 import { EventHandler } from './EventHandler';
 import { PopOutManager } from './PopOutManager';
+import { OffscreenRenderer } from './OffscreenRenderer';
 
 // External ComfyUI globals
 declare const app: ComfyApp;
@@ -32,6 +33,7 @@ export class MagnifyGlass {
     debugger: DebugManager;
     eventHandler: EventHandler;
     popOutManager: PopOutManager;
+    offscreenRenderer: OffscreenRenderer | null;
 
     /** The LiteGraph canvas */
     litegraphCanvas: HTMLCanvasElement | null;
@@ -55,6 +57,7 @@ export class MagnifyGlass {
             () => this.toggle()
         );
         this.renderer = null;
+        this.offscreenRenderer = null;
         this.debugger = new DebugManager(this.config, this.state, this.ui);
         this.eventHandler = new EventHandler(this);
 
@@ -80,11 +83,21 @@ export class MagnifyGlass {
         }
         this.debugger.log("LiteGraph and app ready.");
 
+        // Brute-force Global Debug Key (Shift+Q)
+        window.addEventListener('keydown', (e) => {
+            if (e.shiftKey && e.key.toLowerCase() === 'q') {
+                console.log("MagnifyGlass GLOBAL DEBUG: Shift+Q detected. Toggling overlay.");
+                this.toggleDebugOverlay();
+                e.preventDefault();
+                e.stopImmediatePropagation();
+            }
+        }, true); // Capture phase to beat other listeners
+
         // Load saved offsets first
         this.config.loadSavedOffsets();
 
         // Print detailed canvas information
-        this.debugger.printCanvasInfo();
+
 
         // Create UI elements
         this.ui.createElements();
@@ -108,6 +121,9 @@ export class MagnifyGlass {
             this.ui.cleanup();
             return;
         }
+
+        // Initialize offscreen renderer for high-res magnification
+        this.offscreenRenderer = new OffscreenRenderer(this.config, this.state);
 
         // Attach event handlers
         this.eventHandler.attachListeners();
@@ -160,14 +176,26 @@ export class MagnifyGlass {
                     this.state.isRenderScheduled = false;
                     return;
                 }
+
+                // Try virtual zoom capture for high-res magnification
+                // This temporarily sets LiteGraph to 100% zoom, captures clean pixels,
+                // then restores the original zoom level
+                let sourceCanvas: HTMLCanvasElement = this.litegraphCanvas;
+                if (this.offscreenRenderer && this.offscreenRenderer.isAvailable()) {
+                    const highResCanvas = this.offscreenRenderer.renderHighResRegion(this.litegraphCanvas);
+                    if (highResCanvas) {
+                        sourceCanvas = highResCanvas;
+                    }
+                }
+
                 // Render the magnified view
-                this.renderer.render(this.litegraphCanvas);
+                this.renderer.render(sourceCanvas);
 
                 // Update debug visualization
-                this.debugger.updateDebugView();
 
-                // Render HTML overlays
-                this.renderHtmlOverlays();
+
+                // Note: HTML overlays disabled - virtual zoom capture provides clean text rendering
+                // this.renderHtmlOverlays();
 
                 // Send frame to pop-out tab if open
                 if (this.popOutManager.isPopOutOpen() && this.ui.glassCanvas) {
@@ -213,12 +241,23 @@ export class MagnifyGlass {
         const canvasOffsetY = this.state.canvasOffsetY;
 
         if (canvasScale === 0) return;
+        if (!this.litegraphCanvas) return;
 
-        // Convert cursor canvas pixels to LiteGraph graph coordinates
-        const cursorGraphX = (cursorPixelX - canvasOffsetX) / canvasScale;
-        const cursorGraphY = (cursorPixelY - canvasOffsetY) / canvasScale;
+        // Get DPR (Device Pixel Ratio) - relationship between Backing Store pixels and CSS pixels
+        const rect = this.litegraphCanvas.getBoundingClientRect();
+        const dpr = rect.width > 0 ? this.litegraphCanvas.width / rect.width : 1;
 
-        // Apply manual offset
+        // Convert cursor Backing pixels to CSS pixels (Screen pixels)
+        // state.x/y are in Backing Pixels (set in EventHandler)
+        const cursorCssX = cursorPixelX / dpr;
+        const cursorCssY = cursorPixelY / dpr;
+
+        // Convert cursor CSS pixels to LiteGraph graph coordinates
+        // ds.offset and ds.scale operate in CSS pixel space
+        const cursorGraphX = (cursorCssX - canvasOffsetX) / canvasScale;
+        const cursorGraphY = (cursorCssY - canvasOffsetY) / canvasScale;
+
+        // Apply manual offset (in Graph Units - arbitrary units)
         const targetGraphCenterX = cursorGraphX + this.config.offsetX;
         const targetGraphCenterY = cursorGraphY + this.config.offsetY;
 
@@ -226,15 +265,22 @@ export class MagnifyGlass {
         const sourceGraphWidth = (this.config.glassSize / this.config.zoomFactor) / canvasScale;
         const sourceGraphHeight = (this.config.glassSize / this.config.zoomFactor) / canvasScale;
 
-        // Calculate source top-left corner in graph coordinates
+        // Calculate source top-left corner in Graph Coordinates
         const sourceGraphX = targetGraphCenterX - (sourceGraphWidth / 2);
         const sourceGraphY = targetGraphCenterY - (sourceGraphHeight / 2);
 
-        // Convert back to canvas pixel coordinates
-        this.state.sourceX = (sourceGraphX * canvasScale) + canvasOffsetX;
-        this.state.sourceY = (sourceGraphY * canvasScale) + canvasOffsetY;
-        this.state.sourceWidth = sourceGraphWidth * canvasScale;
-        this.state.sourceHeight = sourceGraphHeight * canvasScale;
+        // Convert back to Canvas Backing Pixels for the source rectangle
+        // 1. Convert Graph -> CSS: (Graph * Scale) + Offset
+        // 2. Convert CSS -> Backing: CSS * DPR
+        const sourceCssX = (sourceGraphX * canvasScale) + canvasOffsetX;
+        const sourceCssY = (sourceGraphY * canvasScale) + canvasOffsetY;
+        const sourceCssWidth = sourceGraphWidth * canvasScale;
+        const sourceCssHeight = sourceGraphHeight * canvasScale;
+
+        this.state.sourceX = sourceCssX * dpr;
+        this.state.sourceY = sourceCssY * dpr;
+        this.state.sourceWidth = sourceCssWidth * dpr;
+        this.state.sourceHeight = sourceCssHeight * dpr;
     }
 
     /**
@@ -475,4 +521,5 @@ export class MagnifyGlass {
         this.popOutManager.cleanup();
         this.ui.cleanup();
     }
+
 }

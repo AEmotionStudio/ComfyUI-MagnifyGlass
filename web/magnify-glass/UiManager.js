@@ -10,16 +10,12 @@ class UiManager {
     __publicField(this, "state");
     __publicField(this, "glassDiv");
     __publicField(this, "glassCanvas");
-    __publicField(this, "debugCanvas");
-    __publicField(this, "debugCtx");
     __publicField(this, "htmlOverlayContainer");
     __publicField(this, "onToggle");
     this.config = config;
     this.state = state;
     this.glassDiv = null;
     this.glassCanvas = null;
-    this.debugCanvas = null;
-    this.debugCtx = null;
     this.htmlOverlayContainer = null;
     this.onToggle = onToggle;
   }
@@ -61,33 +57,7 @@ class UiManager {
         `;
     this.glassDiv.appendChild(this.htmlOverlayContainer);
     document.body.appendChild(this.glassDiv);
-    if (this.config.debugMode) {
-      this.createDebugCanvas();
-    }
     this.injectMenuButton();
-  }
-  /**
-   * Create the debug canvas overlay.
-   */
-  createDebugCanvas() {
-    this.debugCanvas = document.createElement("canvas");
-    this.debugCanvas.id = "comfyui-magnify-debug";
-    this.debugCanvas.width = 400;
-    this.debugCanvas.height = 350;
-    this.debugCanvas.style.cssText = `
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: rgba(0,0,0,0.7);
-            border: 1px solid #fff;
-            z-index: ${Z_INDEX.DEBUG};
-            pointer-events: none;
-            color: white;
-            font-family: monospace;
-            display: none;
-        `;
-    document.body.appendChild(this.debugCanvas);
-    this.debugCtx = this.debugCanvas.getContext("2d");
   }
   /**
    * Show the magnifying glass.
@@ -95,9 +65,6 @@ class UiManager {
   show() {
     if (this.glassDiv) {
       this.glassDiv.style.display = "block";
-    }
-    if (this.config.debugMode && this.debugCanvas) {
-      this.debugCanvas.style.display = "block";
     }
   }
   /**
@@ -144,7 +111,6 @@ class UiManager {
         const onMouseUp = (upEvent) => {
           document.removeEventListener("mousemove", onMouseMove);
           document.removeEventListener("mouseup", onMouseUp);
-          if (this.config.followCursor) ;
           this.state.isDragModeEnabled = false;
           this.setDragMode(false);
           const infoPanel = window.infoPanelManager;
@@ -174,18 +140,10 @@ class UiManager {
     if (this.glassDiv) {
       this.glassDiv.style.display = "none";
     }
-    if (this.config.debugMode && this.debugCanvas) {
-      this.debugCanvas.style.display = "none";
-    }
     if (this.htmlOverlayContainer) {
       this.htmlOverlayContainer.innerHTML = "";
     }
   }
-  /**
-   * Position the glass relative to cursor.
-   * @param clientX - Client X coordinate
-   * @param clientY - Client Y coordinate
-   */
   /**
    * Position the glass relative to cursor.
    * Uses dynamic anchoring (Left/Right, Top/Bottom) based on screen quadrant.
@@ -260,11 +218,6 @@ class UiManager {
   }
   /**
    * Adjust glass position to stay within viewport boundaries.
-   * @param clientX - Client X coordinate
-   * @param clientY - Client Y coordinate
-   */
-  /**
-   * Adjust glass position to stay within viewport boundaries.
    * Respects the current anchor (Left/Right, Top/Bottom).
    */
   adjustForBoundaries() {
@@ -331,25 +284,15 @@ class UiManager {
       this.glassCanvas.width = this.config.glassSize;
       this.glassCanvas.height = this.config.glassSize;
     }
-    if (this.config.debugMode) {
-      if (!this.debugCanvas) this.createDebugCanvas();
-      if (this.state.active && this.debugCanvas) this.debugCanvas.style.display = "block";
-    } else {
-      if (this.debugCanvas) this.debugCanvas.style.display = "none";
-    }
   }
   /**
    * Cleanup DOM elements.
    */
   cleanup() {
     if (this.glassDiv) this.glassDiv.remove();
-    if (this.debugCanvas) this.debugCanvas.remove();
     const btn = document.querySelector(".magnify-toggle-btn");
     if (btn) btn.remove();
   }
-  /**
-   * Inject a quick toggle button into the ComfyUI menu.
-   */
   /**
    * Inject a quick toggle button into the ComfyUI menu.
    */

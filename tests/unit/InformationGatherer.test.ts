@@ -6,21 +6,21 @@
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-// Mock ComfyUI app
-vi.mock('/scripts/app.js', () => ({
-    app: {
-        graph: {
-            _nodes: []
-        },
+// Mock ComfyUI app as a global (ComfyUI exposes it on window/globalThis)
+const mockApp = {
+    graph: {
+        _nodes: []
+    },
+    canvas: {
         canvas: {
-            canvas: {
-                getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600 })
-            },
-            node_over: null,
-            ds: { scale: 1, offset: [0, 0] }
-        }
+            getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600 })
+        },
+        node_over: null,
+        ds: { scale: 1, offset: [0, 0] }
     }
-}));
+};
+
+(globalThis as any).app = mockApp;
 
 // Mock window.comfyUIMagnifyGlass
 const mockMagnifyGlass = {

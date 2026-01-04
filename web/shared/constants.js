@@ -33,8 +33,7 @@ const DEFAULT_PANEL_WIDTH = 300;
 const DEFAULT_PANEL_MAX_HEIGHT = 300;
 const DEFAULT_PANEL_OPACITY = 100;
 const Z_INDEX = {
-  GLASS: 98999,
-  DEBUG: 99e3
+  GLASS: 98999
 };
 const STORAGE_KEYS = {
   OFFSET_X: "comfyui_magnify_offset_x",

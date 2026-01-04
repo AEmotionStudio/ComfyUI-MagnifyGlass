@@ -29,7 +29,10 @@ Object.defineProperty(globalThis, 'window', {
             addEventListener: vi.fn(),
             removeEventListener: vi.fn(),
         }),
-        infoPanelManager: null
+        infoPanelManager: null,
+        getComputedStyle: () => ({
+            backgroundColor: 'rgb(30, 30, 30)'
+        })
     },
     writable: true
 });

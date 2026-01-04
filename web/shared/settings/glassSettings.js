@@ -146,20 +146,6 @@ function registerGlassSettings(magnifyGlass) {
     }
   });
   app.ui.settings.addSetting({
-    id: "🔍MagnifyGlass.DebugMode",
-    name: "🐞 Magnify Glass: Debug Mode",
-    type: "combo",
-    options: [{ value: true, text: "Enabled" }, { value: false, text: "Disabled" }],
-    defaultValue: settings["🔍MagnifyGlass.DebugMode"],
-    tooltip: "Show detailed logging and the debug visualization overlay.",
-    onChange: (value) => {
-      if (magnifyGlass == null ? void 0 : magnifyGlass.config) {
-        magnifyGlass.config.debugMode = !!value;
-        magnifyGlass.applyUiChanges();
-      }
-    }
-  });
-  app.ui.settings.addSetting({
     id: "🔍MagnifyGlass.GlassPosition",
     name: "🖱️ Magnify Glass: Glass Position",
     type: "combo",
@@ -294,7 +280,6 @@ function registerGlassSettings(magnifyGlass) {
           app.ui.settings.setSettingValue("🔍MagnifyGlass.ToggleFollowCursorKey", "h");
           app.ui.settings.setSettingValue("🔍MagnifyGlass.AltRequired", false);
           app.ui.settings.setSettingValue("🔍MagnifyGlass.OffsetStep", 5);
-          app.ui.settings.setSettingValue("🔍MagnifyGlass.DebugMode", false);
           app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelEnabled", true);
           app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelPosition", "Bottom");
           app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelWidth", 300);

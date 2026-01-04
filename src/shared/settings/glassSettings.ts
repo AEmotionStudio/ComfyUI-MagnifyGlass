@@ -173,20 +173,7 @@ export function registerGlassSettings(magnifyGlass: any): void {
         }
     });
 
-    app.ui.settings.addSetting({
-        id: "🔍MagnifyGlass.DebugMode",
-        name: "🐞 Magnify Glass: Debug Mode",
-        type: "combo",
-        options: [{ value: true, text: "Enabled" }, { value: false, text: "Disabled" }],
-        defaultValue: settings["🔍MagnifyGlass.DebugMode"],
-        tooltip: "Show detailed logging and the debug visualization overlay.",
-        onChange: (value: any) => {
-            if (magnifyGlass?.config) {
-                magnifyGlass.config.debugMode = !!value;
-                magnifyGlass.applyUiChanges();
-            }
-        }
-    });
+
 
     app.ui.settings.addSetting({
         id: "🔍MagnifyGlass.GlassPosition",
@@ -330,7 +317,7 @@ export function registerGlassSettings(magnifyGlass: any): void {
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.ToggleFollowCursorKey', 'h');
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.AltRequired', false);
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.OffsetStep', 5);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.DebugMode', false);
+
 
                     // Panel Defaults
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.InfoPanelEnabled', true);

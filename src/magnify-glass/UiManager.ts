@@ -19,8 +19,6 @@ export class UiManager {
     state: MagnifierState;
     glassDiv: HTMLDivElement | null;
     glassCanvas: HTMLCanvasElement | null;
-    debugCanvas: HTMLCanvasElement | null;
-    debugCtx: CanvasRenderingContext2D | null;
     htmlOverlayContainer: HTMLDivElement | null;
     onToggle: (() => void) | undefined;
 
@@ -29,8 +27,6 @@ export class UiManager {
         this.state = state;
         this.glassDiv = null;
         this.glassCanvas = null;
-        this.debugCanvas = null;
-        this.debugCtx = null;
         this.htmlOverlayContainer = null;
         this.onToggle = onToggle;
     }
@@ -80,37 +76,8 @@ export class UiManager {
 
         document.body.appendChild(this.glassDiv);
 
-        // Create debug canvas if debug mode is enabled
-        if (this.config.debugMode) {
-            this.createDebugCanvas();
-        }
-
         // Inject menu button
         this.injectMenuButton();
-    }
-
-    /**
-     * Create the debug canvas overlay.
-     */
-    createDebugCanvas(): void {
-        this.debugCanvas = document.createElement("canvas");
-        this.debugCanvas.id = "comfyui-magnify-debug";
-        this.debugCanvas.width = 400;
-        this.debugCanvas.height = 350;
-        this.debugCanvas.style.cssText = `
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: rgba(0,0,0,0.7);
-            border: 1px solid #fff;
-            z-index: ${Z_INDEX.DEBUG};
-            pointer-events: none;
-            color: white;
-            font-family: monospace;
-            display: none;
-        `;
-        document.body.appendChild(this.debugCanvas);
-        this.debugCtx = this.debugCanvas.getContext('2d');
     }
 
     /**
@@ -119,10 +86,6 @@ export class UiManager {
     show(): void {
         if (this.glassDiv) {
             this.glassDiv.style.display = 'block';
-            // We do NOT modify opacity here, allowing it to be controlled independently
-        }
-        if (this.config.debugMode && this.debugCanvas) {
-            this.debugCanvas.style.display = "block";
         }
     }
 
@@ -134,8 +97,6 @@ export class UiManager {
     setPreviewVisibility(visible: boolean): void {
         if (this.glassDiv) {
             this.glassDiv.style.opacity = visible ? '1' : '0';
-            // Disable pointer events when hidden to be safe, though usually they are none anyway
-            // this.glassDiv.style.pointerEvents = visible ? 'none' : 'none'; 
         }
     }
 
@@ -186,27 +147,11 @@ export class UiManager {
                         this.glassDiv.style.left = `${newLeft}px`;
                         this.glassDiv.style.top = `${newTop}px`;
                     }
-
-                    // We do NOT update config.offsetX/Y here to prevent double-movement wrapping.
-                    // The offset relative to the cursor remains constant during a drag.
                 };
 
                 const onMouseUp = (upEvent: MouseEvent) => {
                     document.removeEventListener('mousemove', onMouseMove);
                     document.removeEventListener('mouseup', onMouseUp);
-
-                    // On release, we update the config offset so positionGlass() picks up where we left off
-                    if (this.config.followCursor) {
-                        // positionGlass logic: Target = Mouse (approx) + Offset.
-                        // CurrentGlass = Mouse + GrabOffset.
-                        // So implicitly, config.offsetX should arguably effectively capture this GrabOffset relative to the 'Standard' position?
-
-                        // Actually, sticking with the current offset works best for 1:1 dragging.
-                        // If we want to support "Dragging to change Offset", we would need to calculate:
-                        // config.offsetX = CurrentGlassLeft - (StandardTargetLeft based on glassPosition)
-
-                        // But simply maintaining the position is safer for now.
-                    }
 
                     // Disable drag mode after drop
                     this.state.isDragModeEnabled = false;
@@ -245,20 +190,12 @@ export class UiManager {
         if (this.glassDiv) {
             this.glassDiv.style.display = 'none';
         }
-        if (this.config.debugMode && this.debugCanvas) {
-            this.debugCanvas.style.display = "none";
-        }
         // Clear HTML overlays when hiding
         if (this.htmlOverlayContainer) {
             this.htmlOverlayContainer.innerHTML = '';
         }
     }
 
-    /**
-     * Position the glass relative to cursor.
-     * @param clientX - Client X coordinate
-     * @param clientY - Client Y coordinate
-     */
     /**
      * Position the glass relative to cursor.
      * Uses dynamic anchoring (Left/Right, Top/Bottom) based on screen quadrant.
@@ -354,11 +291,6 @@ export class UiManager {
 
     /**
      * Adjust glass position to stay within viewport boundaries.
-     * @param clientX - Client X coordinate
-     * @param clientY - Client Y coordinate
-     */
-    /**
-     * Adjust glass position to stay within viewport boundaries.
      * Respects the current anchor (Left/Right, Top/Bottom).
      */
     adjustForBoundaries(): void {
@@ -446,14 +378,6 @@ export class UiManager {
             this.glassCanvas.width = this.config.glassSize;
             this.glassCanvas.height = this.config.glassSize;
         }
-
-        // Handle debug canvas show/hide
-        if (this.config.debugMode) {
-            if (!this.debugCanvas) this.createDebugCanvas();
-            if (this.state.active && this.debugCanvas) this.debugCanvas.style.display = "block";
-        } else {
-            if (this.debugCanvas) this.debugCanvas.style.display = "none";
-        }
     }
 
     /**
@@ -461,15 +385,11 @@ export class UiManager {
      */
     cleanup(): void {
         if (this.glassDiv) this.glassDiv.remove();
-        if (this.debugCanvas) this.debugCanvas.remove();
         // Remove menu button if needed (though hard to track references here without saving it)
         const btn = document.querySelector('.magnify-toggle-btn');
         if (btn) btn.remove();
     }
 
-    /**
-     * Inject a quick toggle button into the ComfyUI menu.
-     */
     /**
      * Inject a quick toggle button into the ComfyUI menu.
      */

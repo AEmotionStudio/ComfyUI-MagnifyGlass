@@ -292,10 +292,7 @@ export class WebGLRenderer {
                 this.lastSourceWidth = this.state.sourceWidth;
                 this.lastSourceHeight = this.state.sourceHeight;
 
-                // Reset skip counter and log if debug mode
-                if (this.config.debugMode && this.textureUploadSkipCount > 0) {
-                    Logger.debug(`Texture uploaded after skipping ${this.textureUploadSkipCount} frames`);
-                }
+                // Reset skip counter
                 this.textureUploadSkipCount = 0;
             } catch (e) {
                 console.error("ComfyUI Magnifying Glass ERROR: Error in texImage2D:", e);
@@ -304,18 +301,29 @@ export class WebGLRenderer {
         } else {
             // Skip texture upload - just increment counter
             this.textureUploadSkipCount++;
-
-            // Periodic debug logging
-            if (this.config.debugMode && this.textureUploadSkipCount % 60 === 0) {
-                Logger.debug(`Texture upload skipped (${this.textureUploadSkipCount} frames cached)`);
-            }
         }
 
         // Calculate normalized texture coordinates (UV space: 0-1)
-        const uvX = this.state.sourceX / sourceCanvas.width;
-        const uvY = this.state.sourceY / sourceCanvas.height;
-        const uvWidth = this.state.sourceWidth / sourceCanvas.width;
-        const uvHeight = this.state.sourceHeight / sourceCanvas.height;
+        // Check if this is the offscreen canvas (its size matches glassSize)
+        const isOffscreenCanvas = sourceCanvas.width === this.config.glassSize &&
+            sourceCanvas.height === this.config.glassSize;
+
+        let uvX: number, uvY: number, uvWidth: number, uvHeight: number;
+
+        if (isOffscreenCanvas) {
+            // Offscreen canvas already contains the correctly rendered region
+            // Use full texture
+            uvX = 0;
+            uvY = 0;
+            uvWidth = 1;
+            uvHeight = 1;
+        } else {
+            // Main LiteGraph canvas - calculate subrect
+            uvX = this.state.sourceX / sourceCanvas.width;
+            uvY = this.state.sourceY / sourceCanvas.height;
+            uvWidth = this.state.sourceWidth / sourceCanvas.width;
+            uvHeight = this.state.sourceHeight / sourceCanvas.height;
+        }
 
         // Set up rendering
         this.gl.viewport(0, 0, this.gl.canvas.width, this.gl.canvas.height);

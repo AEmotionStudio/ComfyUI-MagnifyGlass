@@ -547,14 +547,6 @@ function renderSettingsPanel(container) {
     "Key to pin/unpin the info panel position"
   ));
   container.appendChild(panelHotkeySection.section);
-  const debugSection = createSection("Debug", true);
-  debugSection.body.appendChild(createToggle(
-    "Debug Mode",
-    getSettingValue("🔍MagnifyGlass.DebugMode", false),
-    (checked) => setSettingValue("🔍MagnifyGlass.DebugMode", checked),
-    "Enable debug logging and visual indicators"
-  ));
-  container.appendChild(debugSection.section);
   const buttonRow = document.createElement("div");
   buttonRow.style.padding = "16px";
   buttonRow.style.borderTop = "1px solid var(--border-color, #333)";
@@ -607,7 +599,6 @@ function renderSettingsPanel(container) {
     setSettingValue("🔍MagnifyGlass.ToggleFollowCursorKey", "h");
     setSettingValue("🔍MagnifyGlass.AltRequired", false);
     setSettingValue("🔍MagnifyGlass.OffsetStep", 5);
-    setSettingValue("🔍MagnifyGlass.DebugMode", false);
     setSettingValue("🔍MagnifyGlass.InfoPanelEnabled", true);
     setSettingValue("🔍MagnifyGlass.InfoPanelPosition", "Bottom");
     setSettingValue("🔍MagnifyGlass.InfoPanelWidth", 300);

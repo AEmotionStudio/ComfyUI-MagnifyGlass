@@ -27,7 +27,6 @@ export const DEFAULT_GLASS_SETTINGS: GlassSettings = {
     "🔍MagnifyGlass.ActivationKey": "x",
     "🔍MagnifyGlass.AltRequired": false,
     "🔍MagnifyGlass.FollowCursor": false,
-    "🔍MagnifyGlass.DebugMode": false,
     "🔍MagnifyGlass.OffsetStep": DEFAULT_OFFSET_STEP,
     "🔍MagnifyGlass.GlassPosition": "Top-Right",
     "🔍MagnifyGlass.ResetKey": "o",

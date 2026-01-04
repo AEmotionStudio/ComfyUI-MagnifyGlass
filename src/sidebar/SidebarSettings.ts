@@ -652,16 +652,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
 
     container.appendChild(panelHotkeySection.section);
 
-    // ===== Debug Section =====
-    const debugSection = createSection('Debug', true);
 
-    debugSection.body.appendChild(createToggle('Debug Mode',
-        getSettingValue('🔍MagnifyGlass.DebugMode', false),
-        (checked) => setSettingValue('🔍MagnifyGlass.DebugMode', checked),
-        'Enable debug logging and visual indicators'
-    ));
-
-    container.appendChild(debugSection.section);
 
     // ===== Button Row =====
     const buttonRow = document.createElement('div');
@@ -728,7 +719,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
         setSettingValue('🔍MagnifyGlass.ToggleFollowCursorKey', 'h');
         setSettingValue('🔍MagnifyGlass.AltRequired', false);
         setSettingValue('🔍MagnifyGlass.OffsetStep', 5);
-        setSettingValue('🔍MagnifyGlass.DebugMode', false);
+
 
         // Default panel settings
         setSettingValue('🔍MagnifyGlass.InfoPanelEnabled', true);

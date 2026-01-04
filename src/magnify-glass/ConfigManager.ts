@@ -17,7 +17,6 @@ const DEFAULT_GLASS_SETTINGS = {
     "🔍MagnifyGlass.ActivationKey": "x",
     "🔍MagnifyGlass.AltRequired": false,
     "🔍MagnifyGlass.FollowCursor": false,
-    "🔍MagnifyGlass.DebugMode": false,
     "🔍MagnifyGlass.OffsetStep": 5,
     "🔍MagnifyGlass.GlassPosition": "Top-Right" as GlassPosition,
     "🔍MagnifyGlass.ResetKey": "o",
@@ -55,8 +54,7 @@ export class ConfigManager {
     /** Whether glass follows cursor */
     followCursor: boolean;
 
-    /** Debug mode enabled */
-    debugMode: boolean;
+
 
     /** Offset step for arrow key adjustments */
     offsetStep: number;
@@ -100,7 +98,7 @@ export class ConfigManager {
         this.activationKey = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.ActivationKey"];
         this.altRequired = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.AltRequired"];
         this.followCursor = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.FollowCursor"];
-        this.debugMode = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.DebugMode"];
+
         this.offsetStep = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.OffsetStep"];
         this.glassPosition = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.GlassPosition"];
         this.resetKey = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.ResetKey"];
@@ -127,7 +125,7 @@ export class ConfigManager {
         this.activationKey = getSettingValue<string>("🔍MagnifyGlass.ActivationKey", this.activationKey);
         this.altRequired = getSettingValue<boolean>("🔍MagnifyGlass.AltRequired", this.altRequired);
         this.followCursor = getSettingValue<boolean>("🔍MagnifyGlass.FollowCursor", this.followCursor);
-        this.debugMode = getSettingValue<boolean>("🔍MagnifyGlass.DebugMode", this.debugMode);
+
         this.offsetStep = getSettingValue<number>("🔍MagnifyGlass.OffsetStep", this.offsetStep);
         this.glassPosition = getSettingValue<string>("🔍MagnifyGlass.GlassPosition", this.glassPosition);
         this.resetKey = getSettingValue<string>("🔍MagnifyGlass.ResetKey", this.resetKey);

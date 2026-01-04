@@ -89,7 +89,7 @@ export class EventHandler {
         // Manual offset adjustment keys (only when magnifier is active)
         if (state.active) {
             let offsetChanged = false;
-            const stepSize = e.shiftKey ? config.offsetStep * 5 : config.offsetStep;
+            const stepSize = config.offsetStep;
 
             if (e.key === "ArrowUp") {
                 config.offsetY -= stepSize;

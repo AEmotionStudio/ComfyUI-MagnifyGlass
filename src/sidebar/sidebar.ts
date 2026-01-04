@@ -58,7 +58,7 @@ function renderSidebar(container: HTMLElement): void {
     // Header
     const header = document.createElement('div');
     header.className = 'magnify-sidebar-header';
-    header.innerHTML = `${MAGNIFY_ICON}<h2>Magnify G.</h2>`;
+    header.innerHTML = `${MAGNIFY_ICON}<h2>Magnify</h2>`;
     sidebar.appendChild(header);
 
     // Content area
@@ -101,7 +101,7 @@ export function registerSidebar(): void {
         app.extensionManager.registerSidebarTab({
             id: 'magnifyglass',
             icon: 'pi pi-search',
-            title: 'Magnify G.',
+            title: 'Magnify',
             tooltip: 'MagnifyGlass Settings',
             type: 'custom',
             render: (el: HTMLElement) => {

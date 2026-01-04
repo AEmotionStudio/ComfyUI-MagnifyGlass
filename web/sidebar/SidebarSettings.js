@@ -275,20 +275,8 @@ function renderSettingsPanel(container) {
     (checked) => setSettingValue("🔍MagnifyGlass.AlwaysActiveMode", checked),
     `When enabled, glass stays visible. Toggle with ${activationKey}`
   ));
-  glassSection.body.appendChild(createToggle(
-    "Persist Info",
-    getSettingValue("🔍MagnifyGlass.InfoPanelPersist", false),
-    (checked) => {
-      setSettingValue("🔍MagnifyGlass.InfoPanelPersist", checked);
-      const infoPanel = window.infoPanelManager;
-      if (infoPanel == null ? void 0 : infoPanel.uiManager) {
-        infoPanel.uiManager.updateControlStates();
-      }
-    },
-    "Keep displaying the last node info when hovering empty space"
-  ));
   container.appendChild(glassSection.section);
-  const hotkeySection = createSection("Hotkeys", true);
+  const hotkeySection = createSection("Glass Hotkeys", true);
   hotkeySection.body.appendChild(createSelect(
     "Activation Key",
     getSettingValue("🔍MagnifyGlass.ActivationKey", "x"),
@@ -310,12 +298,20 @@ function renderSettingsPanel(container) {
     (value) => setSettingValue("🔍MagnifyGlass.ToggleFollowCursorKey", value),
     "Key to toggle follow cursor mode"
   ));
-  hotkeySection.body.appendChild(createToggle(
+  const glassAltToggle = createToggle(
     "Require Alt Key",
     getSettingValue("🔍MagnifyGlass.AltRequired", false),
-    (checked) => setSettingValue("🔍MagnifyGlass.AltRequired", checked),
+    (checked) => {
+      setSettingValue("🔍MagnifyGlass.AltRequired", checked);
+      container.querySelectorAll(".magnify-alt-toggle .magnify-toggle").forEach((t) => {
+        if (checked) t.classList.add("active");
+        else t.classList.remove("active");
+      });
+    },
     "Require Alt key to be held with activation key"
-  ));
+  );
+  glassAltToggle.classList.add("magnify-alt-toggle");
+  hotkeySection.body.appendChild(glassAltToggle);
   hotkeySection.body.appendChild(createSlider(
     "Offset Step",
     getSettingValue("🔍MagnifyGlass.OffsetStep", 10),
@@ -546,6 +542,20 @@ function renderSettingsPanel(container) {
     (value) => setSettingValue("🔍MagnifyGlass.PinPanelHotkey", value),
     "Key to pin/unpin the info panel position"
   ));
+  const panelAltToggle = createToggle(
+    "Require Alt Key",
+    getSettingValue("🔍MagnifyGlass.AltRequired", false),
+    (checked) => {
+      setSettingValue("🔍MagnifyGlass.AltRequired", checked);
+      container.querySelectorAll(".magnify-alt-toggle .magnify-toggle").forEach((t) => {
+        if (checked) t.classList.add("active");
+        else t.classList.remove("active");
+      });
+    },
+    "Require Alt key to be held with hotkeys"
+  );
+  panelAltToggle.classList.add("magnify-alt-toggle");
+  panelHotkeySection.body.appendChild(panelAltToggle);
   container.appendChild(panelHotkeySection.section);
   const buttonRow = document.createElement("div");
   buttonRow.style.padding = "16px";

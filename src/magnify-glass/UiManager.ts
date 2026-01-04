@@ -437,7 +437,7 @@ export class UiManager {
                 btn.style.minHeight = computed.minHeight;
                 // btn.style.width = computed.width; // Don't copy width, let it adapt
 
-                btn.title = "Toggle Magnify Glass";
+                btn.title = "Toggle Magnify Glass (X)";
                 btn.innerHTML = Icons.magnifyGlass;
 
                 // Ensure specific display props

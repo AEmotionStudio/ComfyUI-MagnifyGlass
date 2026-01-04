@@ -321,7 +321,7 @@ class UiManager {
         const computed = window.getComputedStyle(anchorBtn);
         btn.style.height = computed.height;
         btn.style.minHeight = computed.minHeight;
-        btn.title = "Toggle Magnify Glass";
+        btn.title = "Toggle Magnify Glass (X)";
         btn.innerHTML = Icons.magnifyGlass;
         btn.style.display = "inline-flex";
         btn.style.alignItems = "center";

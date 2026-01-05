@@ -126,28 +126,10 @@ function setSettingValue(id, value) {
     console.warn(`Failed to set setting ${id}:`, e);
   }
 }
-const SECTION_STATE_KEY = "magnifyglass-sidebar-sections";
-function getSectionStates() {
-  try {
-    const saved = localStorage.getItem(SECTION_STATE_KEY);
-    return saved ? JSON.parse(saved) : {};
-  } catch {
-    return {};
-  }
-}
-function saveSectionState(title, collapsed) {
-  try {
-    const states = getSectionStates();
-    states[title] = collapsed;
-    localStorage.setItem(SECTION_STATE_KEY, JSON.stringify(states));
-  } catch {
-  }
-}
 function createSection(title, defaultCollapsed = false) {
   const section = document.createElement("div");
   section.className = "magnify-sidebar-section";
-  const savedStates = getSectionStates();
-  const collapsed = savedStates[title] !== void 0 ? savedStates[title] : defaultCollapsed;
+  const collapsed = defaultCollapsed;
   const header = document.createElement("div");
   header.className = `magnify-sidebar-section-header${collapsed ? " collapsed" : ""}`;
   header.innerHTML = `${Icons.chevronDown}<span>${title}</span>`;
@@ -160,7 +142,6 @@ function createSection(title, defaultCollapsed = false) {
     const isCollapsed = header.classList.toggle("collapsed");
     body.classList.toggle("collapsed");
     body.style.display = isCollapsed ? "none" : "";
-    saveSectionState(title, isCollapsed);
   });
   section.appendChild(header);
   section.appendChild(body);
@@ -170,7 +151,7 @@ function renderSettingsPanel(container) {
   const activationKey = getSettingValue("🔍MagnifyGlass.ActivationKey", "x").toUpperCase();
   const resetKey = getSettingValue("🔍MagnifyGlass.ResetKey", "o").toUpperCase();
   const toggleFollowKey = getSettingValue("🔍MagnifyGlass.ToggleFollowCursorKey", "h").toUpperCase();
-  const glassSection = createSection("Glass Settings");
+  const glassSection = createSection("Glass Settings", true);
   glassSection.body.appendChild(createSlider(
     "Zoom Factor",
     getSettingValue("🔍MagnifyGlass.ZoomFactor", 300),
@@ -615,7 +596,7 @@ function renderSettingsPanel(container) {
     setSettingValue("🔍MagnifyGlass.ToggleFollowCursorKey", "h");
     setSettingValue("🔍MagnifyGlass.AltRequired", false);
     setSettingValue("🔍MagnifyGlass.OffsetStep", 5);
-    setSettingValue("🔍MagnifyGlass.ShowCursorPreview", true);
+    setSettingValue("🔍MagnifyGlass.ShowCursorPreview", false);
     setSettingValue("🔍MagnifyGlass.InfoPanelEnabled", true);
     setSettingValue("🔍MagnifyGlass.InfoPanelPosition", "Bottom");
     setSettingValue("🔍MagnifyGlass.InfoPanelWidth", 300);

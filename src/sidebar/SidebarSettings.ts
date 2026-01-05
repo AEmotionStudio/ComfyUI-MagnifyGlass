@@ -272,8 +272,10 @@ function createSection(title: string, defaultCollapsed: boolean = false): { sect
     section.className = 'magnify-sidebar-section';
 
     // Check if we have a saved state for this section
-    const savedStates = getSectionStates();
-    const collapsed = savedStates[title] !== undefined ? savedStates[title] : defaultCollapsed;
+    // User requested to disable persistence: "tabs should refresh, so they don't remain all opened"
+    // const savedStates = getSectionStates();
+    // const collapsed = savedStates[title] !== undefined ? savedStates[title] : defaultCollapsed;
+    const collapsed = defaultCollapsed;
 
     const header = document.createElement('div');
     header.className = `magnify-sidebar-section-header${collapsed ? ' collapsed' : ''}`;
@@ -292,7 +294,8 @@ function createSection(title: string, defaultCollapsed: boolean = false): { sect
         // Also toggle inline style for immediate effect
         body.style.display = isCollapsed ? 'none' : '';
         // Save the new state
-        saveSectionState(title, isCollapsed);
+        // User requested to disable persistence
+        // saveSectionState(title, isCollapsed);
     });
 
     section.appendChild(header);
@@ -311,7 +314,8 @@ export function renderSettingsPanel(container: HTMLElement): void {
     const toggleFollowKey = getSettingValue('🔍MagnifyGlass.ToggleFollowCursorKey', 'h').toUpperCase();
 
     // ===== Glass Settings Section =====
-    const glassSection = createSection('Glass Settings');
+    // Use true (collapsed) by default as requested
+    const glassSection = createSection('Glass Settings', true);
 
     glassSection.body.appendChild(createSlider('Zoom Factor',
         getSettingValue('🔍MagnifyGlass.ZoomFactor', 300), 100, 1000, 25, '%',
@@ -743,7 +747,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
         setSettingValue('🔍MagnifyGlass.ToggleFollowCursorKey', 'h');
         setSettingValue('🔍MagnifyGlass.AltRequired', false);
         setSettingValue('🔍MagnifyGlass.OffsetStep', 5);
-        setSettingValue('🔍MagnifyGlass.ShowCursorPreview', true);
+        setSettingValue('🔍MagnifyGlass.ShowCursorPreview', false);
 
 
         // Default panel settings

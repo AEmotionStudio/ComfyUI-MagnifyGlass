@@ -46,12 +46,10 @@
 *   **WebGL-Powered**: Smooth, high-performance rendering at any zoom level.
 *   **Smart Interactions**: Follows your cursor or stays fixed. Toggles transparently for click-through.
 *   **Customizable**: Adjust zoom (up to 10x), size, border, and shape (Circle/Square/Rounded).
-*   **Customizable**: Adjust zoom (up to 10x), size, border, and shape (Circle/Square/Rounded).
 
 ### ℹ️ Inspector Panel
 *   **Deep Analysis**: View node parameters (Seed, CFG, Steps), text content, and image details on hover.
 *   **Dockable Interface**: Pin the panel to keep it stable, or let it follow the glass.
-*   **Themed**: Automatically matches any ComfyUI theme (Dark, Light, Solarized, Arc, Nord, GitHub).
 *   **Themed**: Automatically matches any ComfyUI theme (Dark, Light, Solarized, Arc, Nord, GitHub).
 
 ### ⚙️ Sidebar Integration

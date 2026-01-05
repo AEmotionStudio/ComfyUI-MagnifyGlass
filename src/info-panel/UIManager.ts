@@ -447,9 +447,11 @@ export class UIManager {
             cursorBtn.classList.toggle('active', showCursor);
             cursorBtn.title = showCursor ? "Hide Cursor Preview" : "Show Cursor Preview";
 
-            // Logic: Visible when glass is visible AND panel is hidden (as requested)
-            // "present attached to the glass then hide when the info panel is opened"
-            cursorBtn.style.display = (isGlassVisible && !isPanelVisible) ? 'flex' : 'none';
+            // Logic: Visible when glass is visible AND panel is NOT pinned (attached to glass)
+            // If pinned (Lock icon), the panel is detached from glass, so we hide the cursor toggle
+            // User request: "hide it only when the panel is unlcoked or draggable (first button lock icon)"
+            // (Interpreted as: Hide when isPanelPinned is true)
+            cursorBtn.style.display = (isGlassVisible && !this.stateManager.state.isPanelPinned) ? 'flex' : 'none';
         }
 
         const dragGlassBtn = this.elements.controls.querySelector('[data-action="drag-glass"]') as HTMLButtonElement;

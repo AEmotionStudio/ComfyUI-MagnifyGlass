@@ -311,7 +311,7 @@ class UIManager {
       const showCursor = ((_a = cglass == null ? void 0 : cglass.config) == null ? void 0 : _a.showCursorPreview) || false;
       cursorBtn.classList.toggle("active", showCursor);
       cursorBtn.title = showCursor ? "Hide Cursor Preview" : "Show Cursor Preview";
-      cursorBtn.style.display = isGlassVisible && !isPanelVisible ? "flex" : "none";
+      cursorBtn.style.display = isGlassVisible && !this.stateManager.state.isPanelPinned ? "flex" : "none";
     }
     const dragGlassBtn = this.elements.controls.querySelector('[data-action="drag-glass"]');
     if (dragGlassBtn) {

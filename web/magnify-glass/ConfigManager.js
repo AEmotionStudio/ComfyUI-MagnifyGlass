@@ -3,7 +3,6 @@ var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { en
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 import { getSettingValue } from "../shared/utils.js";
 import { STORAGE_KEYS } from "../shared/constants.js";
-x;
 const DEFAULT_GLASS_SETTINGS = {
   "🔍MagnifyGlass.ZoomFactor": 300,
   "🔍MagnifyGlass.GlassSize": 300,

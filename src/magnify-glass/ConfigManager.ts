@@ -1,4 +1,4 @@
-x/**
+/**
  * ComfyUI MagnifyGlass - ConfigManager (TypeScript)
  * 
  * Manages configuration and settings for the magnifying glass.

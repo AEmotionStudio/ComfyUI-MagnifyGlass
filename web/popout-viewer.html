@@ -953,6 +953,11 @@
                                 <span class="info-label">Category</span>
                                 <span class="info-value">${escapeHtml(info.hoveredNode.category)}</span>
                             </div>` : ''}
+                            ${info.hoveredNode.pythonModule ? `
+                            <div class="info-row">
+                                <span class="info-label">Path</span>
+                                <span class="info-value">${escapeHtml(info.hoveredNode.pythonModule)}</span>
+                            </div>` : ''}
                         </div>
                     </div>
                 `;

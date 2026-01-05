@@ -34,6 +34,7 @@ interface PopOutInfo {
         type: string;
         executionOrder?: number;
         category?: string;
+        pythonModule?: string;
     };
     cursor?: {
         canvas?: { x: number; y: number };
@@ -83,7 +84,7 @@ export class PopOutManager {
      */
     private getViewerUrl(): string {
         // Cache-busting version - increment to force refresh
-        const version = 'v15';
+        const version = 'v16';
 
         // Find the extension's base URL from the loaded scripts
         const scripts = document.querySelectorAll('script[src*="magnify"]');
@@ -325,7 +326,8 @@ export class PopOutManager {
                     title: String(info.hoveredNode.title || ''),
                     type: String(info.hoveredNode.type || ''),
                     executionOrder: info.hoveredNode.executionOrder,
-                    category: info.hoveredNode.category ? String(info.hoveredNode.category) : undefined
+                    category: info.hoveredNode.category ? String(info.hoveredNode.category) : undefined,
+                    pythonModule: info.hoveredNode.pythonModule ? String(info.hoveredNode.pythonModule) : undefined
                 };
             }
 

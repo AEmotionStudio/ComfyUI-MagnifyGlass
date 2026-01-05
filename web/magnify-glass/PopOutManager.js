@@ -27,7 +27,7 @@ class PopOutManager {
    * Get the URL for the pop-out viewer page.
    */
   getViewerUrl() {
-    const version = "v15";
+    const version = "v16";
     const scripts = document.querySelectorAll('script[src*="magnify"]');
     Logger.debug(`[PopOut] Found ${scripts.length} magnify scripts`);
     if (scripts.length > 0) {
@@ -216,7 +216,8 @@ class PopOutManager {
           title: String(info.hoveredNode.title || ""),
           type: String(info.hoveredNode.type || ""),
           executionOrder: info.hoveredNode.executionOrder,
-          category: info.hoveredNode.category ? String(info.hoveredNode.category) : void 0
+          category: info.hoveredNode.category ? String(info.hoveredNode.category) : void 0,
+          pythonModule: info.hoveredNode.pythonModule ? String(info.hoveredNode.pythonModule) : void 0
         };
       }
       if (info.cursor) {

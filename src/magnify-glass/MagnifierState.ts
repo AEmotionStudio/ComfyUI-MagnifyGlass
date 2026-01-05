@@ -48,6 +48,9 @@ export class MagnifierState {
     /** Whether glass drag mode is enabled (move icon on hover controls) */
     isDragModeEnabled: boolean;
 
+    /** Whether glass preview is hidden via hover controls (but tool still active) */
+    isPreviewHidden: boolean;
+
     // --- Debug Metrics for Virtual Zoom ---
     virtualMouseCssX: number;
     virtualMouseCssY: number;
@@ -74,6 +77,7 @@ export class MagnifierState {
         this.canvasOffsetY = 0;
         this.isRenderScheduled = false;
         this.isDragModeEnabled = false;
+        this.isPreviewHidden = false;
 
         this.virtualMouseCssX = 0;
         this.virtualMouseCssY = 0;

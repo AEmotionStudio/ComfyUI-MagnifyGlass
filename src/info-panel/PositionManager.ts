@@ -147,8 +147,15 @@ export class PositionManager {
             return;
         }
 
-        const isPanelVisible = this.stateManager.state.isPanelVisible;
+        // NEW: Check if Magnify Glass is active globally
         const magnifyGlass = window.comfyUIMagnifyGlass;
+        if (magnifyGlass && !magnifyGlass.state.active) {
+            controlsElement.style.display = 'none';
+            return;
+        }
+
+        const isPanelVisible = this.stateManager.state.isPanelVisible;
+
         let referenceRect: DOMRect | null = null;
 
         // 1. Position relative to PANEL (Preferred if visible)

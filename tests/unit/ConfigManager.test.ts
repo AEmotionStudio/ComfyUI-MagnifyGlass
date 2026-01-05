@@ -53,7 +53,7 @@ describe('ConfigManager', () => {
             expect(configManager.activationKey).toBe('x');
             expect(configManager.altRequired).toBe(false);
             expect(configManager.followCursor).toBe(false);
-            expect(configManager.debugMode).toBe(false);
+            // Note: debugMode was removed from ConfigManager
         });
 
         it('should initialize offsets to zero', () => {

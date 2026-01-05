@@ -8,6 +8,7 @@
 import type { ComfyApp, ComfyNode, ComfyWidget, GatheredInfo, NodeInfo, WidgetInfo, MediaInfo } from '../types/comfyui';
 
 declare const app: ComfyApp;
+declare const LiteGraph: any;
 
 /**
  * Information Gatherer class.

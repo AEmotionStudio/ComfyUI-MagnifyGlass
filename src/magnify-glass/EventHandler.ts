@@ -137,11 +137,11 @@ export class EventHandler {
                     toggleGlassBtn.click();
                     this.magnifyGlass.debugger.log(`Glass Preview Toggled (via button)`);
                 } else {
-                    // Fallback: toggle via UI directly if button not found
+                    // Fallback: toggle via setGlassPreviewActive directly if button not found
                     const glassDiv = this.magnifyGlass.ui.glassDiv;
                     if (glassDiv) {
                         const isVisible = glassDiv.style.display !== 'none' && glassDiv.style.opacity !== '0';
-                        this.magnifyGlass.ui.setPreviewVisibility(!isVisible);
+                        this.magnifyGlass.setGlassPreviewActive(!isVisible);
                         this.magnifyGlass.debugger.log(`Glass Preview Toggled (fallback): ${!isVisible ? 'ON' : 'OFF'}`);
                     }
                 }

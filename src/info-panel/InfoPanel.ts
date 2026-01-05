@@ -68,7 +68,11 @@ export class InfoPanel {
         this.magnifyGlass.updateMagnifiedView = (() => {
             originalUpdateMagnifiedView();
 
-            if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"] && this.magnifyGlass.state.active) {
+            // Only schedule info update if panel is enabled, glass is active, AND preview is visible
+            // This prevents extra work when glass preview is hidden via hover controls
+            if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"] &&
+                this.magnifyGlass.state.active &&
+                this.stateManager.state.isGlassPreviewVisible !== false) {
                 this.scheduleInfoUpdate();
             }
         }).bind(this);
@@ -79,6 +83,13 @@ export class InfoPanel {
 
         this.magnifyGlass.ui.show = (() => {
             originalShow();
+
+            // CRITICAL: Only restore panel if the magnify glass is actually active
+            // This prevents the panel from showing when toggle() is switching it OFF
+            if (!this.magnifyGlass.state.active) {
+                return;
+            }
+
             if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"]) {
                 // Restore state: If it was visible before hide, make it visible now.
                 // Otherwise only show controls.
@@ -114,6 +125,12 @@ export class InfoPanel {
 
             originalHide();
             this.uiManager.hide();
+
+            // FORCE HIDE: Directly set panel display to none as a safety measure
+            if (this.uiManager.elements.panel) {
+                this.uiManager.elements.panel.style.display = 'none';
+            }
+
             // Explicitly hide floating controls when glass is disabled
             if (this.uiManager.elements.controls) {
                 this.uiManager.elements.controls.style.display = 'none';
@@ -140,6 +157,8 @@ export class InfoPanel {
 
         // Safety: If disabled or inactive, ensure hidden and return
         if (!settings["🔍MagnifyGlass.InfoPanelEnabled"] || !isActive) {
+            // Hide the panel completely when the glass is inactive
+            this.uiManager.hide();
             if (this.uiManager.elements.controls && this.uiManager.elements.controls.style.display !== 'none') {
                 this.uiManager.elements.controls.style.display = 'none';
             }

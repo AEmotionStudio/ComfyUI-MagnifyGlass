@@ -29,6 +29,8 @@ class MagnifierState {
     __publicField(this, "isRenderScheduled");
     /** Whether glass drag mode is enabled (move icon on hover controls) */
     __publicField(this, "isDragModeEnabled");
+    /** Whether glass preview is hidden via hover controls (but tool still active) */
+    __publicField(this, "isPreviewHidden");
     // --- Debug Metrics for Virtual Zoom ---
     __publicField(this, "virtualMouseCssX");
     __publicField(this, "virtualMouseCssY");
@@ -52,6 +54,7 @@ class MagnifierState {
     this.canvasOffsetY = 0;
     this.isRenderScheduled = false;
     this.isDragModeEnabled = false;
+    this.isPreviewHidden = false;
     this.virtualMouseCssX = 0;
     this.virtualMouseCssY = 0;
     this.virtualGraphX = 0;

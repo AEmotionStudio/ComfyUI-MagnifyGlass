@@ -109,8 +109,12 @@ class PositionManager {
       controlsElement.style.display = "none";
       return;
     }
-    const isPanelVisible = this.stateManager.state.isPanelVisible;
     const magnifyGlass = window.comfyUIMagnifyGlass;
+    if (magnifyGlass && !magnifyGlass.state.active) {
+      controlsElement.style.display = "none";
+      return;
+    }
+    const isPanelVisible = this.stateManager.state.isPanelVisible;
     let referenceRect = null;
     if (isPanelVisible && this.panelElement) {
       if (this.cachedPanelPosition) {

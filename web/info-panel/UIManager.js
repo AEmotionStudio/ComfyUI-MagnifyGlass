@@ -200,7 +200,9 @@ class UIManager {
           this.updateControlStates();
           this.updatePinnedState();
           const magnifyGlass = window.comfyUIMagnifyGlass;
-          if (magnifyGlass && ((_a = magnifyGlass.ui) == null ? void 0 : _a.setPreviewVisibility)) {
+          if (magnifyGlass && magnifyGlass.setGlassPreviewActive) {
+            magnifyGlass.setGlassPreviewActive(this.stateManager.state.isGlassPreviewVisible);
+          } else if (magnifyGlass && ((_a = magnifyGlass.ui) == null ? void 0 : _a.setPreviewVisibility)) {
             magnifyGlass.ui.setPreviewVisibility(this.stateManager.state.isGlassPreviewVisible);
           }
           break;

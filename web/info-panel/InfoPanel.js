@@ -46,7 +46,7 @@ class InfoPanel {
     const originalUpdateMagnifiedView = this.magnifyGlass.updateMagnifiedView.bind(this.magnifyGlass);
     this.magnifyGlass.updateMagnifiedView = (() => {
       originalUpdateMagnifiedView();
-      if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"] && this.magnifyGlass.state.active) {
+      if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"] && this.magnifyGlass.state.active && this.stateManager.state.isGlassPreviewVisible !== false) {
         this.scheduleInfoUpdate();
       }
     }).bind(this);
@@ -54,6 +54,9 @@ class InfoPanel {
     const originalHide = this.magnifyGlass.ui.hide.bind(this.magnifyGlass.ui);
     this.magnifyGlass.ui.show = (() => {
       originalShow();
+      if (!this.magnifyGlass.state.active) {
+        return;
+      }
       if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"]) {
         if (this.stateManager.state.wasPanelVisibleBeforeHide) {
           this.uiManager.show();
@@ -77,6 +80,9 @@ class InfoPanel {
       this.stateManager.state.wasPanelVisibleBeforeHide = this.stateManager.state.isPanelVisible;
       originalHide();
       this.uiManager.hide();
+      if (this.uiManager.elements.panel) {
+        this.uiManager.elements.panel.style.display = "none";
+      }
       if (this.uiManager.elements.controls) {
         this.uiManager.elements.controls.style.display = "none";
       }
@@ -94,6 +100,7 @@ class InfoPanel {
     const settings = this.stateManager.state.settings;
     const isActive = this.magnifyGlass.state.active;
     if (!settings["🔍MagnifyGlass.InfoPanelEnabled"] || !isActive) {
+      this.uiManager.hide();
       if (this.uiManager.elements.controls && this.uiManager.elements.controls.style.display !== "none") {
         this.uiManager.elements.controls.style.display = "none";
       }

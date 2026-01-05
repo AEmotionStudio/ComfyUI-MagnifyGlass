@@ -305,10 +305,13 @@ export class UIManager {
                     this.updateControlStates();
                     this.updatePinnedState(); // Update visual class
 
-                    // Toggle ONLY the visual visibility (opacity) of the glass preview
-                    // The tool remains active so the inspector can track position
+                    // Toggle BOTH the visual visibility AND the rendering
+                    // This fully disables the offscreen renderer when preview is hidden
                     const magnifyGlass = (window as any).comfyUIMagnifyGlass;
-                    if (magnifyGlass && magnifyGlass.ui?.setPreviewVisibility) {
+                    if (magnifyGlass && magnifyGlass.setGlassPreviewActive) {
+                        magnifyGlass.setGlassPreviewActive(this.stateManager.state.isGlassPreviewVisible);
+                    } else if (magnifyGlass && magnifyGlass.ui?.setPreviewVisibility) {
+                        // Fallback for backwards compatibility
                         magnifyGlass.ui.setPreviewVisibility(this.stateManager.state.isGlassPreviewVisible);
                     }
                     break;

@@ -132,15 +132,19 @@ export class MagnifyGlass {
      */
     toggle(): void {
         const state = this.state;
-        const config = this.config;
 
         if (state.active) {
+            // TURNING OFF - Force hide everything
             state.active = false;
             this.ui.hide();
+
+            // SIMPLE FIX: Force hide info panel directly by DOM
+            this.forceHideInfoPanel();
         } else {
+            // TURNING ON
             state.active = true;
+            this.removeForceHide(); // Remove force-hidden class before showing
             this.ui.show();
-            // Update initial position if needed
             if (this.eventHandler) {
                 this.eventHandler.updateInitialPosition();
             }
@@ -148,10 +152,111 @@ export class MagnifyGlass {
     }
 
     /**
+     * Set glass preview visibility WITHOUT affecting info panel.
+     * This is used by the toggle-glass hover control button.
+     * When hidden, the renderer stops completely to save performance.
+     * When shown, the renderer resumes.
+     * 
+     * @param visible - true to show and enable rendering, false to hide and disable
+     */
+    setGlassPreviewActive(visible: boolean): void {
+        // Track this state internally
+        this.state.isPreviewHidden = !visible;
+
+        if (visible) {
+            // Show the glass preview
+            this.ui.setPreviewVisibility(true);
+            // Resume rendering on next mouse move
+        } else {
+            // Hide the glass preview visually
+            this.ui.setPreviewVisibility(false);
+            // The rendering will be skipped in updateMagnifiedView due to isPreviewHidden check
+        }
+    }
+
+    /**
+     * Force hide the info panel using CSS class with !important.
+     * This bypasses all state management and inline style overrides.
+     */
+    private forceHideInfoPanel(): void {
+        // Ensure CSS rule exists
+        this.ensureForceHideCssRule();
+
+        // Add the force-hidden class to info panel
+        const infoPanel = document.querySelector('.magnify-info-panel');
+        if (infoPanel) {
+            infoPanel.classList.add('magnify-glass-force-hidden');
+        }
+
+        // Add the force-hidden class to floating controls
+        const floatingControls = document.querySelector('.floating-controls');
+        if (floatingControls) {
+            floatingControls.classList.add('magnify-glass-force-hidden');
+        }
+    }
+
+    /**
+     * Remove the force-hidden class when glass is showing.
+     */
+    private removeForceHide(): void {
+        const infoPanel = document.querySelector('.magnify-info-panel');
+        if (infoPanel) {
+            infoPanel.classList.remove('magnify-glass-force-hidden');
+        }
+
+        const floatingControls = document.querySelector('.floating-controls');
+        if (floatingControls) {
+            floatingControls.classList.remove('magnify-glass-force-hidden');
+        }
+    }
+
+    /**
+     * Ensure the CSS rule for force-hidden exists.
+     */
+    private ensureForceHideCssRule(): void {
+        const styleId = 'magnify-glass-force-hide-style';
+        if (document.getElementById(styleId)) return;
+
+        const style = document.createElement('style');
+        style.id = styleId;
+        style.textContent = `
+            .magnify-glass-force-hidden {
+                display: none !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
+    /**
+     * Check if the glass preview is visible.
+     * Returns false if hidden via hover controls.
+     */
+    private isGlassPreviewVisible(): boolean {
+        // Check info panel extension state for isGlassPreviewVisible
+        const extensions = (window as any).comfyUIMagnifyGlassExtensions;
+        if (extensions && extensions.length > 0) {
+            const infoPanel = extensions[0];
+            if (infoPanel?.stateManager?.state) {
+                return infoPanel.stateManager.state.isGlassPreviewVisible !== false;
+            }
+        }
+        // Default to visible if we can't find the state
+        return true;
+    }
+
+    /**
      * Update the magnified view.
      */
     updateMagnifiedView(): void {
         if (!this.state.active || !this.renderer || !this.litegraphCanvas) {
+            return;
+        }
+
+        // Skip rendering if glass preview is hidden via hover controls
+        // This prevents double FPS when only the info panel is active
+        if (this.state.isPreviewHidden) {
             return;
         }
 

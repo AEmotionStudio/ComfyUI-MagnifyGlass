@@ -85,12 +85,13 @@ class MagnifyGlass {
    */
   toggle() {
     const state = this.state;
-    this.config;
     if (state.active) {
       state.active = false;
       this.ui.hide();
+      this.forceHideInfoPanel();
     } else {
       state.active = true;
+      this.removeForceHide();
       this.ui.show();
       if (this.eventHandler) {
         this.eventHandler.updateInitialPosition();
@@ -98,10 +99,89 @@ class MagnifyGlass {
     }
   }
   /**
+   * Set glass preview visibility WITHOUT affecting info panel.
+   * This is used by the toggle-glass hover control button.
+   * When hidden, the renderer stops completely to save performance.
+   * When shown, the renderer resumes.
+   * 
+   * @param visible - true to show and enable rendering, false to hide and disable
+   */
+  setGlassPreviewActive(visible) {
+    this.state.isPreviewHidden = !visible;
+    if (visible) {
+      this.ui.setPreviewVisibility(true);
+    } else {
+      this.ui.setPreviewVisibility(false);
+    }
+  }
+  /**
+   * Force hide the info panel using CSS class with !important.
+   * This bypasses all state management and inline style overrides.
+   */
+  forceHideInfoPanel() {
+    this.ensureForceHideCssRule();
+    const infoPanel = document.querySelector(".magnify-info-panel");
+    if (infoPanel) {
+      infoPanel.classList.add("magnify-glass-force-hidden");
+    }
+    const floatingControls = document.querySelector(".floating-controls");
+    if (floatingControls) {
+      floatingControls.classList.add("magnify-glass-force-hidden");
+    }
+  }
+  /**
+   * Remove the force-hidden class when glass is showing.
+   */
+  removeForceHide() {
+    const infoPanel = document.querySelector(".magnify-info-panel");
+    if (infoPanel) {
+      infoPanel.classList.remove("magnify-glass-force-hidden");
+    }
+    const floatingControls = document.querySelector(".floating-controls");
+    if (floatingControls) {
+      floatingControls.classList.remove("magnify-glass-force-hidden");
+    }
+  }
+  /**
+   * Ensure the CSS rule for force-hidden exists.
+   */
+  ensureForceHideCssRule() {
+    const styleId = "magnify-glass-force-hide-style";
+    if (document.getElementById(styleId)) return;
+    const style = document.createElement("style");
+    style.id = styleId;
+    style.textContent = `
+            .magnify-glass-force-hidden {
+                display: none !important;
+                visibility: hidden !important;
+                opacity: 0 !important;
+            }
+        `;
+    document.head.appendChild(style);
+  }
+  /**
+   * Check if the glass preview is visible.
+   * Returns false if hidden via hover controls.
+   */
+  isGlassPreviewVisible() {
+    var _a;
+    const extensions = window.comfyUIMagnifyGlassExtensions;
+    if (extensions && extensions.length > 0) {
+      const infoPanel = extensions[0];
+      if ((_a = infoPanel == null ? void 0 : infoPanel.stateManager) == null ? void 0 : _a.state) {
+        return infoPanel.stateManager.state.isGlassPreviewVisible !== false;
+      }
+    }
+    return true;
+  }
+  /**
    * Update the magnified view.
    */
   updateMagnifiedView() {
     if (!this.state.active || !this.renderer || !this.litegraphCanvas) {
+      return;
+    }
+    if (this.state.isPreviewHidden) {
       return;
     }
     this.updateCanvasTransformation();

@@ -107,7 +107,7 @@ class EventHandler {
           const glassDiv = this.magnifyGlass.ui.glassDiv;
           if (glassDiv) {
             const isVisible = glassDiv.style.display !== "none" && glassDiv.style.opacity !== "0";
-            this.magnifyGlass.ui.setPreviewVisibility(!isVisible);
+            this.magnifyGlass.setGlassPreviewActive(!isVisible);
             this.magnifyGlass.debugger.log(`Glass Preview Toggled (fallback): ${!isVisible ? "ON" : "OFF"}`);
           }
         }

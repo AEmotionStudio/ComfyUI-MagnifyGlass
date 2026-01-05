@@ -186,7 +186,7 @@ const _OffscreenRenderer = class _OffscreenRenderer {
               node.widgets = node.widgets.filter((w) => {
                 const wName = String(w.name || "").toLowerCase();
                 const wType = String(w.type || "").toLowerCase();
-                const isPreview = wName.includes("preview") || wName.includes("image") || wName.includes("gallery") || wName.includes("upload") || wType.includes("preview") || wType.includes("image");
+                const isPreview = wName.includes("preview") || wName.includes("gallery") || wType.includes("preview");
                 return !isPreview;
               });
             }
@@ -289,18 +289,18 @@ const _OffscreenRenderer = class _OffscreenRenderer {
         const computedHeight = widget.computedHeight || 0;
         const isMarkdownWidget = widgetType === "markdown";
         const isMultiLineWidget = isMarkdownWidget || widgetType === "customtext" || (widgetType === "text" || widgetType === "textarea") && computedHeight >= 40;
+        const widgetCssX = nodeCssX + PADDING * scale;
+        const widgetCssY = nodeCssY + widgetLocalY * scale;
+        const widgetCssWidth = nodeCssWidth - PADDING * 2 * scale;
+        const canvasX = (widgetCssX - sourceCssX) * actualDpr * captureScale;
+        const canvasY = (widgetCssY - sourceCssY) * actualDpr * captureScale;
+        const widgetWidth = widgetCssWidth * actualDpr * captureScale;
+        const baseFontSize = 13;
+        const fontSize = Math.max(10, Math.min(28, baseFontSize * scale * actualDpr * captureScale));
+        const lineHeight = fontSize * 1.4;
         if (isMultiLineWidget && widget.value !== void 0 && widget.value !== null) {
           const textValue = String(widget.value);
           if (textValue.length > 0) {
-            const widgetCssX = nodeCssX + PADDING * scale;
-            const widgetCssY = nodeCssY + widgetLocalY * scale;
-            const widgetCssWidth = nodeCssWidth - PADDING * 2 * scale;
-            const canvasX = (widgetCssX - sourceCssX) * actualDpr * captureScale;
-            const canvasY = (widgetCssY - sourceCssY) * actualDpr * captureScale;
-            const widgetWidth = widgetCssWidth * actualDpr * captureScale;
-            const baseFontSize = 13;
-            const fontSize = Math.max(10, Math.min(28, baseFontSize * scale * actualDpr * captureScale));
-            const lineHeight = fontSize * 1.4;
             let contentHeight = 0;
             if (isMarkdownWidget) {
               ctx.save();
@@ -584,6 +584,27 @@ const _OffscreenRenderer = class _OffscreenRenderer {
         currentY += currentLineHeight;
       }
     }
+  }
+  /**
+   * Render a button widget.
+   * Draws a rounded rectangle with the label centered.
+   */
+  drawButton(ctx, label, x, y, width, height, fontSize) {
+    const radius = 6;
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(x, y, width, height, radius);
+    ctx.fillStyle = "#222";
+    ctx.fill();
+    ctx.strokeStyle = "#555";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#ccc";
+    ctx.fillText(label, x + width / 2, y + height / 2);
+    ctx.restore();
   }
   isAvailable() {
     return this.offscreenCanvas !== null && this.offscreenCtx !== null;

@@ -262,8 +262,9 @@ export class OffscreenRenderer {
                             node.widgets = node.widgets.filter((w: any) => {
                                 const wName = String(w.name || '').toLowerCase();
                                 const wType = String(w.type || '').toLowerCase();
-                                const isPreview = wName.includes('preview') || wName.includes('image') || wName.includes('gallery') || wName.includes('upload') ||
-                                    wType.includes('preview') || wType.includes('image');
+                                // Only hide explicit preview widgets. Inputs (image, upload) should remain visible.
+                                const isPreview = wName.includes('preview') || wName.includes('gallery') ||
+                                    wType.includes('preview');
                                 return !isPreview;
                             });
                         }
@@ -420,40 +421,40 @@ export class OffscreenRenderer {
                 // - type 'string' with no computedHeight or small computedHeight
                 // - These are already rendered on the canvas by ComfyUI
                 const computedHeight = (widget as any).computedHeight || 0;
-                const isMarkdownWidget = widgetType === 'markdown';
+                const isMarkdownWidget = widgetType === 'markdown'; // ComfyUI standard type
+
                 const isMultiLineWidget = isMarkdownWidget || widgetType === 'customtext' ||
                     ((widgetType === 'text' || widgetType === 'textarea') && computedHeight >= 40);
 
+                // Common calculations for positioning
+                const widgetCssX = nodeCssX + (PADDING * scale);
+                const widgetCssY = nodeCssY + (widgetLocalY * scale);
+                const widgetCssWidth = nodeCssWidth - (PADDING * 2 * scale);
+
+                // Convert from CSS to offscreen canvas coordinates
+                const canvasX = (widgetCssX - sourceCssX) * actualDpr * captureScale;
+                const canvasY = (widgetCssY - sourceCssY) * actualDpr * captureScale;
+                const widgetWidth = widgetCssWidth * actualDpr * captureScale;
+
+                // Calculate font size
+                const baseFontSize = 13;
+                const fontSize = Math.max(10, Math.min(28, baseFontSize * scale * actualDpr * captureScale));
+                const lineHeight = fontSize * 1.4;
+
+                // ----------------------------------------------------------------
+                // RENDER TEXT / MARKDOWN
+                // ----------------------------------------------------------------
                 if (isMultiLineWidget && widget.value !== undefined && widget.value !== null) {
                     const textValue = String(widget.value);
                     if (textValue.length > 0) {
-                        // Widget position in CSS pixels (relative to canvas)
-                        const widgetCssX = nodeCssX + (PADDING * scale);
-                        const widgetCssY = nodeCssY + (widgetLocalY * scale);
-                        const widgetCssWidth = nodeCssWidth - (PADDING * 2 * scale);
-
-                        // Convert from CSS to offscreen canvas coordinates
-                        // Position relative to source region, scaled to output size
-                        const canvasX = (widgetCssX - sourceCssX) * actualDpr * captureScale;
-                        const canvasY = (widgetCssY - sourceCssY) * actualDpr * captureScale;
-                        const widgetWidth = widgetCssWidth * actualDpr * captureScale;
-
-                        // Calculate font size based on scale
-                        const baseFontSize = 13;
-                        const fontSize = Math.max(10, Math.min(28, baseFontSize * scale * actualDpr * captureScale));
-                        const lineHeight = fontSize * 1.4;
-
                         // Calculate required height based on content
                         let contentHeight = 0;
                         if (isMarkdownWidget) {
                             // Rough estimation of height needed
-                            // We don't have ctx context here easily for precise measurement without setting font
-                            // So we do a generous estimation or try to measure
                             ctx.save();
                             ctx.font = `500 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
                             const maxWidth = widgetWidth - 12;
 
-                            // reuse wrap logic estimation
                             const lines = textValue.split('\n');
                             for (const line of lines) {
                                 const words = line.split(/(\s+)/);
@@ -862,6 +863,53 @@ export class OffscreenRenderer {
                 currentY += currentLineHeight;
             }
         }
+    }
+
+
+
+    /**
+     * Render a button widget.
+     * Draws a rounded rectangle with the label centered.
+     */
+    private drawButton(
+        ctx: CanvasRenderingContext2D,
+        label: string,
+        x: number,
+        y: number,
+        width: number,
+        height: number,
+        fontSize: number
+    ): void {
+        const radius = 6;
+
+        ctx.save();
+
+        // Button background
+        ctx.beginPath();
+        ctx.roundRect(x, y, width, height, radius);
+        ctx.fillStyle = '#222'; // Dark button background
+        ctx.fill();
+
+        // Button border
+        ctx.strokeStyle = '#555';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        // Button label
+        ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = '#ccc'; // Light grey text
+
+        // Center text in button
+        const fileUploadLabel = "choose file to upload";
+        // If it's the long upload label, we might need smaller font or wrapping, 
+        // but typically buttons are single line.
+        // We'll just truncate if too long or let it clip via context clipping if we added any (we didn't yet).
+
+        ctx.fillText(label, x + width / 2, y + height / 2);
+
+        ctx.restore();
     }
 
     isAvailable(): boolean {

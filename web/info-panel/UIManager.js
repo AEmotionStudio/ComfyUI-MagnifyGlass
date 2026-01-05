@@ -132,6 +132,7 @@ class UIManager {
             <button class="control-btn persist-btn" title="Toggle Persist Mode (Sticky Info)" data-action="persist">${Icons.magnet}</button>
             <button class="control-btn visibility-btn" title="Toggle Panel Visibility (I)" data-action="toggle-panel">${Icons.eye}</button>
             <button class="control-btn glass-btn" title="Toggle Glass Preview (G)" data-action="toggle-glass">${Icons.magnifyGlass}</button>
+            <button class="control-btn cursor-btn" title="Toggle Cursor Preview" data-action="toggle-cursor">${Icons.cursor}</button>
             <button class="control-btn drag-glass-btn" title="Move Glass Position (H)" data-action="drag-glass">${Icons.move}</button>
             <button class="control-btn reset-glass-btn" title="Reset Glass Position (O)" data-action="reset-glass">${Icons.reset}</button>
             <button class="control-btn popout-btn" title="Open in New Tab (Shift+P)" data-action="popout">${Icons.externalLink}</button>
@@ -232,6 +233,14 @@ class UIManager {
             }
           }
           break;
+        case "toggle-cursor":
+          const cglass = window.comfyUIMagnifyGlass;
+          if (cglass && cglass.config) {
+            cglass.config.showCursorPreview = !cglass.config.showCursorPreview;
+            cglass.updateMagnifiedView();
+            this.updateControlStates();
+          }
+          break;
       }
     });
     const controlsPosition = String(this.stateManager.state.settings["🔍MagnifyGlass.ControlsPosition"] || "top-right");
@@ -242,7 +251,7 @@ class UIManager {
    * Update control button states.
    */
   updateControlStates() {
-    var _a;
+    var _a, _b;
     if (!this.elements.controls) return;
     const pinBtn = this.elements.controls.querySelector('[data-action="pin"]');
     const lockBtn = this.elements.controls.querySelector('[data-action="lock"]');
@@ -296,10 +305,18 @@ class UIManager {
       glassBtn.title = isGlassVisible ? "Hide Glass Preview" : "Show Glass Preview";
       glassBtn.style.display = isPanelVisible ? "flex" : "none";
     }
+    const cursorBtn = this.elements.controls.querySelector('[data-action="toggle-cursor"]');
+    if (cursorBtn) {
+      const cglass = window.comfyUIMagnifyGlass;
+      const showCursor = ((_a = cglass == null ? void 0 : cglass.config) == null ? void 0 : _a.showCursorPreview) || false;
+      cursorBtn.classList.toggle("active", showCursor);
+      cursorBtn.title = showCursor ? "Hide Cursor Preview" : "Show Cursor Preview";
+      cursorBtn.style.display = isGlassVisible && !isPanelVisible ? "flex" : "none";
+    }
     const dragGlassBtn = this.elements.controls.querySelector('[data-action="drag-glass"]');
     if (dragGlassBtn) {
       const mglass = window.comfyUIMagnifyGlass;
-      const isDragMode = ((_a = mglass == null ? void 0 : mglass.state) == null ? void 0 : _a.isDragModeEnabled) || false;
+      const isDragMode = ((_b = mglass == null ? void 0 : mglass.state) == null ? void 0 : _b.isDragModeEnabled) || false;
       dragGlassBtn.classList.toggle("active", isDragMode);
       dragGlassBtn.title = isDragMode ? "Cancel Move Mode (H)" : "Move Glass Position (H)";
       dragGlassBtn.style.display = isGlassVisible ? "flex" : "none";

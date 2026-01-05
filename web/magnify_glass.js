@@ -1,6 +1,7 @@
 import { MagnifyGlass } from "./magnify-glass/MagnifyGlass.js";
-import { app } from "/scripts/app.js";
+import "./magnify-glass/ConfigManager.js";
 import { Logger } from "./shared/logger.js";
+import { app } from "/scripts/app.js";
 import { initSidebar } from "./sidebar/sidebar.js";
 app.registerExtension({
   name: "comfyui.magnify.glass",

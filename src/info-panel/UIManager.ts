@@ -220,6 +220,7 @@ export class UIManager {
             <button class="control-btn persist-btn" title="Toggle Persist Mode (Sticky Info)" data-action="persist">${Icons.magnet}</button>
             <button class="control-btn visibility-btn" title="Toggle Panel Visibility (I)" data-action="toggle-panel">${Icons.eye}</button>
             <button class="control-btn glass-btn" title="Toggle Glass Preview (G)" data-action="toggle-glass">${Icons.magnifyGlass}</button>
+            <button class="control-btn cursor-btn" title="Toggle Cursor Preview" data-action="toggle-cursor">${Icons.cursor}</button>
             <button class="control-btn drag-glass-btn" title="Move Glass Position (H)" data-action="drag-glass">${Icons.move}</button>
             <button class="control-btn reset-glass-btn" title="Reset Glass Position (O)" data-action="reset-glass">${Icons.reset}</button>
             <button class="control-btn popout-btn" title="Open in New Tab (Shift+P)" data-action="popout">${Icons.externalLink}</button>
@@ -347,6 +348,14 @@ export class UIManager {
                         }
                     }
                     break;
+                case 'toggle-cursor':
+                    const cglass = (window as any).comfyUIMagnifyGlass;
+                    if (cglass && cglass.config) {
+                        cglass.config.showCursorPreview = !cglass.config.showCursorPreview;
+                        cglass.updateMagnifiedView();
+                        this.updateControlStates();
+                    }
+                    break;
             }
         });
 
@@ -429,6 +438,18 @@ export class UIManager {
 
             // Only show glass toggle button if the inspector panel is visible
             glassBtn.style.display = isPanelVisible ? 'flex' : 'none';
+        }
+
+        const cursorBtn = this.elements.controls.querySelector('[data-action="toggle-cursor"]') as HTMLButtonElement;
+        if (cursorBtn) {
+            const cglass = (window as any).comfyUIMagnifyGlass;
+            const showCursor = cglass?.config?.showCursorPreview || false;
+            cursorBtn.classList.toggle('active', showCursor);
+            cursorBtn.title = showCursor ? "Hide Cursor Preview" : "Show Cursor Preview";
+
+            // Logic: Visible when glass is visible AND panel is hidden (as requested)
+            // "present attached to the glass then hide when the info panel is opened"
+            cursorBtn.style.display = (isGlassVisible && !isPanelVisible) ? 'flex' : 'none';
         }
 
         const dragGlassBtn = this.elements.controls.querySelector('[data-action="drag-glass"]') as HTMLButtonElement;

@@ -276,7 +276,7 @@ function renderSettingsPanel(container) {
     `When enabled, glass stays visible. Toggle with ${activationKey}`
   ));
   glassSection.body.appendChild(createToggle(
-    "Show Cursor",
+    "Show Mini Cursor",
     getSettingValue("🔍MagnifyGlass.ShowCursorPreview", true),
     (checked) => setSettingValue("🔍MagnifyGlass.ShowCursorPreview", checked),
     "Display a mini cursor in the glass preview"

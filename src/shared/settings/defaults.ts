@@ -14,7 +14,7 @@ import {
     DEFAULT_PANEL_MAX_HEIGHT,
     DEFAULT_PANEL_OPACITY
 } from '../constants';
-import type { GlassSettings, PanelSettings } from './types';
+import type { GlassSettings, PanelSettings, AccessibilitySettings } from './types';
 
 /**
  * Default settings for the magnify glass component.
@@ -61,4 +61,20 @@ export const DEFAULT_PANEL_SETTINGS: PanelSettings = {
     "🔍MagnifyGlass.InfoPanelFontSize": 14,
     "🔍MagnifyGlass.InfoPanelFontFamily": "System Default",
     "🔍MagnifyGlass.InfoPanelPersist": false,
+};
+
+/**
+ * Default settings for accessibility enhancements.
+ */
+export const DEFAULT_ACCESSIBILITY_SETTINGS: AccessibilitySettings = {
+    "🔍MagnifyGlass.AccessibilityEnabled": false,
+    "🔍MagnifyGlass.HighContrastMode": false,
+    "🔍MagnifyGlass.TextGlowEnabled": false,
+    "🔍MagnifyGlass.TextGlowColor": "#ffff00",
+    "🔍MagnifyGlass.TextGlowIntensity": 5,
+    "🔍MagnifyGlass.FontScaleFactor": 100,
+    "🔍MagnifyGlass.BoldTextEnabled": false,
+    "🔍MagnifyGlass.TextOutlineEnabled": false,
+    "🔍MagnifyGlass.TextOutlineColor": "#000000",
+    "🔍MagnifyGlass.NodeTitleEmphasis": false,
 };

@@ -389,6 +389,18 @@ export function registerGlassSettings(magnifyGlass: any): void {
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.GlassPreviewToggleHotkey', 'g');
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.PinPanelHotkey', 'u');
 
+                    // Accessibility Defaults
+                    app.ui.settings.setSettingValue('🔍MagnifyGlass.AccessibilityEnabled', false);
+                    app.ui.settings.setSettingValue('🔍MagnifyGlass.HighContrastMode', false);
+                    app.ui.settings.setSettingValue('🔍MagnifyGlass.TextGlowEnabled', false);
+                    app.ui.settings.setSettingValue('🔍MagnifyGlass.TextGlowColor', '#ffff00');
+                    app.ui.settings.setSettingValue('🔍MagnifyGlass.TextGlowIntensity', 5);
+                    app.ui.settings.setSettingValue('🔍MagnifyGlass.FontScaleFactor', 100);
+                    app.ui.settings.setSettingValue('🔍MagnifyGlass.BoldTextEnabled', false);
+                    app.ui.settings.setSettingValue('🔍MagnifyGlass.TextOutlineEnabled', false);
+                    app.ui.settings.setSettingValue('🔍MagnifyGlass.TextOutlineColor', '#000000');
+                    app.ui.settings.setSettingValue('🔍MagnifyGlass.NodeTitleEmphasis', false);
+
                     // Also force position reset
                     if (magnifyGlass?.resetOffsets) {
                         magnifyGlass.resetOffsets();

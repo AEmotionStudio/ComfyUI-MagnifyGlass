@@ -53,6 +53,32 @@ export interface PanelSettings {
 }
 
 /**
+ * Settings for accessibility enhancements in the glass preview.
+ */
+export interface AccessibilitySettings {
+    /** Master toggle for accessibility mode */
+    "🔍MagnifyGlass.AccessibilityEnabled": boolean;
+    /** High contrast mode - boost text contrast */
+    "🔍MagnifyGlass.HighContrastMode": boolean;
+    /** Text glow effect enabled */
+    "🔍MagnifyGlass.TextGlowEnabled": boolean;
+    /** Color of the text glow effect */
+    "🔍MagnifyGlass.TextGlowColor": string;
+    /** Blur radius for text glow (1-15px) */
+    "🔍MagnifyGlass.TextGlowIntensity": number;
+    /** Font size multiplier (100-200%) */
+    "🔍MagnifyGlass.FontScaleFactor": number;
+    /** Force bolder font weight */
+    "🔍MagnifyGlass.BoldTextEnabled": boolean;
+    /** Add contrasting stroke around text */
+    "🔍MagnifyGlass.TextOutlineEnabled": boolean;
+    /** Color of the text outline */
+    "🔍MagnifyGlass.TextOutlineColor": string;
+    /** Extra styling for node names */
+    "🔍MagnifyGlass.NodeTitleEmphasis": boolean;
+}
+
+/**
  * Combined settings type.
  */
-export type AllSettings = GlassSettings & PanelSettings;
+export type AllSettings = GlassSettings & PanelSettings & AccessibilitySettings;

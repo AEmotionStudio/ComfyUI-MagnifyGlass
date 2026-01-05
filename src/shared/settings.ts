@@ -7,10 +7,11 @@
  */
 
 // Re-export everything from the settings module
-export type { GlassSettings, PanelSettings, AllSettings } from './settings/types';
-export { DEFAULT_GLASS_SETTINGS, DEFAULT_PANEL_SETTINGS } from './settings/defaults';
+export type { GlassSettings, PanelSettings, AccessibilitySettings, AllSettings } from './settings/types';
+export { DEFAULT_GLASS_SETTINGS, DEFAULT_PANEL_SETTINGS, DEFAULT_ACCESSIBILITY_SETTINGS } from './settings/defaults';
 export { registerGlassSettings } from './settings/glassSettings';
 export { registerPanelSettings } from './settings/panelSettings';
+export { registerAccessibilitySettings } from './settings/accessibilitySettings';
 
 // Legacy getSettingConfig function for backwards compatibility
 // @ts-ignore

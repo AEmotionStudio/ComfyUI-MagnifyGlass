@@ -29,6 +29,17 @@ const DEFAULT_GLASS_SETTINGS = {
     "🔍MagnifyGlass.ShowCursorPreview": false,
     "🔍MagnifyGlass.ForceDirectCaptureKey": "d",
     "🔍MagnifyGlass.ForceDirectCapture": false,
+    // Accessibility defaults
+    "🔍MagnifyGlass.AccessibilityEnabled": false,
+    "🔍MagnifyGlass.HighContrastMode": false,
+    "🔍MagnifyGlass.TextGlowEnabled": false,
+    "🔍MagnifyGlass.TextGlowColor": "#ffff00",
+    "🔍MagnifyGlass.TextGlowIntensity": 5,
+    "🔍MagnifyGlass.FontScaleFactor": 100,
+    "🔍MagnifyGlass.BoldTextEnabled": false,
+    "🔍MagnifyGlass.TextOutlineEnabled": false,
+    "🔍MagnifyGlass.TextOutlineColor": "#000000",
+    "🔍MagnifyGlass.NodeTitleEmphasis": false,
 };
 
 /**
@@ -95,6 +106,38 @@ export class ConfigManager {
     /** Runtime flag: Force Direct Capture mode (not persisted) */
     forceDirectCapture: boolean;
 
+    // ===== Accessibility Settings =====
+
+    /** Master toggle for accessibility mode */
+    accessibilityEnabled: boolean;
+
+    /** High contrast mode - boost text contrast */
+    highContrastMode: boolean;
+
+    /** Text glow effect enabled */
+    textGlowEnabled: boolean;
+
+    /** Color of the text glow effect */
+    textGlowColor: string;
+
+    /** Blur radius for text glow (1-15px) */
+    textGlowIntensity: number;
+
+    /** Font size multiplier (100-200%) */
+    fontScaleFactor: number;
+
+    /** Force bolder font weight */
+    boldTextEnabled: boolean;
+
+    /** Add contrasting stroke around text */
+    textOutlineEnabled: boolean;
+
+    /** Color of the text outline */
+    textOutlineColor: string;
+
+    /** Extra styling for node names */
+    nodeTitleEmphasis: boolean;
+
     /** Manual offset X in graph units */
     offsetX: number;
 
@@ -124,6 +167,18 @@ export class ConfigManager {
         this.forceDirectCaptureKey = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.ForceDirectCaptureKey"];
         this.forceDirectCapture = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.ForceDirectCapture"]; // Initialize from default
 
+        // Accessibility settings
+        this.accessibilityEnabled = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.AccessibilityEnabled"];
+        this.highContrastMode = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.HighContrastMode"];
+        this.textGlowEnabled = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.TextGlowEnabled"];
+        this.textGlowColor = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.TextGlowColor"];
+        this.textGlowIntensity = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.TextGlowIntensity"];
+        this.fontScaleFactor = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.FontScaleFactor"];
+        this.boldTextEnabled = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.BoldTextEnabled"];
+        this.textOutlineEnabled = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.TextOutlineEnabled"];
+        this.textOutlineColor = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.TextOutlineColor"];
+        this.nodeTitleEmphasis = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.NodeTitleEmphasis"];
+
         // Alignment adjustment parameters - managed separately
         this.offsetX = 0;
         this.offsetY = 0;
@@ -152,6 +207,18 @@ export class ConfigManager {
         this.showCursorPreview = getSettingValue<boolean>("🔍MagnifyGlass.ShowCursorPreview", this.showCursorPreview);
         this.forceDirectCaptureKey = getSettingValue<string>("🔍MagnifyGlass.ForceDirectCaptureKey", this.forceDirectCaptureKey);
         this.toggleGlassPreviewKey = getSettingValue<string>("🔍MagnifyGlass.GlassPreviewToggleHotkey", this.toggleGlassPreviewKey);
+
+        // Accessibility settings
+        this.accessibilityEnabled = getSettingValue<boolean>("🔍MagnifyGlass.AccessibilityEnabled", this.accessibilityEnabled);
+        this.highContrastMode = getSettingValue<boolean>("🔍MagnifyGlass.HighContrastMode", this.highContrastMode);
+        this.textGlowEnabled = getSettingValue<boolean>("🔍MagnifyGlass.TextGlowEnabled", this.textGlowEnabled);
+        this.textGlowColor = getSettingValue<string>("🔍MagnifyGlass.TextGlowColor", this.textGlowColor);
+        this.textGlowIntensity = getSettingValue<number>("🔍MagnifyGlass.TextGlowIntensity", this.textGlowIntensity);
+        this.fontScaleFactor = getSettingValue<number>("🔍MagnifyGlass.FontScaleFactor", this.fontScaleFactor);
+        this.boldTextEnabled = getSettingValue<boolean>("🔍MagnifyGlass.BoldTextEnabled", this.boldTextEnabled);
+        this.textOutlineEnabled = getSettingValue<boolean>("🔍MagnifyGlass.TextOutlineEnabled", this.textOutlineEnabled);
+        this.textOutlineColor = getSettingValue<string>("🔍MagnifyGlass.TextOutlineColor", this.textOutlineColor);
+        this.nodeTitleEmphasis = getSettingValue<boolean>("🔍MagnifyGlass.NodeTitleEmphasis", this.nodeTitleEmphasis);
     }
 
     /**

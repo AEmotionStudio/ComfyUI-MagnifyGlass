@@ -22,7 +22,18 @@ const DEFAULT_GLASS_SETTINGS = {
   "🔍MagnifyGlass.GlassPreviewToggleHotkey": "g",
   "🔍MagnifyGlass.ShowCursorPreview": false,
   "🔍MagnifyGlass.ForceDirectCaptureKey": "d",
-  "🔍MagnifyGlass.ForceDirectCapture": false
+  "🔍MagnifyGlass.ForceDirectCapture": false,
+  // Accessibility defaults
+  "🔍MagnifyGlass.AccessibilityEnabled": false,
+  "🔍MagnifyGlass.HighContrastMode": false,
+  "🔍MagnifyGlass.TextGlowEnabled": false,
+  "🔍MagnifyGlass.TextGlowColor": "#ffff00",
+  "🔍MagnifyGlass.TextGlowIntensity": 5,
+  "🔍MagnifyGlass.FontScaleFactor": 100,
+  "🔍MagnifyGlass.BoldTextEnabled": false,
+  "🔍MagnifyGlass.TextOutlineEnabled": false,
+  "🔍MagnifyGlass.TextOutlineColor": "#000000",
+  "🔍MagnifyGlass.NodeTitleEmphasis": false
 };
 class ConfigManager {
   constructor() {
@@ -64,6 +75,27 @@ class ConfigManager {
     __publicField(this, "forceDirectCaptureKey");
     /** Runtime flag: Force Direct Capture mode (not persisted) */
     __publicField(this, "forceDirectCapture");
+    // ===== Accessibility Settings =====
+    /** Master toggle for accessibility mode */
+    __publicField(this, "accessibilityEnabled");
+    /** High contrast mode - boost text contrast */
+    __publicField(this, "highContrastMode");
+    /** Text glow effect enabled */
+    __publicField(this, "textGlowEnabled");
+    /** Color of the text glow effect */
+    __publicField(this, "textGlowColor");
+    /** Blur radius for text glow (1-15px) */
+    __publicField(this, "textGlowIntensity");
+    /** Font size multiplier (100-200%) */
+    __publicField(this, "fontScaleFactor");
+    /** Force bolder font weight */
+    __publicField(this, "boldTextEnabled");
+    /** Add contrasting stroke around text */
+    __publicField(this, "textOutlineEnabled");
+    /** Color of the text outline */
+    __publicField(this, "textOutlineColor");
+    /** Extra styling for node names */
+    __publicField(this, "nodeTitleEmphasis");
     /** Manual offset X in graph units */
     __publicField(this, "offsetX");
     /** Manual offset Y in graph units */
@@ -87,6 +119,16 @@ class ConfigManager {
     this.showCursorPreview = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.ShowCursorPreview"];
     this.forceDirectCaptureKey = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.ForceDirectCaptureKey"];
     this.forceDirectCapture = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.ForceDirectCapture"];
+    this.accessibilityEnabled = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.AccessibilityEnabled"];
+    this.highContrastMode = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.HighContrastMode"];
+    this.textGlowEnabled = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.TextGlowEnabled"];
+    this.textGlowColor = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.TextGlowColor"];
+    this.textGlowIntensity = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.TextGlowIntensity"];
+    this.fontScaleFactor = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.FontScaleFactor"];
+    this.boldTextEnabled = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.BoldTextEnabled"];
+    this.textOutlineEnabled = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.TextOutlineEnabled"];
+    this.textOutlineColor = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.TextOutlineColor"];
+    this.nodeTitleEmphasis = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.NodeTitleEmphasis"];
     this.offsetX = 0;
     this.offsetY = 0;
   }
@@ -112,6 +154,16 @@ class ConfigManager {
     this.showCursorPreview = getSettingValue("🔍MagnifyGlass.ShowCursorPreview", this.showCursorPreview);
     this.forceDirectCaptureKey = getSettingValue("🔍MagnifyGlass.ForceDirectCaptureKey", this.forceDirectCaptureKey);
     this.toggleGlassPreviewKey = getSettingValue("🔍MagnifyGlass.GlassPreviewToggleHotkey", this.toggleGlassPreviewKey);
+    this.accessibilityEnabled = getSettingValue("🔍MagnifyGlass.AccessibilityEnabled", this.accessibilityEnabled);
+    this.highContrastMode = getSettingValue("🔍MagnifyGlass.HighContrastMode", this.highContrastMode);
+    this.textGlowEnabled = getSettingValue("🔍MagnifyGlass.TextGlowEnabled", this.textGlowEnabled);
+    this.textGlowColor = getSettingValue("🔍MagnifyGlass.TextGlowColor", this.textGlowColor);
+    this.textGlowIntensity = getSettingValue("🔍MagnifyGlass.TextGlowIntensity", this.textGlowIntensity);
+    this.fontScaleFactor = getSettingValue("🔍MagnifyGlass.FontScaleFactor", this.fontScaleFactor);
+    this.boldTextEnabled = getSettingValue("🔍MagnifyGlass.BoldTextEnabled", this.boldTextEnabled);
+    this.textOutlineEnabled = getSettingValue("🔍MagnifyGlass.TextOutlineEnabled", this.textOutlineEnabled);
+    this.textOutlineColor = getSettingValue("🔍MagnifyGlass.TextOutlineColor", this.textOutlineColor);
+    this.nodeTitleEmphasis = getSettingValue("🔍MagnifyGlass.NodeTitleEmphasis", this.nodeTitleEmphasis);
   }
   /**
    * Load saved offsets from localStorage.

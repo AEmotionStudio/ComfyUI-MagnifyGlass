@@ -132,6 +132,9 @@ const _OffscreenRenderer = class _OffscreenRenderer {
       const currentScale = ((_a = lgCanvas == null ? void 0 : lgCanvas.ds) == null ? void 0 : _a.scale) ?? 1;
       const currentOffset = ((_b = lgCanvas == null ? void 0 : lgCanvas.ds) == null ? void 0 : _b.offset) ? [lgCanvas.ds.offset[0], lgCanvas.ds.offset[1]] : [0, 0];
       this.drawWidgetTextNatively(sourceX, sourceY, sourceWidth, sourceHeight, renderSize, currentScale, currentOffset);
+      if (this.config.accessibilityEnabled && this.config.nodeTitleEmphasis) {
+        this.drawNodeTitlesNatively(sourceX, sourceY, sourceWidth, sourceHeight, renderSize, currentScale, currentOffset);
+      }
       if (this.config.showCursorPreview) {
         this.drawCursorPreview(renderSize);
       }
@@ -225,6 +228,9 @@ const _OffscreenRenderer = class _OffscreenRenderer {
       );
       const captureOffset = [lgCanvas.ds.offset[0], lgCanvas.ds.offset[1]];
       this.drawWidgetTextNatively(sourceX, sourceY, sourceWidth, sourceHeight, renderSize, targetScale, captureOffset);
+      if (this.config.accessibilityEnabled && this.config.nodeTitleEmphasis) {
+        this.drawNodeTitlesNatively(sourceX, sourceY, sourceWidth, sourceHeight, renderSize, targetScale, captureOffset);
+      }
       this.drawImagePreviewsNatively(sourceX, sourceY, sourceWidth, sourceHeight, renderSize, targetScale, captureOffset);
       if (this.config.showCursorPreview) {
         this.drawCursorPreview(renderSize);
@@ -243,6 +249,64 @@ const _OffscreenRenderer = class _OffscreenRenderer {
       this.isCapturing = false;
       window.__magnifyGlassCapturing = false;
       return null;
+    }
+  }
+  /**
+   * Draw node titles natively with accessibility styling.
+   */
+  drawNodeTitlesNatively(sourceX, sourceY, sourceWidth, sourceHeight, renderSize, scale, offset) {
+    var _a;
+    const graph = app == null ? void 0 : app.graph;
+    if (!graph || !graph._nodes || !this.offscreenCtx) return;
+    const ctx = this.offscreenCtx;
+    const TITLE_HEIGHT = 30;
+    const sourceSizeCss = renderSize / this.config.zoomFactor;
+    const actualDpr = sourceWidth / sourceSizeCss;
+    const captureScale = renderSize / sourceWidth;
+    const sourceCssX = sourceX / actualDpr;
+    const sourceCssY = sourceY / actualDpr;
+    const sourceCssWidth = sourceWidth / actualDpr;
+    const sourceCssHeight = sourceHeight / actualDpr;
+    for (const node of graph._nodes) {
+      if (!node.pos || !node.size) continue;
+      if ((_a = node.flags) == null ? void 0 : _a.collapsed) continue;
+      const title = node.title || node.type || "Node";
+      const nodeCssX = node.pos[0] * scale + offset[0];
+      const nodeCssY = node.pos[1] * scale + offset[1];
+      const nodeCssWidth = node.size[0] * scale;
+      if (nodeCssX + nodeCssWidth < sourceCssX || nodeCssX > sourceCssX + sourceCssWidth) continue;
+      if (nodeCssY + TITLE_HEIGHT * scale < sourceCssY || nodeCssY > sourceCssY + sourceCssHeight) continue;
+      const canvasX = (nodeCssX - sourceCssX) * actualDpr * captureScale;
+      const canvasY = (nodeCssY - sourceCssY) * actualDpr * captureScale;
+      const canvasWidth = Math.min(nodeCssWidth, nodeCssWidth) * actualDpr * captureScale;
+      const canvasHeight = TITLE_HEIGHT * scale * actualDpr * captureScale;
+      if (canvasX + canvasWidth > 0 && canvasX < renderSize && canvasY + canvasHeight > 0 && canvasY < renderSize) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(canvasX, canvasY - 5 * scale, canvasWidth, canvasHeight, 4);
+        ctx.fillStyle = this.config.highContrastMode ? "#000000" : "#222222";
+        ctx.fill();
+        ctx.strokeStyle = this.config.highContrastMode ? "#ffffff" : "#444444";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        const baseFontSize = 14;
+        let scaleFactor = this.config.fontScaleFactor / 100;
+        scaleFactor *= 1.1;
+        const fontSize = Math.max(12, Math.min(32, baseFontSize * scale * actualDpr * captureScale * scaleFactor));
+        ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "middle";
+        let textColor = "#ffffff";
+        if (this.config.highContrastMode) textColor = "#ffff00";
+        ctx.fillStyle = textColor;
+        if (this.config.textGlowEnabled) {
+          ctx.shadowBlur = this.config.textGlowIntensity;
+          ctx.shadowColor = this.config.textGlowColor;
+        }
+        const padding = 10 * scale * actualDpr * captureScale;
+        ctx.fillText(title, canvasX + padding, canvasY + canvasHeight / 2 - 5 * scale);
+        ctx.restore();
+      }
     }
   }
   /**
@@ -298,7 +362,11 @@ const _OffscreenRenderer = class _OffscreenRenderer {
         const canvasY = (widgetCssY - sourceCssY) * actualDpr * captureScale;
         const widgetWidth = widgetCssWidth * actualDpr * captureScale;
         const baseFontSize = 13;
-        const fontSize = Math.max(10, Math.min(28, baseFontSize * scale * actualDpr * captureScale));
+        let scaleFactor = 1;
+        if (this.config.accessibilityEnabled) {
+          scaleFactor = this.config.fontScaleFactor / 100;
+        }
+        const fontSize = Math.max(10, Math.min(28 * scaleFactor, baseFontSize * scale * actualDpr * captureScale * scaleFactor));
         const lineHeight = fontSize * 1.4;
         if (isMultiLineWidget && widget.value !== void 0 && widget.value !== null) {
           const textValue = String(widget.value);
@@ -306,7 +374,8 @@ const _OffscreenRenderer = class _OffscreenRenderer {
             let contentHeight = 0;
             if (isMarkdownWidget) {
               ctx.save();
-              ctx.font = `500 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
+              const fontWeight = this.config.accessibilityEnabled && this.config.boldTextEnabled ? "700" : "500";
+              ctx.font = `${fontWeight} ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
               const maxWidth = widgetWidth - 12;
               const lines = textValue.split("\n");
               for (const line of lines) {
@@ -342,7 +411,7 @@ const _OffscreenRenderer = class _OffscreenRenderer {
               const borderRadius = 8;
               ctx.beginPath();
               ctx.roundRect(containerX, containerY, containerWidth, containerHeight, borderRadius);
-              ctx.fillStyle = "#1e1e1e";
+              ctx.fillStyle = this.config.accessibilityEnabled && this.config.highContrastMode ? "#000000" : "#1e1e1e";
               ctx.fill();
               ctx.strokeStyle = "#3a3a3a";
               ctx.lineWidth = 1;
@@ -540,7 +609,11 @@ const _OffscreenRenderer = class _OffscreenRenderer {
     let currentY = y;
     const maxY = y + maxHeight;
     ctx.textBaseline = "top";
-    ctx.fillStyle = "#e0e0e0";
+    let textColor = "#e0e0e0";
+    if (this.config.accessibilityEnabled && this.config.highContrastMode) {
+      textColor = "#ffffff";
+    }
+    ctx.fillStyle = textColor;
     const wrapText = (text2, maxWidth2, font) => {
       ctx.font = font;
       const words = text2.split(/(\s+)/);
@@ -562,15 +635,17 @@ const _OffscreenRenderer = class _OffscreenRenderer {
     for (const line of lines) {
       if (currentY >= maxY) break;
       let renderText = line;
-      let currentFont = `500 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
+      const fontWeight = this.config.accessibilityEnabled && this.config.boldTextEnabled ? "700" : "500";
+      const headerWeight = this.config.accessibilityEnabled && this.config.boldTextEnabled ? "900" : "700";
+      let currentFont = `${fontWeight} ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
       let indent = 0;
-      let color = "#e0e0e0";
+      let color = textColor;
       if (line.startsWith("#")) {
         const level = ((_a = line.match(/^#+/)) == null ? void 0 : _a[0].length) || 0;
         renderText = line.substring(level).trim();
         const headerScale = Math.max(1.1, 1.8 - level * 0.15);
         const headerSize = fontSize * headerScale;
-        currentFont = `700 ${headerSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
+        currentFont = `${headerWeight} ${headerSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
         currentY += fontSize * 0.5;
       } else if (line.trim().startsWith("- ") || line.trim().startsWith("* ")) {
         renderText = "• " + line.trim().substring(2);
@@ -581,7 +656,7 @@ const _OffscreenRenderer = class _OffscreenRenderer {
       ctx.fillStyle = color;
       for (const wrap of wrapped) {
         if (currentY >= maxY) break;
-        ctx.fillText(wrap, x + indent, currentY);
+        this.drawAccessibleText(ctx, wrap, x + indent, currentY);
         const currentLineHeight = line.startsWith("#") ? parseFloat(currentFont.split(" ")[1]) * 1.4 : lineHeight;
         currentY += currentLineHeight;
       }
@@ -604,8 +679,12 @@ const _OffscreenRenderer = class _OffscreenRenderer {
     ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillStyle = "#ccc";
-    ctx.fillText(label, x + width / 2, y + height / 2);
+    let textColor = "#ccc";
+    if (this.config.accessibilityEnabled && this.config.highContrastMode) {
+      textColor = "#ffffff";
+    }
+    ctx.fillStyle = textColor;
+    this.drawAccessibleText(ctx, label, x + width / 2, y + height / 2);
     ctx.restore();
   }
   /**
@@ -644,6 +723,34 @@ const _OffscreenRenderer = class _OffscreenRenderer {
   }
   getCanvas() {
     return this.offscreenCanvas;
+  }
+  /**
+   * Draw text with accessibility enhancements (glow, outline).
+   */
+  drawAccessibleText(ctx, text, x, y) {
+    if (!this.config.accessibilityEnabled) {
+      ctx.fillText(text, x, y);
+      return;
+    }
+    ctx.save();
+    if (this.config.textGlowEnabled) {
+      ctx.shadowBlur = this.config.textGlowIntensity;
+      ctx.shadowColor = this.config.textGlowColor;
+      ctx.fillText(text, x, y);
+    }
+    if (this.config.textOutlineEnabled) {
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = this.config.textOutlineColor;
+      ctx.lineJoin = "round";
+      ctx.miterLimit = 2;
+      ctx.strokeText(text, x, y);
+    }
+    if (this.config.highContrastMode) {
+      ctx.fillStyle = "#ffffff";
+    }
+    ctx.shadowBlur = 0;
+    ctx.fillText(text, x, y);
+    ctx.restore();
   }
 };
 // Virtual Zoom Throttling (60 FPS = ~16ms per frame)

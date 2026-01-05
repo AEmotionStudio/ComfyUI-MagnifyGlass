@@ -323,6 +323,146 @@ function renderSettingsPanel(container) {
     "Amount to move glass per arrow key press (pixels)"
   ));
   container.appendChild(hotkeySection.section);
+  const accessibilitySection = createSection("Accessibility", true);
+  accessibilitySection.body.appendChild(createToggle(
+    "Enable Accessibility",
+    getSettingValue("🔍MagnifyGlass.AccessibilityEnabled", false),
+    (checked) => {
+      setSettingValue("🔍MagnifyGlass.AccessibilityEnabled", checked);
+      const mg = window.comfyUIMagnifyGlass;
+      if (mg == null ? void 0 : mg.config) {
+        mg.config.accessibilityEnabled = checked;
+        if (mg.state.active) mg.updateMagnifiedView();
+      }
+    },
+    "Enable accessibility enhancements for the glass preview"
+  ));
+  accessibilitySection.body.appendChild(createToggle(
+    "High Contrast",
+    getSettingValue("🔍MagnifyGlass.HighContrastMode", false),
+    (checked) => {
+      setSettingValue("🔍MagnifyGlass.HighContrastMode", checked);
+      const mg = window.comfyUIMagnifyGlass;
+      if (mg == null ? void 0 : mg.config) {
+        mg.config.highContrastMode = checked;
+        if (mg.state.active) mg.updateMagnifiedView();
+      }
+    },
+    "Boost text contrast with bright colors"
+  ));
+  accessibilitySection.body.appendChild(createToggle(
+    "Text Glow",
+    getSettingValue("🔍MagnifyGlass.TextGlowEnabled", false),
+    (checked) => {
+      setSettingValue("🔍MagnifyGlass.TextGlowEnabled", checked);
+      const mg = window.comfyUIMagnifyGlass;
+      if (mg == null ? void 0 : mg.config) {
+        mg.config.textGlowEnabled = checked;
+        if (mg.state.active) mg.updateMagnifiedView();
+      }
+    },
+    "Add glow effect behind text"
+  ));
+  accessibilitySection.body.appendChild(createColorPicker(
+    "Glow Color",
+    getSettingValue("🔍MagnifyGlass.TextGlowColor", "#ffff00"),
+    (value) => {
+      setSettingValue("🔍MagnifyGlass.TextGlowColor", value);
+      const mg = window.comfyUIMagnifyGlass;
+      if (mg == null ? void 0 : mg.config) {
+        mg.config.textGlowColor = value;
+        if (mg.state.active) mg.updateMagnifiedView();
+      }
+    },
+    "Color of the text glow"
+  ));
+  accessibilitySection.body.appendChild(createSlider(
+    "Glow Intensity",
+    getSettingValue("🔍MagnifyGlass.TextGlowIntensity", 5),
+    1,
+    15,
+    1,
+    "px",
+    (value) => setSettingValue("🔍MagnifyGlass.TextGlowIntensity", value),
+    "Blur radius of the text glow",
+    (value) => {
+      const mg = window.comfyUIMagnifyGlass;
+      if (mg == null ? void 0 : mg.config) {
+        mg.config.textGlowIntensity = value;
+        if (mg.state.active) mg.updateMagnifiedView();
+      }
+    }
+  ));
+  accessibilitySection.body.appendChild(createSlider(
+    "Font Scale",
+    getSettingValue("🔍MagnifyGlass.FontScaleFactor", 100),
+    100,
+    200,
+    10,
+    "%",
+    (value) => setSettingValue("🔍MagnifyGlass.FontScaleFactor", value),
+    "Increase text size in the glass",
+    (value) => {
+      const mg = window.comfyUIMagnifyGlass;
+      if (mg == null ? void 0 : mg.config) {
+        mg.config.fontScaleFactor = value;
+        if (mg.state.active) mg.updateMagnifiedView();
+      }
+    }
+  ));
+  accessibilitySection.body.appendChild(createToggle(
+    "Bold Text",
+    getSettingValue("🔍MagnifyGlass.BoldTextEnabled", false),
+    (checked) => {
+      setSettingValue("🔍MagnifyGlass.BoldTextEnabled", checked);
+      const mg = window.comfyUIMagnifyGlass;
+      if (mg == null ? void 0 : mg.config) {
+        mg.config.boldTextEnabled = checked;
+        if (mg.state.active) mg.updateMagnifiedView();
+      }
+    },
+    "Force bold text weight"
+  ));
+  accessibilitySection.body.appendChild(createToggle(
+    "Text Outline",
+    getSettingValue("🔍MagnifyGlass.TextOutlineEnabled", false),
+    (checked) => {
+      setSettingValue("🔍MagnifyGlass.TextOutlineEnabled", checked);
+      const mg = window.comfyUIMagnifyGlass;
+      if (mg == null ? void 0 : mg.config) {
+        mg.config.textOutlineEnabled = checked;
+        if (mg.state.active) mg.updateMagnifiedView();
+      }
+    },
+    "Add outline execution around text"
+  ));
+  accessibilitySection.body.appendChild(createColorPicker(
+    "Outline Color",
+    getSettingValue("🔍MagnifyGlass.TextOutlineColor", "#000000"),
+    (value) => {
+      setSettingValue("🔍MagnifyGlass.TextOutlineColor", value);
+      const mg = window.comfyUIMagnifyGlass;
+      if (mg == null ? void 0 : mg.config) {
+        mg.config.textOutlineColor = value;
+        if (mg.state.active) mg.updateMagnifiedView();
+      }
+    },
+    "Color of the text outline"
+  ));
+  accessibilitySection.body.appendChild(createToggle(
+    "Node Emphasis",
+    getSettingValue("🔍MagnifyGlass.NodeTitleEmphasis", false),
+    (checked) => {
+      setSettingValue("🔍MagnifyGlass.NodeTitleEmphasis", checked);
+      const mg = window.comfyUIMagnifyGlass;
+      if (mg == null ? void 0 : mg.config) {
+        mg.config.nodeTitleEmphasis = checked;
+        if (mg.state.active) mg.updateMagnifiedView();
+      }
+    },
+    "Extra styling for node titles"
+  ));
+  container.appendChild(accessibilitySection.section);
   const panelSection = createSection("Info Panel", true);
   const toggleHotkey = getSettingValue("🔍MagnifyGlass.ToggleHotkey", "i").toUpperCase();
   getSettingValue("🔍MagnifyGlass.GlassPreviewToggleHotkey", "g").toUpperCase();

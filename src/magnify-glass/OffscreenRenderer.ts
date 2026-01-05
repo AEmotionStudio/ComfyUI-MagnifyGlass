@@ -183,6 +183,11 @@ export class OffscreenRenderer {
             const currentOffset: [number, number] = lgCanvas?.ds?.offset ? [lgCanvas.ds.offset[0], lgCanvas.ds.offset[1]] : [0, 0];
             this.drawWidgetTextNatively(sourceX, sourceY, sourceWidth, sourceHeight, renderSize, currentScale, currentOffset);
 
+            // Draw node titles if emphasis is enabled
+            if (this.config.accessibilityEnabled && this.config.nodeTitleEmphasis) {
+                this.drawNodeTitlesNatively(sourceX, sourceY, sourceWidth, sourceHeight, renderSize, currentScale, currentOffset);
+            }
+
             // NOTE: We do NOT call drawImagePreviewsNatively() here.
             // Direct Capture copies pixels from the screen which already has correctly-drawn images.
             // Native image drawing is only needed during Virtual Zoom where ComfyUI's rendering fails.
@@ -311,6 +316,11 @@ export class OffscreenRenderer {
             const captureOffset: [number, number] = [lgCanvas.ds.offset[0], lgCanvas.ds.offset[1]];
             this.drawWidgetTextNatively(sourceX, sourceY, sourceWidth, sourceHeight, renderSize, targetScale, captureOffset);
 
+            // Draw node titles if emphasis is enabled
+            if (this.config.accessibilityEnabled && this.config.nodeTitleEmphasis) {
+                this.drawNodeTitlesNatively(sourceX, sourceY, sourceWidth, sourceHeight, renderSize, targetScale, captureOffset);
+            }
+
             // Draw image/video previews natively on top of the captured canvas
             this.drawImagePreviewsNatively(sourceX, sourceY, sourceWidth, sourceHeight, renderSize, targetScale, captureOffset);
 
@@ -340,6 +350,105 @@ export class OffscreenRenderer {
             this.isCapturing = false;
             (window as any).__magnifyGlassCapturing = false;
             return null;
+        }
+    }
+
+
+
+    /**
+     * Draw node titles natively with accessibility styling.
+     */
+    private drawNodeTitlesNatively(
+        sourceX: number,
+        sourceY: number,
+        sourceWidth: number,
+        sourceHeight: number,
+        renderSize: number,
+        scale: number,
+        offset: [number, number]
+    ): void {
+        const graph = app?.graph;
+        if (!graph || !graph._nodes || !this.offscreenCtx) return;
+
+        const ctx = this.offscreenCtx;
+        const TITLE_HEIGHT = 30;
+
+        // Coordinate transforms
+        const sourceSizeCss = renderSize / this.config.zoomFactor;
+        const actualDpr = sourceWidth / sourceSizeCss;
+        const captureScale = renderSize / sourceWidth;
+
+        // Source region in CSS pixels
+        const sourceCssX = sourceX / actualDpr;
+        const sourceCssY = sourceY / actualDpr;
+        const sourceCssWidth = sourceWidth / actualDpr;
+        const sourceCssHeight = sourceHeight / actualDpr;
+
+        for (const node of graph._nodes) {
+            if (!node.pos || !node.size) continue;
+            if (node.flags?.collapsed) continue;
+
+            const title = node.title || node.type || "Node";
+
+            // Node position in CSS pixels
+            const nodeCssX = node.pos[0] * scale + offset[0];
+            const nodeCssY = node.pos[1] * scale + offset[1];
+            const nodeCssWidth = node.size[0] * scale;
+
+            // Check visibility
+            if (nodeCssX + nodeCssWidth < sourceCssX || nodeCssX > sourceCssX + sourceCssWidth) continue;
+            if (nodeCssY + (TITLE_HEIGHT * scale) < sourceCssY || nodeCssY > sourceCssY + sourceCssHeight) continue;
+
+            // Draw
+            const canvasX = (nodeCssX - sourceCssX) * actualDpr * captureScale;
+            const canvasY = (nodeCssY - sourceCssY) * actualDpr * captureScale;
+            // Limit width for title background
+            const canvasWidth = Math.min(nodeCssWidth, nodeCssWidth) * actualDpr * captureScale;
+            const canvasHeight = TITLE_HEIGHT * scale * actualDpr * captureScale;
+
+            if (canvasX + canvasWidth > 0 && canvasX < renderSize && canvasY + canvasHeight > 0 && canvasY < renderSize) {
+                ctx.save();
+
+                // Enhanced Background
+                ctx.beginPath();
+                ctx.roundRect(canvasX, canvasY - (5 * scale), canvasWidth, canvasHeight, 4);
+                ctx.fillStyle = this.config.highContrastMode ? '#000000' : '#222222';
+                ctx.fill();
+
+                // Border/Highlight
+                ctx.strokeStyle = this.config.highContrastMode ? '#ffffff' : '#444444';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                // Enhanced Text
+                const baseFontSize = 14;
+                let scaleFactor = this.config.fontScaleFactor / 100;
+                // Boost title size a bit more
+                scaleFactor *= 1.1;
+
+                const fontSize = Math.max(12, Math.min(32, baseFontSize * scale * actualDpr * captureScale * scaleFactor));
+
+                ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'middle';
+
+                // Color based on settings
+                let textColor = '#ffffff';
+                if (this.config.highContrastMode) textColor = '#ffff00'; // Yellow on black is very high contrast
+
+                ctx.fillStyle = textColor;
+
+                // Accessibility features
+                if (this.config.textGlowEnabled) {
+                    ctx.shadowBlur = this.config.textGlowIntensity;
+                    ctx.shadowColor = this.config.textGlowColor;
+                }
+
+                const padding = 10 * scale * actualDpr * captureScale;
+                ctx.fillText(title, canvasX + padding, canvasY + (canvasHeight / 2) - (5 * scale));
+
+                ctx.restore();
+            }
         }
     }
 
@@ -447,8 +556,13 @@ export class OffscreenRenderer {
                 const widgetWidth = widgetCssWidth * actualDpr * captureScale;
 
                 // Calculate font size
+                // Calculate font size with accessibility scaling
                 const baseFontSize = 13;
-                const fontSize = Math.max(10, Math.min(28, baseFontSize * scale * actualDpr * captureScale));
+                let scaleFactor = 1.0;
+                if (this.config.accessibilityEnabled) {
+                    scaleFactor = this.config.fontScaleFactor / 100;
+                }
+                const fontSize = Math.max(10, Math.min(28 * scaleFactor, baseFontSize * scale * actualDpr * captureScale * scaleFactor));
                 const lineHeight = fontSize * 1.4;
 
                 // ----------------------------------------------------------------
@@ -462,7 +576,8 @@ export class OffscreenRenderer {
                         if (isMarkdownWidget) {
                             // Rough estimation of height needed
                             ctx.save();
-                            ctx.font = `500 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
+                            const fontWeight = (this.config.accessibilityEnabled && this.config.boldTextEnabled) ? '700' : '500';
+                            ctx.font = `${fontWeight} ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
                             const maxWidth = widgetWidth - 12;
 
                             const lines = textValue.split('\n');
@@ -520,7 +635,7 @@ export class OffscreenRenderer {
                             // Draw background container with rounded corners
                             ctx.beginPath();
                             ctx.roundRect(containerX, containerY, containerWidth, containerHeight, borderRadius);
-                            ctx.fillStyle = '#1e1e1e'; // Slightly lighter dark background
+                            ctx.fillStyle = (this.config.accessibilityEnabled && this.config.highContrastMode) ? '#000000' : '#1e1e1e';
                             ctx.fill();
 
                             // Draw border
@@ -813,7 +928,13 @@ export class OffscreenRenderer {
         const maxY = y + maxHeight;
 
         ctx.textBaseline = 'top';
-        ctx.fillStyle = '#e0e0e0';
+
+        // High Contrast Mode Color Selection
+        let textColor = '#e0e0e0';
+        if (this.config.accessibilityEnabled && this.config.highContrastMode) {
+            textColor = '#ffffff'; // Pure white for high contrast
+        }
+        ctx.fillStyle = textColor;
 
         // Word wrap helper
         const wrapText = (text: string, maxWidth: number, font: string): string[] => {
@@ -840,9 +961,12 @@ export class OffscreenRenderer {
             if (currentY >= maxY) break;
 
             let renderText = line;
-            let currentFont = `500 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
+            const fontWeight = (this.config.accessibilityEnabled && this.config.boldTextEnabled) ? '700' : '500';
+            const headerWeight = (this.config.accessibilityEnabled && this.config.boldTextEnabled) ? '900' : '700';
+
+            let currentFont = `${fontWeight} ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
             let indent = 0;
-            let color = '#e0e0e0';
+            let color = textColor;
 
             // 1. Headers
             if (line.startsWith('#')) {
@@ -850,7 +974,7 @@ export class OffscreenRenderer {
                 renderText = line.substring(level).trim();
                 const headerScale = Math.max(1.1, 1.8 - (level * 0.15)); // H1=1.8x, H2=1.65x
                 const headerSize = fontSize * headerScale;
-                currentFont = `700 ${headerSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
+                currentFont = `${headerWeight} ${headerSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
                 // Add a little margin before headers
                 currentY += fontSize * 0.5;
             }
@@ -867,7 +991,10 @@ export class OffscreenRenderer {
 
             for (const wrap of wrapped) {
                 if (currentY >= maxY) break;
-                ctx.fillText(wrap, x + indent, currentY);
+
+                // improved accessibility text drawing
+                this.drawAccessibleText(ctx, wrap, x + indent, currentY);
+
                 // Headers get taller line height
                 const currentLineHeight = line.startsWith('#') ? (parseFloat(currentFont.split(' ')[1]) * 1.4) : lineHeight;
                 currentY += currentLineHeight;
@@ -909,7 +1036,12 @@ export class OffscreenRenderer {
         ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        ctx.fillStyle = '#ccc'; // Light grey text
+
+        let textColor = '#ccc'; // Light grey text
+        if (this.config.accessibilityEnabled && this.config.highContrastMode) {
+            textColor = '#ffffff';
+        }
+        ctx.fillStyle = textColor;
 
         // Center text in button
         const fileUploadLabel = "choose file to upload";
@@ -917,7 +1049,7 @@ export class OffscreenRenderer {
         // but typically buttons are single line.
         // We'll just truncate if too long or let it clip via context clipping if we added any (we didn't yet).
 
-        ctx.fillText(label, x + width / 2, y + height / 2);
+        this.drawAccessibleText(ctx, label, x + width / 2, y + height / 2);
 
         ctx.restore();
     }
@@ -976,5 +1108,46 @@ export class OffscreenRenderer {
 
     getCanvas(): HTMLCanvasElement | null {
         return this.offscreenCanvas;
+    }
+
+    /**
+     * Draw text with accessibility enhancements (glow, outline).
+     */
+    private drawAccessibleText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number): void {
+        if (!this.config.accessibilityEnabled) {
+            ctx.fillText(text, x, y);
+            return;
+        }
+
+        ctx.save();
+
+        // 1. Text Glow
+        if (this.config.textGlowEnabled) {
+            ctx.shadowBlur = this.config.textGlowIntensity;
+            ctx.shadowColor = this.config.textGlowColor;
+            // Draw regular text with shadow
+            ctx.fillText(text, x, y);
+            // Draw again to strengthen if needed, or just let shadow do work
+        }
+
+        // 2. Text Outline
+        if (this.config.textOutlineEnabled) {
+            ctx.lineWidth = 3; // Thicker stroke for visibility
+            ctx.strokeStyle = this.config.textOutlineColor;
+            ctx.lineJoin = 'round';
+            ctx.miterLimit = 2;
+            ctx.strokeText(text, x, y);
+        }
+
+        // 3. Main Text Fill (ensure high contrast if enabled)
+        if (this.config.highContrastMode) {
+            ctx.fillStyle = '#ffffff';
+        }
+
+        // Remove shadow for main fill to prevent muddying
+        ctx.shadowBlur = 0;
+        ctx.fillText(text, x, y);
+
+        ctx.restore();
     }
 }

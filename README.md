@@ -3,7 +3,7 @@
 # ComfyUI-MagnifyGlass
 
 [![ComfyUI](https://img.shields.io/badge/ComfyUI-Extension-green?style=for-the-badge)](https://github.com/comfyanonymous/ComfyUI)
-[![Version](https://img.shields.io/badge/Version-1.8.0-orange?style=for-the-badge)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases)
+[![Version](https://img.shields.io/badge/Version-1.9.0-orange?style=for-the-badge)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases)
 [![License](https://img.shields.io/badge/License-GPLv3-red?style=for-the-badge)](LICENSE)
 [![Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen?style=for-the-badge&color=blue)](package.json)
 
@@ -23,14 +23,14 @@
 
 ---
 
-## 🚀 What's New in v1.8.0 (January 4, 2026)
+## 🚀 What's New in v1.9.0 (January 5, 2026)
 
-This release brings a complete overhaul to the rendering engine for **native fidelity**:
+**Visual Accessibility Update & Rendering Overhaul**
 
-*   **Native Text Rendering**: Widget text (prompts, values) now renders natively on the magnified canvas with sharper alignment.
-*   **Video & Image Support**: Fixed artifacts for video nodes and image previews in "Virtual Zoom" mode.
-*   **"Ghosting" Fix**: Eliminated visual glitches where original nodes would bleed through the magnified view.
-*   **Performance Boost**: Smarter render pipeline reduces overhead and DOM usage.
+*   **♿ Visual Methods**: New **Invert Colors**, **Grayscale**, and **Reduce Motion** modes for better accessibility.
+*   **A11y Settings**: High Contrast text, Text Glow, Font Scaling, and Node Title Emphasis.
+*   **Native Rendering**: Complete rewrite of the text rendering engine using native canvas drawing for crisp, aligned text.
+*   **Virtual Zoom Improvements**: Resolved missing widget issues in zoomed-out views.
 
 > 📄 **See [CHANGELOG.md](CHANGELOG.md) for the complete version history.**
 
@@ -46,21 +46,26 @@ This release brings a complete overhaul to the rendering engine for **native fid
 *   **WebGL-Powered**: Smooth, high-performance rendering at any zoom level.
 *   **Smart Interactions**: Follows your cursor or stays fixed. Toggles transparently for click-through.
 *   **Customizable**: Adjust zoom (up to 10x), size, border, and shape (Circle/Square/Rounded).
-[HERE]
+*   **Customizable**: Adjust zoom (up to 10x), size, border, and shape (Circle/Square/Rounded).
 ### ℹ️ Inspector Panel
 *   **Deep Analysis**: View node parameters (Seed, CFG, Steps), text content, and image details on hover.
 *   **Dockable Interface**: Pin the panel to keep it stable, or let it follow the glass.
 *   **Themed**: Automatically matches any ComfyUI theme (Dark, Light, Solarized, Arc, Nord, GitHub).
-[HERE]
+*   **Themed**: Automatically matches any ComfyUI theme (Dark, Light, Solarized, Arc, Nord, GitHub).
 ### ⚙️ Sidebar Integration
 *   **Organized Settings**: All Magnify Glass and Info Panel settings in one place.
 *   **Live Previews**: Changes apply instantly without needing to refresh.
 *   **Reset Options**: Quickly restore defaults with individual or global reset buttons.
-[HERE]x
 ### 🖥️ Multi-Monitor Pop-Out
 *   **Detachable Viewer**: Open the magnified view in a separate browser tab.
 *   **Inspector Sidebar**: Real-time node details, cursor position, and canvas scale.
 *   **Resizable Canvas**: Drag to resize, size persists across sessions.
+
+### ♿ Accessibility Suite
+*   **Visual Modes**: Toggle **Invert Colors** or **Grayscale** for high-contrast viewing.
+*   **Reduce Motion**: Disable smooth animations for instant feedback.
+*   **Text Enhancements**: Scaling, Bold, Glow, and Outline options for maximum legibility.
+*   **Sidebar Control**: Dedicated Accessibility section with live toggles for all features.
 
 ---
 

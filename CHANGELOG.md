@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-01-05
+
+### Added
+- **Visual Accessibility Suite**: Comprehensive set of features for improved visibility.
+  - **Invert Colors**: Toggle to invert all colors in the magnified view.
+  - **Grayscale Mode**: Option to remove color saturation.
+  - **Reduce Motion**: Instantly disable smooth animations for snappier feedback.
+  - **High Contrast Mode**: Boosts text contrast (yellow/white on dark).
+  - **Text Enhancements**: Added Text Glow, Outline, Bold, and Font Scaling (100-200%).
+  - **Node Title Emphasis**: Distinct styling for node headers.
+- **Accessibility Settings Section**: Dedicated sidebar section with live toggles for all accessibility features.
+
+### Improved
+- **UI UX**: "Reset All" button now resets all settings including new accessibility options.
+- **Sidebar Stability**: Fixed issue where sidebar would collapse/reset when changing settings.
+- **Info Panel**: Eliminated layout shift/bounce when hovering.
+
+### Fixed
+- **Widget Visibility**: Fixed issue where some widgets (customtext, LoadImage) were hidden in Virtual Zoom.
+
+---
+
 ## [1.8.0] - 2026-01-04
 
 ### Added

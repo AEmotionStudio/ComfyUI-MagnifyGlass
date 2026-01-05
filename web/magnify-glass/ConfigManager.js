@@ -85,7 +85,7 @@ class ConfigManager {
     this.toggleGlassPreviewKey = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.GlassPreviewToggleHotkey"];
     this.showCursorPreview = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.ShowCursorPreview"];
     this.forceDirectCaptureKey = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.ForceDirectCaptureKey"];
-    this.forceDirectCapture = false;
+    this.forceDirectCapture = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.ForceDirectCapture"];
     this.offsetX = 0;
     this.offsetY = 0;
   }

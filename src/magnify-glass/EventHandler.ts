@@ -156,9 +156,22 @@ export class EventHandler {
             // Force Direct Capture Toggle Key
             if (e.key.toLowerCase() === config.forceDirectCaptureKey &&
                 (!config.altRequired || e.altKey)) {
-                config.forceDirectCapture = !config.forceDirectCapture;
-                this.magnifyGlass.debugger.log(`Force Direct Capture: ${config.forceDirectCapture ? 'ON' : 'OFF'}`);
-                this.magnifyGlass.updateMagnifiedView();
+                // Toggle via settings to sync with UI
+                const currentVal = !!config.forceDirectCapture;
+                // @ts-ignore
+                const app = window.app || (window.scripts && window.scripts.app);
+                if (app && app.ui && app.ui.settings) {
+                    app.ui.settings.setSettingValue('🔍MagnifyGlass.ForceDirectCapture', !currentVal);
+                    // The setting onChange handler will update config.forceDirectCapture and view
+                } else {
+                    // Fallback if app settings not available
+                    config.forceDirectCapture = !currentVal;
+                    if ((window as any).comfyUIMagnifyGlass) {
+                        (window as any).comfyUIMagnifyGlass.updateMagnifiedView();
+                    }
+                }
+
+                Logger.info(`Force Direct Capture toggled: ${!currentVal}`);
                 e.preventDefault();
             }
 

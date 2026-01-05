@@ -121,7 +121,7 @@ export class ConfigManager {
         this.toggleGlassPreviewKey = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.GlassPreviewToggleHotkey"];
         this.showCursorPreview = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.ShowCursorPreview"];
         this.forceDirectCaptureKey = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.ForceDirectCaptureKey"];
-        this.forceDirectCapture = false; // Runtime flag, not persisted
+        this.forceDirectCapture = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.ForceDirectCapture"]; // Initialize from default
 
         // Alignment adjustment parameters - managed separately
         this.offsetX = 0;

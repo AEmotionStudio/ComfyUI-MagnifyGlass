@@ -37,6 +37,7 @@ export const DEFAULT_GLASS_SETTINGS: GlassSettings = {
     "🔍MagnifyGlass.ToggleFollowCursorKey": "h",
     "🔍MagnifyGlass.ShowCursorPreview": false,
     "🔍MagnifyGlass.ForceDirectCaptureKey": "d",
+    "🔍MagnifyGlass.ForceDirectCapture": false,
 };
 
 /**

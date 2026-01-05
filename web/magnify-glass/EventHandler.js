@@ -118,9 +118,17 @@ class EventHandler {
         this.magnifyGlass.updateMagnifiedView();
       }
       if (e.key.toLowerCase() === config.forceDirectCaptureKey && (!config.altRequired || e.altKey)) {
-        config.forceDirectCapture = !config.forceDirectCapture;
-        this.magnifyGlass.debugger.log(`Force Direct Capture: ${config.forceDirectCapture ? "ON" : "OFF"}`);
-        this.magnifyGlass.updateMagnifiedView();
+        const currentVal = !!config.forceDirectCapture;
+        const app = window.app || window.scripts && window.scripts.app;
+        if (app && app.ui && app.ui.settings) {
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.ForceDirectCapture", !currentVal);
+        } else {
+          config.forceDirectCapture = !currentVal;
+          if (window.comfyUIMagnifyGlass) {
+            window.comfyUIMagnifyGlass.updateMagnifiedView();
+          }
+        }
+        Logger.info(`Force Direct Capture toggled: ${!currentVal}`);
         e.preventDefault();
       }
       if (e.shiftKey && e.key.toLowerCase() === "p") {

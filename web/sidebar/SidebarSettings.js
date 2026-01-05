@@ -257,6 +257,12 @@ function renderSettingsPanel(container) {
     `When enabled, glass stays visible. Toggle with ${activationKey}`
   ));
   glassSection.body.appendChild(createToggle(
+    "Force Direct Capture",
+    getSettingValue("🔍MagnifyGlass.ForceDirectCapture", false),
+    (checked) => setSettingValue("🔍MagnifyGlass.ForceDirectCapture", checked),
+    `Force Direct Capture mode (accurate, pixel-perfect). Hotkey: ${getSettingValue("🔍MagnifyGlass.ForceDirectCaptureKey", "d").toUpperCase()}`
+  ));
+  glassSection.body.appendChild(createToggle(
     "Show Mini Cursor",
     getSettingValue("🔍MagnifyGlass.ShowCursorPreview", false),
     (checked) => setSettingValue("🔍MagnifyGlass.ShowCursorPreview", checked),

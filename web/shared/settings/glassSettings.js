@@ -253,6 +253,22 @@ function registerGlassSettings(magnifyGlass) {
     }
   });
   app.ui.settings.addSetting({
+    id: "🔍MagnifyGlass.ForceDirectCapture",
+    name: "⚡ Magnify Glass: Force Direct Capture",
+    type: "combo",
+    options: [{ value: true, text: "Yes" }, { value: false, text: "No" }],
+    defaultValue: settings["🔍MagnifyGlass.ForceDirectCapture"],
+    tooltip: "Force usage of Direct Capture mode even at low zoom levels.",
+    onChange: (value) => {
+      if (magnifyGlass == null ? void 0 : magnifyGlass.config) {
+        magnifyGlass.config.forceDirectCapture = !!value;
+        if (magnifyGlass.state.active) {
+          magnifyGlass.updateMagnifiedView();
+        }
+      }
+    }
+  });
+  app.ui.settings.addSetting({
     id: "🔍MagnifyGlass.Action.ResetPosition",
     name: "🔄 Magnify Glass: Reset Position",
     type: "boolean",
@@ -296,7 +312,9 @@ function registerGlassSettings(magnifyGlass) {
           app.ui.settings.setSettingValue("🔍MagnifyGlass.ToggleFollowCursorKey", "h");
           app.ui.settings.setSettingValue("🔍MagnifyGlass.AltRequired", false);
           app.ui.settings.setSettingValue("🔍MagnifyGlass.OffsetStep", 5);
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.OffsetStep", 5);
           app.ui.settings.setSettingValue("🔍MagnifyGlass.ShowCursorPreview", false);
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.ForceDirectCapture", false);
           app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelEnabled", true);
           app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelPosition", "Bottom");
           app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelWidth", 300);

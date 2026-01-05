@@ -22,6 +22,9 @@ export interface InfoPanelStateData {
     // Glass visibility
     isGlassPreviewVisible: boolean;
 
+    // Info freezing
+    isInfoHeld: boolean;
+
     // Section expansion
     expandedSections: Set<string>;
 
@@ -68,6 +71,7 @@ export class StateManager {
 
             // Glass visibility
             isGlassPreviewVisible: true,
+            isInfoHeld: false,
 
             // Section expansion
             expandedSections: new Set(['node']),
@@ -370,6 +374,11 @@ export class StateManager {
     toggleMinimized(): boolean {
         this.state.isPanelMinimized = !this.state.isPanelMinimized;
         return this.state.isPanelMinimized;
+    }
+
+    toggleHold(): boolean {
+        this.state.isInfoHeld = !this.state.isInfoHeld;
+        return this.state.isInfoHeld;
     }
 
     toggleSection(sectionId: string): boolean {

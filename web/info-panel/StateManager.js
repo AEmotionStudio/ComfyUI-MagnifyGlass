@@ -22,6 +22,7 @@ class StateManager {
       // Remember last pinned location
       // Glass visibility
       isGlassPreviewVisible: true,
+      isInfoHeld: false,
       // Section expansion
       expandedSections: /* @__PURE__ */ new Set(["node"]),
       // Interaction states
@@ -239,6 +240,10 @@ class StateManager {
   toggleMinimized() {
     this.state.isPanelMinimized = !this.state.isPanelMinimized;
     return this.state.isPanelMinimized;
+  }
+  toggleHold() {
+    this.state.isInfoHeld = !this.state.isInfoHeld;
+    return this.state.isInfoHeld;
   }
   toggleSection(sectionId) {
     if (sectionId === "node") return false;

@@ -146,6 +146,15 @@ export class InfoPanel {
             return;
         }
 
+        // Logic for "Hold Info" (Freeze)
+        if (this.stateManager.state.isInfoHeld) {
+            // If held, we skip gathering new info and skip updating the display content.
+            // But we MUST still update positioning to keep the UI responsive to movement.
+            this.positionManager.positionPanel();
+            this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
+            return;
+        }
+
         let info = this.informationGatherer.gatherInformation();
 
         // PERSISTENCE LOGIC START

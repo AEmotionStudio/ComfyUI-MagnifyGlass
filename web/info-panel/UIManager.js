@@ -130,6 +130,7 @@ class UIManager {
             <button class="control-btn unlock-btn" title="Unlock/Lock Panel from Glass" data-action="pin">${Icons.unlock}</button>
             <button class="control-btn pin-btn" title="Pin/Unpin Panel Position (Prevent Drag)" data-action="lock">${Icons.pin}</button>
             <button class="control-btn persist-btn" title="Toggle Persist Mode (Sticky Info)" data-action="persist">${Icons.magnet}</button>
+            <button class="control-btn hold-btn" title="Hold Info (Freeze)" data-action="toggle-hold">${Icons.pause}</button>
             <button class="control-btn visibility-btn" title="Toggle Panel Visibility (I)" data-action="toggle-panel">${Icons.eye}</button>
             <button class="control-btn glass-btn" title="Toggle Glass Preview (G)" data-action="toggle-glass">${Icons.magnifyGlass}</button>
             <button class="control-btn cursor-btn" title="Toggle Cursor Preview" data-action="toggle-cursor">${Icons.cursor}</button>
@@ -241,6 +242,10 @@ class UIManager {
             this.updateControlStates();
           }
           break;
+        case "toggle-hold":
+          this.stateManager.toggleHold();
+          this.updateControlStates();
+          break;
       }
     });
     const controlsPosition = String(this.stateManager.state.settings["🔍MagnifyGlass.ControlsPosition"] || "top-right");
@@ -288,6 +293,15 @@ class UIManager {
       persistBtn.title = isPersistConfigured ? "Disable Sticky Info" : "Enable Sticky Info (Persist)";
       persistBtn.style.display = isPanelVisible ? "flex" : "none";
     }
+    const holdBtn = this.elements.controls.querySelector('[data-action="toggle-hold"]');
+    if (holdBtn) {
+      const isPersistConfigured = !!this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"];
+      const isHeld = this.stateManager.state.isInfoHeld;
+      holdBtn.style.display = isPanelVisible && isPersistConfigured ? "flex" : "none";
+      holdBtn.classList.toggle("active", isHeld);
+      holdBtn.innerHTML = isHeld ? Icons.play : Icons.pause;
+      holdBtn.title = isHeld ? "Resume Info Update" : "Hold Info (Freeze)";
+    }
     if (visibilityBtn) {
       visibilityBtn.classList.toggle("active", isPanelVisible);
       visibilityBtn.title = isPanelVisible ? "Hide Panel" : "Show Panel";
@@ -311,7 +325,8 @@ class UIManager {
       const showCursor = ((_a = cglass == null ? void 0 : cglass.config) == null ? void 0 : _a.showCursorPreview) || false;
       cursorBtn.classList.toggle("active", showCursor);
       cursorBtn.title = showCursor ? "Hide Cursor Preview" : "Show Cursor Preview";
-      cursorBtn.style.display = isGlassVisible && !this.stateManager.state.isPanelPinned ? "flex" : "none";
+      const isPersistConfigured = !!this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"];
+      cursorBtn.style.display = isGlassVisible && !this.stateManager.state.isPanelPinned && !isPersistConfigured ? "flex" : "none";
     }
     const dragGlassBtn = this.elements.controls.querySelector('[data-action="drag-glass"]');
     if (dragGlassBtn) {

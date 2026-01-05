@@ -99,6 +99,11 @@ class InfoPanel {
       }
       return;
     }
+    if (this.stateManager.state.isInfoHeld) {
+      this.positionManager.positionPanel();
+      this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
+      return;
+    }
     let info = this.informationGatherer.gatherInformation();
     if (info.hoveredNode) {
       this.lastValidNodeInfo = info;

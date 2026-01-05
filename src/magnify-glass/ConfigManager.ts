@@ -1,4 +1,4 @@
-/**
+x/**
  * ComfyUI MagnifyGlass - ConfigManager (TypeScript)
  * 
  * Manages configuration and settings for the magnifying glass.
@@ -26,6 +26,8 @@ const DEFAULT_GLASS_SETTINGS = {
     "🔍MagnifyGlass.AlwaysActiveMode": true,
     "🔍MagnifyGlass.ToggleFollowCursorKey": "h",
     "🔍MagnifyGlass.GlassPreviewToggleHotkey": "g",
+    "🔍MagnifyGlass.ShowCursorPreview": true,
+    "🔍MagnifyGlass.ForceDirectCaptureKey": "d",
 };
 
 /**
@@ -86,6 +88,12 @@ export class ConfigManager {
     /** Show cursor preview in glass */
     showCursorPreview: boolean;
 
+    /** Force Direct Capture key */
+    forceDirectCaptureKey: string;
+
+    /** Runtime flag: Force Direct Capture mode (not persisted) */
+    forceDirectCapture: boolean;
+
     /** Manual offset X in graph units */
     offsetX: number;
 
@@ -112,6 +120,8 @@ export class ConfigManager {
         this.toggleFollowCursorKey = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.ToggleFollowCursorKey"];
         this.toggleGlassPreviewKey = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.GlassPreviewToggleHotkey"];
         this.showCursorPreview = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.ShowCursorPreview"];
+        this.forceDirectCaptureKey = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.ForceDirectCaptureKey"];
+        this.forceDirectCapture = false; // Runtime flag, not persisted
 
         // Alignment adjustment parameters - managed separately
         this.offsetX = 0;
@@ -139,6 +149,7 @@ export class ConfigManager {
         this.alwaysActiveMode = getSettingValue<boolean>("🔍MagnifyGlass.AlwaysActiveMode", this.alwaysActiveMode);
         this.toggleFollowCursorKey = getSettingValue<string>("🔍MagnifyGlass.ToggleFollowCursorKey", this.toggleFollowCursorKey);
         this.showCursorPreview = getSettingValue<boolean>("🔍MagnifyGlass.ShowCursorPreview", this.showCursorPreview);
+        this.forceDirectCaptureKey = getSettingValue<string>("🔍MagnifyGlass.ForceDirectCaptureKey", this.forceDirectCaptureKey);
         this.toggleGlassPreviewKey = getSettingValue<string>("🔍MagnifyGlass.GlassPreviewToggleHotkey", this.toggleGlassPreviewKey);
     }
 

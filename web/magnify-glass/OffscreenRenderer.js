@@ -35,7 +35,7 @@ const _OffscreenRenderer = class _OffscreenRenderer {
     const currentScale = lgCanvas.ds.scale;
     const rect = targetCanvas.getBoundingClientRect();
     const dpr = rect.width > 0 ? targetCanvas.width / rect.width : 1;
-    const useDirectCapture = currentScale >= 1;
+    const useDirectCapture = currentScale >= 1 || this.config.forceDirectCapture;
     if (useDirectCapture) {
       this.cachedVirtualZoomResult = null;
       return this.renderDirectCapture(targetCanvas, renderSize, dpr);

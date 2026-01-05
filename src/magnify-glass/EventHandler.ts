@@ -153,6 +153,15 @@ export class EventHandler {
                 this.magnifyGlass.updateMagnifiedView();
             }
 
+            // Force Direct Capture Toggle Key
+            if (e.key.toLowerCase() === config.forceDirectCaptureKey &&
+                (!config.altRequired || e.altKey)) {
+                config.forceDirectCapture = !config.forceDirectCapture;
+                this.magnifyGlass.debugger.log(`Force Direct Capture: ${config.forceDirectCapture ? 'ON' : 'OFF'}`);
+                this.magnifyGlass.updateMagnifiedView();
+                e.preventDefault();
+            }
+
             // Pop-out tab toggle (Shift+P)
             if (e.shiftKey && e.key.toLowerCase() === 'p') {
                 this.magnifyGlass.popOutManager.toggle();

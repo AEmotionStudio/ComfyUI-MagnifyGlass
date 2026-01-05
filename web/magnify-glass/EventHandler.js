@@ -117,6 +117,12 @@ class EventHandler {
         config.saveOffsets();
         this.magnifyGlass.updateMagnifiedView();
       }
+      if (e.key.toLowerCase() === config.forceDirectCaptureKey && (!config.altRequired || e.altKey)) {
+        config.forceDirectCapture = !config.forceDirectCapture;
+        this.magnifyGlass.debugger.log(`Force Direct Capture: ${config.forceDirectCapture ? "ON" : "OFF"}`);
+        this.magnifyGlass.updateMagnifiedView();
+        e.preventDefault();
+      }
       if (e.shiftKey && e.key.toLowerCase() === "p") {
         this.magnifyGlass.popOutManager.toggle();
         e.preventDefault();

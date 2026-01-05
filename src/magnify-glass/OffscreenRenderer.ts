@@ -63,7 +63,8 @@ export class OffscreenRenderer {
         // and it guarantees perfect alignment with zero extra draws.
         // If we are zoomed out (< 100%), we use High Res Virtual Zoom for crisp details.
         // Note: Image preview nodes are handled by drawImagePreviewsNatively() during Virtual Zoom.
-        const useDirectCapture = currentScale >= 1.0;
+        // If forceDirectCapture is enabled (via hotkey), always use Direct Capture for accurate cursor alignment.
+        const useDirectCapture = currentScale >= 1.0 || this.config.forceDirectCapture;
 
         if (useDirectCapture) {
             // Direct Capture: Full speed, no extra draws

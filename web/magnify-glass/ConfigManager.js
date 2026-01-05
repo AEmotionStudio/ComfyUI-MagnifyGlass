@@ -19,7 +19,9 @@ const DEFAULT_GLASS_SETTINGS = {
   "🔍MagnifyGlass.TextureFiltering": "Linear",
   "🔍MagnifyGlass.AlwaysActiveMode": true,
   "🔍MagnifyGlass.ToggleFollowCursorKey": "h",
-  "🔍MagnifyGlass.GlassPreviewToggleHotkey": "g"
+  "🔍MagnifyGlass.GlassPreviewToggleHotkey": "g",
+  "🔍MagnifyGlass.ShowCursorPreview": true,
+  "🔍MagnifyGlass.ForceDirectCaptureKey": "d"
 };
 class ConfigManager {
   constructor() {
@@ -57,6 +59,10 @@ class ConfigManager {
     __publicField(this, "toggleGlassPreviewKey");
     /** Show cursor preview in glass */
     __publicField(this, "showCursorPreview");
+    /** Force Direct Capture key */
+    __publicField(this, "forceDirectCaptureKey");
+    /** Runtime flag: Force Direct Capture mode (not persisted) */
+    __publicField(this, "forceDirectCapture");
     /** Manual offset X in graph units */
     __publicField(this, "offsetX");
     /** Manual offset Y in graph units */
@@ -78,6 +84,8 @@ class ConfigManager {
     this.toggleFollowCursorKey = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.ToggleFollowCursorKey"];
     this.toggleGlassPreviewKey = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.GlassPreviewToggleHotkey"];
     this.showCursorPreview = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.ShowCursorPreview"];
+    this.forceDirectCaptureKey = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.ForceDirectCaptureKey"];
+    this.forceDirectCapture = false;
     this.offsetX = 0;
     this.offsetY = 0;
   }
@@ -101,6 +109,7 @@ class ConfigManager {
     this.alwaysActiveMode = getSettingValue("🔍MagnifyGlass.AlwaysActiveMode", this.alwaysActiveMode);
     this.toggleFollowCursorKey = getSettingValue("🔍MagnifyGlass.ToggleFollowCursorKey", this.toggleFollowCursorKey);
     this.showCursorPreview = getSettingValue("🔍MagnifyGlass.ShowCursorPreview", this.showCursorPreview);
+    this.forceDirectCaptureKey = getSettingValue("🔍MagnifyGlass.ForceDirectCaptureKey", this.forceDirectCaptureKey);
     this.toggleGlassPreviewKey = getSettingValue("🔍MagnifyGlass.GlassPreviewToggleHotkey", this.toggleGlassPreviewKey);
   }
   /**

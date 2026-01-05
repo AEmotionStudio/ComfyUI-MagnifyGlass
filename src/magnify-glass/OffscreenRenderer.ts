@@ -20,8 +20,8 @@ export class OffscreenRenderer {
     private lastRenderHeight: number = 0;
     private isCapturing: boolean = false;
 
-    // Virtual Zoom Throttling (30 FPS = ~33ms per frame)
-    private static readonly VIRTUAL_ZOOM_MIN_INTERVAL_MS = 33;
+    // Virtual Zoom Throttling (60 FPS = ~16ms per frame)
+    private static readonly VIRTUAL_ZOOM_MIN_INTERVAL_MS = 16;
     private lastVirtualZoomTime: number = 0;
     private cachedVirtualZoomResult: HTMLCanvasElement | null = null;
 
@@ -70,7 +70,7 @@ export class OffscreenRenderer {
             this.cachedVirtualZoomResult = null; // Invalidate cache when switching modes
             return this.renderDirectCapture(targetCanvas, renderSize, dpr);
         } else {
-            // Virtual Zoom: Throttled to 30 FPS to prevent FPS counter inflation
+            // Virtual Zoom: Throttled to 60 FPS to prevent FPS counter inflation
             const now = performance.now();
             const elapsed = now - this.lastVirtualZoomTime;
 

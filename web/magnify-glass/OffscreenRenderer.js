@@ -592,8 +592,8 @@ const _OffscreenRenderer = class _OffscreenRenderer {
     return this.offscreenCanvas;
   }
 };
-// Virtual Zoom Throttling (30 FPS = ~33ms per frame)
-__publicField(_OffscreenRenderer, "VIRTUAL_ZOOM_MIN_INTERVAL_MS", 33);
+// Virtual Zoom Throttling (60 FPS = ~16ms per frame)
+__publicField(_OffscreenRenderer, "VIRTUAL_ZOOM_MIN_INTERVAL_MS", 16);
 let OffscreenRenderer = _OffscreenRenderer;
 export {
   OffscreenRenderer

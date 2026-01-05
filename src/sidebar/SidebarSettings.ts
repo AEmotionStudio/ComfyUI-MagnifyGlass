@@ -403,7 +403,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     glassSection.body.appendChild(createToggle('Show Mini Cursor',
-        getSettingValue('🔍MagnifyGlass.ShowCursorPreview', true),
+        getSettingValue('🔍MagnifyGlass.ShowCursorPreview', false),
         (checked) => setSettingValue('🔍MagnifyGlass.ShowCursorPreview', checked),
         'Display a mini cursor in the glass preview'
     ));

@@ -277,7 +277,7 @@ export function registerGlassSettings(magnifyGlass: any): void {
         name: "🖱️ Magnify Glass: Show Cursor Preview",
         type: "combo",
         options: [{ value: true, text: "Yes" }, { value: false, text: "No" }],
-        defaultValue: settings["🔍MagnifyGlass.ShowCursorPreview"] ?? true,
+        defaultValue: settings["🔍MagnifyGlass.ShowCursorPreview"] ?? false,
         tooltip: "Show a mini cursor in the glass preview to indicate the cursor position.",
         onChange: (value: any) => {
             if (magnifyGlass?.config) {
@@ -334,7 +334,7 @@ export function registerGlassSettings(magnifyGlass: any): void {
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.ToggleFollowCursorKey', 'h');
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.AltRequired', false);
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.OffsetStep', 5);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.ShowCursorPreview', true);
+                    app.ui.settings.setSettingValue('🔍MagnifyGlass.ShowCursorPreview', false);
 
 
                     // Panel Defaults

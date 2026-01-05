@@ -26,7 +26,7 @@ const DEFAULT_GLASS_SETTINGS = {
     "🔍MagnifyGlass.AlwaysActiveMode": true,
     "🔍MagnifyGlass.ToggleFollowCursorKey": "h",
     "🔍MagnifyGlass.GlassPreviewToggleHotkey": "g",
-    "🔍MagnifyGlass.ShowCursorPreview": true,
+    "🔍MagnifyGlass.ShowCursorPreview": false,
     "🔍MagnifyGlass.ForceDirectCaptureKey": "d",
 };
 

@@ -296,7 +296,7 @@ function registerGlassSettings(magnifyGlass) {
           app.ui.settings.setSettingValue("🔍MagnifyGlass.ToggleFollowCursorKey", "h");
           app.ui.settings.setSettingValue("🔍MagnifyGlass.AltRequired", false);
           app.ui.settings.setSettingValue("🔍MagnifyGlass.OffsetStep", 5);
-          app.ui.settings.setSettingValue("🔍MagnifyGlass.ShowCursorPreview", true);
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.ShowCursorPreview", false);
           app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelEnabled", true);
           app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelPosition", "Bottom");
           app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelWidth", 300);

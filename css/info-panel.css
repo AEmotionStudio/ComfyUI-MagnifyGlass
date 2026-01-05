@@ -339,7 +339,7 @@
 
 .info-section:hover {
     background: rgba(255, 255, 255, 0.04);
-    transform: translateY(-1px);
+    /* Removed transform to prevent bounce */
 }
 
 .section-header {
@@ -374,7 +374,7 @@
 
 .section-header:hover {
     background: rgba(255, 255, 255, 0.08);
-    transform: translateX(2px);
+    /* Removed transform: translateX(2px) */
     box-shadow: inset 2px 0 0 rgba(116, 185, 255, 0.5);
 }
 
@@ -562,7 +562,7 @@
 
 .info-value:hover {
     background: rgba(160, 212, 104, 0.18);
-    transform: translateY(-1px);
+    /* Removed transform: translateY(-1px) */
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 

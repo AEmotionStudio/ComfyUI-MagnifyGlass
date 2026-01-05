@@ -79,5 +79,5 @@ export const DEFAULT_ACCESSIBILITY_SETTINGS: AccessibilitySettings = {
     "🔍MagnifyGlass.NodeTitleEmphasis": false,
     "🔍MagnifyGlass.InvertColors": false,
     "🔍MagnifyGlass.GrayscaleMode": false,
-    "🔍MagnifyGlass.ReduceMotion": false,
+    "🔍MagnifyGlass.ReduceMotion": true,
 };

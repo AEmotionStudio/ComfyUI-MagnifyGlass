@@ -25,7 +25,7 @@ class PopOutManager {
    * Get the URL for the pop-out viewer page.
    */
   getViewerUrl() {
-    const version = "v4";
+    const version = "v5";
     const scripts = document.querySelectorAll('script[src*="magnify"]');
     Logger.debug(`[PopOut] Found ${scripts.length} magnify scripts`);
     if (scripts.length > 0) {

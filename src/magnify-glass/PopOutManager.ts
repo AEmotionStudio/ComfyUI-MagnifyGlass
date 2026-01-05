@@ -81,7 +81,7 @@ export class PopOutManager {
      */
     private getViewerUrl(): string {
         // Cache-busting version - increment to force refresh
-        const version = 'v4';
+        const version = 'v5';
 
         // Find the extension's base URL from the loaded scripts
         const scripts = document.querySelectorAll('script[src*="magnify"]');

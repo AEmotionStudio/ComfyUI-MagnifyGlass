@@ -574,6 +574,29 @@
             font-size: 11px;
             color: var(--text-secondary);
         }
+
+        /* Checkbox */
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            margin-right: 12px;
+            user-select: none;
+        }
+
+        .checkbox-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .checkbox-container input {
+            cursor: pointer;
+            accent-color: var(--accent-blue);
+            width: 14px;
+            height: 14px;
+        }
     </style>
 </head>
 
@@ -592,6 +615,10 @@
             </div>
         </div>
         <div class="header-right">
+            <label class="checkbox-container" title="Prevent disconnection when idle">
+                <input type="checkbox" id="keep-alive-check">
+                <span class="checkbox-label">Keep Alive</span>
+            </label>
             <div class="keyboard-hint">
                 <kbd>Esc</kbd> to close
             </div>
@@ -640,16 +667,7 @@
                     <p class="empty-state-text">Move your cursor over nodes in ComfyUI to see details here</p>
                 </div>
             </div>
-            <div class="sidebar-footer">
-                <div class="stat-item">
-                    <span>FPS:</span>
-                    <span class="stat-value" id="fps-counter">0</span>
-                </div>
-                <div class="stat-item">
-                    <span>Resolution:</span>
-                    <span class="stat-value" id="resolution">--</span>
-                </div>
-            </div>
+            <!-- Stats footer removed per user request -->
         </aside>
     </main>
 
@@ -666,18 +684,30 @@
         const placeholder = document.querySelector('.canvas-placeholder');
         const sidebarContent = document.getElementById('sidebar-content');
         const emptyState = document.getElementById('empty-state');
-        const fpsCounter = document.getElementById('fps-counter');
-        const resolutionDisplay = document.getElementById('resolution');
+        const keepAliveCheck = document.getElementById('keep-alive-check');
 
         // State
         let isConnected = false;
         let lastFrameTime = 0;
-        let frameCount = 0;
-        let lastFpsUpdate = Date.now();
+        let keepAlive = false;
         const frameImage = new Image();
 
         // Initialize BroadcastChannel
         const channel = new BroadcastChannel(CHANNEL_NAME);
+
+        // Access Keep-Alive setting
+        const savedKeepAlive = localStorage.getItem('magnifyglass-viewer-keepalive');
+        if (savedKeepAlive === 'true') {
+            keepAlive = true;
+            keepAliveCheck.checked = true;
+        }
+
+        keepAliveCheck.addEventListener('change', (e) => {
+            keepAlive = e.target.checked;
+            localStorage.setItem('magnifyglass-viewer-keepalive', keepAlive);
+            // If reconnecting/keeping alive, we might want to manually mark connected if we have a frame?
+            // But really we just prevent disconnection.
+        });
 
         channel.onmessage = (event) => {
             const message = event.data;
@@ -709,7 +739,7 @@
                 if (canvas.width !== frameImage.width || canvas.height !== frameImage.height) {
                     canvas.width = frameImage.width;
                     canvas.height = frameImage.height;
-                    resolutionDisplay.textContent = `${frameImage.width}×${frameImage.height}`;
+                    // Resolution display removed
                 }
 
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -719,17 +749,10 @@
 
             frameImage.src = dataUrl;
             lastFrameTime = Date.now();
-            frameCount++;
             markConnected();
-
-            // Update FPS every second
-            const now = Date.now();
-            if (now - lastFpsUpdate >= 1000) {
-                fpsCounter.textContent = frameCount;
-                frameCount = 0;
-                lastFpsUpdate = now;
-            }
         }
+
+
 
         function handleConfig(config) {
             if (!config) return;
@@ -893,7 +916,7 @@
 
         // Check connection status
         setInterval(() => {
-            if (isConnected && Date.now() - lastFrameTime > 3000) {
+            if (!keepAlive && isConnected && Date.now() - lastFrameTime > 3000) {
                 markDisconnected();
             }
         }, 1000);

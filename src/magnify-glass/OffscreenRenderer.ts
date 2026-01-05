@@ -171,11 +171,21 @@ export class OffscreenRenderer {
             const sourceY = (pivotCssY - (sourceSizeCss / 2)) * dpr;
 
             this.offscreenCtx!.clearRect(0, 0, renderSize, renderSize);
+
+            // Apply accessibility filters
+            this.offscreenCtx!.save();
+            if (this.config.invertColors) {
+                this.offscreenCtx!.filter = 'invert(1)';
+            } else if (this.config.grayscaleMode) {
+                this.offscreenCtx!.filter = 'grayscale(1)';
+            }
+
             this.offscreenCtx!.drawImage(
                 targetCanvas,
                 sourceX, sourceY, sourceWidth, sourceHeight,
                 0, 0, renderSize, renderSize
             );
+            this.offscreenCtx!.restore();
 
             // Draw native widget text on top of the captured canvas
             const lgCanvas = app?.canvas;
@@ -304,11 +314,21 @@ export class OffscreenRenderer {
             const sourceY = (pivotCssY - (sourceSizeCss / 2)) * dpr;
 
             this.offscreenCtx!.clearRect(0, 0, renderSize, renderSize);
+
+            // Apply accessibility filters
+            this.offscreenCtx!.save();
+            if (this.config.invertColors) {
+                this.offscreenCtx!.filter = 'invert(1)';
+            } else if (this.config.grayscaleMode) {
+                this.offscreenCtx!.filter = 'grayscale(1)';
+            }
+
             this.offscreenCtx!.drawImage(
                 targetCanvas,
                 sourceX, sourceY, sourceWidth, sourceHeight,
                 0, 0, renderSize, renderSize
             );
+            this.offscreenCtx!.restore();
 
             // Draw native widget text on top of the captured canvas
             // Note: For virtual zoom, we use targetScale and the CURRENT offset (after setZoom)

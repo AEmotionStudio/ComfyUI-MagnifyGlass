@@ -33,7 +33,10 @@ const DEFAULT_GLASS_SETTINGS = {
   "🔍MagnifyGlass.BoldTextEnabled": false,
   "🔍MagnifyGlass.TextOutlineEnabled": false,
   "🔍MagnifyGlass.TextOutlineColor": "#000000",
-  "🔍MagnifyGlass.NodeTitleEmphasis": false
+  "🔍MagnifyGlass.NodeTitleEmphasis": false,
+  "🔍MagnifyGlass.InvertColors": false,
+  "🔍MagnifyGlass.GrayscaleMode": false,
+  "🔍MagnifyGlass.ReduceMotion": false
 };
 class ConfigManager {
   constructor() {
@@ -96,6 +99,12 @@ class ConfigManager {
     __publicField(this, "textOutlineColor");
     /** Extra styling for node names */
     __publicField(this, "nodeTitleEmphasis");
+    /** Invert all colors */
+    __publicField(this, "invertColors");
+    /** Desaturate all colors */
+    __publicField(this, "grayscaleMode");
+    /** Disable smooth transitions */
+    __publicField(this, "reduceMotion");
     /** Manual offset X in graph units */
     __publicField(this, "offsetX");
     /** Manual offset Y in graph units */
@@ -129,6 +138,9 @@ class ConfigManager {
     this.textOutlineEnabled = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.TextOutlineEnabled"];
     this.textOutlineColor = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.TextOutlineColor"];
     this.nodeTitleEmphasis = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.NodeTitleEmphasis"];
+    this.invertColors = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.InvertColors"];
+    this.grayscaleMode = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.GrayscaleMode"];
+    this.reduceMotion = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.ReduceMotion"];
     this.offsetX = 0;
     this.offsetY = 0;
   }
@@ -164,6 +176,9 @@ class ConfigManager {
     this.textOutlineEnabled = getSettingValue("🔍MagnifyGlass.TextOutlineEnabled", this.textOutlineEnabled);
     this.textOutlineColor = getSettingValue("🔍MagnifyGlass.TextOutlineColor", this.textOutlineColor);
     this.nodeTitleEmphasis = getSettingValue("🔍MagnifyGlass.NodeTitleEmphasis", this.nodeTitleEmphasis);
+    this.invertColors = getSettingValue("🔍MagnifyGlass.InvertColors", this.invertColors);
+    this.grayscaleMode = getSettingValue("🔍MagnifyGlass.GrayscaleMode", this.grayscaleMode);
+    this.reduceMotion = getSettingValue("🔍MagnifyGlass.ReduceMotion", this.reduceMotion);
   }
   /**
    * Load saved offsets from localStorage.

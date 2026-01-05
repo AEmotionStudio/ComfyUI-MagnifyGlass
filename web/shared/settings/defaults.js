@@ -48,7 +48,10 @@ const DEFAULT_ACCESSIBILITY_SETTINGS = {
   "🔍MagnifyGlass.BoldTextEnabled": false,
   "🔍MagnifyGlass.TextOutlineEnabled": false,
   "🔍MagnifyGlass.TextOutlineColor": "#000000",
-  "🔍MagnifyGlass.NodeTitleEmphasis": false
+  "🔍MagnifyGlass.NodeTitleEmphasis": false,
+  "🔍MagnifyGlass.InvertColors": false,
+  "🔍MagnifyGlass.GrayscaleMode": false,
+  "🔍MagnifyGlass.ReduceMotion": false
 };
 export {
   DEFAULT_ACCESSIBILITY_SETTINGS,

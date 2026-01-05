@@ -76,6 +76,12 @@ export interface AccessibilitySettings {
     "🔍MagnifyGlass.TextOutlineColor": string;
     /** Extra styling for node names */
     "🔍MagnifyGlass.NodeTitleEmphasis": boolean;
+    /** Invert all colors */
+    "🔍MagnifyGlass.InvertColors": boolean;
+    /** Desaturate all colors */
+    "🔍MagnifyGlass.GrayscaleMode": boolean;
+    /** Disable smooth transitions */
+    "🔍MagnifyGlass.ReduceMotion": boolean;
 }
 
 /**

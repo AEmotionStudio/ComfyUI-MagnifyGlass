@@ -40,6 +40,9 @@ const DEFAULT_GLASS_SETTINGS = {
     "🔍MagnifyGlass.TextOutlineEnabled": false,
     "🔍MagnifyGlass.TextOutlineColor": "#000000",
     "🔍MagnifyGlass.NodeTitleEmphasis": false,
+    "🔍MagnifyGlass.InvertColors": false,
+    "🔍MagnifyGlass.GrayscaleMode": false,
+    "🔍MagnifyGlass.ReduceMotion": false,
 };
 
 /**
@@ -138,6 +141,15 @@ export class ConfigManager {
     /** Extra styling for node names */
     nodeTitleEmphasis: boolean;
 
+    /** Invert all colors */
+    invertColors: boolean;
+
+    /** Desaturate all colors */
+    grayscaleMode: boolean;
+
+    /** Disable smooth transitions */
+    reduceMotion: boolean;
+
     /** Manual offset X in graph units */
     offsetX: number;
 
@@ -178,6 +190,9 @@ export class ConfigManager {
         this.textOutlineEnabled = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.TextOutlineEnabled"];
         this.textOutlineColor = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.TextOutlineColor"];
         this.nodeTitleEmphasis = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.NodeTitleEmphasis"];
+        this.invertColors = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.InvertColors"];
+        this.grayscaleMode = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.GrayscaleMode"];
+        this.reduceMotion = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.ReduceMotion"];
 
         // Alignment adjustment parameters - managed separately
         this.offsetX = 0;
@@ -219,6 +234,9 @@ export class ConfigManager {
         this.textOutlineEnabled = getSettingValue<boolean>("🔍MagnifyGlass.TextOutlineEnabled", this.textOutlineEnabled);
         this.textOutlineColor = getSettingValue<string>("🔍MagnifyGlass.TextOutlineColor", this.textOutlineColor);
         this.nodeTitleEmphasis = getSettingValue<boolean>("🔍MagnifyGlass.NodeTitleEmphasis", this.nodeTitleEmphasis);
+        this.invertColors = getSettingValue<boolean>("🔍MagnifyGlass.InvertColors", this.invertColors);
+        this.grayscaleMode = getSettingValue<boolean>("🔍MagnifyGlass.GrayscaleMode", this.grayscaleMode);
+        this.reduceMotion = getSettingValue<boolean>("🔍MagnifyGlass.ReduceMotion", this.reduceMotion);
     }
 
     /**

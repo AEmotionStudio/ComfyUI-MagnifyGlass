@@ -615,6 +615,45 @@ export function renderSettingsPanel(container: HTMLElement): void {
         'Extra styling for node titles'
     ));
 
+    accessibilitySection.body.appendChild(createToggle('Invert Colors',
+        getSettingValue('🔍MagnifyGlass.InvertColors', false),
+        (checked) => {
+            setSettingValue('🔍MagnifyGlass.InvertColors', checked);
+            const mg = (window as any).comfyUIMagnifyGlass;
+            if (mg?.config) {
+                mg.config.invertColors = checked;
+                if (mg.state.active) mg.updateMagnifiedView();
+            }
+        },
+        'Invert all colors in the glass view'
+    ));
+
+    accessibilitySection.body.appendChild(createToggle('Grayscale Mode',
+        getSettingValue('🔍MagnifyGlass.GrayscaleMode', false),
+        (checked) => {
+            setSettingValue('🔍MagnifyGlass.GrayscaleMode', checked);
+            const mg = (window as any).comfyUIMagnifyGlass;
+            if (mg?.config) {
+                mg.config.grayscaleMode = checked;
+                if (mg.state.active) mg.updateMagnifiedView();
+            }
+        },
+        'Remove all color saturation'
+    ));
+
+    accessibilitySection.body.appendChild(createToggle('Reduce Motion',
+        getSettingValue('🔍MagnifyGlass.ReduceMotion', false),
+        (checked) => {
+            setSettingValue('🔍MagnifyGlass.ReduceMotion', checked);
+            const mg = (window as any).comfyUIMagnifyGlass;
+            if (mg?.config) {
+                mg.config.reduceMotion = checked;
+                if (mg.ui) mg.ui.applyStyles();
+            }
+        },
+        'Disable smooth animations'
+    ));
+
     container.appendChild(accessibilitySection.section);
 
     // ===== Info Panel Section =====
@@ -907,6 +946,9 @@ export function renderSettingsPanel(container: HTMLElement): void {
         setSettingValue('🔍MagnifyGlass.ToggleHotkey', 'i');
         setSettingValue('🔍MagnifyGlass.GlassPreviewToggleHotkey', 'g');
         setSettingValue('🔍MagnifyGlass.PinPanelHotkey', 'u');
+        setSettingValue('🔍MagnifyGlass.InvertColors', false);
+        setSettingValue('🔍MagnifyGlass.GrayscaleMode', false);
+        setSettingValue('🔍MagnifyGlass.ReduceMotion', false);
 
         // Also reset position
         const magnifyGlass = window.comfyUIMagnifyGlass;

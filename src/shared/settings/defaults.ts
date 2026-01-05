@@ -77,4 +77,7 @@ export const DEFAULT_ACCESSIBILITY_SETTINGS: AccessibilitySettings = {
     "🔍MagnifyGlass.TextOutlineEnabled": false,
     "🔍MagnifyGlass.TextOutlineColor": "#000000",
     "🔍MagnifyGlass.NodeTitleEmphasis": false,
+    "🔍MagnifyGlass.InvertColors": false,
+    "🔍MagnifyGlass.GrayscaleMode": false,
+    "🔍MagnifyGlass.ReduceMotion": false,
 };

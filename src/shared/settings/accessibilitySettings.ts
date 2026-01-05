@@ -197,4 +197,59 @@ export function registerAccessibilitySettings(magnifyGlass: any): void {
             }
         }
     });
+
+    // ===== Invert Colors =====
+    app.ui.settings.addSetting({
+        id: "🔍MagnifyGlass.InvertColors",
+        name: "♿ Accessibility: Invert Colors",
+        type: "combo",
+        options: [{ value: true, text: "Yes" }, { value: false, text: "No" }],
+        defaultValue: settings["🔍MagnifyGlass.InvertColors"],
+        tooltip: "Invert all colors in the magnified view.",
+        onChange: (value: any) => {
+            if (magnifyGlass?.config) {
+                magnifyGlass.config.invertColors = !!value;
+                if (magnifyGlass.state.active) {
+                    magnifyGlass.updateMagnifiedView();
+                }
+            }
+        }
+    });
+
+    // ===== Grayscale Mode =====
+    app.ui.settings.addSetting({
+        id: "🔍MagnifyGlass.GrayscaleMode",
+        name: "♿ Accessibility: Grayscale Mode",
+        type: "combo",
+        options: [{ value: true, text: "Yes" }, { value: false, text: "No" }],
+        defaultValue: settings["🔍MagnifyGlass.GrayscaleMode"],
+        tooltip: "Remove color saturation (black and white).",
+        onChange: (value: any) => {
+            if (magnifyGlass?.config) {
+                magnifyGlass.config.grayscaleMode = !!value;
+                if (magnifyGlass.state.active) {
+                    magnifyGlass.updateMagnifiedView();
+                }
+            }
+        }
+    });
+
+    // ===== Reduce Motion =====
+    app.ui.settings.addSetting({
+        id: "🔍MagnifyGlass.ReduceMotion",
+        name: "♿ Accessibility: Reduce Motion",
+        type: "combo",
+        options: [{ value: true, text: "Yes" }, { value: false, text: "No" }],
+        defaultValue: settings["🔍MagnifyGlass.ReduceMotion"],
+        tooltip: "Disable smooth transitions and animations.",
+        onChange: (value: any) => {
+            if (magnifyGlass?.config) {
+                magnifyGlass.config.reduceMotion = !!value;
+                // Update UI class immediately
+                if (magnifyGlass.ui) {
+                    magnifyGlass.ui.applyStyles();
+                }
+            }
+        }
+    });
 }

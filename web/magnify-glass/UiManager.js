@@ -279,6 +279,17 @@ class UiManager {
           this.glassDiv.style.borderRadius = "50%";
           break;
       }
+      if (this.config.reduceMotion) {
+        this.glassDiv.style.transition = "none !important";
+        this.glassDiv.style.animation = "none !important";
+        this.glassDiv.style.setProperty("transition", "none", "important");
+        this.glassDiv.style.setProperty("animation", "none", "important");
+      } else {
+        this.glassDiv.style.transition = "";
+        this.glassDiv.style.animation = "";
+        this.glassDiv.style.removeProperty("transition");
+        this.glassDiv.style.removeProperty("animation");
+      }
     }
     if (this.glassCanvas) {
       this.glassCanvas.width = this.config.glassSize;

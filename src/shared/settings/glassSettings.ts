@@ -399,7 +399,11 @@ export function registerGlassSettings(magnifyGlass: any): void {
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.BoldTextEnabled', false);
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.TextOutlineEnabled', false);
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.TextOutlineColor', '#000000');
+                    app.ui.settings.setSettingValue('🔍MagnifyGlass.TextOutlineColor', '#000000');
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.NodeTitleEmphasis', false);
+                    app.ui.settings.setSettingValue('🔍MagnifyGlass.InvertColors', false);
+                    app.ui.settings.setSettingValue('🔍MagnifyGlass.GrayscaleMode', false);
+                    app.ui.settings.setSettingValue('🔍MagnifyGlass.ReduceMotion', false);
 
                     // Also force position reset
                     if (magnifyGlass?.resetOffsets) {

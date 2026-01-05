@@ -117,6 +117,12 @@ const _OffscreenRenderer = class _OffscreenRenderer {
       const sourceX = (pivotCssX - sourceSizeCss / 2) * dpr;
       const sourceY = (pivotCssY - sourceSizeCss / 2) * dpr;
       this.offscreenCtx.clearRect(0, 0, renderSize, renderSize);
+      this.offscreenCtx.save();
+      if (this.config.invertColors) {
+        this.offscreenCtx.filter = "invert(1)";
+      } else if (this.config.grayscaleMode) {
+        this.offscreenCtx.filter = "grayscale(1)";
+      }
       this.offscreenCtx.drawImage(
         targetCanvas,
         sourceX,
@@ -128,6 +134,7 @@ const _OffscreenRenderer = class _OffscreenRenderer {
         renderSize,
         renderSize
       );
+      this.offscreenCtx.restore();
       const lgCanvas = app == null ? void 0 : app.canvas;
       const currentScale = ((_a = lgCanvas == null ? void 0 : lgCanvas.ds) == null ? void 0 : _a.scale) ?? 1;
       const currentOffset = ((_b = lgCanvas == null ? void 0 : lgCanvas.ds) == null ? void 0 : _b.offset) ? [lgCanvas.ds.offset[0], lgCanvas.ds.offset[1]] : [0, 0];
@@ -215,6 +222,12 @@ const _OffscreenRenderer = class _OffscreenRenderer {
       const sourceX = (pivotCssX - sourceSizeCss / 2) * dpr;
       const sourceY = (pivotCssY - sourceSizeCss / 2) * dpr;
       this.offscreenCtx.clearRect(0, 0, renderSize, renderSize);
+      this.offscreenCtx.save();
+      if (this.config.invertColors) {
+        this.offscreenCtx.filter = "invert(1)";
+      } else if (this.config.grayscaleMode) {
+        this.offscreenCtx.filter = "grayscale(1)";
+      }
       this.offscreenCtx.drawImage(
         targetCanvas,
         sourceX,
@@ -226,6 +239,7 @@ const _OffscreenRenderer = class _OffscreenRenderer {
         renderSize,
         renderSize
       );
+      this.offscreenCtx.restore();
       const captureOffset = [lgCanvas.ds.offset[0], lgCanvas.ds.offset[1]];
       this.drawWidgetTextNatively(sourceX, sourceY, sourceWidth, sourceHeight, renderSize, targetScale, captureOffset);
       if (this.config.accessibilityEnabled && this.config.nodeTitleEmphasis) {

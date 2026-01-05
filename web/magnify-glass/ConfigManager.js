@@ -21,7 +21,8 @@ const DEFAULT_GLASS_SETTINGS = {
   "🔍MagnifyGlass.ToggleFollowCursorKey": "h",
   "🔍MagnifyGlass.GlassPreviewToggleHotkey": "g",
   "🔍MagnifyGlass.ShowCursorPreview": false,
-  "🔍MagnifyGlass.ForceDirectCaptureKey": "d"
+  "🔍MagnifyGlass.ForceDirectCaptureKey": "d",
+  "🔍MagnifyGlass.ForceDirectCapture": false
 };
 class ConfigManager {
   constructor() {

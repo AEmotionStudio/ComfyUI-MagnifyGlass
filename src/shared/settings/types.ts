@@ -25,6 +25,7 @@ export interface GlassSettings {
     "🔍MagnifyGlass.ToggleFollowCursorKey": string;
     "🔍MagnifyGlass.ShowCursorPreview": boolean;
     "🔍MagnifyGlass.ForceDirectCaptureKey": string;
+    "🔍MagnifyGlass.ForceDirectCapture": boolean;
 }
 
 /**

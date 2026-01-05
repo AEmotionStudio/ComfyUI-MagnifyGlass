@@ -28,6 +28,7 @@ const DEFAULT_GLASS_SETTINGS = {
     "🔍MagnifyGlass.GlassPreviewToggleHotkey": "g",
     "🔍MagnifyGlass.ShowCursorPreview": false,
     "🔍MagnifyGlass.ForceDirectCaptureKey": "d",
+    "🔍MagnifyGlass.ForceDirectCapture": false,
 };
 
 /**

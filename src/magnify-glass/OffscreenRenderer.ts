@@ -407,12 +407,24 @@ export class OffscreenRenderer {
                 // Use widget.last_y if available, otherwise use calculated position
                 const widgetLocalY = (widget as any).last_y ?? widgetY;
 
-                // Check if widget type contains text
+                // Check if widget type contains text AND is a multi-line text area
+                // We only want to draw our custom rendering for multi-line text widgets (like CLIP prompts)
+                // NOT for simple single-line string inputs (like filename_prefix) which are already canvas-rendered
                 const widgetType = String(widget.type || '').toLowerCase();
-                const isTextWidget = widgetType === 'text' || widgetType === 'string' ||
-                    widgetType === 'textarea' || widgetType === 'customtext';
 
-                if (isTextWidget && widget.value !== undefined && widget.value !== null) {
+                // Check if this is a multi-line text widget that needs our native rendering
+                // Multi-line text widgets typically have:
+                // - type 'customtext' (CLIP text encode uses this)
+                // - computedHeight >= 40 (multi-line areas are taller)
+                // Single-line string inputs typically have:
+                // - type 'string' with no computedHeight or small computedHeight
+                // - These are already rendered on the canvas by ComfyUI
+                const computedHeight = (widget as any).computedHeight || 0;
+                const isMarkdownWidget = widgetType === 'markdown';
+                const isMultiLineWidget = isMarkdownWidget || widgetType === 'customtext' ||
+                    ((widgetType === 'text' || widgetType === 'textarea') && computedHeight >= 40);
+
+                if (isMultiLineWidget && widget.value !== undefined && widget.value !== null) {
                     const textValue = String(widget.value);
                     if (textValue.length > 0) {
                         // Widget position in CSS pixels (relative to canvas)
@@ -429,11 +441,54 @@ export class OffscreenRenderer {
                         // Calculate font size based on scale
                         const baseFontSize = 13;
                         const fontSize = Math.max(10, Math.min(28, baseFontSize * scale * actualDpr * captureScale));
+                        const lineHeight = fontSize * 1.4;
 
-                        // Calculate widget height
-                        const widgetHeight = (widget as any).computedHeight
-                            ? (widget as any).computedHeight * scale * captureScale
-                            : Math.max(80, fontSize * 5);
+                        // Calculate required height based on content
+                        let contentHeight = 0;
+                        if (isMarkdownWidget) {
+                            // Rough estimation of height needed
+                            // We don't have ctx context here easily for precise measurement without setting font
+                            // So we do a generous estimation or try to measure
+                            ctx.save();
+                            ctx.font = `500 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
+                            const maxWidth = widgetWidth - 12;
+
+                            // reuse wrap logic estimation
+                            const lines = textValue.split('\n');
+                            for (const line of lines) {
+                                const words = line.split(/(\s+)/);
+                                let currentLine = '';
+                                let lineCount = 1;
+                                for (const word of words) {
+                                    if (ctx.measureText(currentLine + word).width > maxWidth) {
+                                        lineCount++;
+                                        currentLine = word;
+                                    } else {
+                                        currentLine += word;
+                                    }
+                                }
+                                contentHeight += lineCount * lineHeight;
+                            }
+                            ctx.restore();
+
+                            // Add padding
+                            contentHeight += 16;
+                        }
+
+                        // Calculate available height in canvas pixels to prevent spilling
+                        // Node bottom in CSS pixels
+                        const nodeBottomCss = nodeCssY + nodeCssHeight;
+                        // Max height for this widget in CSS pixels (stay inside node, minus padding)
+                        const maxWidgetHeightCss = Math.max(0, nodeBottomCss - widgetCssY - (PADDING * scale));
+                        // Convert to canvas pixels
+                        const maxWidgetHeight = maxWidgetHeightCss * actualDpr * captureScale;
+
+                        // Calculate widget height - Render full content for markdown up to node bounds
+                        const widgetHeight = (isMarkdownWidget)
+                            ? Math.min(Math.max((widget as any).computedHeight * scale * captureScale || 0, contentHeight), maxWidgetHeight)
+                            : ((widget as any).computedHeight
+                                ? (widget as any).computedHeight * scale * captureScale
+                                : Math.max(80, fontSize * 5));
 
                         // Check if widget is at least partially visible (more lenient bounds check)
                         const widgetRight = canvasX + widgetWidth;
@@ -467,61 +522,8 @@ export class OffscreenRenderer {
                             ctx.roundRect(containerX, containerY, containerWidth, containerHeight, borderRadius);
                             ctx.clip();
 
-                            // Set up enhanced text rendering
-                            ctx.font = `500 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
-                            ctx.fillStyle = '#e0e0e0'; // Brighter text
-                            ctx.textBaseline = 'top';
-                            ctx.imageSmoothingEnabled = true;
-
-                            // Word wrap helper function
-                            const wrapText = (text: string, maxWidth: number): string[] => {
-                                const words = text.split(/(\s+)/); // Split keeping whitespace
-                                const wrappedLines: string[] = [];
-                                let currentLine = '';
-
-                                for (const word of words) {
-                                    const testLine = currentLine + word;
-                                    const testWidth = ctx.measureText(testLine).width;
-
-                                    if (testWidth > maxWidth && currentLine.length > 0) {
-                                        wrappedLines.push(currentLine.trimEnd());
-                                        currentLine = word.trimStart();
-                                    } else {
-                                        currentLine = testLine;
-                                    }
-                                }
-                                if (currentLine.length > 0) {
-                                    wrappedLines.push(currentLine.trimEnd());
-                                }
-                                return wrappedLines;
-                            };
-
-                            // Handle multi-line text with word wrapping
-                            const inputLines = textValue.split('\n');
-                            const lineHeight = fontSize * 1.4;
-                            const maxWidth = widgetWidth - 12; // Padding inside container
-                            // Text position follows actual widget location - clipping handles visibility
-                            const textStartX = canvasX + 4;
-                            const textStartY = canvasY + 4;
-
-                            let currentY = textStartY;
-                            const maxLines = Math.floor((widgetHeight - 8) / lineHeight);
-                            let lineCount = 0;
-
-                            for (const line of inputLines) {
-                                if (lineCount >= maxLines) break;
-
-                                // Wrap each line
-                                const wrappedLines = line.length > 0 ? wrapText(line, maxWidth) : [''];
-
-                                for (const wrappedLine of wrappedLines) {
-                                    if (lineCount >= maxLines) break;
-                                    // Draw at actual position - clipping region handles visibility
-                                    ctx.fillText(wrappedLine, textStartX, currentY);
-                                    currentY += lineHeight;
-                                    lineCount++;
-                                }
-                            }
+                            // Use advanced markdown rendering instead of simple text
+                            this.drawMarkdown(ctx, textValue, canvasX + 4, canvasY + 4, widgetWidth - 12, widgetHeight - 8, fontSize);
 
                             ctx.restore();
                         }
@@ -778,6 +780,87 @@ export class OffscreenRenderer {
             }
         } catch (e) {
             // Silently fail for individual previews
+        }
+    }
+
+    /**
+     * Render markdown text onto the context.
+     * Supports basic headers (#) and lists (-).
+     */
+    private drawMarkdown(
+        ctx: CanvasRenderingContext2D,
+        text: string,
+        x: number,
+        y: number,
+        maxWidth: number,
+        maxHeight: number,
+        fontSize: number
+    ): void {
+        const lines = text.split('\n');
+        const lineHeight = fontSize * 1.4;
+        let currentY = y;
+        const maxY = y + maxHeight;
+
+        ctx.textBaseline = 'top';
+        ctx.fillStyle = '#e0e0e0';
+
+        // Word wrap helper
+        const wrapText = (text: string, maxWidth: number, font: string): string[] => {
+            ctx.font = font;
+            const words = text.split(/(\s+)/);
+            const wrappedLines: string[] = [];
+            let currentLine = '';
+
+            for (const word of words) {
+                const testLine = currentLine + word;
+                const testWidth = ctx.measureText(testLine).width;
+                if (testWidth > maxWidth && currentLine.length > 0) {
+                    wrappedLines.push(currentLine.trimEnd());
+                    currentLine = word.trimStart();
+                } else {
+                    currentLine = testLine;
+                }
+            }
+            if (currentLine.length > 0) wrappedLines.push(currentLine.trimEnd());
+            return wrappedLines;
+        };
+
+        for (const line of lines) {
+            if (currentY >= maxY) break;
+
+            let renderText = line;
+            let currentFont = `500 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
+            let indent = 0;
+            let color = '#e0e0e0';
+
+            // 1. Headers
+            if (line.startsWith('#')) {
+                const level = line.match(/^#+/)?.[0].length || 0;
+                renderText = line.substring(level).trim();
+                const headerScale = Math.max(1.1, 1.8 - (level * 0.15)); // H1=1.8x, H2=1.65x
+                const headerSize = fontSize * headerScale;
+                currentFont = `700 ${headerSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
+                // Add a little margin before headers
+                currentY += fontSize * 0.5;
+            }
+            // 2. Lists
+            else if (line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
+                renderText = '• ' + line.trim().substring(2);
+                indent = fontSize; // Indent list items
+            }
+
+            const wrapped = wrapText(renderText, maxWidth - indent, currentFont);
+
+            ctx.font = currentFont;
+            ctx.fillStyle = color;
+
+            for (const wrap of wrapped) {
+                if (currentY >= maxY) break;
+                ctx.fillText(wrap, x + indent, currentY);
+                // Headers get taller line height
+                const currentLineHeight = line.startsWith('#') ? (parseFloat(currentFont.split(' ')[1]) * 1.4) : lineHeight;
+                currentY += currentLineHeight;
+            }
         }
     }
 

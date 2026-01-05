@@ -286,8 +286,10 @@ const _OffscreenRenderer = class _OffscreenRenderer {
       for (const widget of node.widgets) {
         const widgetLocalY = widget.last_y ?? widgetY;
         const widgetType = String(widget.type || "").toLowerCase();
-        const isTextWidget = widgetType === "text" || widgetType === "string" || widgetType === "textarea" || widgetType === "customtext";
-        if (isTextWidget && widget.value !== void 0 && widget.value !== null) {
+        const computedHeight = widget.computedHeight || 0;
+        const isMarkdownWidget = widgetType === "markdown";
+        const isMultiLineWidget = isMarkdownWidget || widgetType === "customtext" || (widgetType === "text" || widgetType === "textarea") && computedHeight >= 40;
+        if (isMultiLineWidget && widget.value !== void 0 && widget.value !== null) {
           const textValue = String(widget.value);
           if (textValue.length > 0) {
             const widgetCssX = nodeCssX + PADDING * scale;
@@ -298,7 +300,34 @@ const _OffscreenRenderer = class _OffscreenRenderer {
             const widgetWidth = widgetCssWidth * actualDpr * captureScale;
             const baseFontSize = 13;
             const fontSize = Math.max(10, Math.min(28, baseFontSize * scale * actualDpr * captureScale));
-            const widgetHeight = widget.computedHeight ? widget.computedHeight * scale * captureScale : Math.max(80, fontSize * 5);
+            const lineHeight = fontSize * 1.4;
+            let contentHeight = 0;
+            if (isMarkdownWidget) {
+              ctx.save();
+              ctx.font = `500 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
+              const maxWidth = widgetWidth - 12;
+              const lines = textValue.split("\n");
+              for (const line of lines) {
+                const words = line.split(/(\s+)/);
+                let currentLine = "";
+                let lineCount = 1;
+                for (const word of words) {
+                  if (ctx.measureText(currentLine + word).width > maxWidth) {
+                    lineCount++;
+                    currentLine = word;
+                  } else {
+                    currentLine += word;
+                  }
+                }
+                contentHeight += lineCount * lineHeight;
+              }
+              ctx.restore();
+              contentHeight += 16;
+            }
+            const nodeBottomCss = nodeCssY + nodeCssHeight;
+            const maxWidgetHeightCss = Math.max(0, nodeBottomCss - widgetCssY - PADDING * scale);
+            const maxWidgetHeight = maxWidgetHeightCss * actualDpr * captureScale;
+            const widgetHeight = isMarkdownWidget ? Math.min(Math.max(widget.computedHeight * scale * captureScale || 0, contentHeight), maxWidgetHeight) : widget.computedHeight ? widget.computedHeight * scale * captureScale : Math.max(80, fontSize * 5);
             const widgetRight = canvasX + widgetWidth;
             const widgetBottom = canvasY + widgetHeight;
             const isVisible = widgetRight > 0 && canvasX < renderSize && widgetBottom > 0 && canvasY < renderSize;
@@ -319,47 +348,7 @@ const _OffscreenRenderer = class _OffscreenRenderer {
               ctx.beginPath();
               ctx.roundRect(containerX, containerY, containerWidth, containerHeight, borderRadius);
               ctx.clip();
-              ctx.font = `500 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
-              ctx.fillStyle = "#e0e0e0";
-              ctx.textBaseline = "top";
-              ctx.imageSmoothingEnabled = true;
-              const wrapText = (text, maxWidth2) => {
-                const words = text.split(/(\s+)/);
-                const wrappedLines = [];
-                let currentLine = "";
-                for (const word of words) {
-                  const testLine = currentLine + word;
-                  const testWidth = ctx.measureText(testLine).width;
-                  if (testWidth > maxWidth2 && currentLine.length > 0) {
-                    wrappedLines.push(currentLine.trimEnd());
-                    currentLine = word.trimStart();
-                  } else {
-                    currentLine = testLine;
-                  }
-                }
-                if (currentLine.length > 0) {
-                  wrappedLines.push(currentLine.trimEnd());
-                }
-                return wrappedLines;
-              };
-              const inputLines = textValue.split("\n");
-              const lineHeight = fontSize * 1.4;
-              const maxWidth = widgetWidth - 12;
-              const textStartX = canvasX + 4;
-              const textStartY = canvasY + 4;
-              let currentY = textStartY;
-              const maxLines = Math.floor((widgetHeight - 8) / lineHeight);
-              let lineCount = 0;
-              for (const line of inputLines) {
-                if (lineCount >= maxLines) break;
-                const wrappedLines = line.length > 0 ? wrapText(line, maxWidth) : [""];
-                for (const wrappedLine of wrappedLines) {
-                  if (lineCount >= maxLines) break;
-                  ctx.fillText(wrappedLine, textStartX, currentY);
-                  currentY += lineHeight;
-                  lineCount++;
-                }
-              }
+              this.drawMarkdown(ctx, textValue, canvasX + 4, canvasY + 4, widgetWidth - 12, widgetHeight - 8, fontSize);
               ctx.restore();
             }
           }
@@ -536,6 +525,64 @@ const _OffscreenRenderer = class _OffscreenRenderer {
         ctx.restore();
       }
     } catch (e) {
+    }
+  }
+  /**
+   * Render markdown text onto the context.
+   * Supports basic headers (#) and lists (-).
+   */
+  drawMarkdown(ctx, text, x, y, maxWidth, maxHeight, fontSize) {
+    var _a;
+    const lines = text.split("\n");
+    const lineHeight = fontSize * 1.4;
+    let currentY = y;
+    const maxY = y + maxHeight;
+    ctx.textBaseline = "top";
+    ctx.fillStyle = "#e0e0e0";
+    const wrapText = (text2, maxWidth2, font) => {
+      ctx.font = font;
+      const words = text2.split(/(\s+)/);
+      const wrappedLines = [];
+      let currentLine = "";
+      for (const word of words) {
+        const testLine = currentLine + word;
+        const testWidth = ctx.measureText(testLine).width;
+        if (testWidth > maxWidth2 && currentLine.length > 0) {
+          wrappedLines.push(currentLine.trimEnd());
+          currentLine = word.trimStart();
+        } else {
+          currentLine = testLine;
+        }
+      }
+      if (currentLine.length > 0) wrappedLines.push(currentLine.trimEnd());
+      return wrappedLines;
+    };
+    for (const line of lines) {
+      if (currentY >= maxY) break;
+      let renderText = line;
+      let currentFont = `500 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
+      let indent = 0;
+      let color = "#e0e0e0";
+      if (line.startsWith("#")) {
+        const level = ((_a = line.match(/^#+/)) == null ? void 0 : _a[0].length) || 0;
+        renderText = line.substring(level).trim();
+        const headerScale = Math.max(1.1, 1.8 - level * 0.15);
+        const headerSize = fontSize * headerScale;
+        currentFont = `700 ${headerSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
+        currentY += fontSize * 0.5;
+      } else if (line.trim().startsWith("- ") || line.trim().startsWith("* ")) {
+        renderText = "• " + line.trim().substring(2);
+        indent = fontSize;
+      }
+      const wrapped = wrapText(renderText, maxWidth - indent, currentFont);
+      ctx.font = currentFont;
+      ctx.fillStyle = color;
+      for (const wrap of wrapped) {
+        if (currentY >= maxY) break;
+        ctx.fillText(wrap, x + indent, currentY);
+        const currentLineHeight = line.startsWith("#") ? parseFloat(currentFont.split(" ")[1]) * 1.4 : lineHeight;
+        currentY += currentLineHeight;
+      }
     }
   }
   isAvailable() {

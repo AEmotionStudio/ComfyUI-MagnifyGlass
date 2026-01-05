@@ -6,8 +6,8 @@ app.registerExtension({
   name: "comfyui.magnify.glass",
   init() {
     const magnifyGlass = new MagnifyGlass();
-    magnifyGlass.init();
     window.comfyUIMagnifyGlass = magnifyGlass;
+    magnifyGlass.init();
     initSidebar();
     Logger.info("Magnify Glass extension initialized");
   }

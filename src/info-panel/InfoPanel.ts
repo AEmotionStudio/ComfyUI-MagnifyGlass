@@ -58,6 +58,13 @@ export class InfoPanel {
         // Register settings with ComfyUI
         registerPanelSettings(this.stateManager, this.uiManager, this.positionManager);
 
+        // Listen for popout state changes to update UI buttons
+        if (this.magnifyGlass.popOutManager) {
+            this.magnifyGlass.popOutManager.onStateChange = (isOpen: boolean) => {
+                this.uiManager.updateControlStates();
+            };
+        }
+
         Logger.info('Info Panel initialized successfully');
     }
 

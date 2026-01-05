@@ -40,6 +40,11 @@ class InfoPanel {
     });
     this.hookIntoMagnifyGlass();
     registerPanelSettings(this.stateManager, this.uiManager, this.positionManager);
+    if (this.magnifyGlass.popOutManager) {
+      this.magnifyGlass.popOutManager.onStateChange = (isOpen) => {
+        this.uiManager.updateControlStates();
+      };
+    }
     Logger.info("Info Panel initialized successfully");
   }
   hookIntoMagnifyGlass() {

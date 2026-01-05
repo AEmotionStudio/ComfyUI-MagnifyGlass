@@ -492,6 +492,15 @@ export class UIManager {
             // Only show reset button when glass is visible (moves with drag/popout buttons)
             resetGlassBtn.style.display = isGlassVisible ? 'flex' : 'none';
         }
+
+        const popoutBtn = this.elements.controls.querySelector('[data-action="popout"]') as HTMLButtonElement;
+        if (popoutBtn) {
+            const glass = (window as any).comfyUIMagnifyGlass;
+            const isOpen = glass?.popOutManager?.isPopOutOpen() || false;
+            // Logger.debug(`[UIManager] Popout button update - Glass: ${!!glass}, IsOpen: ${isOpen}`);
+            popoutBtn.classList.toggle('active', isOpen);
+            popoutBtn.title = isOpen ? "Close Pop-out Viewer" : "Open Pop-out Viewer";
+        }
     }
 
     /**

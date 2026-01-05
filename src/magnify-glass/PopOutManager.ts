@@ -57,6 +57,8 @@ interface PopOutInfo {
 export class PopOutManager {
     private channel: BroadcastChannel | null = null;
     private isOpen: boolean = false;
+    private popOutWindow: Window | null = null;
+    public onStateChange: ((isOpen: boolean) => void) | null = null;
     private lastPongTime: number = 0;
     private pingInterval: number | null = null;
     private viewerUrl: string;
@@ -81,7 +83,7 @@ export class PopOutManager {
      */
     private getViewerUrl(): string {
         // Cache-busting version - increment to force refresh
-        const version = 'v13';
+        const version = 'v14';
 
         // Find the extension's base URL from the loaded scripts
         const scripts = document.querySelectorAll('script[src*="magnify"]');
@@ -125,6 +127,8 @@ export class PopOutManager {
                 this.handleMessage(event.data);
             };
             Logger.debug('[PopOut] BroadcastChannel initialized');
+            // Start pinging immediately to detect if viewer is already open (e.g. after reload)
+            this.startPing();
         } catch (e) {
             Logger.error('[PopOut] Failed to create BroadcastChannel:', e);
         }
@@ -140,14 +144,20 @@ export class PopOutManager {
                 if (!this.isOpen) {
                     this.isOpen = true;
                     Logger.debug('[PopOut] Viewer tab connected');
+                    if (this.onStateChange) this.onStateChange(true);
                     // Send current theme immediately upon connection
                     this.sendConfig({ theme: this.currentTheme });
                 }
                 break;
             case 'close':
                 this.isOpen = false;
-                this.stopPing();
+                this.popOutWindow = null;
+                // Don't stop pinging, we might want to reconnect if user re-opens externally
+                // or if we just want to keep checking. 
+                // However, original logic stopped ping. Let's keep pinging to auto-detect return.
+                // this.stopPing(); 
                 Logger.debug('[PopOut] Viewer tab closed');
+                if (this.onStateChange) this.onStateChange(false);
                 break;
         }
     }
@@ -156,14 +166,17 @@ export class PopOutManager {
      * Open the pop-out viewer in a new tab.
      */
     open(): void {
-        if (this.isOpen) {
-            Logger.debug('[PopOut] Tab already open');
+        // If window exists and is open, focus it
+        if (this.popOutWindow && !this.popOutWindow.closed) {
+            this.popOutWindow.focus();
             return;
         }
 
-        // Open new tab
-        const newTab = window.open(this.viewerUrl, '_blank');
-        if (!newTab) {
+        // Open new tab (or refocus existing if name matches)
+        // Use a constant name to ensure singleton behavior across reloads
+        this.popOutWindow = window.open(this.viewerUrl, 'MagnifyGlassPopout');
+
+        if (!this.popOutWindow) {
             Logger.error('[PopOut] Failed to open new tab - popup may be blocked');
             return;
         }
@@ -177,11 +190,20 @@ export class PopOutManager {
      * Close the pop-out viewer tab.
      */
     close(): void {
-        if (!this.isOpen) return;
+        if (!this.isOpen && !this.popOutWindow) return;
+
+        // update state immediately for instant UI feedback
+        this.isOpen = false;
+        if (this.onStateChange) this.onStateChange(false);
+        this.stopPing();
 
         this.sendMessage({ type: 'close' });
-        this.isOpen = false;
-        this.stopPing();
+
+        if (this.popOutWindow) {
+            this.popOutWindow.close();
+            this.popOutWindow = null;
+        }
+
         Logger.debug('[PopOut] Sent close message to viewer');
     }
 
@@ -367,17 +389,38 @@ export class PopOutManager {
      * Start pinging to check connection.
      */
     private startPing(): void {
-        this.stopPing();
-        this.pingInterval = setInterval(() => {
-            this.sendMessage({ type: 'ping', timestamp: Date.now() });
+        // Define ping function
+        const ping = () => {
+            if (this.channel) {
+                this.channel.postMessage({ type: 'ping', timestamp: Date.now() });
+            }
 
             // Check for connection timeout
             if (this.isOpen && Date.now() - this.lastPongTime > this.CONNECTION_TIMEOUT) {
                 Logger.debug('[PopOut] Connection timeout, marking as closed');
                 this.isOpen = false;
-                this.stopPing();
+                this.stopPing(); // Stop pinging if timeout occurs (assume truly gone)
+                // Actually, if we want auto-reconnect, we should NOT stop pinging on timeout?
+                // But timeout implies "It was open, but stopped responding".
+                // If user closed it, we got 'close' message.
+                // If it crashed, we get timeout.
+                // If we stop pinging, we won't detect if it comes back?
+                // But usually we want to stop to save resources.
+                // Let's stick to original behavior for timeout: stop pinging.
+                // But for 'close' message: keep pinging (handled in handleMessage).
+                if (this.onStateChange) this.onStateChange(false);
             }
-        }, 1000);
+        };
+
+        // Always send an immediate ping when startPing is called, 
+        // to ensure responsiveness (e.g. when clicking Open button).
+        ping();
+
+        // If interval is already running, we don't need to start another one
+        if (this.pingInterval) return;
+
+        // Then ping every second
+        this.pingInterval = window.setInterval(ping, 1000);
     }
 
     /**

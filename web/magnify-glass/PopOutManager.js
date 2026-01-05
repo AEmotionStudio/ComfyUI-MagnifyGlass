@@ -7,6 +7,8 @@ class PopOutManager {
   constructor() {
     __publicField(this, "channel", null);
     __publicField(this, "isOpen", false);
+    __publicField(this, "popOutWindow", null);
+    __publicField(this, "onStateChange", null);
     __publicField(this, "lastPongTime", 0);
     __publicField(this, "pingInterval", null);
     __publicField(this, "viewerUrl");
@@ -25,7 +27,7 @@ class PopOutManager {
    * Get the URL for the pop-out viewer page.
    */
   getViewerUrl() {
-    const version = "v13";
+    const version = "v14";
     const scripts = document.querySelectorAll('script[src*="magnify"]');
     Logger.debug(`[PopOut] Found ${scripts.length} magnify scripts`);
     if (scripts.length > 0) {
@@ -60,6 +62,7 @@ class PopOutManager {
         this.handleMessage(event.data);
       };
       Logger.debug("[PopOut] BroadcastChannel initialized");
+      this.startPing();
     } catch (e) {
       Logger.error("[PopOut] Failed to create BroadcastChannel:", e);
     }
@@ -74,13 +77,15 @@ class PopOutManager {
         if (!this.isOpen) {
           this.isOpen = true;
           Logger.debug("[PopOut] Viewer tab connected");
+          if (this.onStateChange) this.onStateChange(true);
           this.sendConfig({ theme: this.currentTheme });
         }
         break;
       case "close":
         this.isOpen = false;
-        this.stopPing();
+        this.popOutWindow = null;
         Logger.debug("[PopOut] Viewer tab closed");
+        if (this.onStateChange) this.onStateChange(false);
         break;
     }
   }
@@ -88,12 +93,12 @@ class PopOutManager {
    * Open the pop-out viewer in a new tab.
    */
   open() {
-    if (this.isOpen) {
-      Logger.debug("[PopOut] Tab already open");
+    if (this.popOutWindow && !this.popOutWindow.closed) {
+      this.popOutWindow.focus();
       return;
     }
-    const newTab = window.open(this.viewerUrl, "_blank");
-    if (!newTab) {
+    this.popOutWindow = window.open(this.viewerUrl, "MagnifyGlassPopout");
+    if (!this.popOutWindow) {
       Logger.error("[PopOut] Failed to open new tab - popup may be blocked");
       return;
     }
@@ -104,10 +109,15 @@ class PopOutManager {
    * Close the pop-out viewer tab.
    */
   close() {
-    if (!this.isOpen) return;
-    this.sendMessage({ type: "close" });
+    if (!this.isOpen && !this.popOutWindow) return;
     this.isOpen = false;
+    if (this.onStateChange) this.onStateChange(false);
     this.stopPing();
+    this.sendMessage({ type: "close" });
+    if (this.popOutWindow) {
+      this.popOutWindow.close();
+      this.popOutWindow = null;
+    }
     Logger.debug("[PopOut] Sent close message to viewer");
   }
   /**
@@ -256,15 +266,20 @@ class PopOutManager {
    * Start pinging to check connection.
    */
   startPing() {
-    this.stopPing();
-    this.pingInterval = setInterval(() => {
-      this.sendMessage({ type: "ping", timestamp: Date.now() });
+    const ping = () => {
+      if (this.channel) {
+        this.channel.postMessage({ type: "ping", timestamp: Date.now() });
+      }
       if (this.isOpen && Date.now() - this.lastPongTime > this.CONNECTION_TIMEOUT) {
         Logger.debug("[PopOut] Connection timeout, marking as closed");
         this.isOpen = false;
         this.stopPing();
+        if (this.onStateChange) this.onStateChange(false);
       }
-    }, 1e3);
+    };
+    ping();
+    if (this.pingInterval) return;
+    this.pingInterval = window.setInterval(ping, 1e3);
   }
   /**
    * Stop pinging.

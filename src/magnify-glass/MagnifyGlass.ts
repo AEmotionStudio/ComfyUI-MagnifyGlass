@@ -56,6 +56,10 @@ export class MagnifyGlass {
             this.state,
             () => this.toggle()
         );
+
+        // onStateChange is handled by InfoPanel
+
+
         this.renderer = null;
         this.offscreenRenderer = null;
         this.debugger = new DebugManager(this.config, this.state, this.ui);

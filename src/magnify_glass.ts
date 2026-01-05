@@ -19,10 +19,12 @@ app.registerExtension({
     init() {
         // Initialize the magnify glass
         const magnifyGlass = new MagnifyGlass();
-        magnifyGlass.init();
 
         // Expose to window for other extensions (like info panel) to access
+        // Must be done BEFORE init() because init() creates UI which accesses this global
         window.comfyUIMagnifyGlass = magnifyGlass;
+
+        magnifyGlass.init();
 
         // Initialize sidebar
         initSidebar();

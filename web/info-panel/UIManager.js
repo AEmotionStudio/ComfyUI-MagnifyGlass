@@ -258,7 +258,7 @@ class UIManager {
    * Update control button states.
    */
   updateControlStates() {
-    var _a, _b;
+    var _a, _b, _c;
     if (!this.elements.controls) return;
     const pinBtn = this.elements.controls.querySelector('[data-action="pin"]');
     const lockBtn = this.elements.controls.querySelector('[data-action="lock"]');
@@ -341,6 +341,13 @@ class UIManager {
     const resetGlassBtn = this.elements.controls.querySelector('[data-action="reset-glass"]');
     if (resetGlassBtn) {
       resetGlassBtn.style.display = isGlassVisible ? "flex" : "none";
+    }
+    const popoutBtn = this.elements.controls.querySelector('[data-action="popout"]');
+    if (popoutBtn) {
+      const glass = window.comfyUIMagnifyGlass;
+      const isOpen = ((_c = glass == null ? void 0 : glass.popOutManager) == null ? void 0 : _c.isPopOutOpen()) || false;
+      popoutBtn.classList.toggle("active", isOpen);
+      popoutBtn.title = isOpen ? "Close Pop-out Viewer" : "Open Pop-out Viewer";
     }
   }
   /**

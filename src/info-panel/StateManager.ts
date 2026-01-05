@@ -43,6 +43,9 @@ export interface InfoPanelStateData {
     // Current data
     currentInfo: GatheredInfo | null;
 
+    // Node selection override (user-selected node from dropdown)
+    selectedNodeId: number | null;
+
     // Settings cache - using index signature for dynamic ComfyUI settings
     settings: { [key: string]: string | number | boolean };
 
@@ -90,6 +93,9 @@ export class StateManager {
 
             // Current data
             currentInfo: null,
+
+            // Node selection override
+            selectedNodeId: null,
 
             // Settings cache
             settings: {},
@@ -400,6 +406,21 @@ export class StateManager {
 
     setCurrentInfo(info: GatheredInfo): void {
         this.state.currentInfo = info;
+    }
+
+    /**
+     * Set the selected node ID for manual override.
+     * When set, the inspector will display this node instead of the hovered node.
+     */
+    setSelectedNode(id: number | null): void {
+        this.state.selectedNodeId = id;
+    }
+
+    /**
+     * Clear the selected node, returning to hover-based detection.
+     */
+    clearSelectedNode(): void {
+        this.state.selectedNodeId = null;
     }
 
     scheduleAutoCollapse(): void {

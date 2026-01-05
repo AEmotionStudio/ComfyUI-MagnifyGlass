@@ -5,10 +5,14 @@ import { Icons } from "../shared/icons.js";
 import { Logger } from "../shared/logger.js";
 import { formatValue, getValueClass, getValueAttributes } from "./ValueFormatter.js";
 import { getCheckpointInfo, getImageInfo, getTextBoxContent, getImportantNodeParameters } from "./NodeDataExtractor.js";
+import { NodeSelector } from "./NodeSelector.js";
 class UIManager {
   constructor(stateManager) {
     __publicField(this, "stateManager");
     __publicField(this, "elements");
+    __publicField(this, "nodeSelector");
+    __publicField(this, "currentDropdown", null);
+    __publicField(this, "onNodeSelected", null);
     this.stateManager = stateManager;
     this.elements = {
       panel: null,
@@ -16,6 +20,7 @@ class UIManager {
       content: null,
       controls: null
     };
+    this.nodeSelector = new NodeSelector();
     this.createPanel();
     this.injectStyles();
   }
@@ -542,10 +547,10 @@ class UIManager {
     }
     if (info.hoveredNode) {
       const nodeContent = [
-        { label: "Title", value: info.hoveredNode.title }
+        { label: "Title", value: info.hoveredNode.title, clickable: "title" }
       ];
       if (info.hoveredNode.executionOrder !== void 0) {
-        nodeContent.push({ label: "Exec Order", value: info.hoveredNode.executionOrder });
+        nodeContent.push({ label: "Exec Order", value: info.hoveredNode.executionOrder, clickable: "execOrder" });
       }
       if (info.hoveredNode.category) {
         nodeContent.push({ label: "Category", value: info.hoveredNode.category });
@@ -620,15 +625,43 @@ class UIManager {
       const value = formatValue(item.value, item.label);
       const valueClass = getValueClass(item.value);
       const valueAttributes = getValueAttributes(item.value);
+      const clickableAttr = item.clickable ? `data-clickable="${item.clickable}"` : "";
+      const clickableClass = item.clickable ? "clickable-row" : "";
+      const dropdownIcon = item.clickable ? '<span class="dropdown-indicator" style="margin-left: 4px; opacity: 0.6; font-size: 10px;">▼</span>' : "";
       return `
-                            <div class="info-row">
+                            <div class="info-row ${clickableClass}" ${clickableAttr} style="${item.clickable ? "cursor: pointer;" : ""}">
                                 <span class="info-label">${item.label}</span>
-                                <span class="info-value ${valueClass}" ${valueAttributes}>${value}</span>
+                                <span class="info-value ${valueClass}" ${valueAttributes}>${value}${dropdownIcon}</span>
                             </div>`;
     }).join("")}
                     </div>
                 </div>
             </div>`).join("");
+    this.attachDropdownClickHandlers();
+  }
+  /**
+   * Attach click handlers to clickable dropdown rows.
+   */
+  attachDropdownClickHandlers() {
+    if (!this.elements.content) return;
+    const clickableRows = this.elements.content.querySelectorAll("[data-clickable]");
+    clickableRows.forEach((row) => {
+      const clickableType = row.dataset.clickable;
+      row.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (clickableType === "title") {
+          this.showTitleDropdown(row);
+        } else if (clickableType === "execOrder") {
+          this.showExecOrderDropdown(row);
+        }
+      });
+      row.addEventListener("mouseenter", () => {
+        row.style.background = "var(--comfy-input-bg, rgba(255,255,255,0.05))";
+      });
+      row.addEventListener("mouseleave", () => {
+        row.style.background = "";
+      });
+    });
   }
   /**
    * Update section expansion states.
@@ -687,6 +720,117 @@ class UIManager {
       link.type = "text/css";
       link.href = "extensions/comfyui-magnifyglass/info-panel.css";
       document.head.appendChild(link);
+    }
+  }
+  /**
+   * Show dropdown with nodes sorted by title.
+   * @param anchorElement - Element to anchor the dropdown to
+   */
+  showTitleDropdown(anchorElement) {
+    this.hideDropdown();
+    const nodes = this.nodeSelector.getNodesSortedByTitle();
+    if (nodes.length === 0) return;
+    this.createDropdown(nodes, anchorElement, "title");
+  }
+  /**
+   * Show dropdown with nodes sorted by execution order.
+   * @param anchorElement - Element to anchor the dropdown to
+   */
+  showExecOrderDropdown(anchorElement) {
+    this.hideDropdown();
+    const nodes = this.nodeSelector.getNodesSortedByExecOrder();
+    if (nodes.length === 0) return;
+    this.createDropdown(nodes, anchorElement, "execOrder");
+  }
+  /**
+   * Create and show the dropdown.
+   */
+  createDropdown(nodes, anchorElement, type) {
+    const dropdown = document.createElement("div");
+    dropdown.className = `node-selector-dropdown theme-${this.stateManager.state.currentTheme}`;
+    dropdown.style.cssText = `
+            position: absolute;
+            z-index: 100000;
+            max-height: 300px;
+            overflow-y: auto;
+            background: var(--comfy-menu-bg, #2a2a2a);
+            border: 1px solid var(--border-color, #444);
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            min-width: 200px;
+            max-width: 350px;
+        `;
+    nodes.forEach((node) => {
+      const item = document.createElement("div");
+      item.className = "dropdown-item";
+      item.style.cssText = `
+                padding: 8px 12px;
+                cursor: pointer;
+                border-bottom: 1px solid var(--border-color, #333);
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 13px;
+            `;
+      const isExecOrder = "order" in node;
+      if (isExecOrder) {
+        const execNode = node;
+        item.innerHTML = `
+                    <span style="color: var(--info-panel-accent-color, #4ecdc4); font-weight: 600; min-width: 24px;">#${execNode.order}</span>
+                    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${execNode.title}</span>
+                    <span style="color: #888; font-size: 11px;">${execNode.type}</span>
+                `;
+      } else {
+        item.innerHTML = `
+                    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${node.title}</span>
+                    <span style="color: #888; font-size: 11px;">${node.type}</span>
+                `;
+      }
+      item.addEventListener("mouseenter", () => {
+        item.style.background = "var(--comfy-input-bg, #3a3a3a)";
+      });
+      item.addEventListener("mouseleave", () => {
+        item.style.background = "";
+      });
+      item.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.hideDropdown();
+        this.stateManager.setSelectedNode(node.id);
+        if (this.onNodeSelected) {
+          this.onNodeSelected(node.id);
+        }
+      });
+      dropdown.appendChild(item);
+    });
+    document.body.appendChild(dropdown);
+    const anchorRect = anchorElement.getBoundingClientRect();
+    dropdown.style.top = `${anchorRect.bottom + 4}px`;
+    dropdown.style.left = `${anchorRect.left}px`;
+    const dropdownRect = dropdown.getBoundingClientRect();
+    if (dropdownRect.right > window.innerWidth - 10) {
+      dropdown.style.left = `${window.innerWidth - dropdownRect.width - 10}px`;
+    }
+    if (dropdownRect.bottom > window.innerHeight - 10) {
+      dropdown.style.top = `${anchorRect.top - dropdownRect.height - 4}px`;
+    }
+    this.currentDropdown = dropdown;
+    const closeHandler = (e) => {
+      if (!dropdown.contains(e.target) && !anchorElement.contains(e.target)) {
+        this.hideDropdown();
+        document.removeEventListener("click", closeHandler);
+      }
+    };
+    setTimeout(() => {
+      document.addEventListener("click", closeHandler);
+    }, 10);
+  }
+  /**
+   * Hide the current dropdown.
+   */
+  hideDropdown() {
+    if (this.currentDropdown && this.currentDropdown.parentNode) {
+      this.currentDropdown.parentNode.removeChild(this.currentDropdown);
+      this.currentDropdown = null;
     }
   }
   cleanup() {

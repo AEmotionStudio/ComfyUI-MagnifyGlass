@@ -65,6 +65,11 @@ export class InfoPanel {
             };
         }
 
+        // Set up node selection callback
+        this.uiManager.onNodeSelected = (nodeId: number) => {
+            this.onNodeSelected(nodeId);
+        };
+
         Logger.info('Info Panel initialized successfully');
     }
 
@@ -181,6 +186,25 @@ export class InfoPanel {
 
         let info = this.informationGatherer.gatherInformation();
 
+        // NODE SELECTION OVERRIDE - check if user has selected a specific node
+        const selectedNodeId = this.stateManager.state.selectedNodeId;
+        if (selectedNodeId !== null) {
+            const selectedNode = this.uiManager.nodeSelector.getNodeById(selectedNodeId);
+            if (selectedNode) {
+                // Override with selected node info
+                const detailedInfo = this.informationGatherer.getDetailedNodeInfo(
+                    selectedNode,
+                    { x: 0, y: 0 } // No local position when manually selected
+                );
+                info = {
+                    ...info,
+                    hoveredNode: detailedInfo,
+                    hoveredWidget: null
+                };
+            }
+        }
+        // END NODE SELECTION OVERRIDE
+
         // PERSISTENCE LOGIC START
         if (info.hoveredNode) {
             // We have a valid node, update our cache
@@ -241,5 +265,24 @@ export class InfoPanel {
         } else {
             this.uiManager.hide();
         }
+    }
+
+    /**
+     * Handle node selection from dropdown.
+     * @param nodeId - ID of the selected node
+     */
+    onNodeSelected(nodeId: number): void {
+        Logger.debug(`Node selected from dropdown: ${nodeId}`);
+
+        // Force an immediate info update
+        this.updateInfo();
+    }
+
+    /**
+     * Clear the selected node, returning to hover-based detection.
+     */
+    clearSelectedNode(): void {
+        this.stateManager.clearSelectedNode();
+        this.updateInfo();
     }
 }

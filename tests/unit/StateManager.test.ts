@@ -268,4 +268,29 @@ describe('StateManager', () => {
             expect(stateManager.state.expandedSections.has('widget')).toBe(false);
         });
     });
+
+    describe('setSelectedNode', () => {
+        it('should set selected node ID', () => {
+            expect(stateManager.state.selectedNodeId).toBeNull();
+
+            stateManager.setSelectedNode(42);
+            expect(stateManager.state.selectedNodeId).toBe(42);
+        });
+
+        it('should allow setting to null', () => {
+            stateManager.setSelectedNode(42);
+            stateManager.setSelectedNode(null);
+            expect(stateManager.state.selectedNodeId).toBeNull();
+        });
+    });
+
+    describe('clearSelectedNode', () => {
+        it('should clear selected node ID', () => {
+            stateManager.setSelectedNode(42);
+            expect(stateManager.state.selectedNodeId).toBe(42);
+
+            stateManager.clearSelectedNode();
+            expect(stateManager.state.selectedNodeId).toBeNull();
+        });
+    });
 });

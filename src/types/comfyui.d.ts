@@ -213,6 +213,8 @@ export interface MagnifyGlassInstance {
         isPopOutOpen(): boolean;
         sendInfo(info: unknown): void;
         toggle(): void;
+        onStateChange?: ((isOpen: boolean) => void) | null;
+        updateTheme?(theme: string): void;
     };
     lastKnownMousePosition: { x: number; y: number };
     isOverMedia: boolean;

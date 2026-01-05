@@ -36,6 +36,8 @@ class StateManager {
       isInitialLoading: false,
       // Current data
       currentInfo: null,
+      // Node selection override
+      selectedNodeId: null,
       // Settings cache
       settings: {},
       // Auto-detected theme
@@ -260,6 +262,19 @@ class StateManager {
   }
   setCurrentInfo(info) {
     this.state.currentInfo = info;
+  }
+  /**
+   * Set the selected node ID for manual override.
+   * When set, the inspector will display this node instead of the hovered node.
+   */
+  setSelectedNode(id) {
+    this.state.selectedNodeId = id;
+  }
+  /**
+   * Clear the selected node, returning to hover-based detection.
+   */
+  clearSelectedNode() {
+    this.state.selectedNodeId = null;
   }
   scheduleAutoCollapse() {
     this.clearAutoExpandTimer();

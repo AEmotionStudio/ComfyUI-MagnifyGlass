@@ -45,6 +45,9 @@ class InfoPanel {
         this.uiManager.updateControlStates();
       };
     }
+    this.uiManager.onNodeSelected = (nodeId) => {
+      this.onNodeSelected(nodeId);
+    };
     Logger.info("Info Panel initialized successfully");
   }
   hookIntoMagnifyGlass() {
@@ -117,6 +120,22 @@ class InfoPanel {
       return;
     }
     let info = this.informationGatherer.gatherInformation();
+    const selectedNodeId = this.stateManager.state.selectedNodeId;
+    if (selectedNodeId !== null) {
+      const selectedNode = this.uiManager.nodeSelector.getNodeById(selectedNodeId);
+      if (selectedNode) {
+        const detailedInfo = this.informationGatherer.getDetailedNodeInfo(
+          selectedNode,
+          { x: 0, y: 0 }
+          // No local position when manually selected
+        );
+        info = {
+          ...info,
+          hoveredNode: detailedInfo,
+          hoveredWidget: null
+        };
+      }
+    }
     if (info.hoveredNode) {
       this.lastValidNodeInfo = info;
     } else if (settings["🔍MagnifyGlass.InfoPanelPersist"] && this.lastValidNodeInfo) {
@@ -161,6 +180,21 @@ class InfoPanel {
     } else {
       this.uiManager.hide();
     }
+  }
+  /**
+   * Handle node selection from dropdown.
+   * @param nodeId - ID of the selected node
+   */
+  onNodeSelected(nodeId) {
+    Logger.debug(`Node selected from dropdown: ${nodeId}`);
+    this.updateInfo();
+  }
+  /**
+   * Clear the selected node, returning to hover-based detection.
+   */
+  clearSelectedNode() {
+    this.stateManager.clearSelectedNode();
+    this.updateInfo();
   }
 }
 export {

@@ -16,6 +16,7 @@ import {
     getImportantNodeParameters,
     type ImageInfoResult
 } from './NodeDataExtractor';
+import { NodeSelector, type NodeListEntry, type NodeExecOrderEntry } from './NodeSelector';
 
 interface InfoPanelElements {
     panel: HTMLDivElement | null;
@@ -31,6 +32,9 @@ interface InfoPanelElements {
 export class UIManager {
     stateManager: StateManager;
     elements: InfoPanelElements;
+    nodeSelector: NodeSelector;
+    currentDropdown: HTMLDivElement | null = null;
+    onNodeSelected: ((nodeId: number) => void) | null = null;
 
     constructor(stateManager: StateManager) {
         this.stateManager = stateManager;
@@ -40,6 +44,7 @@ export class UIManager {
             content: null,
             controls: null
         };
+        this.nodeSelector = new NodeSelector();
 
         this.createPanel();
         this.injectStyles();
@@ -755,13 +760,13 @@ export class UIManager {
 
         // Node Details section
         if (info.hoveredNode) {
-            const nodeContent = [
-                { label: 'Title', value: info.hoveredNode.title }
+            const nodeContent: any[] = [
+                { label: 'Title', value: info.hoveredNode.title, clickable: 'title' }
             ];
 
             // Add execution order if available
             if (info.hoveredNode.executionOrder !== undefined) {
-                nodeContent.push({ label: 'Exec Order', value: info.hoveredNode.executionOrder });
+                nodeContent.push({ label: 'Exec Order', value: info.hoveredNode.executionOrder, clickable: 'execOrder' });
             }
 
             // Add category if available
@@ -871,15 +876,51 @@ export class UIManager {
             const value = formatValue(item.value, item.label);
             const valueClass = getValueClass(item.value);
             const valueAttributes = getValueAttributes(item.value);
+            const clickableAttr = item.clickable ? `data-clickable="${item.clickable}"` : '';
+            const clickableClass = item.clickable ? 'clickable-row' : '';
+            const dropdownIcon = item.clickable ? '<span class="dropdown-indicator" style="margin-left: 4px; opacity: 0.6; font-size: 10px;">▼</span>' : '';
             return `
-                            <div class="info-row">
+                            <div class="info-row ${clickableClass}" ${clickableAttr} style="${item.clickable ? 'cursor: pointer;' : ''}">
                                 <span class="info-label">${item.label}</span>
-                                <span class="info-value ${valueClass}" ${valueAttributes}>${value}</span>
+                                <span class="info-value ${valueClass}" ${valueAttributes}>${value}${dropdownIcon}</span>
                             </div>`;
         }).join('')}
                     </div>
                 </div>
             </div>`).join('');
+
+        // Add click handlers for clickable rows
+        this.attachDropdownClickHandlers();
+    }
+
+    /**
+     * Attach click handlers to clickable dropdown rows.
+     */
+    attachDropdownClickHandlers(): void {
+        if (!this.elements.content) return;
+
+        const clickableRows = this.elements.content.querySelectorAll('[data-clickable]');
+        clickableRows.forEach(row => {
+            const clickableType = (row as HTMLElement).dataset.clickable;
+
+            row.addEventListener('click', (e) => {
+                e.stopPropagation();
+
+                if (clickableType === 'title') {
+                    this.showTitleDropdown(row as HTMLElement);
+                } else if (clickableType === 'execOrder') {
+                    this.showExecOrderDropdown(row as HTMLElement);
+                }
+            });
+
+            // Add hover effect
+            row.addEventListener('mouseenter', () => {
+                (row as HTMLElement).style.background = 'var(--comfy-input-bg, rgba(255,255,255,0.05))';
+            });
+            row.addEventListener('mouseleave', () => {
+                (row as HTMLElement).style.background = '';
+            });
+        });
     }
 
     /**
@@ -945,6 +986,155 @@ export class UIManager {
             link.type = 'text/css';
             link.href = 'extensions/comfyui-magnifyglass/info-panel.css';
             document.head.appendChild(link);
+        }
+    }
+
+    /**
+     * Show dropdown with nodes sorted by title.
+     * @param anchorElement - Element to anchor the dropdown to
+     */
+    showTitleDropdown(anchorElement: HTMLElement): void {
+        this.hideDropdown();
+
+        const nodes = this.nodeSelector.getNodesSortedByTitle();
+        if (nodes.length === 0) return;
+
+        this.createDropdown(nodes, anchorElement, 'title');
+    }
+
+    /**
+     * Show dropdown with nodes sorted by execution order.
+     * @param anchorElement - Element to anchor the dropdown to
+     */
+    showExecOrderDropdown(anchorElement: HTMLElement): void {
+        this.hideDropdown();
+
+        const nodes = this.nodeSelector.getNodesSortedByExecOrder();
+        if (nodes.length === 0) return;
+
+        this.createDropdown(nodes, anchorElement, 'execOrder');
+    }
+
+    /**
+     * Create and show the dropdown.
+     */
+    private createDropdown(
+        nodes: NodeListEntry[] | NodeExecOrderEntry[],
+        anchorElement: HTMLElement,
+        type: 'title' | 'execOrder'
+    ): void {
+        const dropdown = document.createElement('div');
+        dropdown.className = `node-selector-dropdown theme-${this.stateManager.state.currentTheme}`;
+        dropdown.style.cssText = `
+            position: absolute;
+            z-index: 100000;
+            max-height: 300px;
+            overflow-y: auto;
+            background: var(--comfy-menu-bg, #2a2a2a);
+            border: 1px solid var(--border-color, #444);
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            min-width: 200px;
+            max-width: 350px;
+        `;
+
+        // Build dropdown items
+        nodes.forEach((node) => {
+            const item = document.createElement('div');
+            item.className = 'dropdown-item';
+            item.style.cssText = `
+                padding: 8px 12px;
+                cursor: pointer;
+                border-bottom: 1px solid var(--border-color, #333);
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 13px;
+            `;
+
+            // Check if this is an exec order entry
+            const isExecOrder = 'order' in node;
+
+            if (isExecOrder) {
+                const execNode = node as NodeExecOrderEntry;
+                item.innerHTML = `
+                    <span style="color: var(--info-panel-accent-color, #4ecdc4); font-weight: 600; min-width: 24px;">#${execNode.order}</span>
+                    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${execNode.title}</span>
+                    <span style="color: #888; font-size: 11px;">${execNode.type}</span>
+                `;
+            } else {
+                item.innerHTML = `
+                    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${node.title}</span>
+                    <span style="color: #888; font-size: 11px;">${node.type}</span>
+                `;
+            }
+
+            // Hover effect
+            item.addEventListener('mouseenter', () => {
+                item.style.background = 'var(--comfy-input-bg, #3a3a3a)';
+            });
+            item.addEventListener('mouseleave', () => {
+                item.style.background = '';
+            });
+
+            // Selection handler
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.hideDropdown();
+
+                // Set selected node in state
+                this.stateManager.setSelectedNode(node.id);
+
+                // Notify callback if set
+                if (this.onNodeSelected) {
+                    this.onNodeSelected(node.id);
+                }
+            });
+
+            dropdown.appendChild(item);
+        });
+
+        // Position dropdown below anchor
+        document.body.appendChild(dropdown);
+        const anchorRect = anchorElement.getBoundingClientRect();
+
+        // Position below the anchor, aligned to left
+        dropdown.style.top = `${anchorRect.bottom + 4}px`;
+        dropdown.style.left = `${anchorRect.left}px`;
+
+        // Adjust if dropdown would go off-screen
+        const dropdownRect = dropdown.getBoundingClientRect();
+        if (dropdownRect.right > window.innerWidth - 10) {
+            dropdown.style.left = `${window.innerWidth - dropdownRect.width - 10}px`;
+        }
+        if (dropdownRect.bottom > window.innerHeight - 10) {
+            // Show above instead
+            dropdown.style.top = `${anchorRect.top - dropdownRect.height - 4}px`;
+        }
+
+        this.currentDropdown = dropdown;
+
+        // Close on click outside
+        const closeHandler = (e: MouseEvent) => {
+            if (!dropdown.contains(e.target as Node) && !anchorElement.contains(e.target as Node)) {
+                this.hideDropdown();
+                document.removeEventListener('click', closeHandler);
+            }
+        };
+
+        // Delay adding the listener to avoid immediate closure
+        setTimeout(() => {
+            document.addEventListener('click', closeHandler);
+        }, 10);
+    }
+
+    /**
+     * Hide the current dropdown.
+     */
+    hideDropdown(): void {
+        if (this.currentDropdown && this.currentDropdown.parentNode) {
+            this.currentDropdown.parentNode.removeChild(this.currentDropdown);
+            this.currentDropdown = null;
         }
     }
 

@@ -35,6 +35,7 @@ export const DEFAULT_GLASS_SETTINGS: GlassSettings = {
     "🔍MagnifyGlass.TextureFiltering": "Linear",
     "🔍MagnifyGlass.AlwaysActiveMode": true,
     "🔍MagnifyGlass.ToggleFollowCursorKey": "h",
+    "🔍MagnifyGlass.ShowCursorPreview": true,
 };
 
 /**

@@ -83,6 +83,9 @@ export class ConfigManager {
     /** Glass preview toggle key */
     toggleGlassPreviewKey: string;
 
+    /** Show cursor preview in glass */
+    showCursorPreview: boolean;
+
     /** Manual offset X in graph units */
     offsetX: number;
 
@@ -108,6 +111,7 @@ export class ConfigManager {
         this.alwaysActiveMode = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.AlwaysActiveMode"];
         this.toggleFollowCursorKey = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.ToggleFollowCursorKey"];
         this.toggleGlassPreviewKey = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.GlassPreviewToggleHotkey"];
+        this.showCursorPreview = DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.ShowCursorPreview"];
 
         // Alignment adjustment parameters - managed separately
         this.offsetX = 0;
@@ -134,6 +138,7 @@ export class ConfigManager {
         this.textureFiltering = getSettingValue<string>("🔍MagnifyGlass.TextureFiltering", this.textureFiltering);
         this.alwaysActiveMode = getSettingValue<boolean>("🔍MagnifyGlass.AlwaysActiveMode", this.alwaysActiveMode);
         this.toggleFollowCursorKey = getSettingValue<string>("🔍MagnifyGlass.ToggleFollowCursorKey", this.toggleFollowCursorKey);
+        this.showCursorPreview = getSettingValue<boolean>("🔍MagnifyGlass.ShowCursorPreview", this.showCursorPreview);
         this.toggleGlassPreviewKey = getSettingValue<string>("🔍MagnifyGlass.GlassPreviewToggleHotkey", this.toggleGlassPreviewKey);
     }
 

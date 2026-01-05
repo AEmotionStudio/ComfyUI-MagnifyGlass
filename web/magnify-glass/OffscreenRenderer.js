@@ -132,6 +132,9 @@ const _OffscreenRenderer = class _OffscreenRenderer {
       const currentScale = ((_a = lgCanvas == null ? void 0 : lgCanvas.ds) == null ? void 0 : _a.scale) ?? 1;
       const currentOffset = ((_b = lgCanvas == null ? void 0 : lgCanvas.ds) == null ? void 0 : _b.offset) ? [lgCanvas.ds.offset[0], lgCanvas.ds.offset[1]] : [0, 0];
       this.drawWidgetTextNatively(sourceX, sourceY, sourceWidth, sourceHeight, renderSize, currentScale, currentOffset);
+      if (this.config.showCursorPreview) {
+        this.drawCursorPreview(renderSize);
+      }
       this.isCapturing = false;
       return this.offscreenCanvas;
     } catch (e) {
@@ -223,13 +226,12 @@ const _OffscreenRenderer = class _OffscreenRenderer {
       const captureOffset = [lgCanvas.ds.offset[0], lgCanvas.ds.offset[1]];
       this.drawWidgetTextNatively(sourceX, sourceY, sourceWidth, sourceHeight, renderSize, targetScale, captureOffset);
       this.drawImagePreviewsNatively(sourceX, sourceY, sourceWidth, sourceHeight, renderSize, targetScale, captureOffset);
-      if (typeof lgCanvas.setZoom === "function") {
-        lgCanvas.setZoom(origScale, [pivotCssX, pivotCssY]);
-      } else {
-        lgCanvas.ds.scale = origScale;
-        lgCanvas.ds.offset[0] = origOffsetX;
-        lgCanvas.ds.offset[1] = origOffsetY;
+      if (this.config.showCursorPreview) {
+        this.drawCursorPreview(renderSize);
       }
+      lgCanvas.ds.scale = origScale;
+      lgCanvas.ds.offset[0] = origOffsetX;
+      lgCanvas.ds.offset[1] = origOffsetY;
       lgCanvas.draw(true, true);
       this.isCapturing = false;
       window.__magnifyGlassCapturing = false;
@@ -604,6 +606,37 @@ const _OffscreenRenderer = class _OffscreenRenderer {
     ctx.textBaseline = "middle";
     ctx.fillStyle = "#ccc";
     ctx.fillText(label, x + width / 2, y + height / 2);
+    ctx.restore();
+  }
+  /**
+   * Draw a mini cursor preview at the center of the glass.
+   * The cursor is drawn as a classic arrow pointer with a contrasting outline.
+   * @param renderSize - The render size of the glass in pixels
+   */
+  drawCursorPreview(renderSize) {
+    if (!this.offscreenCtx) return;
+    const ctx = this.offscreenCtx;
+    const cursorSize = Math.max(16, Math.min(32, renderSize * 0.1));
+    const centerX = renderSize / 2;
+    const centerY = renderSize / 2;
+    ctx.save();
+    ctx.translate(centerX, centerY);
+    const scale = cursorSize / 24;
+    ctx.scale(scale, scale);
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, 17);
+    ctx.lineTo(4, 13);
+    ctx.lineTo(7, 20);
+    ctx.lineTo(10, 19);
+    ctx.lineTo(7, 12);
+    ctx.lineTo(12, 12);
+    ctx.closePath();
+    ctx.fillStyle = "rgba(255, 255, 255, 0.95)";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.9)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
     ctx.restore();
   }
   isAvailable() {

@@ -186,6 +186,11 @@ export class OffscreenRenderer {
             // Direct Capture copies pixels from the screen which already has correctly-drawn images.
             // Native image drawing is only needed during Virtual Zoom where ComfyUI's rendering fails.
 
+            // Draw cursor preview overlay if enabled
+            if (this.config.showCursorPreview) {
+                this.drawCursorPreview(renderSize);
+            }
+
             this.isCapturing = false;
             return this.offscreenCanvas;
         } catch (e) {
@@ -308,14 +313,18 @@ export class OffscreenRenderer {
             // Draw image/video previews natively on top of the captured canvas
             this.drawImagePreviewsNatively(sourceX, sourceY, sourceWidth, sourceHeight, renderSize, targetScale, captureOffset);
 
-            // Restore original zoom state using setZoom for consistency
-            if (typeof lgCanvas.setZoom === 'function') {
-                lgCanvas.setZoom(origScale, [pivotCssX, pivotCssY]);
-            } else {
-                lgCanvas.ds.scale = origScale;
-                lgCanvas.ds.offset[0] = origOffsetX;
-                lgCanvas.ds.offset[1] = origOffsetY;
+            // Draw cursor preview overlay if enabled
+            if (this.config.showCursorPreview) {
+                this.drawCursorPreview(renderSize);
             }
+
+            // Restore original zoom state by directly setting the saved values.
+            // IMPORTANT: Do NOT use setZoom() here! setZoom() recalculates offset from a pivot point,
+            // which introduces floating-point drift (1-2px per call) causing vertical/horizontal drift.
+            // We must restore the EXACT original offset values to prevent cumulative drift.
+            lgCanvas.ds.scale = origScale;
+            lgCanvas.ds.offset[0] = origOffsetX;
+            lgCanvas.ds.offset[1] = origOffsetY;
             lgCanvas.draw(true, true);
 
             this.isCapturing = false;
@@ -908,6 +917,54 @@ export class OffscreenRenderer {
         // We'll just truncate if too long or let it clip via context clipping if we added any (we didn't yet).
 
         ctx.fillText(label, x + width / 2, y + height / 2);
+
+        ctx.restore();
+    }
+
+    /**
+     * Draw a mini cursor preview at the center of the glass.
+     * The cursor is drawn as a classic arrow pointer with a contrasting outline.
+     * @param renderSize - The render size of the glass in pixels
+     */
+    private drawCursorPreview(renderSize: number): void {
+        if (!this.offscreenCtx) return;
+        const ctx = this.offscreenCtx;
+
+        // Cursor size scales with glass size (roughly 8-12% of glass size)
+        const cursorSize = Math.max(16, Math.min(32, renderSize * 0.1));
+
+        // Center position of the glass
+        const centerX = renderSize / 2;
+        const centerY = renderSize / 2;
+
+        ctx.save();
+
+        // Translate to center (cursor tip will be at center)
+        ctx.translate(centerX, centerY);
+
+        // Scale the cursor shape
+        const scale = cursorSize / 24; // Base cursor is 24px
+        ctx.scale(scale, scale);
+
+        // Classic arrow cursor shape (pointing up-left)
+        ctx.beginPath();
+        ctx.moveTo(0, 0);           // Tip
+        ctx.lineTo(0, 17);          // Down
+        ctx.lineTo(4, 13);          // Notch right
+        ctx.lineTo(7, 20);          // Handle bottom-right
+        ctx.lineTo(10, 19);         // Handle outer
+        ctx.lineTo(7, 12);          // Handle top
+        ctx.lineTo(12, 12);         // Arrow right point
+        ctx.closePath();
+
+        // Draw white fill
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+        ctx.fill();
+
+        // Draw black outline for contrast
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.9)';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
 
         ctx.restore();
     }

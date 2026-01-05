@@ -23,6 +23,7 @@ export interface GlassSettings {
     "🔍MagnifyGlass.TextureFiltering": string;
     "🔍MagnifyGlass.AlwaysActiveMode": boolean;
     "🔍MagnifyGlass.ToggleFollowCursorKey": string;
+    "🔍MagnifyGlass.ShowCursorPreview": boolean;
 }
 
 /**

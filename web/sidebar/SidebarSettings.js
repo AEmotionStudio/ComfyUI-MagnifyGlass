@@ -275,6 +275,12 @@ function renderSettingsPanel(container) {
     (checked) => setSettingValue("🔍MagnifyGlass.AlwaysActiveMode", checked),
     `When enabled, glass stays visible. Toggle with ${activationKey}`
   ));
+  glassSection.body.appendChild(createToggle(
+    "Show Cursor",
+    getSettingValue("🔍MagnifyGlass.ShowCursorPreview", true),
+    (checked) => setSettingValue("🔍MagnifyGlass.ShowCursorPreview", checked),
+    "Display a mini cursor in the glass preview"
+  ));
   container.appendChild(glassSection.section);
   const hotkeySection = createSection("Glass Hotkeys", true);
   hotkeySection.body.appendChild(createSelect(
@@ -609,6 +615,7 @@ function renderSettingsPanel(container) {
     setSettingValue("🔍MagnifyGlass.ToggleFollowCursorKey", "h");
     setSettingValue("🔍MagnifyGlass.AltRequired", false);
     setSettingValue("🔍MagnifyGlass.OffsetStep", 5);
+    setSettingValue("🔍MagnifyGlass.ShowCursorPreview", true);
     setSettingValue("🔍MagnifyGlass.InfoPanelEnabled", true);
     setSettingValue("🔍MagnifyGlass.InfoPanelPosition", "Bottom");
     setSettingValue("🔍MagnifyGlass.InfoPanelWidth", 300);

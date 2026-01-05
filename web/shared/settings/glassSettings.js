@@ -237,6 +237,22 @@ function registerGlassSettings(magnifyGlass) {
     }
   });
   app.ui.settings.addSetting({
+    id: "🔍MagnifyGlass.ShowCursorPreview",
+    name: "🖱️ Magnify Glass: Show Cursor Preview",
+    type: "combo",
+    options: [{ value: true, text: "Yes" }, { value: false, text: "No" }],
+    defaultValue: settings["🔍MagnifyGlass.ShowCursorPreview"],
+    tooltip: "Show a mini cursor in the glass preview to indicate the cursor position.",
+    onChange: (value) => {
+      if (magnifyGlass == null ? void 0 : magnifyGlass.config) {
+        magnifyGlass.config.showCursorPreview = !!value;
+        if (magnifyGlass.state.active) {
+          magnifyGlass.updateMagnifiedView();
+        }
+      }
+    }
+  });
+  app.ui.settings.addSetting({
     id: "🔍MagnifyGlass.Action.ResetPosition",
     name: "🔄 Magnify Glass: Reset Position",
     type: "boolean",
@@ -280,6 +296,7 @@ function registerGlassSettings(magnifyGlass) {
           app.ui.settings.setSettingValue("🔍MagnifyGlass.ToggleFollowCursorKey", "h");
           app.ui.settings.setSettingValue("🔍MagnifyGlass.AltRequired", false);
           app.ui.settings.setSettingValue("🔍MagnifyGlass.OffsetStep", 5);
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.ShowCursorPreview", true);
           app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelEnabled", true);
           app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelPosition", "Bottom");
           app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelWidth", 300);

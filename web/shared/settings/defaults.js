@@ -14,7 +14,8 @@ const DEFAULT_GLASS_SETTINGS = {
   "🔍MagnifyGlass.BorderEnabled": true,
   "🔍MagnifyGlass.TextureFiltering": "Linear",
   "🔍MagnifyGlass.AlwaysActiveMode": true,
-  "🔍MagnifyGlass.ToggleFollowCursorKey": "h"
+  "🔍MagnifyGlass.ToggleFollowCursorKey": "h",
+  "🔍MagnifyGlass.ShowCursorPreview": true
 };
 const DEFAULT_PANEL_SETTINGS = {
   "🔍MagnifyGlass.InfoPanelEnabled": true,

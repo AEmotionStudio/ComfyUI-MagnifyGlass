@@ -402,6 +402,12 @@ export function renderSettingsPanel(container: HTMLElement): void {
         `When enabled, glass stays visible. Toggle with ${activationKey}`
     ));
 
+    glassSection.body.appendChild(createToggle('Show Cursor',
+        getSettingValue('🔍MagnifyGlass.ShowCursorPreview', true),
+        (checked) => setSettingValue('🔍MagnifyGlass.ShowCursorPreview', checked),
+        'Display a mini cursor in the glass preview'
+    ));
+
     // The instruction implies this should be in glassSection, but the content suggests info panel.
     // Placing it in glassSection as per instruction, assuming createToggle is intended.
     // The condition `if (getSettingValue("🔍MagnifyGlass.InfoPanelEnabled", true))` is removed
@@ -737,6 +743,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
         setSettingValue('🔍MagnifyGlass.ToggleFollowCursorKey', 'h');
         setSettingValue('🔍MagnifyGlass.AltRequired', false);
         setSettingValue('🔍MagnifyGlass.OffsetStep', 5);
+        setSettingValue('🔍MagnifyGlass.ShowCursorPreview', true);
 
 
         // Default panel settings

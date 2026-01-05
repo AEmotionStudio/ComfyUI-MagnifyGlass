@@ -38,7 +38,20 @@ const DEFAULT_PANEL_SETTINGS = {
   "🔍MagnifyGlass.InfoPanelFontFamily": "System Default",
   "🔍MagnifyGlass.InfoPanelPersist": false
 };
+const DEFAULT_ACCESSIBILITY_SETTINGS = {
+  "🔍MagnifyGlass.AccessibilityEnabled": false,
+  "🔍MagnifyGlass.HighContrastMode": false,
+  "🔍MagnifyGlass.TextGlowEnabled": false,
+  "🔍MagnifyGlass.TextGlowColor": "#ffff00",
+  "🔍MagnifyGlass.TextGlowIntensity": 5,
+  "🔍MagnifyGlass.FontScaleFactor": 100,
+  "🔍MagnifyGlass.BoldTextEnabled": false,
+  "🔍MagnifyGlass.TextOutlineEnabled": false,
+  "🔍MagnifyGlass.TextOutlineColor": "#000000",
+  "🔍MagnifyGlass.NodeTitleEmphasis": false
+};
 export {
+  DEFAULT_ACCESSIBILITY_SETTINGS,
   DEFAULT_GLASS_SETTINGS,
   DEFAULT_PANEL_SETTINGS
 };

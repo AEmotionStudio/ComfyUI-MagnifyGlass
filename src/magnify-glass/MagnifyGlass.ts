@@ -7,7 +7,7 @@
 import type { ComfyApp, ComfyNode } from '../types/comfyui';
 import { findLiteGraphCanvas, rectsOverlap, Rectangle } from '../shared/utils';
 import { DEFAULT_PADDING, DEFAULT_GLASS_Y_OFFSET } from '../shared/constants';
-import { registerGlassSettings } from '../shared/settings';
+import { registerGlassSettings, registerAccessibilitySettings } from '../shared/settings';
 import { ConfigManager } from './ConfigManager';
 import { MagnifierState } from './MagnifierState';
 import { UiManager } from './UiManager';
@@ -122,6 +122,7 @@ export class MagnifyGlass {
 
         // Register settings with ComfyUI
         registerGlassSettings(this);
+        registerAccessibilitySettings(this);
 
         this.debugger.log(`Initialized (WebGL) with Smart Input Detection. Press ${this.config.altRequired ? 'Alt+' : ''}${this.config.activationKey.toUpperCase()} to activate.`);
     }

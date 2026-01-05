@@ -46,6 +46,11 @@ function loadSidebarStyles(onLoaded?: () => void): void {
  * Render the sidebar content
  */
 function renderSidebar(container: HTMLElement): void {
+    // Check if sidebar already exists to prevent re-rendering on setting changes
+    if (container.querySelector('.magnify-sidebar')) {
+        return;
+    }
+
     // Clear existing content to prevent duplicates
     container.innerHTML = '';
 

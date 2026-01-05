@@ -5,6 +5,7 @@ import { findLiteGraphCanvas, rectsOverlap } from "../shared/utils.js";
 import { DEFAULT_PADDING, DEFAULT_GLASS_Y_OFFSET } from "../shared/constants.js";
 import { registerGlassSettings } from "../shared/settings/glassSettings.js";
 import "/scripts/app.js";
+import { registerAccessibilitySettings } from "../shared/settings/accessibilitySettings.js";
 import { ConfigManager } from "./ConfigManager.js";
 import { MagnifierState } from "./MagnifierState.js";
 import { UiManager } from "./UiManager.js";
@@ -76,6 +77,7 @@ class MagnifyGlass {
     this.offscreenRenderer = new OffscreenRenderer(this.config, this.state);
     this.eventHandler.attachListeners();
     registerGlassSettings(this);
+    registerAccessibilitySettings(this);
     this.debugger.log(`Initialized (WebGL) with Smart Input Detection. Press ${this.config.altRequired ? "Alt+" : ""}${this.config.activationKey.toUpperCase()} to activate.`);
   }
   /**

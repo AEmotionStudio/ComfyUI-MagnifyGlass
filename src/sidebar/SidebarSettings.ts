@@ -673,24 +673,16 @@ export function renderSettingsPanel(container: HTMLElement): void {
         (value) => setSettingValue('🔍MagnifyGlass.InfoPanelMaxHeight', value),
         'Maximum height of the info panel',
         (value) => {
-            console.log('[MaxHeight] Handler called with value:', value);
             const infoPanel = (window as any).infoPanelManager;
-            console.log('[MaxHeight] infoPanelManager:', infoPanel ? 'found' : 'NOT FOUND');
             if (infoPanel?.stateManager?.state?.settings) {
-                console.log('[MaxHeight] Updating setting and calling applyStyles');
                 infoPanel.stateManager.state.settings['🔍MagnifyGlass.InfoPanelMaxHeight'] = value;
                 infoPanel.uiManager.applyStyles();
 
                 // Ensure visible and reflow if active
                 if (infoPanel.magnifyGlass.state.active) {
-                    console.log('[MaxHeight] Glass is active, calling show() and positionPanel()');
                     infoPanel.uiManager.show();
                     infoPanel.positionManager.positionPanel();
-                } else {
-                    console.log('[MaxHeight] Glass is NOT active, skipping show()');
                 }
-            } else {
-                console.warn('[MaxHeight] Check failed - stateManager/state/settings missing');
             }
         }
     ));

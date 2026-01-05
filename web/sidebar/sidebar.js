@@ -20,6 +20,9 @@ function loadSidebarStyles(onLoaded) {
   document.head.appendChild(link);
 }
 function renderSidebar(container) {
+  if (container.querySelector(".magnify-sidebar")) {
+    return;
+  }
   container.innerHTML = "";
   const sidebar = document.createElement("div");
   sidebar.className = "magnify-sidebar";

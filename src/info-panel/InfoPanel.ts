@@ -68,11 +68,9 @@ export class InfoPanel {
         this.magnifyGlass.updateMagnifiedView = (() => {
             originalUpdateMagnifiedView();
 
-            // Only schedule info update if panel is enabled, glass is active, AND preview is visible
-            // This prevents extra work when glass preview is hidden via hover controls
+            // Schedule info update if panel is enabled and glass is active
             if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"] &&
-                this.magnifyGlass.state.active &&
-                this.stateManager.state.isGlassPreviewVisible !== false) {
+                this.magnifyGlass.state.active) {
                 this.scheduleInfoUpdate();
             }
         }).bind(this);

@@ -46,7 +46,7 @@ class InfoPanel {
     const originalUpdateMagnifiedView = this.magnifyGlass.updateMagnifiedView.bind(this.magnifyGlass);
     this.magnifyGlass.updateMagnifiedView = (() => {
       originalUpdateMagnifiedView();
-      if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"] && this.magnifyGlass.state.active && this.stateManager.state.isGlassPreviewVisible !== false) {
+      if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"] && this.magnifyGlass.state.active) {
         this.scheduleInfoUpdate();
       }
     }).bind(this);

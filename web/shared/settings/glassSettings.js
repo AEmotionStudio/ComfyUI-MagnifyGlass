@@ -1,5 +1,5 @@
 import { app } from "/scripts/app.js";
-import { ACTIVATION_KEYS, RESET_KEYS, GLASS_POSITIONS, GLASS_SHAPES, TOGGLE_FOLLOW_KEYS } from "../constants.js";
+import { ACTIVATION_KEYS, RESET_KEYS, GLASS_POSITIONS, GLASS_SHAPES, TOGGLE_FOLLOW_KEYS, DIRECT_CAPTURE_KEYS } from "../constants.js";
 import { DEFAULT_GLASS_SETTINGS } from "./defaults.js";
 function registerGlassSettings(magnifyGlass) {
   const settings = DEFAULT_GLASS_SETTINGS;
@@ -253,6 +253,19 @@ function registerGlassSettings(magnifyGlass) {
     }
   });
   app.ui.settings.addSetting({
+    id: "🔍MagnifyGlass.ForceDirectCaptureKey",
+    name: "⚡ Magnify Glass: Force Direct Capture Key",
+    type: "combo",
+    options: DIRECT_CAPTURE_KEYS.map((k) => ({ value: k, text: k })),
+    defaultValue: settings["🔍MagnifyGlass.ForceDirectCaptureKey"],
+    tooltip: "The key to hold or toggle Force Direct Capture mode.",
+    onChange: (value) => {
+      if (magnifyGlass == null ? void 0 : magnifyGlass.config) {
+        magnifyGlass.config.forceDirectCaptureKey = String(value).toLowerCase();
+      }
+    }
+  });
+  app.ui.settings.addSetting({
     id: "🔍MagnifyGlass.ForceDirectCapture",
     name: "⚡ Magnify Glass: Force Direct Capture",
     type: "combo",
@@ -315,6 +328,7 @@ function registerGlassSettings(magnifyGlass) {
           app.ui.settings.setSettingValue("🔍MagnifyGlass.OffsetStep", 5);
           app.ui.settings.setSettingValue("🔍MagnifyGlass.ShowCursorPreview", false);
           app.ui.settings.setSettingValue("🔍MagnifyGlass.ForceDirectCapture", false);
+          app.ui.settings.setSettingValue("🔍MagnifyGlass.ForceDirectCaptureKey", "d");
           app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelEnabled", true);
           app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelPosition", "Bottom");
           app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelWidth", 300);

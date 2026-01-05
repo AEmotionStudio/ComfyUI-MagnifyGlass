@@ -12,6 +12,7 @@ import {
     ACTIVATION_KEYS,
     RESET_KEYS,
     TOGGLE_FOLLOW_KEYS,
+    DIRECT_CAPTURE_KEYS,
     PANEL_POSITIONS
 } from '../shared/constants';
 
@@ -447,6 +448,12 @@ export function renderSettingsPanel(container: HTMLElement): void {
         getSettingValue('🔍MagnifyGlass.ToggleFollowCursorKey', 'h'), TOGGLE_FOLLOW_KEYS,
         (value) => setSettingValue('🔍MagnifyGlass.ToggleFollowCursorKey', value),
         'Key to toggle follow cursor mode'
+    ));
+
+    hotkeySection.body.appendChild(createSelect('Direct Capture Key',
+        getSettingValue('🔍MagnifyGlass.ForceDirectCaptureKey', 'd'), DIRECT_CAPTURE_KEYS,
+        (value) => setSettingValue('🔍MagnifyGlass.ForceDirectCaptureKey', value),
+        'Key for Force Direct Capture mode'
     ));
 
     const glassAltToggle = createToggle('Require Alt Key',

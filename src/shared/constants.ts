@@ -49,6 +49,7 @@ export type PanelPosition = typeof PANEL_POSITIONS[number];
 export const ACTIVATION_KEYS = ["x", "z", "m", "q", "v", "c"] as const;
 export const RESET_KEYS = ["r", "o", "p", "k", "l"] as const;
 export const TOGGLE_FOLLOW_KEYS = ["f", "g", "h", "j", "k"] as const;
+export const DIRECT_CAPTURE_KEYS = ["d", "s", "a", "q", "e"] as const;
 
 // UI Constants
 export const DEFAULT_PADDING = 4;

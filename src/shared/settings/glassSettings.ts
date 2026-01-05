@@ -11,7 +11,8 @@ import {
     GLASS_SHAPES,
     ACTIVATION_KEYS,
     RESET_KEYS,
-    TOGGLE_FOLLOW_KEYS
+    TOGGLE_FOLLOW_KEYS,
+    DIRECT_CAPTURE_KEYS
 } from '../constants';
 import { DEFAULT_GLASS_SETTINGS } from './defaults';
 
@@ -290,6 +291,20 @@ export function registerGlassSettings(magnifyGlass: any): void {
     });
 
     app.ui.settings.addSetting({
+        id: "🔍MagnifyGlass.ForceDirectCaptureKey",
+        name: "⚡ Magnify Glass: Force Direct Capture Key",
+        type: "combo",
+        options: DIRECT_CAPTURE_KEYS.map(k => ({ value: k, text: k })),
+        defaultValue: settings["🔍MagnifyGlass.ForceDirectCaptureKey"] ?? "d",
+        tooltip: "The key to hold or toggle Force Direct Capture mode.",
+        onChange: (value: any) => {
+            if (magnifyGlass?.config) {
+                magnifyGlass.config.forceDirectCaptureKey = String(value).toLowerCase();
+            }
+        }
+    });
+
+    app.ui.settings.addSetting({
         id: "🔍MagnifyGlass.ForceDirectCapture",
         name: "⚡ Magnify Glass: Force Direct Capture",
         type: "combo",
@@ -356,6 +371,7 @@ export function registerGlassSettings(magnifyGlass: any): void {
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.OffsetStep', 5);
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.ShowCursorPreview', false);
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.ForceDirectCapture', false);
+                    app.ui.settings.setSettingValue('🔍MagnifyGlass.ForceDirectCaptureKey', 'd');
 
 
                     // Panel Defaults

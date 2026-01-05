@@ -22,6 +22,7 @@ const PANEL_POSITIONS = [
 const ACTIVATION_KEYS = ["x", "z", "m", "q", "v", "c"];
 const RESET_KEYS = ["r", "o", "p", "k", "l"];
 const TOGGLE_FOLLOW_KEYS = ["f", "g", "h", "j", "k"];
+const DIRECT_CAPTURE_KEYS = ["d", "s", "a", "q", "e"];
 const DEFAULT_PADDING = 4;
 const DEFAULT_GLASS_Y_OFFSET = 200;
 const DEFAULT_GLASS_SIZE = 300;
@@ -53,6 +54,7 @@ export {
   DEFAULT_PANEL_OPACITY,
   DEFAULT_PANEL_WIDTH,
   DEFAULT_ZOOM_FACTOR,
+  DIRECT_CAPTURE_KEYS,
   GLASS_POSITIONS,
   GLASS_SHAPES,
   PANEL_POSITIONS,

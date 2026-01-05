@@ -171,6 +171,10 @@ class UIManager {
         case "toggle-panel":
           if (this.stateManager.state.isPanelVisible) {
             this.hide();
+            if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"]) {
+              this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"] = false;
+              this.applyStyles();
+            }
           } else {
             this.show();
           }

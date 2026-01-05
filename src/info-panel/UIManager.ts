@@ -266,7 +266,14 @@ export class UIManager {
                     break;
                 case 'toggle-panel':
                     if (this.stateManager.state.isPanelVisible) {
+                        // User requested to hide the panel
                         this.hide();
+
+                        // User Request: Disable sticky info when hiding via button
+                        if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"]) {
+                            this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"] = false;
+                            this.applyStyles(); // Update visual styles if necessary
+                        }
                     } else {
                         this.show();
                     }

@@ -58,16 +58,12 @@ export class OffscreenRenderer {
         // Calculate DPR exactly as EventHandler does (Canvas Pixels / CSS Pixels)
         const dpr = rect.width > 0 ? targetCanvas.width / rect.width : 1;
 
-        // Check if there are nodes with image previews near the cursor
-        // Virtual Zoom causes artifacts with these nodes, so we skip to Direct Capture
-        const hasImagePreviewNodes = this.detectImagePreviewNodes(dpr, currentScale, lgCanvas.ds.offset);
-
         // Threshold for Hybrid Mode
-        // If we are zoomed in enough (> 70%), Direct Capture quality is usually acceptable,
-        // and it guarantees perfect alignment.
-        // If we are zoomed out (< 70%), we NEED High Res Virtual Zoom to see details.
-        // EXCEPT: If there are image preview nodes, always use Direct Capture to avoid artifacts.
-        const useDirectCapture = currentScale >= 0.7 || hasImagePreviewNodes;
+        // If we are zoomed in enough (>= 100%), Direct Capture quality is perfect,
+        // and it guarantees perfect alignment with zero extra draws.
+        // If we are zoomed out (< 100%), we use High Res Virtual Zoom for crisp details.
+        // Note: Image preview nodes are handled by drawImagePreviewsNatively() during Virtual Zoom.
+        const useDirectCapture = currentScale >= 1.0;
 
         if (useDirectCapture) {
             // Direct Capture: Full speed, no extra draws

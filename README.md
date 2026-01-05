@@ -66,7 +66,6 @@
 *   **Visual Modes**: Toggle **Invert Colors** or **Grayscale** for high-contrast viewing.
 *   **Reduce Motion**: Disable smooth animations for instant feedback.
 *   **Text Enhancements**: Scaling, Bold, Glow, and Outline options for maximum legibility.
-*   **Sidebar Control**: Dedicated Accessibility section with live toggles for all features.
 
 ---
 

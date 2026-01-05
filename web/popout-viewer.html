@@ -597,6 +597,104 @@
             width: 14px;
             height: 14px;
         }
+
+        .icon-button {
+            background: transparent;
+            border: 1px solid var(--border-subtle);
+            color: var(--text-secondary);
+            padding: 4px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            margin-right: 12px;
+            width: 28px;
+            height: 28px;
+        }
+
+        .icon-button:hover {
+            background: var(--bg-elevated);
+            color: var(--text-primary);
+            border-color: var(--border-default);
+        }
+
+        .icon-button svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Fullscreen Mode */
+        :root:fullscreen .header,
+        :root:fullscreen .inspector-sidebar {
+            display: none !important;
+        }
+
+        :root:fullscreen .main-container {
+            padding-top: 0;
+            height: 100vh;
+        }
+
+        :root:fullscreen .canvas-section {
+            padding: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #000;
+        }
+
+        /* Wrapper always fills available space to allow centering */
+        .canvas-wrapper {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Inner wrapper to anchor resize handle tightly to canvas */
+        .canvas-inner {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Force inner to fill in fit mode OR fullscreen */
+        :root:fullscreen .canvas-inner,
+        .canvas-wrapper.fit-active .canvas-inner {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Fit Mode */
+        #viewer-canvas.fit-mode {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            border-radius: 0;
+            object-fit: cover;
+            box-shadow: none;
+        }
+
+        /* Remove padding when fitting */
+        .canvas-section.fit-mode-section {
+            padding: 0;
+        }
+
+        /* Hide resize handle in fit mode OR fullscreen */
+        :root:fullscreen .resize-handle,
+        .canvas-wrapper.fit-active .resize-handle {
+            display: none;
+        }
+
+        :root:fullscreen #viewer-canvas {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: none !important;
+            max-height: none !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+            object-fit: cover;
+        }
     </style>
 </head>
 
@@ -615,6 +713,19 @@
             </div>
         </div>
         <div class="header-right">
+            <button id="fit-btn" class="icon-button" title="Fit to Container">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                </svg>
+            </button>
+            <button id="fullscreen-btn" class="icon-button" title="Toggle Fullscreen">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                    stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path
+                        d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
+                </svg>
+            </button>
             <label class="checkbox-container" title="Prevent disconnection when idle">
                 <input type="checkbox" id="keep-alive-check">
                 <span class="checkbox-label">Keep Alive</span>
@@ -632,8 +743,10 @@
     <main class="main-container">
         <section class="canvas-section">
             <div class="canvas-wrapper">
-                <canvas id="viewer-canvas" width="300" height="300"></canvas>
-                <div class="resize-handle" id="resize-handle" title="Drag to resize"></div>
+                <div class="canvas-inner">
+                    <canvas id="viewer-canvas" width="300" height="300"></canvas>
+                    <div class="resize-handle" id="resize-handle" title="Drag to resize"></div>
+                </div>
                 <div class="canvas-placeholder">
                     <svg class="placeholder-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                         stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -707,6 +820,33 @@
             localStorage.setItem('magnifyglass-viewer-keepalive', keepAlive);
             // If reconnecting/keeping alive, we might want to manually mark connected if we have a frame?
             // But really we just prevent disconnection.
+        });
+
+        // Fullscreen Logic
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        const enterFullscreenIcon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>';
+        const exitFullscreenIcon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"/></svg>';
+
+        fullscreenBtn.addEventListener('click', () => {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.error(`Error attempting to enable fullscreen: ${err.message}`);
+                });
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                }
+            }
+        });
+
+        document.addEventListener('fullscreenchange', () => {
+            if (document.fullscreenElement) {
+                fullscreenBtn.innerHTML = exitFullscreenIcon;
+                fullscreenBtn.title = "Exit Fullscreen";
+            } else {
+                fullscreenBtn.innerHTML = enterFullscreenIcon;
+                fullscreenBtn.title = "Enter Fullscreen";
+            }
         });
 
         channel.onmessage = (event) => {
@@ -933,14 +1073,67 @@
         // Escape to close
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
+                if (document.fullscreenElement) {
+                    return;
+                }
                 channel.postMessage({ type: 'close' });
                 window.close();
             }
         });
 
+        // Fit Mode Logic
+        const fitBtn = document.getElementById('fit-btn');
+        const canvasWrapper = document.querySelector('.canvas-wrapper');
+        let isFitMode = false;
+
+        // Icons
+        const fitIcon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>';
+        const originalSizeIcon = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2" /><path d="M15 3h6v6M9 21H3v-6"/></svg>'; // Approx icon for "Manual/Original"
+
+        // Load saved fit mode
+        const savedFitMode = localStorage.getItem('magnifyglass-viewer-fitmode');
+        if (savedFitMode === 'true') {
+            toggleFitMode(true);
+        }
+
+        fitBtn.addEventListener('click', () => {
+            toggleFitMode(!isFitMode);
+        });
+
+        function toggleFitMode(active) {
+            isFitMode = active;
+            localStorage.setItem('magnifyglass-viewer-fitmode', isFitMode);
+
+            const canvasSection = canvasWrapper.closest('.canvas-section');
+
+            if (isFitMode) {
+                canvas.classList.add('fit-mode');
+                canvasWrapper.classList.add('fit-active');
+                if (canvasSection) canvasSection.classList.add('fit-mode-section');
+
+                fitBtn.title = "Restore Manual Size";
+                fitBtn.classList.add('active'); // Optional styling
+                // We don't change icon, or maybe we do? 
+                // Let's keep the "arrows out" to mean "currently fit"? 
+                // Or "arrows out" means "Click to Fit"?
+                // Let's toggle icon for clarity.
+                // Actually, let's just highlight the button/change title.
+                fitBtn.style.color = 'var(--text-primary)';
+                fitBtn.style.background = 'var(--bg-elevated)';
+            } else {
+                canvas.classList.remove('fit-mode');
+                canvasWrapper.classList.remove('fit-active');
+                if (canvasSection) canvasSection.classList.remove('fit-mode-section');
+
+                fitBtn.title = "Fit to Container";
+                fitBtn.style.color = '';
+                fitBtn.style.background = '';
+            }
+        }
+
         // Resize functionality
         const resizeHandle = document.getElementById('resize-handle');
-        const canvasWrapper = document.querySelector('.canvas-wrapper');
+        // canvasWrapper already selected above
         let isResizing = false;
         let startX, startY, startWidth, startHeight;
 

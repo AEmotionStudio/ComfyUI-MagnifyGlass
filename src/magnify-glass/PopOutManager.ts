@@ -32,9 +32,17 @@ interface PopOutInfo {
     hoveredNode?: {
         title: string;
         type: string;
+        id?: number;
+        mode?: string | number;
+        pos?: { x: number; y: number } | string;
+        size?: { w: number; h: number } | string;
         executionOrder?: number;
         category?: string;
         pythonModule?: string;
+        widgets?: any[];
+        inputs?: any[];
+        outputs?: any[];
+        properties?: Record<string, unknown>;
     };
     cursor?: {
         canvas?: { x: number; y: number };
@@ -84,7 +92,7 @@ export class PopOutManager {
      */
     private getViewerUrl(): string {
         // Cache-busting version - increment to force refresh
-        const version = 'v17';
+        const version = 'v20';
 
         // Find the extension's base URL from the loaded scripts
         const scripts = document.querySelectorAll('script[src*="magnify"]');
@@ -325,9 +333,22 @@ export class PopOutManager {
                 sanitized.hoveredNode = {
                     title: String(info.hoveredNode.title || ''),
                     type: String(info.hoveredNode.type || ''),
+                    id: info.hoveredNode.id,
+                    mode: info.hoveredNode.mode,
                     executionOrder: info.hoveredNode.executionOrder,
                     category: info.hoveredNode.category ? String(info.hoveredNode.category) : undefined,
-                    pythonModule: info.hoveredNode.pythonModule ? String(info.hoveredNode.pythonModule) : undefined
+                    pythonModule: info.hoveredNode.pythonModule ? String(info.hoveredNode.pythonModule) : undefined,
+                    // Map formatting or raw values
+                    pos: info.hoveredNode.position && typeof info.hoveredNode.position === 'object'
+                        ? { x: info.hoveredNode.position.x, y: info.hoveredNode.position.y }
+                        : String(info.hoveredNode.position || ''),
+                    size: info.hoveredNode.size && typeof info.hoveredNode.size === 'object'
+                        ? { w: info.hoveredNode.size.width, h: info.hoveredNode.size.height }
+                        : String(info.hoveredNode.size || ''),
+                    widgets: this.extractSafeData(info.hoveredNode.widgets),
+                    inputs: this.extractSafeData(info.hoveredNode.inputs),
+                    outputs: this.extractSafeData(info.hoveredNode.outputs),
+                    properties: this.sanitizeOptions(info.hoveredNode.properties) || {}
                 };
             }
 
@@ -372,6 +393,62 @@ export class PopOutManager {
             Logger.error('[PopOut] Failed to sanitize info:', e);
             return null;
         }
+    }
+
+    /**
+     * Extract specific safe fields from node lists (widgets, inputs, outputs).
+     * Removes functions like onFloatValueChange which cause cloning errors.
+     */
+    private extractSafeData(list: any[] | undefined): any[] {
+        if (!list || !Array.isArray(list)) return [];
+        return list.map(item => {
+            if (!item || typeof item !== 'object') return {};
+
+            // Only extract known safe identifiers and values
+            const safeItem: any = {
+                name: item.name,
+                type: item.type,
+                label: item.label
+            };
+
+            // Safely copy value if it's not a function
+            if (item.value !== undefined && typeof item.value !== 'function') {
+                safeItem.value = item.value;
+            }
+
+            // Sanitized options for widgets
+            if (item.options) {
+                safeItem.options = this.sanitizeOptions(item.options);
+            }
+
+            return safeItem;
+        });
+    }
+
+    /**
+     * Shallow copy object removing functions.
+     */
+    private sanitizeOptions(options: any): any {
+        if (!options || typeof options !== 'object') return {};
+        const clean: any = {};
+        for (const key in options) {
+            const val = options[key];
+            if (typeof val !== 'function' && !key.startsWith('_')) {
+                // Determine if value is simple enough to copy
+                if (typeof val === 'object' && val !== null) {
+                    try {
+                        // Simple check if it's a plain object/array without cycles
+                        JSON.stringify(val);
+                        clean[key] = val;
+                    } catch (e) {
+                        // Skip complex objects
+                    }
+                } else {
+                    clean[key] = val;
+                }
+            }
+        }
+        return clean;
     }
 
     /**

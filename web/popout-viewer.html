@@ -442,6 +442,40 @@
             background: var(--bg-elevated);
             cursor: pointer;
             transition: background 0.2s ease;
+            position: relative;
+            /* For chevron positioning if needed */
+        }
+
+        /* Chevron Icon */
+        .section-header::after {
+            content: '';
+            width: 16px;
+            height: 16px;
+            margin-left: auto;
+            /* Push to right */
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: center;
+            transition: transform 0.2s ease;
+            opacity: 0.7;
+        }
+
+        /* Collapsed State */
+        .info-section.collapsed .section-header::after {
+            transform: rotate(-90deg);
+        }
+
+        .info-section.collapsed .section-body {
+            display: none;
+        }
+
+        .section-header:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .section-header:hover::after {
+            opacity: 1;
+            stroke: var(--text-primary);
         }
 
         .section-header:hover {
@@ -927,11 +961,47 @@
         function renderInfo(info) {
             let html = '';
 
-            // Node section
-            if (info.hoveredNode) {
+            // Cursor section (Now First)
+            if (info.cursor && info.canvas) {
+                // Check collapsed state
+                const isCollapsed = window.collapsedSections?.has('cursor');
+
                 html += `
-                    <div class="info-section">
-                        <div class="section-header">
+                    <div class="info-section ${isCollapsed ? 'collapsed' : ''}" data-section-id="cursor">
+                        <div class="section-header" onclick="toggleSection(this)">
+                            <svg class="section-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"/>
+                                <circle cx="12" cy="12" r="6"/>
+                                <circle cx="12" cy="12" r="2"/>
+                                <line x1="12" y1="2" x2="12" y2="4"/>
+                                <line x1="12" y1="20" x2="12" y2="22"/>
+                                <line x1="2" y1="12" x2="4" y2="12"/>
+                                <line x1="20" y1="12" x2="22" y2="12"/>
+                            </svg>
+                            <span class="section-title">Cursor</span>
+                        </div>
+                        <div class="section-body">
+                            <div class="info-row">
+                                <span class="info-label">Canvas X</span>
+                                <span class="info-value">${Math.round(info.cursor.canvas.x)}</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="info-label">Canvas Y</span>
+                                <span class="info-value">${Math.round(info.cursor.canvas.y)}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Node section (Now Second)
+            if (info.hoveredNode) {
+                // Check collapsed state
+                const isCollapsed = window.collapsedSections?.has('node');
+
+                html += `
+                    <div class="info-section ${isCollapsed ? 'collapsed' : ''}" data-section-id="node">
+                        <div class="section-header" onclick="toggleSection(this)">
                             <svg class="section-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
                             </svg>
@@ -958,32 +1028,32 @@
                                 <span class="info-label">Path</span>
                                 <span class="info-value">${escapeHtml(info.hoveredNode.pythonModule)}</span>
                             </div>` : ''}
-                        </div>
-                    </div>
-                `;
-            }
+                            
+                            <!-- Extended Node Properties -->
+                            <div class="info-row">
+                                <span class="info-label">ID</span>
+                                <span class="info-value">#${info.hoveredNode.id || '?'}</span>
+                            </div>
+                            ${info.hoveredNode.mode !== undefined ? `
+                            <div class="info-row">
+                                <span class="info-label">Mode</span>
+                                <span class="info-value">${getModeText(info.hoveredNode.mode)}</span>
+                            </div>` : ''}
+                            ${info.hoveredNode.size ? `
+                            <div class="info-row">
+                                <span class="info-label">Size</span>
+                                <span class="info-value">${formatSize(info.hoveredNode.size)}</span>
+                            </div>` : ''}
+                            ${info.hoveredNode.pos ? `
+                            <div class="info-row">
+                                <span class="info-label">Pos</span>
+                                <span class="info-value">${formatPos(info.hoveredNode.pos)}</span>
+                            </div>` : ''}
 
-            // Inspector section
-            if (info.cursor && info.canvas) {
-                html += `
-                    <div class="info-section">
-                        <div class="section-header">
-                            <svg class="section-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="10"/>
-                                <circle cx="12" cy="12" r="6"/>
-                                <circle cx="12" cy="12" r="2"/>
-                            </svg>
-                            <span class="section-title">Cursor</span>
-                        </div>
-                        <div class="section-body">
-                            <div class="info-row">
-                                <span class="info-label">Canvas</span>
-                                <span class="info-value">${Math.round(info.cursor.canvas?.x || 0)}, ${Math.round(info.cursor.canvas?.y || 0)}</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Scale</span>
-                                <span class="info-value">${((info.canvas.scale || 1) * 100).toFixed(1)}%</span>
-                            </div>
+                            <!-- Dynamic Lists (Inputs/Outputs/Widgets) -->
+                            ${renderList('Inputs', info.hoveredNode.inputs)}
+                            ${renderList('Outputs', info.hoveredNode.outputs)}
+                            ${renderList('Widgets', info.hoveredNode.widgets)}
                         </div>
                     </div>
                 `;
@@ -1017,6 +1087,61 @@
             } else {
                 showEmptyState();
             }
+        }
+
+        // Initialize collapsed state tracking
+        window.collapsedSections = new Set();
+
+        function toggleSection(header) {
+            const section = header.parentElement;
+            const sectionId = section.dataset.sectionId;
+            section.classList.toggle('collapsed');
+
+            if (section.classList.contains('collapsed')) {
+                window.collapsedSections.add(sectionId);
+            } else {
+                window.collapsedSections.delete(sectionId);
+            }
+        }
+
+        function getModeText(mode) {
+            // Check if it's already text
+            if (typeof mode === 'string') return mode;
+            // Map ComfyUI mode numbers
+            const modes = { 0: 'Always', 1: 'On Event', 2: 'Never', 3: 'Trigger' };
+            return modes[mode] || String(mode);
+        }
+
+        function formatSize(size) {
+            if (typeof size === 'object') return `${Math.round(size.w)}×${Math.round(size.h)}`;
+            return String(size);
+        }
+
+        function formatPos(pos) {
+            if (typeof pos === 'object') return `${Math.round(pos.x)}, ${Math.round(pos.y)}`;
+            return String(pos);
+        }
+
+        function renderList(title, items) {
+            if (!items || items.length === 0) return '';
+
+            const listHtml = items.map(item => {
+                const name = escapeHtml(item.name || item.label || 'Unknown');
+                const type = item.type ? `<span style="opacity:0.6; font-size:10px; margin-left:4px">(${escapeHtml(item.type)})</span>` : '';
+                const value = item.value !== undefined ? `<span style="opacity:0.8; margin-left:auto">${escapeHtml(String(item.value))}</span>` : '';
+
+                return `<div style="display:flex; justify-content:space-between; padding:2px 0; font-size:11px; color:var(--text-secondary);">
+                    <span>- ${name}${type}</span>
+                    ${value}
+                </div>`;
+            }).join('');
+
+            return `
+                <div class="info-row" style="display:block; border-top:1px solid var(--border-subtle); margin-top:8px; padding-top:8px;">
+                    <div style="font-weight:600; font-size:11px; margin-bottom:4px; color:var(--text-primary); opacity:0.8;">${title} (${items.length})</div>
+                    <div style="padding-left:4px;">${listHtml}</div>
+                </div>
+            `;
         }
 
         function escapeHtml(text) {

@@ -27,7 +27,7 @@ class PopOutManager {
    * Get the URL for the pop-out viewer page.
    */
   getViewerUrl() {
-    const version = "v17";
+    const version = "v20";
     const scripts = document.querySelectorAll('script[src*="magnify"]');
     Logger.debug(`[PopOut] Found ${scripts.length} magnify scripts`);
     if (scripts.length > 0) {
@@ -215,9 +215,18 @@ class PopOutManager {
         sanitized.hoveredNode = {
           title: String(info.hoveredNode.title || ""),
           type: String(info.hoveredNode.type || ""),
+          id: info.hoveredNode.id,
+          mode: info.hoveredNode.mode,
           executionOrder: info.hoveredNode.executionOrder,
           category: info.hoveredNode.category ? String(info.hoveredNode.category) : void 0,
-          pythonModule: info.hoveredNode.pythonModule ? String(info.hoveredNode.pythonModule) : void 0
+          pythonModule: info.hoveredNode.pythonModule ? String(info.hoveredNode.pythonModule) : void 0,
+          // Map formatting or raw values
+          pos: info.hoveredNode.position && typeof info.hoveredNode.position === "object" ? { x: info.hoveredNode.position.x, y: info.hoveredNode.position.y } : String(info.hoveredNode.position || ""),
+          size: info.hoveredNode.size && typeof info.hoveredNode.size === "object" ? { w: info.hoveredNode.size.width, h: info.hoveredNode.size.height } : String(info.hoveredNode.size || ""),
+          widgets: this.extractSafeData(info.hoveredNode.widgets),
+          inputs: this.extractSafeData(info.hoveredNode.inputs),
+          outputs: this.extractSafeData(info.hoveredNode.outputs),
+          properties: this.sanitizeOptions(info.hoveredNode.properties) || {}
         };
       }
       if (info.cursor) {
@@ -251,6 +260,50 @@ class PopOutManager {
       Logger.error("[PopOut] Failed to sanitize info:", e);
       return null;
     }
+  }
+  /**
+   * Extract specific safe fields from node lists (widgets, inputs, outputs).
+   * Removes functions like onFloatValueChange which cause cloning errors.
+   */
+  extractSafeData(list) {
+    if (!list || !Array.isArray(list)) return [];
+    return list.map((item) => {
+      if (!item || typeof item !== "object") return {};
+      const safeItem = {
+        name: item.name,
+        type: item.type,
+        label: item.label
+      };
+      if (item.value !== void 0 && typeof item.value !== "function") {
+        safeItem.value = item.value;
+      }
+      if (item.options) {
+        safeItem.options = this.sanitizeOptions(item.options);
+      }
+      return safeItem;
+    });
+  }
+  /**
+   * Shallow copy object removing functions.
+   */
+  sanitizeOptions(options) {
+    if (!options || typeof options !== "object") return {};
+    const clean = {};
+    for (const key in options) {
+      const val = options[key];
+      if (typeof val !== "function" && !key.startsWith("_")) {
+        if (typeof val === "object" && val !== null) {
+          try {
+            JSON.stringify(val);
+            clean[key] = val;
+          } catch (e) {
+          }
+        } else {
+          clean[key] = val;
+        }
+      }
+    }
+    return clean;
   }
   /**
    * Send a message through the BroadcastChannel.

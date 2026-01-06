@@ -766,7 +766,6 @@ export class UIManager {
                 value: `${info.hoveredNode.title || 'Untitled'} (#${info.hoveredNode.id})`,
                 clickable: 'title'
             });
-            nodeContent.push({ label: 'Type', value: info.hoveredNode.type });
             // Add execution order if available
             if (info.hoveredNode.executionOrder !== undefined) {
                 nodeContent.push({ label: 'Exec Order', value: info.hoveredNode.executionOrder, clickable: 'execOrder' });

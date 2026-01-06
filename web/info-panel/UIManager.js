@@ -552,7 +552,6 @@ class UIManager {
         value: `${info.hoveredNode.title || "Untitled"} (#${info.hoveredNode.id})`,
         clickable: "title"
       });
-      nodeContent.push({ label: "Type", value: info.hoveredNode.type });
       if (info.hoveredNode.executionOrder !== void 0) {
         nodeContent.push({ label: "Exec Order", value: info.hoveredNode.executionOrder, clickable: "execOrder" });
       }

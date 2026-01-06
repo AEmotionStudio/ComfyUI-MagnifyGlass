@@ -890,10 +890,21 @@ export class UIManager {
             const clickableClass = item.clickable ? 'clickable-row' : '';
             // Only show dropdown arrow for actual dropdowns, not actions like zoom
             const dropdownIcon = (item.clickable && item.clickable !== 'zoom') ? '<span class="dropdown-indicator" style="margin-left: 4px; opacity: 0.6; font-size: 10px;">▼</span>' : '';
+            // Show copy button for string values that are long enough to be worth copying
+            const rawValue = String(item.value || '');
+            const showCopyBtn = !item.clickable && rawValue.length > 3 && typeof item.value === 'string';
+            const copyBtnHtml = showCopyBtn ? `
+                <button class="copy-btn" data-copy-value="${rawValue.replace(/"/g, '&quot;')}" title="Copy to clipboard">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                </button>` : '';
             return `
                             <div class="info-row ${clickableClass}" ${clickableAttr} ${nodeIdAttr} style="${item.clickable ? 'cursor: pointer;' : ''}">
                                 <span class="info-label">${item.label}</span>
                                 <span class="info-value ${valueClass}" ${valueAttributes}>${value}${dropdownIcon}</span>
+                                ${copyBtnHtml}
                             </div>`;
         }).join('')}
                     </div>
@@ -941,6 +952,27 @@ export class UIManager {
             });
             row.addEventListener('mouseleave', () => {
                 (row as HTMLElement).style.background = '';
+            });
+        });
+
+        // Add click handlers for copy buttons
+        const copyButtons = this.elements.content.querySelectorAll('.copy-btn');
+        copyButtons.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const value = (btn as HTMLElement).dataset.copyValue || '';
+                navigator.clipboard.writeText(value).then(() => {
+                    // Show success feedback
+                    btn.classList.add('copied');
+                    const originalHtml = btn.innerHTML;
+                    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+                    setTimeout(() => {
+                        btn.innerHTML = originalHtml;
+                        btn.classList.remove('copied');
+                    }, 1500);
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                });
             });
         });
     }

@@ -37,21 +37,18 @@ export class CanvasHighlighter {
         this.originalOnDrawForeground = canvas.onDrawForeground;
 
         // Override
-        canvas.onDrawForeground = (ctx: CanvasRenderingContext2D, visible_nodes: any) => {
-            // Call original first
-            if (this.originalOnDrawForeground) {
-                this.originalOnDrawForeground.call(canvas, ctx, visible_nodes);
-            }
-
-            // Draw our highlight
-            this.drawHighlight(ctx, canvas.ds.scale);
-        };
+        canvas.onDrawForeground = this.boundOnDrawForeground;
     }
 
     /**
      * Set the node ID to highlight.
      */
+    /**
+     * Set the node ID to highlight.
+     */
     setHighlightedNode(nodeId: number | null): void {
+        this.ensureHook(); // Ensure we are still hooked
+
         if (this.highlightedNodeId === nodeId) return;
         this.highlightedNodeId = nodeId;
         // Force redraw to update highlight immediately
@@ -60,6 +57,35 @@ export class CanvasHighlighter {
             app.canvas.setDirty(true, true);
         }
     }
+
+    /**
+     * Ensure the canvas hook is active.
+     */
+    private ensureHook(): void {
+        const app = (window as any).app;
+        if (!app || !app.canvas) return;
+
+        // If our hook was overwritten (e.g. by another extension), re-hook
+        if (app.canvas.onDrawForeground !== this.boundOnDrawForeground) {
+            // console.log('[MagnifyGlass] Re-hooking CanvasHighlighter');
+            this.originalOnDrawForeground = app.canvas.onDrawForeground;
+            app.canvas.onDrawForeground = this.boundOnDrawForeground;
+        }
+    }
+
+    // Bound method to preserve 'this' and allow equality check
+    private boundOnDrawForeground = (ctx: CanvasRenderingContext2D, visible_nodes: any) => {
+        // Call original first
+        if (this.originalOnDrawForeground) {
+            this.originalOnDrawForeground.call((window as any).app.canvas, ctx, visible_nodes);
+        }
+
+        // Draw our highlight
+        const app = (window as any).app;
+        if (app && app.canvas) {
+            this.drawHighlight(ctx, app.canvas.ds.scale);
+        }
+    };
 
     /**
      * Draw the highlight rectangle around the target node.
@@ -78,23 +104,24 @@ export class CanvasHighlighter {
         // Note: ctx passed to onDrawForeground is already transformed by LiteGraph to graph coordinates
         // so we can draw using node.pos directly.
 
-        const x = node.pos[0] - this.HIGHLIGHT_PADDING;
-        const y = node.pos[1] - this.HIGHLIGHT_PADDING;
-        const w = node.size[0] + (this.HIGHLIGHT_PADDING * 2);
-        const h = node.size[1] + (this.HIGHLIGHT_PADDING * 2);
+        const padding = 10;
+        const x = node.pos[0] - padding;
+        const y = node.pos[1] - padding;
+        const w = node.size[0] + (padding * 2);
+        const h = node.size[1] + (padding * 2);
 
-        // Draw glow/outline
-        ctx.lineWidth = this.HIGHLIGHT_WIDTH;
-        ctx.strokeStyle = this.HIGHLIGHT_COLOR;
-        ctx.shadowColor = this.HIGHLIGHT_COLOR;
-        ctx.shadowBlur = 10 * scale; // Scale shadow with zoom
-        ctx.shadowOffsetX = 0;
-        ctx.shadowOffsetY = 0;
+        // Draw large blue bar/border
+        ctx.lineWidth = 10; // Thicker border
+        ctx.strokeStyle = '#007bff'; // Blue
+        // ctx.shadowColor = '#007bff'; // Optional glow
+        // ctx.shadowBlur = 0; 
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
 
         // Use roundRect if available (modern browsers), else rect
         ctx.beginPath();
         if (typeof ctx.roundRect === 'function') {
-            const radius = 10; // LiteGraph nodes usually have round corners
+            const radius = 10;
             ctx.roundRect(x, y, w, h, radius);
         } else {
             ctx.rect(x, y, w, h);
@@ -111,7 +138,9 @@ export class CanvasHighlighter {
     cleanup(): void {
         const app = (window as any).app;
         if (app && app.canvas && this.originalOnDrawForeground) {
-            app.canvas.onDrawForeground = this.originalOnDrawForeground;
+            if (app.canvas.onDrawForeground === this.boundOnDrawForeground) {
+                app.canvas.onDrawForeground = this.originalOnDrawForeground;
+            }
         }
     }
 }

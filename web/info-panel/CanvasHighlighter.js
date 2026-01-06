@@ -12,6 +12,16 @@ class CanvasHighlighter {
     __publicField(this, "HIGHLIGHT_WIDTH", 2);
     // px
     __publicField(this, "HIGHLIGHT_PADDING", 0);
+    // Bound method to preserve 'this' and allow equality check
+    __publicField(this, "boundOnDrawForeground", (ctx, visible_nodes) => {
+      if (this.originalOnDrawForeground) {
+        this.originalOnDrawForeground.call(window.app.canvas, ctx, visible_nodes);
+      }
+      const app = window.app;
+      if (app && app.canvas) {
+        this.drawHighlight(ctx, app.canvas.ds.scale);
+      }
+    });
     this.hookCanvas();
   }
   /**
@@ -25,22 +35,32 @@ class CanvasHighlighter {
     }
     const canvas = app.canvas;
     this.originalOnDrawForeground = canvas.onDrawForeground;
-    canvas.onDrawForeground = (ctx, visible_nodes) => {
-      if (this.originalOnDrawForeground) {
-        this.originalOnDrawForeground.call(canvas, ctx, visible_nodes);
-      }
-      this.drawHighlight(ctx, canvas.ds.scale);
-    };
+    canvas.onDrawForeground = this.boundOnDrawForeground;
   }
   /**
    * Set the node ID to highlight.
    */
+  /**
+   * Set the node ID to highlight.
+   */
   setHighlightedNode(nodeId) {
+    this.ensureHook();
     if (this.highlightedNodeId === nodeId) return;
     this.highlightedNodeId = nodeId;
     const app = window.app;
     if (app && app.canvas) {
       app.canvas.setDirty(true, true);
+    }
+  }
+  /**
+   * Ensure the canvas hook is active.
+   */
+  ensureHook() {
+    const app = window.app;
+    if (!app || !app.canvas) return;
+    if (app.canvas.onDrawForeground !== this.boundOnDrawForeground) {
+      this.originalOnDrawForeground = app.canvas.onDrawForeground;
+      app.canvas.onDrawForeground = this.boundOnDrawForeground;
     }
   }
   /**
@@ -53,16 +73,15 @@ class CanvasHighlighter {
     const node = app.graph.getNodeById(this.highlightedNodeId);
     if (!node) return;
     ctx.save();
-    const x = node.pos[0] - this.HIGHLIGHT_PADDING;
-    const y = node.pos[1] - this.HIGHLIGHT_PADDING;
-    const w = node.size[0] + this.HIGHLIGHT_PADDING * 2;
-    const h = node.size[1] + this.HIGHLIGHT_PADDING * 2;
-    ctx.lineWidth = this.HIGHLIGHT_WIDTH;
-    ctx.strokeStyle = this.HIGHLIGHT_COLOR;
-    ctx.shadowColor = this.HIGHLIGHT_COLOR;
-    ctx.shadowBlur = 10 * scale;
-    ctx.shadowOffsetX = 0;
-    ctx.shadowOffsetY = 0;
+    const padding = 10;
+    const x = node.pos[0] - padding;
+    const y = node.pos[1] - padding;
+    const w = node.size[0] + padding * 2;
+    const h = node.size[1] + padding * 2;
+    ctx.lineWidth = 10;
+    ctx.strokeStyle = "#007bff";
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
     ctx.beginPath();
     if (typeof ctx.roundRect === "function") {
       const radius = 10;
@@ -79,7 +98,9 @@ class CanvasHighlighter {
   cleanup() {
     const app = window.app;
     if (app && app.canvas && this.originalOnDrawForeground) {
-      app.canvas.onDrawForeground = this.originalOnDrawForeground;
+      if (app.canvas.onDrawForeground === this.boundOnDrawForeground) {
+        app.canvas.onDrawForeground = this.originalOnDrawForeground;
+      }
     }
   }
 }

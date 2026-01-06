@@ -1080,13 +1080,19 @@
                         <div class="section-body">
                             <div class="info-row clickable-row" onclick="requestNodeDropdown('title', this)">
                                 <span class="info-label">Title</span>
-                                <span class="info-value">${escapeHtml(info.hoveredNode.title || 'Untitled')} (#${info.hoveredNode.id})<span class="dropdown-indicator">▼</span></span>
+                                <span class="info-value clickable-value" onclick="requestNodeDropdown('title', this)">${escapeHtml(info.hoveredNode.title || 'Untitled')} (#${info.hoveredNode.id})<span class="dropdown-indicator">▼</span></span>
                             </div>
+                            
                             ${info.hoveredNode.executionOrder !== undefined ? `
                             <div class="info-row clickable-row" onclick="requestNodeDropdown('execOrder', this)">
                                 <span class="info-label">Exec Order</span>
                                 <span class="info-value">${info.hoveredNode.executionOrder}<span class="dropdown-indicator">▼</span></span>
                             </div>` : ''}
+
+                            <div class="info-row clickable-row" style="cursor: pointer;" onclick="requestZoomToNode(${info.hoveredNode.id})">
+                                <span class="info-label">Location</span>
+                                <span class="info-value"><span style="display: inline-flex; align-items: center; gap: 6px; vertical-align: middle;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg> Focus Node</span></span>
+                            </div>
                             ${info.hoveredNode.category ? `
                             <div class="info-row">
                                 <span class="info-label">Category</span>
@@ -1236,14 +1242,16 @@
                 currentDropdownAnchorRect = anchorElement.getBoundingClientRect();
                 console.log('[Popout] Stored anchorRect:', currentDropdownAnchorRect);
             }
-            pendingDropdownType = type;
 
-            // Request node list from main window
             if (channel) {
                 console.log('[Popout] Sending request-nodes message');
                 channel.postMessage({ type: 'request-nodes', data: type });
-            } else {
-                console.log('[Popout] ERROR: channel is null!');
+            }
+        }
+
+        function requestZoomToNode(nodeId) {
+            if (channel) {
+                channel.postMessage({ type: 'zoom-node', data: nodeId });
             }
         }
 

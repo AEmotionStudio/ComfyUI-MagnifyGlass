@@ -766,10 +766,17 @@ export class UIManager {
                 value: `${info.hoveredNode.title || 'Untitled'} (#${info.hoveredNode.id})`,
                 clickable: 'title'
             });
-            // Add execution order if available
             if (info.hoveredNode.executionOrder !== undefined) {
                 nodeContent.push({ label: 'Exec Order', value: info.hoveredNode.executionOrder, clickable: 'execOrder' });
             }
+
+            // Add Zoom to Node button
+            nodeContent.push({
+                label: 'Location',
+                value: `<span style="display: flex; align-items: center; gap: 6px;">${Icons.focus} Focus Node</span>`,
+                clickable: 'zoom',
+                nodeId: info.hoveredNode.id
+            });
 
             // Add category if available
             if (info.hoveredNode.category) {
@@ -879,10 +886,12 @@ export class UIManager {
             const valueClass = getValueClass(item.value);
             const valueAttributes = getValueAttributes(item.value);
             const clickableAttr = item.clickable ? `data-clickable="${item.clickable}"` : '';
+            const nodeIdAttr = item.nodeId !== undefined ? `data-node-id="${item.nodeId}"` : '';
             const clickableClass = item.clickable ? 'clickable-row' : '';
-            const dropdownIcon = item.clickable ? '<span class="dropdown-indicator" style="margin-left: 4px; opacity: 0.6; font-size: 10px;">▼</span>' : '';
+            // Only show dropdown arrow for actual dropdowns, not actions like zoom
+            const dropdownIcon = (item.clickable && item.clickable !== 'zoom') ? '<span class="dropdown-indicator" style="margin-left: 4px; opacity: 0.6; font-size: 10px;">▼</span>' : '';
             return `
-                            <div class="info-row ${clickableClass}" ${clickableAttr} style="${item.clickable ? 'cursor: pointer;' : ''}">
+                            <div class="info-row ${clickableClass}" ${clickableAttr} ${nodeIdAttr} style="${item.clickable ? 'cursor: pointer;' : ''}">
                                 <span class="info-label">${item.label}</span>
                                 <span class="info-value ${valueClass}" ${valueAttributes}>${value}${dropdownIcon}</span>
                             </div>`;
@@ -914,6 +923,15 @@ export class UIManager {
                     this.showExecOrderDropdown(row as HTMLElement);
                 } else if (clickableType === 'id') {
                     this.showIdDropdown(row as HTMLElement);
+                } else if (clickableType === 'zoom') {
+                    const nodeId = (row as HTMLElement).dataset.nodeId;
+                    if (nodeId) {
+                        const app = (window as any).app;
+                        const node = app.graph.getNodeById(parseInt(nodeId));
+                        if (node && app.canvas) {
+                            app.canvas.centerOnNode(node);
+                        }
+                    }
                 }
             });
 

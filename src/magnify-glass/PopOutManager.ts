@@ -12,7 +12,7 @@ import { Logger } from '../shared/logger';
  * Message types for BroadcastChannel communication
  */
 interface PopOutMessage {
-    type: 'frame' | 'config' | 'info' | 'close' | 'ping' | 'pong' | 'node-select' | 'nodes-list' | 'request-nodes';
+    type: 'frame' | 'config' | 'info' | 'close' | 'ping' | 'pong' | 'node-select' | 'nodes-list' | 'request-nodes' | 'zoom-node';
     data?: string | Partial<PopOutConfig> | PopOutInfo | NodeListData | number;
     timestamp?: number;
 }
@@ -186,6 +186,16 @@ export class PopOutManager {
                 // Popout selected a node, notify main window
                 if (this.onNodeSelect && typeof message.data === 'number') {
                     this.onNodeSelect(message.data);
+                }
+                break;
+            case 'zoom-node':
+                // Popout requested to zoom to a node
+                if (typeof message.data === 'number') {
+                    const app = (window as any).app;
+                    const node = app.graph.getNodeById(message.data);
+                    if (node && app.canvas) {
+                        app.canvas.centerOnNode(node);
+                    }
                 }
                 break;
         }

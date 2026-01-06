@@ -97,6 +97,15 @@ class PopOutManager {
           this.onNodeSelect(message.data);
         }
         break;
+      case "zoom-node":
+        if (typeof message.data === "number") {
+          const app = window.app;
+          const node = app.graph.getNodeById(message.data);
+          if (node && app.canvas) {
+            app.canvas.centerOnNode(node);
+          }
+        }
+        break;
     }
   }
   /**

@@ -555,6 +555,12 @@ class UIManager {
       if (info.hoveredNode.executionOrder !== void 0) {
         nodeContent.push({ label: "Exec Order", value: info.hoveredNode.executionOrder, clickable: "execOrder" });
       }
+      nodeContent.push({
+        label: "Location",
+        value: `<span style="display: flex; align-items: center; gap: 6px;">${Icons.focus} Focus Node</span>`,
+        clickable: "zoom",
+        nodeId: info.hoveredNode.id
+      });
       if (info.hoveredNode.category) {
         nodeContent.push({ label: "Category", value: info.hoveredNode.category });
       }
@@ -629,10 +635,11 @@ class UIManager {
       const valueClass = getValueClass(item.value);
       const valueAttributes = getValueAttributes(item.value);
       const clickableAttr = item.clickable ? `data-clickable="${item.clickable}"` : "";
+      const nodeIdAttr = item.nodeId !== void 0 ? `data-node-id="${item.nodeId}"` : "";
       const clickableClass = item.clickable ? "clickable-row" : "";
-      const dropdownIcon = item.clickable ? '<span class="dropdown-indicator" style="margin-left: 4px; opacity: 0.6; font-size: 10px;">▼</span>' : "";
+      const dropdownIcon = item.clickable && item.clickable !== "zoom" ? '<span class="dropdown-indicator" style="margin-left: 4px; opacity: 0.6; font-size: 10px;">▼</span>' : "";
       return `
-                            <div class="info-row ${clickableClass}" ${clickableAttr} style="${item.clickable ? "cursor: pointer;" : ""}">
+                            <div class="info-row ${clickableClass}" ${clickableAttr} ${nodeIdAttr} style="${item.clickable ? "cursor: pointer;" : ""}">
                                 <span class="info-label">${item.label}</span>
                                 <span class="info-value ${valueClass}" ${valueAttributes}>${value}${dropdownIcon}</span>
                             </div>`;
@@ -658,6 +665,15 @@ class UIManager {
           this.showExecOrderDropdown(row);
         } else if (clickableType === "id") {
           this.showIdDropdown(row);
+        } else if (clickableType === "zoom") {
+          const nodeId = row.dataset.nodeId;
+          if (nodeId) {
+            const app = window.app;
+            const node = app.graph.getNodeById(parseInt(nodeId));
+            if (node && app.canvas) {
+              app.canvas.centerOnNode(node);
+            }
+          }
         }
       });
       row.addEventListener("mouseenter", () => {

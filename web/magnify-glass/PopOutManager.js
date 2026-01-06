@@ -9,6 +9,7 @@ class PopOutManager {
     __publicField(this, "isOpen", false);
     __publicField(this, "popOutWindow", null);
     __publicField(this, "onStateChange", null);
+    __publicField(this, "onNodeSelect", null);
     __publicField(this, "lastPongTime", 0);
     __publicField(this, "pingInterval", null);
     __publicField(this, "viewerUrl");
@@ -27,7 +28,7 @@ class PopOutManager {
    * Get the URL for the pop-out viewer page.
    */
   getViewerUrl() {
-    const version = "v20";
+    const version = "v21";
     const scripts = document.querySelectorAll('script[src*="magnify"]');
     Logger.debug(`[PopOut] Found ${scripts.length} magnify scripts`);
     if (scripts.length > 0) {
@@ -86,6 +87,15 @@ class PopOutManager {
         this.popOutWindow = null;
         Logger.debug("[PopOut] Viewer tab closed");
         if (this.onStateChange) this.onStateChange(false);
+        break;
+      case "request-nodes":
+        Logger.debug("[PopOut] Received request-nodes:", message.data);
+        this.handleNodeListRequest(message.data);
+        break;
+      case "node-select":
+        if (this.onNodeSelect && typeof message.data === "number") {
+          this.onNodeSelect(message.data);
+        }
         break;
     }
   }
@@ -200,6 +210,40 @@ class PopOutManager {
       type: "info",
       data: sanitizedInfo || void 0
     });
+  }
+  /**
+   * Handle node list request from popout viewer.
+   * Fetches nodes from canvas and sends them to the popout.
+   */
+  handleNodeListRequest(sortBy) {
+    var _a;
+    if (!this.channel) return;
+    try {
+      const app = window.app;
+      const nodes = ((_a = app == null ? void 0 : app.graph) == null ? void 0 : _a._nodes) || [];
+      let nodeList;
+      if (sortBy === "execOrder") {
+        nodeList = nodes.map((n) => ({
+          id: n.id,
+          title: n.title || "Untitled",
+          type: n.type || "Unknown",
+          order: n.order ?? -1
+        })).filter((n) => n.order >= 0).sort((a, b) => a.order - b.order);
+      } else {
+        nodeList = nodes.map((n) => ({
+          id: n.id,
+          title: n.title || "Untitled",
+          type: n.type || "Unknown"
+        })).sort((a, b) => a.title.localeCompare(b.title));
+      }
+      this.sendMessage({
+        type: "nodes-list",
+        data: { nodes: nodeList, sortBy }
+      });
+      Logger.debug(`[PopOut] Sent ${nodeList.length} nodes to viewer (sorted by ${sortBy})`);
+    } catch (e) {
+      Logger.error("[PopOut] Failed to get node list:", e);
+    }
   }
   /**
    * Sanitize info object for BroadcastChannel transfer.

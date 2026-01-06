@@ -12,9 +12,17 @@ import { Logger } from '../shared/logger';
  * Message types for BroadcastChannel communication
  */
 interface PopOutMessage {
-    type: 'frame' | 'config' | 'info' | 'close' | 'ping' | 'pong';
-    data?: string | Partial<PopOutConfig> | PopOutInfo;
+    type: 'frame' | 'config' | 'info' | 'close' | 'ping' | 'pong' | 'node-select' | 'nodes-list' | 'request-nodes';
+    data?: string | Partial<PopOutConfig> | PopOutInfo | NodeListData | number;
     timestamp?: number;
+}
+
+/**
+ * Node list data sent to popout for dropdown
+ */
+interface NodeListData {
+    nodes: { id: number; title: string; type: string; order?: number }[];
+    sortBy: 'title' | 'execOrder';
 }
 
 interface PopOutConfig {
@@ -68,6 +76,7 @@ export class PopOutManager {
     private isOpen: boolean = false;
     private popOutWindow: Window | null = null;
     public onStateChange: ((isOpen: boolean) => void) | null = null;
+    public onNodeSelect: ((nodeId: number) => void) | null = null;
     private lastPongTime: number = 0;
     private pingInterval: number | null = null;
     private viewerUrl: string;
@@ -92,7 +101,7 @@ export class PopOutManager {
      */
     private getViewerUrl(): string {
         // Cache-busting version - increment to force refresh
-        const version = 'v20';
+        const version = 'v21';
 
         // Find the extension's base URL from the loaded scripts
         const scripts = document.querySelectorAll('script[src*="magnify"]');
@@ -167,6 +176,17 @@ export class PopOutManager {
                 // this.stopPing(); 
                 Logger.debug('[PopOut] Viewer tab closed');
                 if (this.onStateChange) this.onStateChange(false);
+                break;
+            case 'request-nodes':
+                // Popout is requesting the node list for dropdown
+                Logger.debug('[PopOut] Received request-nodes:', message.data);
+                this.handleNodeListRequest(message.data as 'title' | 'execOrder');
+                break;
+            case 'node-select':
+                // Popout selected a node, notify main window
+                if (this.onNodeSelect && typeof message.data === 'number') {
+                    this.onNodeSelect(message.data);
+                }
                 break;
         }
     }
@@ -314,6 +334,51 @@ export class PopOutManager {
             type: 'info',
             data: sanitizedInfo || undefined
         });
+    }
+
+    /**
+     * Handle node list request from popout viewer.
+     * Fetches nodes from canvas and sends them to the popout.
+     */
+    private handleNodeListRequest(sortBy: 'title' | 'execOrder'): void {
+        if (!this.channel) return;
+
+        try {
+            // Access nodes from ComfyUI's app object
+            const app = (window as any).app;
+            const nodes = app?.graph?._nodes || [];
+
+            let nodeList: { id: number; title: string; type: string; order?: number }[];
+
+            if (sortBy === 'execOrder') {
+                nodeList = nodes
+                    .map((n: any) => ({
+                        id: n.id,
+                        title: n.title || 'Untitled',
+                        type: n.type || 'Unknown',
+                        order: n.order ?? -1
+                    }))
+                    .filter((n: any) => n.order >= 0)
+                    .sort((a: any, b: any) => a.order - b.order);
+            } else {
+                nodeList = nodes
+                    .map((n: any) => ({
+                        id: n.id,
+                        title: n.title || 'Untitled',
+                        type: n.type || 'Unknown'
+                    }))
+                    .sort((a: any, b: any) => a.title.localeCompare(b.title));
+            }
+
+            this.sendMessage({
+                type: 'nodes-list',
+                data: { nodes: nodeList, sortBy }
+            });
+
+            Logger.debug(`[PopOut] Sent ${nodeList.length} nodes to viewer (sorted by ${sortBy})`);
+        } catch (e) {
+            Logger.error('[PopOut] Failed to get node list:', e);
+        }
     }
 
     /**

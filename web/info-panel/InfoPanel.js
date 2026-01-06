@@ -44,6 +44,9 @@ class InfoPanel {
       this.magnifyGlass.popOutManager.onStateChange = (isOpen) => {
         this.uiManager.updateControlStates();
       };
+      this.magnifyGlass.popOutManager.onNodeSelect = (nodeId) => {
+        this.onNodeSelected(nodeId);
+      };
     }
     this.uiManager.onNodeSelected = (nodeId) => {
       this.onNodeSelected(nodeId);

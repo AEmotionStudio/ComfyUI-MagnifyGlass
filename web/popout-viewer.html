@@ -730,6 +730,72 @@
             box-shadow: none !important;
             object-fit: cover;
         }
+
+        /* Clickable row styles */
+        .info-row.clickable-row {
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .info-row.clickable-row:hover {
+            background: var(--bg-elevated);
+        }
+
+        .dropdown-indicator {
+            margin-left: 4px;
+            opacity: 0.6;
+            font-size: 10px;
+        }
+
+        /* Node selector dropdown */
+        .node-selector-dropdown {
+            position: absolute;
+            z-index: 100000;
+            max-height: 300px;
+            overflow-y: auto;
+            background: var(--bg-elevated);
+            border: 1px solid var(--border-default);
+            border-radius: var(--radius-md);
+            box-shadow: var(--shadow-lg);
+            min-width: 200px;
+            max-width: 300px;
+        }
+
+        .node-selector-dropdown .dropdown-item {
+            padding: 8px 12px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+        }
+
+        .node-selector-dropdown .dropdown-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .node-selector-dropdown .dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .node-selector-dropdown .node-order {
+            color: var(--accent-cyan);
+            font-weight: 600;
+            min-width: 24px;
+        }
+
+        .node-selector-dropdown .node-title {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .node-selector-dropdown .node-type {
+            color: var(--text-tertiary);
+            font-size: 11px;
+        }
     </style>
 </head>
 
@@ -904,6 +970,9 @@
                 case 'close':
                     markDisconnected();
                     break;
+                case 'nodes-list':
+                    handleNodesList(message.data);
+                    break;
             }
         };
 
@@ -1009,14 +1078,14 @@
                             <span class="section-badge">${escapeHtml(info.hoveredNode.type || 'Unknown')}</span>
                         </div>
                         <div class="section-body">
-                            <div class="info-row">
+                            <div class="info-row clickable-row" onclick="requestNodeDropdown('title', this)">
                                 <span class="info-label">Title</span>
-                                <span class="info-value">${escapeHtml(info.hoveredNode.title || 'Untitled')}</span>
+                                <span class="info-value">${escapeHtml(info.hoveredNode.title || 'Untitled')}<span class="dropdown-indicator">▼</span></span>
                             </div>
                             ${info.hoveredNode.executionOrder !== undefined ? `
-                            <div class="info-row">
+                            <div class="info-row clickable-row" onclick="requestNodeDropdown('execOrder', this)">
                                 <span class="info-label">Exec Order</span>
-                                <span class="info-value">${info.hoveredNode.executionOrder}</span>
+                                <span class="info-value">${info.hoveredNode.executionOrder}<span class="dropdown-indicator">▼</span></span>
                             </div>` : ''}
                             ${info.hoveredNode.category ? `
                             <div class="info-row">
@@ -1158,6 +1227,123 @@
         function hideEmptyState() {
             const existing = sidebarContent.querySelector('.empty-state');
             if (existing) existing.remove();
+        }
+
+        // Node selection dropdown functionality
+        let currentDropdownAnchorRect = null;
+        let pendingDropdownType = null;
+
+        function requestNodeDropdown(type, anchorElement) {
+            console.log('[Popout] requestNodeDropdown called:', type, anchorElement);
+            // Store anchor position immediately (before potential re-render)
+            if (anchorElement) {
+                currentDropdownAnchorRect = anchorElement.getBoundingClientRect();
+                console.log('[Popout] Stored anchorRect:', currentDropdownAnchorRect);
+            }
+            pendingDropdownType = type;
+
+            // Request node list from main window
+            if (channel) {
+                console.log('[Popout] Sending request-nodes message');
+                channel.postMessage({ type: 'request-nodes', data: type });
+            } else {
+                console.log('[Popout] ERROR: channel is null!');
+            }
+        }
+
+        function handleNodesList(data) {
+            console.log('[Popout] handleNodesList called:', data);
+            console.log('[Popout] currentDropdownAnchorRect:', currentDropdownAnchorRect);
+            if (!data || !data.nodes || !currentDropdownAnchorRect) {
+                console.log('[Popout] handleNodesList returning early');
+                return;
+            }
+            showDropdown(data.nodes, data.sortBy);
+        }
+
+        function showDropdown(nodes, sortBy) {
+            // Save anchorRect before hideDropdown clears it
+            const savedAnchorRect = currentDropdownAnchorRect;
+            hideDropdown();
+
+            if (nodes.length === 0) return;
+            if (!savedAnchorRect) return;
+
+            const dropdown = document.createElement('div');
+            dropdown.className = 'node-selector-dropdown';
+            dropdown.id = 'node-dropdown';
+
+            nodes.forEach(node => {
+                const item = document.createElement('div');
+                item.className = 'dropdown-item';
+
+                if (sortBy === 'execOrder' && node.order !== undefined) {
+                    item.innerHTML = `
+                        <span class="node-order">#${node.order}</span>
+                        <span class="node-title">${escapeHtml(node.title)}</span>
+                        <span class="node-type">${escapeHtml(node.type)}</span>
+                    `;
+                } else {
+                    item.innerHTML = `
+                        <span class="node-title">${escapeHtml(node.title)}</span>
+                        <span class="node-type">${escapeHtml(node.type)}</span>
+                    `;
+                }
+
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    selectNode(node.id);
+                    hideDropdown();
+                });
+
+                dropdown.appendChild(item);
+            });
+
+            // Position dropdown
+            document.body.appendChild(dropdown);
+            console.log('[Popout] showDropdown: Created dropdown with', nodes.length, 'nodes');
+            const anchorRect = savedAnchorRect;
+            dropdown.style.top = `${anchorRect.bottom + 4}px`;
+            dropdown.style.left = `${anchorRect.left}px`;
+            console.log('[Popout] showDropdown: Positioned at', dropdown.style.top, dropdown.style.left);
+
+            // Adjust if off-screen
+            const dropdownRect = dropdown.getBoundingClientRect();
+            if (dropdownRect.right > window.innerWidth - 10) {
+                dropdown.style.left = `${window.innerWidth - dropdownRect.width - 10}px`;
+            }
+            if (dropdownRect.bottom > window.innerHeight - 10) {
+                dropdown.style.top = `${anchorRect.top - dropdownRect.height - 4}px`;
+            }
+
+            // Close on click outside
+            setTimeout(() => {
+                document.addEventListener('click', closeDropdownOnClickOutside);
+            }, 10);
+        }
+
+        function closeDropdownOnClickOutside(e) {
+            const dropdown = document.getElementById('node-dropdown');
+            if (dropdown && !dropdown.contains(e.target)) {
+                hideDropdown();
+            }
+        }
+
+        function hideDropdown() {
+            const dropdown = document.getElementById('node-dropdown');
+            if (dropdown) {
+                dropdown.remove();
+            }
+            document.removeEventListener('click', closeDropdownOnClickOutside);
+            currentDropdownAnchorRect = null;
+            pendingDropdownType = null;
+        }
+
+        function selectNode(nodeId) {
+            // Send node selection to main window
+            if (channel) {
+                channel.postMessage({ type: 'node-select', data: nodeId });
+            }
         }
 
         function markConnected() {

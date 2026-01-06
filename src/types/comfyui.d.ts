@@ -214,6 +214,7 @@ export interface MagnifyGlassInstance {
         sendInfo(info: unknown): void;
         toggle(): void;
         onStateChange?: ((isOpen: boolean) => void) | null;
+        onNodeSelect?: ((nodeId: number) => void) | null;
         updateTheme?(theme: string): void;
     };
     lastKnownMousePosition: { x: number; y: number };

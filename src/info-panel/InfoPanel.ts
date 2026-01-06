@@ -63,6 +63,10 @@ export class InfoPanel {
             this.magnifyGlass.popOutManager.onStateChange = (isOpen: boolean) => {
                 this.uiManager.updateControlStates();
             };
+            // Listen for node selection from popout
+            this.magnifyGlass.popOutManager.onNodeSelect = (nodeId: number) => {
+                this.onNodeSelected(nodeId);
+            };
         }
 
         // Set up node selection callback

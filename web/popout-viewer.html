@@ -1340,8 +1340,10 @@
         }
 
         function selectNode(nodeId) {
+            console.log('[Popout] selectNode called with nodeId:', nodeId);
             // Send node selection to main window
             if (channel) {
+                console.log('[Popout] Sending node-select message');
                 channel.postMessage({ type: 'node-select', data: nodeId });
             }
         }

@@ -190,6 +190,7 @@ class InfoPanel {
    */
   onNodeSelected(nodeId) {
     Logger.debug(`Node selected from dropdown: ${nodeId}`);
+    this.stateManager.setSelectedNode(nodeId);
     this.updateInfo();
   }
   /**

@@ -278,6 +278,9 @@ export class InfoPanel {
     onNodeSelected(nodeId: number): void {
         Logger.debug(`Node selected from dropdown: ${nodeId}`);
 
+        // Set the selected node in state manager
+        this.stateManager.setSelectedNode(nodeId);
+
         // Force an immediate info update
         this.updateInfo();
     }

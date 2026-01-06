@@ -1224,6 +1224,7 @@
                 const name = escapeHtml(item.name || item.label || 'Unknown');
                 const type = item.type ? escapeHtml(item.type) : null;
                 const value = item.value !== undefined ? escapeHtml(String(item.value)) : null;
+                const itemId = `${title.toLowerCase()}-${index}`;
 
                 return `
                     <div style="
@@ -1235,35 +1236,61 @@
                         transition: all 0.15s ease;
                     " onmouseover="this.style.background='var(--bg-tertiary)'; this.style.borderColor='var(--border-default)'" 
                        onmouseout="this.style.background='var(--bg-secondary)'; this.style.borderColor='var(--border-subtle)'">
-                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: ${value ? '6px' : '0'};">
+                        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: ${value ? '6px' : '0'};">
                             <span style="
                                 font-size: 12px;
                                 font-weight: 600;
                                 color: var(--text-primary);
                             ">${name}</span>
                             ${type ? `<span style="
-                                font-size: 9px;
-                                padding: 2px 6px;
+                                font-size: 8px;
+                                padding: 2px 5px;
                                 background: ${badgeColor}22;
                                 color: ${badgeColor};
-                                border-radius: 4px;
+                                border-radius: 3px;
                                 font-weight: 500;
                                 text-transform: uppercase;
-                                letter-spacing: 0.3px;
+                                letter-spacing: 0.2px;
+                                word-break: break-all;
+                                max-width: 100%;
                             ">${type}</span>` : ''}
                         </div>
-                        ${value ? `<div style="
-                            font-size: 11px;
-                            color: var(--accent-blue);
-                            font-weight: 500;
-                            background: var(--bg-tertiary);
-                            padding: 6px 10px;
-                            border-radius: 4px;
-                            word-break: break-word;
-                            white-space: pre-wrap;
-                            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
-                            line-height: 1.4;
-                        ">${value}</div>` : ''}
+                        ${value ? `<div style="position: relative;">
+                            <div id="${itemId}" style="
+                                font-size: 11px;
+                                color: var(--accent-blue);
+                                font-weight: 500;
+                                background: var(--bg-tertiary);
+                                padding: 8px 36px 8px 10px;
+                                border-radius: 4px;
+                                word-break: break-word;
+                                white-space: pre-wrap;
+                                font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+                                line-height: 1.4;
+                            ">${value}</div>
+                            <button onclick="copyToClipboard('${value.replace(/'/g, "\\'")}', this)" style="
+                                position: absolute;
+                                top: 6px;
+                                right: 6px;
+                                background: var(--bg-secondary);
+                                border: 1px solid var(--border-subtle);
+                                border-radius: 4px;
+                                padding: 4px 6px;
+                                cursor: pointer;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                opacity: 0.7;
+                                transition: all 0.15s ease;
+                            " onmouseover="this.style.opacity='1'; this.style.background='var(--bg-tertiary)'" 
+                               onmouseout="this.style.opacity='0.7'; this.style.background='var(--bg-secondary)'"
+                               title="Copy to clipboard">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                                </svg>
+                            </button>
+                        </div>` : ''}
                     </div>`;
             }).join('');
 
@@ -1344,6 +1371,28 @@
             if (channel) {
                 channel.postMessage({ type: 'zoom-node', data: nodeId });
             }
+        }
+
+        function copyToClipboard(text, button) {
+            navigator.clipboard.writeText(text).then(() => {
+                // Show success feedback
+                const originalContent = button.innerHTML;
+                button.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+                button.style.borderColor = '#22c55e';
+                setTimeout(() => {
+                    button.innerHTML = originalContent;
+                    button.style.borderColor = 'var(--border-subtle)';
+                }, 1500);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+            });
         }
 
         function handleNodesList(data) {

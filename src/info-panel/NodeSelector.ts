@@ -67,6 +67,19 @@ export class NodeSelector {
     }
 
     /**
+     * Get nodes sorted by ID number (ascending).
+     */
+    getNodesSortedById(): NodeListEntry[] {
+        return this.getAllNodes()
+            .map(n => ({
+                id: n.id,
+                title: n.title || 'Untitled',
+                type: n.type || 'Unknown'
+            }))
+            .sort((a, b) => a.id - b.id);
+    }
+
+    /**
      * Get a node by its ID.
      */
     getNodeById(id: number): ComfyNode | null {

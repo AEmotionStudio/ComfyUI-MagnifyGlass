@@ -29,6 +29,16 @@ class NodeSelector {
     })).filter((n) => n.order >= 0).sort((a, b) => a.order - b.order);
   }
   /**
+   * Get nodes sorted by ID number (ascending).
+   */
+  getNodesSortedById() {
+    return this.getAllNodes().map((n) => ({
+      id: n.id,
+      title: n.title || "Untitled",
+      type: n.type || "Unknown"
+    })).sort((a, b) => a.id - b.id);
+  }
+  /**
    * Get a node by its ID.
    */
   getNodeById(id) {

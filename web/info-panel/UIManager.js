@@ -547,7 +547,8 @@ class UIManager {
     }
     if (info.hoveredNode) {
       const nodeContent = [
-        { label: "Title", value: info.hoveredNode.title, clickable: "title" }
+        { label: "Title", value: info.hoveredNode.title, clickable: "title" },
+        { label: "ID", value: `#${info.hoveredNode.id}`, clickable: "id" }
       ];
       if (info.hoveredNode.executionOrder !== void 0) {
         nodeContent.push({ label: "Exec Order", value: info.hoveredNode.executionOrder, clickable: "execOrder" });
@@ -653,6 +654,8 @@ class UIManager {
           this.showTitleDropdown(row);
         } else if (clickableType === "execOrder") {
           this.showExecOrderDropdown(row);
+        } else if (clickableType === "id") {
+          this.showIdDropdown(row);
         }
       });
       row.addEventListener("mouseenter", () => {
@@ -741,6 +744,16 @@ class UIManager {
     const nodes = this.nodeSelector.getNodesSortedByExecOrder();
     if (nodes.length === 0) return;
     this.createDropdown(nodes, anchorElement, "execOrder");
+  }
+  /**
+   * Show dropdown with nodes sorted by ID.
+   * @param anchorElement - Element to anchor the dropdown to
+   */
+  showIdDropdown(anchorElement) {
+    this.hideDropdown();
+    const nodes = this.nodeSelector.getNodesSortedById();
+    if (nodes.length === 0) return;
+    this.createDropdown(nodes, anchorElement, "id");
   }
   /**
    * Create and show the dropdown.

@@ -22,7 +22,7 @@ interface PopOutMessage {
  */
 interface NodeListData {
     nodes: { id: number; title: string; type: string; order?: number }[];
-    sortBy: 'title' | 'execOrder';
+    sortBy: 'title' | 'execOrder' | 'id';
 }
 
 interface PopOutConfig {
@@ -180,7 +180,7 @@ export class PopOutManager {
             case 'request-nodes':
                 // Popout is requesting the node list for dropdown
                 Logger.debug('[PopOut] Received request-nodes:', message.data);
-                this.handleNodeListRequest(message.data as 'title' | 'execOrder');
+                this.handleNodeListRequest(message.data as 'title' | 'execOrder' | 'id');
                 break;
             case 'node-select':
                 // Popout selected a node, notify main window
@@ -340,7 +340,7 @@ export class PopOutManager {
      * Handle node list request from popout viewer.
      * Fetches nodes from canvas and sends them to the popout.
      */
-    private handleNodeListRequest(sortBy: 'title' | 'execOrder'): void {
+    private handleNodeListRequest(sortBy: 'title' | 'execOrder' | 'id'): void {
         if (!this.channel) return;
 
         try {
@@ -360,6 +360,14 @@ export class PopOutManager {
                     }))
                     .filter((n: any) => n.order >= 0)
                     .sort((a: any, b: any) => a.order - b.order);
+            } else if (sortBy === 'id') {
+                nodeList = nodes
+                    .map((n: any) => ({
+                        id: n.id,
+                        title: n.title || 'Untitled',
+                        type: n.type || 'Unknown'
+                    }))
+                    .sort((a: any, b: any) => a.id - b.id);
             } else {
                 nodeList = nodes
                     .map((n: any) => ({

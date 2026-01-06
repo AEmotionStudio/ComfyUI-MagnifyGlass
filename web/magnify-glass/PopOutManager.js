@@ -229,6 +229,12 @@ class PopOutManager {
           type: n.type || "Unknown",
           order: n.order ?? -1
         })).filter((n) => n.order >= 0).sort((a, b) => a.order - b.order);
+      } else if (sortBy === "id") {
+        nodeList = nodes.map((n) => ({
+          id: n.id,
+          title: n.title || "Untitled",
+          type: n.type || "Unknown"
+        })).sort((a, b) => a.id - b.id);
       } else {
         nodeList = nodes.map((n) => ({
           id: n.id,

@@ -761,7 +761,8 @@ export class UIManager {
         // Node Details section
         if (info.hoveredNode) {
             const nodeContent: any[] = [
-                { label: 'Title', value: info.hoveredNode.title, clickable: 'title' }
+                { label: 'Title', value: info.hoveredNode.title, clickable: 'title' },
+                { label: 'ID', value: `#${info.hoveredNode.id}`, clickable: 'id' }
             ];
 
             // Add execution order if available
@@ -910,6 +911,8 @@ export class UIManager {
                     this.showTitleDropdown(row as HTMLElement);
                 } else if (clickableType === 'execOrder') {
                     this.showExecOrderDropdown(row as HTMLElement);
+                } else if (clickableType === 'id') {
+                    this.showIdDropdown(row as HTMLElement);
                 }
             });
 
@@ -1016,12 +1019,25 @@ export class UIManager {
     }
 
     /**
+     * Show dropdown with nodes sorted by ID.
+     * @param anchorElement - Element to anchor the dropdown to
+     */
+    showIdDropdown(anchorElement: HTMLElement): void {
+        this.hideDropdown();
+
+        const nodes = this.nodeSelector.getNodesSortedById();
+        if (nodes.length === 0) return;
+
+        this.createDropdown(nodes, anchorElement, 'id');
+    }
+
+    /**
      * Create and show the dropdown.
      */
     private createDropdown(
         nodes: NodeListEntry[] | NodeExecOrderEntry[],
         anchorElement: HTMLElement,
-        type: 'title' | 'execOrder'
+        type: 'title' | 'execOrder' | 'id'
     ): void {
         const dropdown = document.createElement('div');
         dropdown.className = `node-selector-dropdown theme-${this.stateManager.state.currentTheme}`;

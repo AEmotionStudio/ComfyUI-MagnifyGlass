@@ -1082,6 +1082,11 @@
                                 <span class="info-label">Title</span>
                                 <span class="info-value">${escapeHtml(info.hoveredNode.title || 'Untitled')}<span class="dropdown-indicator">▼</span></span>
                             </div>
+                            ${info.hoveredNode.id !== undefined ? `
+                            <div class="info-row clickable-row" onclick="requestNodeDropdown('id', this)">
+                                <span class="info-label">ID</span>
+                                <span class="info-value">#${info.hoveredNode.id}<span class="dropdown-indicator">▼</span></span>
+                            </div>` : ''}
                             ${info.hoveredNode.executionOrder !== undefined ? `
                             <div class="info-row clickable-row" onclick="requestNodeDropdown('execOrder', this)">
                                 <span class="info-label">Exec Order</span>
@@ -1280,6 +1285,12 @@
                 if (sortBy === 'execOrder' && node.order !== undefined) {
                     item.innerHTML = `
                         <span class="node-order">#${node.order}</span>
+                        <span class="node-title">${escapeHtml(node.title)}</span>
+                        <span class="node-type">${escapeHtml(node.type)}</span>
+                    `;
+                } else if (sortBy === 'id') {
+                    item.innerHTML = `
+                        <span class="node-order">#${node.id}</span>
                         <span class="node-title">${escapeHtml(node.title)}</span>
                         <span class="node-type">${escapeHtml(node.type)}</span>
                     `;

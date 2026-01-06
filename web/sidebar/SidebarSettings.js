@@ -524,6 +524,18 @@ function renderSettingsPanel(container) {
     },
     "Keep displaying the last node info when hovering empty space"
   ));
+  panelSection.body.appendChild(createToggle(
+    "Node Highlight Border",
+    getSettingValue("🔍MagnifyGlass.NodeHighlightEnabled", true),
+    (checked) => {
+      setSettingValue("🔍MagnifyGlass.NodeHighlightEnabled", checked);
+      const app2 = window.app;
+      if (app2 && app2.canvas) {
+        app2.canvas.setDirty(true, true);
+      }
+    },
+    "Show a blue highlight border around the currently inspected node"
+  ));
   panelSection.body.appendChild(createSelect(
     "Position",
     getSettingValue("🔍MagnifyGlass.InfoPanelPosition", "Bottom"),

@@ -67,9 +67,12 @@ class CanvasHighlighter {
    * Draw the highlight rectangle around the target node.
    */
   drawHighlight(ctx, scale) {
+    var _a, _b;
     if (this.highlightedNodeId === null) return;
     const app = window.app;
     if (!app) return;
+    const highlightEnabled = ((_b = (_a = app.ui) == null ? void 0 : _a.settings) == null ? void 0 : _b.getSettingValue("🔍MagnifyGlass.NodeHighlightEnabled")) ?? true;
+    if (!highlightEnabled) return;
     const node = app.graph.getNodeById(this.highlightedNodeId);
     if (!node) return;
     ctx.save();

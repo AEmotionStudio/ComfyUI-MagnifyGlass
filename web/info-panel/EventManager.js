@@ -137,6 +137,19 @@ class EventManager {
       e.preventDefault();
       (_b = this.callbacks) == null ? void 0 : _b.togglePin();
     }
+    const holdInfoHotkey = (settings["🔍MagnifyGlass.HoldInfoHotkey"] || "p").toLowerCase();
+    if (key === holdInfoHotkey) {
+      e.preventDefault();
+      const isHeld = this.stateManager.toggleHold();
+      Logger.debug(`Hold Info toggled: ${isHeld ? "PAUSED" : "PLAYING"}`);
+    }
+    const stickyInfoHotkey = (settings["🔍MagnifyGlass.StickyInfoHotkey"] || "s").toLowerCase();
+    if (key === stickyInfoHotkey) {
+      e.preventDefault();
+      const newValue = !settings["🔍MagnifyGlass.InfoPanelPersist"];
+      settings["🔍MagnifyGlass.InfoPanelPersist"] = newValue;
+      Logger.debug(`Sticky Info toggled: ${newValue ? "ON" : "OFF"}`);
+    }
   }
   handleMouseMove(e) {
   }

@@ -49,6 +49,9 @@ export interface PanelSettings {
     "🔍MagnifyGlass.InfoPanelFontSize": number;
     "🔍MagnifyGlass.InfoPanelFontFamily": string;
     "🔍MagnifyGlass.InfoPanelPersist": boolean;
+    "🔍MagnifyGlass.HoldInfoHotkey": string;
+    "🔍MagnifyGlass.StickyInfoHotkey": string;
+    "🔍MagnifyGlass.NodeHighlightEnabled": boolean;
     [key: string]: string | number | boolean; // Allow indexing
 }
 

@@ -61,6 +61,9 @@ export const DEFAULT_PANEL_SETTINGS: PanelSettings = {
     "🔍MagnifyGlass.InfoPanelFontSize": 14,
     "🔍MagnifyGlass.InfoPanelFontFamily": "System Default",
     "🔍MagnifyGlass.InfoPanelPersist": false,
+    "🔍MagnifyGlass.HoldInfoHotkey": "p",
+    "🔍MagnifyGlass.StickyInfoHotkey": "s",
+    "🔍MagnifyGlass.NodeHighlightEnabled": true,
 };
 
 /**

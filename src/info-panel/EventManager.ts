@@ -210,6 +210,23 @@ export class EventManager {
             e.preventDefault();
             this.callbacks?.togglePin();
         }
+
+        // Toggle Hold Info (Pause/Play)
+        const holdInfoHotkey = (settings["🔍MagnifyGlass.HoldInfoHotkey"] as string || "p").toLowerCase();
+        if (key === holdInfoHotkey) {
+            e.preventDefault();
+            const isHeld = this.stateManager.toggleHold();
+            Logger.debug(`Hold Info toggled: ${isHeld ? 'PAUSED' : 'PLAYING'}`);
+        }
+
+        // Toggle Sticky Info (Persist mode)
+        const stickyInfoHotkey = (settings["🔍MagnifyGlass.StickyInfoHotkey"] as string || "s").toLowerCase();
+        if (key === stickyInfoHotkey) {
+            e.preventDefault();
+            const newValue = !(settings["🔍MagnifyGlass.InfoPanelPersist"] as boolean);
+            settings["🔍MagnifyGlass.InfoPanelPersist"] = newValue;
+            Logger.debug(`Sticky Info toggled: ${newValue ? 'ON' : 'OFF'}`);
+        }
     }
 
     handleMouseMove(e: MouseEvent): void {

@@ -36,7 +36,10 @@ const DEFAULT_PANEL_SETTINGS = {
   "🔍MagnifyGlass.InfoPanelAccentColor": "#3b82f6",
   "🔍MagnifyGlass.InfoPanelFontSize": 14,
   "🔍MagnifyGlass.InfoPanelFontFamily": "System Default",
-  "🔍MagnifyGlass.InfoPanelPersist": false
+  "🔍MagnifyGlass.InfoPanelPersist": false,
+  "🔍MagnifyGlass.HoldInfoHotkey": "p",
+  "🔍MagnifyGlass.StickyInfoHotkey": "s",
+  "🔍MagnifyGlass.NodeHighlightEnabled": true
 };
 const DEFAULT_ACCESSIBILITY_SETTINGS = {
   "🔍MagnifyGlass.AccessibilityEnabled": false,

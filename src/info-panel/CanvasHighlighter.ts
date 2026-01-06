@@ -94,6 +94,11 @@ export class CanvasHighlighter {
         if (this.highlightedNodeId === null) return;
         const app = (window as any).app;
         if (!app) return;
+
+        // Check if highlight is enabled via settings
+        const highlightEnabled = app.ui?.settings?.getSettingValue('🔍MagnifyGlass.NodeHighlightEnabled') ?? true;
+        if (!highlightEnabled) return;
+
         const node = app.graph.getNodeById(this.highlightedNodeId);
         if (!node) return;
 

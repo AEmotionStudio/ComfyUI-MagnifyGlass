@@ -2,6 +2,7 @@
  * ComfyUI MagnifyGlass - Panel Settings Registration
  * 
  * Registers all info panel settings with ComfyUI.
+ * Settings are organized into logical groups using numbered prefixes.
  */
 
 // @ts-ignore
@@ -18,9 +19,13 @@ import { DEFAULT_PANEL_SETTINGS } from './defaults';
 export function registerPanelSettings(stateManager: any, uiManager: any, positionManager: any): void {
     const settings = DEFAULT_PANEL_SETTINGS;
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // GROUP 4: INFO PANEL CORE
+    // ═══════════════════════════════════════════════════════════════════════════
+
     app.ui.settings.addSetting({
         id: "🔍MagnifyGlass.InfoPanelEnabled",
-        name: "📊 Info Panel: Enable",
+        name: "🔍 [4] Info Panel: Enable",
         type: "combo",
         options: [{ value: true, text: "Yes" }, { value: false, text: "No" }],
         defaultValue: settings["🔍MagnifyGlass.InfoPanelEnabled"],
@@ -37,7 +42,7 @@ export function registerPanelSettings(stateManager: any, uiManager: any, positio
 
     app.ui.settings.addSetting({
         id: "🔍MagnifyGlass.InfoPanelPosition",
-        name: "📊 Info Panel: Position",
+        name: "🔍 [4] Info Panel: Position",
         type: "combo",
         options: PANEL_POSITIONS.map(p => ({ value: p, text: p })),
         defaultValue: settings["🔍MagnifyGlass.InfoPanelPosition"],
@@ -53,8 +58,76 @@ export function registerPanelSettings(stateManager: any, uiManager: any, positio
     });
 
     app.ui.settings.addSetting({
+        id: "🔍MagnifyGlass.InfoPanelPersist",
+        name: "🔍 [4] Info Panel: Sticky Mode (Persist)",
+        type: "boolean",
+        defaultValue: settings["🔍MagnifyGlass.InfoPanelPersist"],
+        tooltip: "Keep displaying the last node's info until you hover over another node.",
+        onChange: (value: any) => {
+            if (stateManager) {
+                stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"] = !!value;
+                if (uiManager) {
+                    uiManager.updateControlStates();
+                }
+            }
+        }
+    });
+
+    app.ui.settings.addSetting({
+        id: "🔍MagnifyGlass.NodeHighlightEnabled",
+        name: "🔍 [4] Info Panel: Node Highlight Border",
+        type: "boolean",
+        defaultValue: settings["🔍MagnifyGlass.NodeHighlightEnabled"] ?? true,
+        tooltip: "Show a blue highlight border around the currently inspected node.",
+        onChange: (value: any) => {
+            if (stateManager) {
+                stateManager.state.settings["🔍MagnifyGlass.NodeHighlightEnabled"] = !!value;
+                const app = (window as any).app;
+                if (app && app.canvas) {
+                    app.canvas.setDirty(true, true);
+                }
+            }
+        }
+    });
+
+    app.ui.settings.addSetting({
+        id: "🔍MagnifyGlass.ShowInspectorTab",
+        name: "🔍 [4] Info Panel: Show Inspector Tab",
+        type: "combo",
+        options: [{ value: true, text: "Yes" }, { value: false, text: "No" }],
+        defaultValue: settings["🔍MagnifyGlass.ShowInspectorTab"],
+        tooltip: "Show or hide the Inspector tab with cursor and canvas information.",
+        onChange: (value: any) => {
+            if (stateManager) {
+                stateManager.state.settings["🔍MagnifyGlass.ShowInspectorTab"] = !!value;
+            }
+        }
+    });
+
+    app.ui.settings.addSetting({
+        id: "🔍MagnifyGlass.ShowHoveringControls",
+        name: "🔍 [4] Info Panel: Show Hover Controls",
+        type: "combo",
+        options: [{ value: true, text: "Yes" }, { value: false, text: "No" }],
+        defaultValue: settings["🔍MagnifyGlass.ShowHoveringControls"],
+        tooltip: "Show or hide hovering UI controls above the info panel.",
+        onChange: (value: any) => {
+            if (stateManager) {
+                stateManager.state.settings["🔍MagnifyGlass.ShowHoveringControls"] = !!value;
+                if (uiManager && uiManager.elements.controls) {
+                    uiManager.elements.controls.style.display = value ? 'flex' : 'none';
+                }
+            }
+        }
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // GROUP 5: INFO PANEL SIZING
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    app.ui.settings.addSetting({
         id: "🔍MagnifyGlass.InfoPanelWidth",
-        name: "📊 Info Panel: Width (px)",
+        name: "🔍 [5] Panel Sizing: Width (px)",
         type: "slider",
         defaultValue: settings["🔍MagnifyGlass.InfoPanelWidth"],
         min: 200,
@@ -72,27 +145,8 @@ export function registerPanelSettings(stateManager: any, uiManager: any, positio
     });
 
     app.ui.settings.addSetting({
-        id: "🔍MagnifyGlass.InfoPanelOpacity",
-        name: "📊 Info Panel: Opacity (%)",
-        type: "slider",
-        defaultValue: settings["🔍MagnifyGlass.InfoPanelOpacity"],
-        min: 10,
-        max: 100,
-        step: 5,
-        tooltip: "Opacity of the information panel background.",
-        onChange: (value: any) => {
-            if (stateManager) {
-                stateManager.state.settings["🔍MagnifyGlass.InfoPanelOpacity"] = parseInt(String(value), 10);
-                if (uiManager) {
-                    uiManager.applyStyles();
-                }
-            }
-        }
-    });
-
-    app.ui.settings.addSetting({
         id: "🔍MagnifyGlass.InfoPanelMaxHeight",
-        name: "📊 Info Panel: Max Height (px)",
+        name: "🔍 [5] Panel Sizing: Max Height (px)",
         type: "slider",
         defaultValue: settings["🔍MagnifyGlass.InfoPanelMaxHeight"],
         min: 200,
@@ -110,8 +164,31 @@ export function registerPanelSettings(stateManager: any, uiManager: any, positio
     });
 
     app.ui.settings.addSetting({
+        id: "🔍MagnifyGlass.InfoPanelOpacity",
+        name: "🔍 [5] Panel Sizing: Opacity (%)",
+        type: "slider",
+        defaultValue: settings["🔍MagnifyGlass.InfoPanelOpacity"],
+        min: 10,
+        max: 100,
+        step: 5,
+        tooltip: "Opacity of the information panel background.",
+        onChange: (value: any) => {
+            if (stateManager) {
+                stateManager.state.settings["🔍MagnifyGlass.InfoPanelOpacity"] = parseInt(String(value), 10);
+                if (uiManager) {
+                    uiManager.applyStyles();
+                }
+            }
+        }
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // GROUP 6: INFO PANEL STYLING
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    app.ui.settings.addSetting({
         id: "🔍MagnifyGlass.InfoPanelFontSize",
-        name: "📊 Info Panel: Font Size (px)",
+        name: "🔍 [6] Panel Style: Font Size (px)",
         type: "slider",
         defaultValue: settings["🔍MagnifyGlass.InfoPanelFontSize"],
         min: 8,
@@ -130,7 +207,7 @@ export function registerPanelSettings(stateManager: any, uiManager: any, positio
 
     app.ui.settings.addSetting({
         id: "🔍MagnifyGlass.InfoPanelFontFamily",
-        name: "📊 Info Panel: Font Family",
+        name: "🔍 [6] Panel Style: Font Family",
         type: "combo",
         options: [
             { value: "System Default", text: "System Default" },
@@ -157,55 +234,8 @@ export function registerPanelSettings(stateManager: any, uiManager: any, positio
     });
 
     app.ui.settings.addSetting({
-        id: "🔍MagnifyGlass.InfoPanelPersist",
-        name: "📊 Info Panel: Persist Node Info",
-        type: "boolean",
-        defaultValue: settings["🔍MagnifyGlass.InfoPanelPersist"],
-        tooltip: "Keep displaying the last node's info until you hover over another node.",
-        onChange: (value: any) => {
-            if (stateManager) {
-                stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"] = !!value;
-                if (uiManager) {
-                    uiManager.updateControlStates();
-                }
-            }
-        }
-    });
-
-    app.ui.settings.addSetting({
-        id: "🔍MagnifyGlass.ShowInspectorTab",
-        name: "📊 Info Panel: Show Inspector Tab",
-        type: "combo",
-        options: [{ value: true, text: "Yes" }, { value: false, text: "No" }],
-        defaultValue: settings["🔍MagnifyGlass.ShowInspectorTab"],
-        tooltip: "Show or hide the Inspector tab with cursor and canvas information.",
-        onChange: (value: any) => {
-            if (stateManager) {
-                stateManager.state.settings["🔍MagnifyGlass.ShowInspectorTab"] = !!value;
-            }
-        }
-    });
-
-    app.ui.settings.addSetting({
-        id: "🔍MagnifyGlass.ShowHoveringControls",
-        name: "📊 Info Panel: Show Hover Controls",
-        type: "combo",
-        options: [{ value: true, text: "Yes" }, { value: false, text: "No" }],
-        defaultValue: settings["🔍MagnifyGlass.ShowHoveringControls"],
-        tooltip: "Show or hide hovering UI controls above the info panel.",
-        onChange: (value: any) => {
-            if (stateManager) {
-                stateManager.state.settings["🔍MagnifyGlass.ShowHoveringControls"] = !!value;
-                if (uiManager && uiManager.elements.controls) {
-                    uiManager.elements.controls.style.display = value ? 'flex' : 'none';
-                }
-            }
-        }
-    });
-
-    app.ui.settings.addSetting({
         id: "🔍MagnifyGlass.InfoPanelTextColor",
-        name: "🎨 Info Panel: Text Color",
+        name: "🔍 [6] Panel Style: Text Color",
         type: "color",
         defaultValue: settings["🔍MagnifyGlass.InfoPanelTextColor"],
         tooltip: "Custom text color for the info panel.",
@@ -223,7 +253,7 @@ export function registerPanelSettings(stateManager: any, uiManager: any, positio
 
     app.ui.settings.addSetting({
         id: "🔍MagnifyGlass.InfoPanelAccentColor",
-        name: "🎨 Info Panel: Accent Color",
+        name: "🔍 [6] Panel Style: Accent Color",
         type: "color",
         defaultValue: settings["🔍MagnifyGlass.InfoPanelAccentColor"],
         tooltip: "Custom accent color for the info panel.",

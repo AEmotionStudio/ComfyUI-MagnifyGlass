@@ -2,6 +2,7 @@
  * ComfyUI MagnifyGlass - Glass Settings Registration
  * 
  * Registers all magnify glass settings with ComfyUI.
+ * Settings are organized into logical groups using numbered prefixes.
  */
 
 // @ts-ignore
@@ -23,9 +24,13 @@ import { DEFAULT_GLASS_SETTINGS } from './defaults';
 export function registerGlassSettings(magnifyGlass: any): void {
     const settings = DEFAULT_GLASS_SETTINGS;
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // GROUP 1: GLASS APPEARANCE
+    // ═══════════════════════════════════════════════════════════════════════════
+
     app.ui.settings.addSetting({
         id: "🔍MagnifyGlass.ZoomFactor",
-        name: "🔍 Magnify Glass: Zoom Factor (%)",
+        name: "🔍 [1] Glass Appearance: Zoom Level (%)",
         type: "slider",
         defaultValue: settings["🔍MagnifyGlass.ZoomFactor"],
         min: 100,
@@ -44,7 +49,7 @@ export function registerGlassSettings(magnifyGlass: any): void {
 
     app.ui.settings.addSetting({
         id: "🔍MagnifyGlass.GlassSize",
-        name: "🔍 Magnify Glass: Size (px)",
+        name: "🔍 [1] Glass Appearance: Size (px)",
         type: "slider",
         defaultValue: settings["🔍MagnifyGlass.GlassSize"],
         min: 50,
@@ -63,8 +68,56 @@ export function registerGlassSettings(magnifyGlass: any): void {
     });
 
     app.ui.settings.addSetting({
+        id: "🔍MagnifyGlass.GlassShape",
+        name: "🔍 [1] Glass Appearance: Shape",
+        type: "combo",
+        options: GLASS_SHAPES.map(s => ({ value: s, text: s })),
+        defaultValue: settings["🔍MagnifyGlass.GlassShape"],
+        tooltip: "Shape of the magnifying glass.",
+        onChange: (value: any) => {
+            if (magnifyGlass?.config) {
+                magnifyGlass.config.glassShape = String(value);
+                magnifyGlass.applyUiChanges();
+            }
+        }
+    });
+
+    app.ui.settings.addSetting({
+        id: "🔍MagnifyGlass.GlassPosition",
+        name: "🔍 [1] Glass Appearance: Screen Position",
+        type: "combo",
+        options: GLASS_POSITIONS.map(p => ({ value: p, text: p === "Bottom" ? "Bottom (Default)" : p })),
+        defaultValue: settings["🔍MagnifyGlass.GlassPosition"],
+        tooltip: "Position of the magnifying glass relative to the cursor.",
+        onChange: (value: any) => {
+            if (magnifyGlass?.config) {
+                magnifyGlass.config.glassPosition = String(value);
+                if (magnifyGlass.state.active && !magnifyGlass.config.followCursor) {
+                    const { x, y } = magnifyGlass.lastKnownMousePosition;
+                    magnifyGlass.ui.positionGlass(x, y);
+                }
+            }
+        }
+    });
+
+    app.ui.settings.addSetting({
+        id: "🔍MagnifyGlass.BorderEnabled",
+        name: "🔍 [1] Glass Appearance: Show Border",
+        type: "combo",
+        options: [{ value: true, text: "Yes" }, { value: false, text: "No" }],
+        defaultValue: settings["🔍MagnifyGlass.BorderEnabled"],
+        tooltip: "Enable or disable the border around the magnifying glass.",
+        onChange: (value: any) => {
+            if (magnifyGlass?.config) {
+                magnifyGlass.config.borderEnabled = !!value;
+                magnifyGlass.applyUiChanges();
+            }
+        }
+    });
+
+    app.ui.settings.addSetting({
         id: "🔍MagnifyGlass.BorderWidth",
-        name: "🔍 Magnify Glass: Border Width (px)",
+        name: "🔍 [1] Glass Appearance: Border Width (px)",
         type: "slider",
         defaultValue: settings["🔍MagnifyGlass.BorderWidth"],
         min: 0,
@@ -81,7 +134,7 @@ export function registerGlassSettings(magnifyGlass: any): void {
 
     app.ui.settings.addSetting({
         id: "🔍MagnifyGlass.BorderColor",
-        name: "🎨 Magnify Glass: Border Color",
+        name: "🔍 [1] Glass Appearance: Border Color",
         type: "color",
         defaultValue: settings["🔍MagnifyGlass.BorderColor"],
         tooltip: "Color of the border around the magnifying glass.",
@@ -103,130 +156,8 @@ export function registerGlassSettings(magnifyGlass: any): void {
     });
 
     app.ui.settings.addSetting({
-        id: "🔍MagnifyGlass.ActivationKey",
-        name: "⌨️ Magnify Glass: Activation Key",
-        type: "combo",
-        options: ACTIVATION_KEYS.map(k => ({ value: k, text: k })),
-        defaultValue: settings["🔍MagnifyGlass.ActivationKey"],
-        tooltip: "The key to activate the magnifier.",
-        onChange: (value: any) => {
-            if (magnifyGlass?.config) {
-                magnifyGlass.config.activationKey = String(value).toLowerCase();
-            }
-        }
-    });
-
-    app.ui.settings.addSetting({
-        id: "🔍MagnifyGlass.AltRequired",
-        name: "⌨️ Magnify Glass: Require Alt/Option Key",
-        type: "combo",
-        options: [{ value: true, text: "Yes" }, { value: false, text: "No" }],
-        defaultValue: settings["🔍MagnifyGlass.AltRequired"],
-        tooltip: "If Yes, Alt (Windows/Linux) or Option (Mac) must be held for activation.",
-        onChange: (value: any) => {
-            if (magnifyGlass?.config) {
-                magnifyGlass.config.altRequired = !!value;
-            }
-        }
-    });
-
-    app.ui.settings.addSetting({
-        id: "🔍MagnifyGlass.FollowCursor",
-        name: "🖱️ Magnify Glass: Follow Cursor Position",
-        type: "combo",
-        options: [{ value: true, text: "Yes" }, { value: false, text: "No" }],
-        defaultValue: settings["🔍MagnifyGlass.FollowCursor"],
-        tooltip: "If Yes, the magnifier window moves with the cursor.",
-        onChange: (value: any) => {
-            if (magnifyGlass?.config) {
-                magnifyGlass.config.followCursor = !!value;
-            }
-        }
-    });
-
-    app.ui.settings.addSetting({
-        id: "🔍MagnifyGlass.OffsetStep",
-        name: "⌨️ Magnify Glass: Offset Adjust Step",
-        type: "slider",
-        defaultValue: settings["🔍MagnifyGlass.OffsetStep"],
-        min: 1,
-        max: 50,
-        step: 1,
-        tooltip: "How many graph units the view shifts when pressing arrow keys.",
-        onChange: (value: any) => {
-            if (magnifyGlass?.config) {
-                magnifyGlass.config.offsetStep = parseInt(String(value), 10);
-            }
-        }
-    });
-
-    app.ui.settings.addSetting({
-        id: "🔍MagnifyGlass.ResetKey",
-        name: "⌨️ Magnify Glass: Reset Offset Key",
-        type: "combo",
-        options: RESET_KEYS.map(k => ({ value: k, text: k })),
-        defaultValue: settings["🔍MagnifyGlass.ResetKey"],
-        tooltip: "The key to reset the magnify glass offset to default.",
-        onChange: (value: any) => {
-            if (magnifyGlass?.config) {
-                magnifyGlass.config.resetKey = String(value).toLowerCase();
-            }
-        }
-    });
-
-
-
-    app.ui.settings.addSetting({
-        id: "🔍MagnifyGlass.GlassPosition",
-        name: "🖱️ Magnify Glass: Glass Position",
-        type: "combo",
-        options: GLASS_POSITIONS.map(p => ({ value: p, text: p === "Bottom" ? "Bottom (Default)" : p })),
-        defaultValue: settings["🔍MagnifyGlass.GlassPosition"],
-        tooltip: "Position of the magnifying glass relative to the cursor.",
-        onChange: (value: any) => {
-            if (magnifyGlass?.config) {
-                magnifyGlass.config.glassPosition = String(value);
-                if (magnifyGlass.state.active && !magnifyGlass.config.followCursor) {
-                    const { x, y } = magnifyGlass.lastKnownMousePosition;
-                    magnifyGlass.ui.positionGlass(x, y);
-                }
-            }
-        }
-    });
-
-    app.ui.settings.addSetting({
-        id: "🔍MagnifyGlass.GlassShape",
-        name: "🖼️ Magnify Glass: Shape",
-        type: "combo",
-        options: GLASS_SHAPES.map(s => ({ value: s, text: s })),
-        defaultValue: settings["🔍MagnifyGlass.GlassShape"],
-        tooltip: "Shape of the magnifying glass.",
-        onChange: (value: any) => {
-            if (magnifyGlass?.config) {
-                magnifyGlass.config.glassShape = String(value);
-                magnifyGlass.applyUiChanges();
-            }
-        }
-    });
-
-    app.ui.settings.addSetting({
-        id: "🔍MagnifyGlass.BorderEnabled",
-        name: "🖼️ Magnify Glass: Show Border",
-        type: "combo",
-        options: [{ value: true, text: "Yes" }, { value: false, text: "No" }],
-        defaultValue: settings["🔍MagnifyGlass.BorderEnabled"],
-        tooltip: "Enable or disable the border around the magnifying glass.",
-        onChange: (value: any) => {
-            if (magnifyGlass?.config) {
-                magnifyGlass.config.borderEnabled = !!value;
-                magnifyGlass.applyUiChanges();
-            }
-        }
-    });
-
-    app.ui.settings.addSetting({
         id: "🔍MagnifyGlass.TextureFiltering",
-        name: "🖼️ Magnify Glass: Texture Filtering",
+        name: "🔍 [1] Glass Appearance: Texture Filtering",
         type: "combo",
         options: [
             { value: "Linear", text: "Linear (Smooth)" },
@@ -246,36 +177,8 @@ export function registerGlassSettings(magnifyGlass: any): void {
     });
 
     app.ui.settings.addSetting({
-        id: "🔍MagnifyGlass.AlwaysActiveMode",
-        name: "🔒 Magnify Glass: Always Active Mode",
-        type: "combo",
-        options: [{ value: true, text: "Yes" }, { value: false, text: "No" }],
-        defaultValue: settings["🔍MagnifyGlass.AlwaysActiveMode"],
-        tooltip: "If Yes, activating the magnifier keeps it on until activated again.",
-        onChange: (value: any) => {
-            if (magnifyGlass?.config) {
-                magnifyGlass.config.alwaysActiveMode = !!value;
-            }
-        }
-    });
-
-    app.ui.settings.addSetting({
-        id: "🔍MagnifyGlass.ToggleFollowCursorKey",
-        name: "🔑 Magnify Glass: Toggle Follow Key",
-        type: "combo",
-        options: TOGGLE_FOLLOW_KEYS.map(k => ({ value: k, text: k })),
-        defaultValue: settings["🔍MagnifyGlass.ToggleFollowCursorKey"],
-        tooltip: "The key to toggle the 'Follow Cursor' behavior.",
-        onChange: (value: any) => {
-            if (magnifyGlass?.config) {
-                magnifyGlass.config.toggleFollowCursorKey = String(value).toLowerCase();
-            }
-        }
-    });
-
-    app.ui.settings.addSetting({
         id: "🔍MagnifyGlass.ShowCursorPreview",
-        name: "🖱️ Magnify Glass: Show Cursor Preview",
+        name: "🔍 [1] Glass Appearance: Show Cursor Preview",
         type: "combo",
         options: [{ value: true, text: "Yes" }, { value: false, text: "No" }],
         defaultValue: settings["🔍MagnifyGlass.ShowCursorPreview"] ?? false,
@@ -290,9 +193,134 @@ export function registerGlassSettings(magnifyGlass: any): void {
         }
     });
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // GROUP 2: GLASS BEHAVIOR
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    app.ui.settings.addSetting({
+        id: "🔍MagnifyGlass.AlwaysActiveMode",
+        name: "🔍 [2] Glass Behavior: Always Active Mode",
+        type: "combo",
+        options: [{ value: true, text: "Yes" }, { value: false, text: "No" }],
+        defaultValue: settings["🔍MagnifyGlass.AlwaysActiveMode"],
+        tooltip: "If Yes, activating the magnifier keeps it on until activated again.",
+        onChange: (value: any) => {
+            if (magnifyGlass?.config) {
+                magnifyGlass.config.alwaysActiveMode = !!value;
+            }
+        }
+    });
+
+    app.ui.settings.addSetting({
+        id: "🔍MagnifyGlass.FollowCursor",
+        name: "🔍 [2] Glass Behavior: Follow Cursor",
+        type: "combo",
+        options: [{ value: true, text: "Yes" }, { value: false, text: "No" }],
+        defaultValue: settings["🔍MagnifyGlass.FollowCursor"],
+        tooltip: "If Yes, the magnifier window moves with the cursor.",
+        onChange: (value: any) => {
+            if (magnifyGlass?.config) {
+                magnifyGlass.config.followCursor = !!value;
+            }
+        }
+    });
+
+    app.ui.settings.addSetting({
+        id: "🔍MagnifyGlass.ForceDirectCapture",
+        name: "🔍 [2] Glass Behavior: Force Direct Capture",
+        type: "combo",
+        options: [{ value: true, text: "Yes" }, { value: false, text: "No" }],
+        defaultValue: settings["🔍MagnifyGlass.ForceDirectCapture"] ?? false,
+        tooltip: "Force usage of Direct Capture mode even at low zoom levels.",
+        onChange: (value: any) => {
+            if (magnifyGlass?.config) {
+                magnifyGlass.config.forceDirectCapture = !!value;
+                if (magnifyGlass.state.active) {
+                    magnifyGlass.updateMagnifiedView();
+                }
+            }
+        }
+    });
+
+    app.ui.settings.addSetting({
+        id: "🔍MagnifyGlass.OffsetStep",
+        name: "🔍 [2] Glass Behavior: Arrow Key Step Size",
+        type: "slider",
+        defaultValue: settings["🔍MagnifyGlass.OffsetStep"],
+        min: 1,
+        max: 50,
+        step: 1,
+        tooltip: "How many graph units the view shifts when pressing arrow keys.",
+        onChange: (value: any) => {
+            if (magnifyGlass?.config) {
+                magnifyGlass.config.offsetStep = parseInt(String(value), 10);
+            }
+        }
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // GROUP 3: HOTKEYS
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    app.ui.settings.addSetting({
+        id: "🔍MagnifyGlass.ActivationKey",
+        name: "🔍 [3] Hotkeys: Glass Activation Key",
+        type: "combo",
+        options: ACTIVATION_KEYS.map(k => ({ value: k, text: k })),
+        defaultValue: settings["🔍MagnifyGlass.ActivationKey"],
+        tooltip: "The key to activate the magnifier.",
+        onChange: (value: any) => {
+            if (magnifyGlass?.config) {
+                magnifyGlass.config.activationKey = String(value).toLowerCase();
+            }
+        }
+    });
+
+    app.ui.settings.addSetting({
+        id: "🔍MagnifyGlass.AltRequired",
+        name: "🔍 [3] Hotkeys: Require Alt/Option Key",
+        type: "combo",
+        options: [{ value: true, text: "Yes" }, { value: false, text: "No" }],
+        defaultValue: settings["🔍MagnifyGlass.AltRequired"],
+        tooltip: "If Yes, Alt (Windows/Linux) or Option (Mac) must be held for activation.",
+        onChange: (value: any) => {
+            if (magnifyGlass?.config) {
+                magnifyGlass.config.altRequired = !!value;
+            }
+        }
+    });
+
+    app.ui.settings.addSetting({
+        id: "🔍MagnifyGlass.ResetKey",
+        name: "🔍 [3] Hotkeys: Reset Offset Key",
+        type: "combo",
+        options: RESET_KEYS.map(k => ({ value: k, text: k })),
+        defaultValue: settings["🔍MagnifyGlass.ResetKey"],
+        tooltip: "The key to reset the magnify glass offset to default.",
+        onChange: (value: any) => {
+            if (magnifyGlass?.config) {
+                magnifyGlass.config.resetKey = String(value).toLowerCase();
+            }
+        }
+    });
+
+    app.ui.settings.addSetting({
+        id: "🔍MagnifyGlass.ToggleFollowCursorKey",
+        name: "🔍 [3] Hotkeys: Toggle Follow Cursor Key",
+        type: "combo",
+        options: TOGGLE_FOLLOW_KEYS.map(k => ({ value: k, text: k })),
+        defaultValue: settings["🔍MagnifyGlass.ToggleFollowCursorKey"],
+        tooltip: "The key to toggle the 'Follow Cursor' behavior.",
+        onChange: (value: any) => {
+            if (magnifyGlass?.config) {
+                magnifyGlass.config.toggleFollowCursorKey = String(value).toLowerCase();
+            }
+        }
+    });
+
     app.ui.settings.addSetting({
         id: "🔍MagnifyGlass.ForceDirectCaptureKey",
-        name: "⚡ Magnify Glass: Force Direct Capture Key",
+        name: "🔍 [3] Hotkeys: Force Direct Capture Key",
         type: "combo",
         options: DIRECT_CAPTURE_KEYS.map(k => ({ value: k, text: k })),
         defaultValue: settings["🔍MagnifyGlass.ForceDirectCaptureKey"] ?? "d",
@@ -304,27 +332,13 @@ export function registerGlassSettings(magnifyGlass: any): void {
         }
     });
 
-    app.ui.settings.addSetting({
-        id: "🔍MagnifyGlass.ForceDirectCapture",
-        name: "⚡ Magnify Glass: Force Direct Capture",
-        type: "combo",
-        options: [{ value: true, text: "Yes" }, { value: false, text: "No" }],
-        defaultValue: settings["🔍MagnifyGlass.ForceDirectCapture"] ?? false,
-        tooltip: "Force usage of Direct Capture mode even at low zoom levels.",
-        onChange: (value: any) => {
-            if (magnifyGlass?.config) {
-                // Update runtime flag
-                magnifyGlass.config.forceDirectCapture = !!value;
-                if (magnifyGlass.state.active) {
-                    magnifyGlass.updateMagnifiedView();
-                }
-            }
-        }
-    });
+    // ═══════════════════════════════════════════════════════════════════════════
+    // GROUP 9: ACTIONS (at bottom)
+    // ═══════════════════════════════════════════════════════════════════════════
 
     app.ui.settings.addSetting({
         id: "🔍MagnifyGlass.Action.ResetPosition",
-        name: "🔄 Magnify Glass: Reset Position",
+        name: "🔍 [9] Actions: Reset Glass Position",
         type: "boolean",
         defaultValue: false,
         tooltip: "Toggle to reset the glass position and disable follow cursor.",
@@ -333,7 +347,6 @@ export function registerGlassSettings(magnifyGlass: any): void {
                 if (magnifyGlass?.resetOffsets) {
                     magnifyGlass.resetOffsets();
                 }
-                // Reset the toggle back to false
                 setTimeout(() => {
                     try {
                         app.ui.settings.setSettingValue("🔍MagnifyGlass.Action.ResetPosition", false);
@@ -345,7 +358,7 @@ export function registerGlassSettings(magnifyGlass: any): void {
 
     app.ui.settings.addSetting({
         id: "🔍MagnifyGlass.Action.ResetAll",
-        name: "⚠️ Magnify Glass: Reset ALL Settings",
+        name: "🔍 [9] Actions: ⚠️ Reset ALL Settings",
         type: "boolean",
         defaultValue: false,
         tooltip: "Toggle to reset ALL settings to defaults.",
@@ -368,11 +381,9 @@ export function registerGlassSettings(magnifyGlass: any): void {
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.ToggleFollowCursorKey', 'h');
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.AltRequired', false);
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.OffsetStep', 5);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.OffsetStep', 5);
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.ShowCursorPreview', false);
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.ForceDirectCapture', false);
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.ForceDirectCaptureKey', 'd');
-
 
                     // Panel Defaults
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.InfoPanelEnabled', true);
@@ -399,7 +410,6 @@ export function registerGlassSettings(magnifyGlass: any): void {
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.BoldTextEnabled', false);
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.TextOutlineEnabled', false);
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.TextOutlineColor', '#000000');
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.TextOutlineColor', '#000000');
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.NodeTitleEmphasis', false);
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.InvertColors', false);
                     app.ui.settings.setSettingValue('🔍MagnifyGlass.GrayscaleMode', false);
@@ -411,7 +421,6 @@ export function registerGlassSettings(magnifyGlass: any): void {
                     }
                 }
 
-                // Reset the toggle back to false
                 setTimeout(() => {
                     try {
                         app.ui.settings.setSettingValue("🔍MagnifyGlass.Action.ResetAll", false);

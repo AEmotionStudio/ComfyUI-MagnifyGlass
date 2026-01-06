@@ -1223,8 +1223,48 @@
             const listHtml = items.map((item, index) => {
                 const name = escapeHtml(item.name || item.label || 'Unknown');
                 const type = item.type ? escapeHtml(item.type) : null;
-                const value = item.value !== undefined ? escapeHtml(String(item.value)) : null;
+                const rawValue = item.value !== undefined ? String(item.value) : null;
                 const itemId = `${title.toLowerCase()}-${index}`;
+
+                // Check if value contains a data URI image (chart/plot)
+                const isImageValue = rawValue && rawValue.includes("data:image");
+                const value = isImageValue ? rawValue : (rawValue ? escapeHtml(rawValue) : null);
+
+                // For image values, render directly without escaping
+                if (isImageValue) {
+                    return `
+                        <div style="
+                            padding: 10px 12px;
+                            background: var(--bg-secondary);
+                            border-radius: 6px;
+                            margin-bottom: 6px;
+                            border: 1px solid var(--border-subtle);
+                        ">
+                            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px;">
+                                <span style="
+                                    font-size: 12px;
+                                    font-weight: 600;
+                                    color: var(--text-primary);
+                                ">${name}</span>
+                                ${type ? `<span style="
+                                    font-size: 8px;
+                                    padding: 2px 5px;
+                                    background: ${badgeColor}22;
+                                    color: ${badgeColor};
+                                    border-radius: 3px;
+                                    font-weight: 500;
+                                    text-transform: uppercase;
+                                ">${type}</span>` : ''}
+                            </div>
+                            <div style="
+                                background: var(--bg-tertiary);
+                                border-radius: 4px;
+                                padding: 8px;
+                                text-align: center;
+                                overflow: hidden;
+                            ">${value}</div>
+                        </div>`;
+                }
 
                 return `
                     <div style="
@@ -1268,7 +1308,7 @@
                                 font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
                                 line-height: 1.4;
                             ">${value}</div>
-                            <button onclick="copyToClipboard('${value.replace(/'/g, "\\'")}', this)" style="
+                            <button onclick="copyToClipboard('${rawValue.replace(/'/g, "\\'")}', this)" style="
                                 position: absolute;
                                 top: 6px;
                                 right: 6px;

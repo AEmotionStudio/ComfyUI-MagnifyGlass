@@ -760,11 +760,13 @@ export class UIManager {
 
         // Node Details section
         if (info.hoveredNode) {
-            const nodeContent: any[] = [
-                { label: 'Title', value: info.hoveredNode.title, clickable: 'title' },
-                { label: 'ID', value: `#${info.hoveredNode.id}`, clickable: 'id' }
-            ];
-
+            const nodeContent: any[] = [];        // Initial Node details
+            nodeContent.push({
+                label: 'Title',
+                value: `${info.hoveredNode.title || 'Untitled'} (#${info.hoveredNode.id})`,
+                clickable: 'title'
+            });
+            nodeContent.push({ label: 'Type', value: info.hoveredNode.type });
             // Add execution order if available
             if (info.hoveredNode.executionOrder !== undefined) {
                 nodeContent.push({ label: 'Exec Order', value: info.hoveredNode.executionOrder, clickable: 'execOrder' });
@@ -1075,12 +1077,12 @@ export class UIManager {
                 const execNode = node as NodeExecOrderEntry;
                 item.innerHTML = `
                     <span style="color: var(--info-panel-accent-color, #4ecdc4); font-weight: 600; min-width: 24px;">#${execNode.order}</span>
-                    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${execNode.title}</span>
+                    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${execNode.title} (#${execNode.id})</span>
                     <span style="color: #888; font-size: 11px;">${execNode.type}</span>
                 `;
             } else {
                 item.innerHTML = `
-                    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${node.title}</span>
+                    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${node.title} (#${node.id})</span>
                     <span style="color: #888; font-size: 11px;">${node.type}</span>
                 `;
             }

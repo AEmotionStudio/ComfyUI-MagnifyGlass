@@ -9,6 +9,7 @@ import { UIManager } from "./UIManager.js";
 import { PositionManager } from "./PositionManager.js";
 import { EventManager } from "./EventManager.js";
 import { InformationGatherer } from "./InformationGatherer.js";
+import { CanvasHighlighter } from "./CanvasHighlighter.js";
 class InfoPanel {
   constructor(magnifyGlass) {
     __publicField(this, "magnifyGlass");
@@ -17,12 +18,14 @@ class InfoPanel {
     __publicField(this, "positionManager");
     __publicField(this, "eventManager");
     __publicField(this, "informationGatherer");
+    __publicField(this, "canvasHighlighter");
     // State for persistence
     __publicField(this, "lastValidNodeInfo", null);
     this.magnifyGlass = magnifyGlass;
     this.stateManager = new StateManager();
     this.uiManager = new UIManager(this.stateManager);
     this.informationGatherer = new InformationGatherer();
+    this.canvasHighlighter = new CanvasHighlighter();
     this.positionManager = new PositionManager(this.stateManager, this.uiManager.elements.panel);
     this.eventManager = new EventManager(this.stateManager, this.uiManager.elements.panel, this.positionManager, {
       toggleVisibility: () => {
@@ -107,7 +110,11 @@ class InfoPanel {
       this.stateManager.state.updateScheduled = false;
     });
   }
-  updateInfo() {
+  /**
+   * Update the info panel with current information.
+   * @param forceUpdate - If true, bypass the isInfoHeld check to force an update
+   */
+  updateInfo(forceUpdate = false) {
     const settings = this.stateManager.state.settings;
     const isActive = this.magnifyGlass.state.active;
     if (!settings["🔍MagnifyGlass.InfoPanelEnabled"] || !isActive) {
@@ -115,9 +122,10 @@ class InfoPanel {
       if (this.uiManager.elements.controls && this.uiManager.elements.controls.style.display !== "none") {
         this.uiManager.elements.controls.style.display = "none";
       }
+      this.canvasHighlighter.setHighlightedNode(null);
       return;
     }
-    if (this.stateManager.state.isInfoHeld) {
+    if (this.stateManager.state.isInfoHeld && !forceUpdate) {
       this.positionManager.positionPanel();
       this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
       return;
@@ -151,6 +159,7 @@ class InfoPanel {
     }
     this.stateManager.setCurrentInfo(info);
     this.uiManager.displayInfo(info);
+    this.canvasHighlighter.setHighlightedNode(info.hoveredNode ? info.hoveredNode.id : null);
     if (this.magnifyGlass.popOutManager && this.magnifyGlass.popOutManager.isPopOutOpen()) {
       this.magnifyGlass.popOutManager.sendInfo(info);
     }
@@ -191,7 +200,7 @@ class InfoPanel {
   onNodeSelected(nodeId) {
     Logger.debug(`Node selected from dropdown: ${nodeId}`);
     this.stateManager.setSelectedNode(nodeId);
-    this.updateInfo();
+    this.updateInfo(true);
   }
   /**
    * Clear the selected node, returning to hover-based detection.

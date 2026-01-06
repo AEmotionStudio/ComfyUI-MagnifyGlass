@@ -546,10 +546,13 @@ class UIManager {
       });
     }
     if (info.hoveredNode) {
-      const nodeContent = [
-        { label: "Title", value: info.hoveredNode.title, clickable: "title" },
-        { label: "ID", value: `#${info.hoveredNode.id}`, clickable: "id" }
-      ];
+      const nodeContent = [];
+      nodeContent.push({
+        label: "Title",
+        value: `${info.hoveredNode.title || "Untitled"} (#${info.hoveredNode.id})`,
+        clickable: "title"
+      });
+      nodeContent.push({ label: "Type", value: info.hoveredNode.type });
       if (info.hoveredNode.executionOrder !== void 0) {
         nodeContent.push({ label: "Exec Order", value: info.hoveredNode.executionOrder, clickable: "execOrder" });
       }
@@ -790,12 +793,12 @@ class UIManager {
         const execNode = node;
         item.innerHTML = `
                     <span style="color: var(--info-panel-accent-color, #4ecdc4); font-weight: 600; min-width: 24px;">#${execNode.order}</span>
-                    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${execNode.title}</span>
+                    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${execNode.title} (#${execNode.id})</span>
                     <span style="color: #888; font-size: 11px;">${execNode.type}</span>
                 `;
       } else {
         item.innerHTML = `
-                    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${node.title}</span>
+                    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${node.title} (#${node.id})</span>
                     <span style="color: #888; font-size: 11px;">${node.type}</span>
                 `;
       }

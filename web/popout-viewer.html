@@ -1080,13 +1080,8 @@
                         <div class="section-body">
                             <div class="info-row clickable-row" onclick="requestNodeDropdown('title', this)">
                                 <span class="info-label">Title</span>
-                                <span class="info-value">${escapeHtml(info.hoveredNode.title || 'Untitled')}<span class="dropdown-indicator">▼</span></span>
+                                <span class="info-value">${escapeHtml(info.hoveredNode.title || 'Untitled')} (#${info.hoveredNode.id})<span class="dropdown-indicator">▼</span></span>
                             </div>
-                            ${info.hoveredNode.id !== undefined ? `
-                            <div class="info-row clickable-row" onclick="requestNodeDropdown('id', this)">
-                                <span class="info-label">ID</span>
-                                <span class="info-value">#${info.hoveredNode.id}<span class="dropdown-indicator">▼</span></span>
-                            </div>` : ''}
                             ${info.hoveredNode.executionOrder !== undefined ? `
                             <div class="info-row clickable-row" onclick="requestNodeDropdown('execOrder', this)">
                                 <span class="info-label">Exec Order</span>
@@ -1104,10 +1099,6 @@
                             </div>` : ''}
                             
                             <!-- Extended Node Properties -->
-                            <div class="info-row">
-                                <span class="info-label">ID</span>
-                                <span class="info-value">#${info.hoveredNode.id || '?'}</span>
-                            </div>
                             ${info.hoveredNode.mode !== undefined ? `
                             <div class="info-row">
                                 <span class="info-label">Mode</span>
@@ -1285,7 +1276,7 @@
                 if (sortBy === 'execOrder' && node.order !== undefined) {
                     item.innerHTML = `
                         <span class="node-order">#${node.order}</span>
-                        <span class="node-title">${escapeHtml(node.title)}</span>
+                        <span class="node-title">${escapeHtml(node.title)} (#${node.id})</span>
                         <span class="node-type">${escapeHtml(node.type)}</span>
                     `;
                 } else if (sortBy === 'id') {
@@ -1296,7 +1287,7 @@
                     `;
                 } else {
                     item.innerHTML = `
-                        <span class="node-title">${escapeHtml(node.title)}</span>
+                        <span class="node-title">${escapeHtml(node.title)} (#${node.id})</span>
                         <span class="node-type">${escapeHtml(node.type)}</span>
                     `;
                 }

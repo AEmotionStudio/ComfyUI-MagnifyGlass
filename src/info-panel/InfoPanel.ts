@@ -13,6 +13,7 @@ import { UIManager } from './UIManager';
 import { PositionManager } from './PositionManager';
 import { EventManager } from './EventManager';
 import { InformationGatherer } from './InformationGatherer';
+import { CanvasHighlighter } from './CanvasHighlighter';
 
 /**
  * Professional Info Panel Manager.
@@ -25,6 +26,7 @@ export class InfoPanel {
     positionManager: PositionManager;
     eventManager: EventManager;
     informationGatherer: InformationGatherer;
+    canvasHighlighter: CanvasHighlighter;
 
     constructor(magnifyGlass: MagnifyGlassInstance) {
         this.magnifyGlass = magnifyGlass;
@@ -33,6 +35,7 @@ export class InfoPanel {
         this.stateManager = new StateManager();
         this.uiManager = new UIManager(this.stateManager);
         this.informationGatherer = new InformationGatherer();
+        this.canvasHighlighter = new CanvasHighlighter();
 
         // Position Manager needs the UI elements
         this.positionManager = new PositionManager(this.stateManager, this.uiManager.elements.panel!);
@@ -165,7 +168,11 @@ export class InfoPanel {
     // State for persistence
     private lastValidNodeInfo: any = null;
 
-    updateInfo(): void {
+    /**
+     * Update the info panel with current information.
+     * @param forceUpdate - If true, bypass the isInfoHeld check to force an update
+     */
+    updateInfo(forceUpdate: boolean = false): void {
         const settings = this.stateManager.state.settings;
         const isActive = this.magnifyGlass.state.active;
 
@@ -176,11 +183,13 @@ export class InfoPanel {
             if (this.uiManager.elements.controls && this.uiManager.elements.controls.style.display !== 'none') {
                 this.uiManager.elements.controls.style.display = 'none';
             }
+            this.canvasHighlighter.setHighlightedNode(null);
             return;
         }
 
         // Logic for "Hold Info" (Freeze)
-        if (this.stateManager.state.isInfoHeld) {
+        // Skip if held, UNLESS we're forcing an update (e.g., from dropdown selection)
+        if (this.stateManager.state.isInfoHeld && !forceUpdate) {
             // If held, we skip gathering new info and skip updating the display content.
             // But we MUST still update positioning to keep the UI responsive to movement.
             this.positionManager.positionPanel();
@@ -228,6 +237,9 @@ export class InfoPanel {
 
         // Update the UI
         this.uiManager.displayInfo(info);
+
+        // Update canvas highlight
+        this.canvasHighlighter.setHighlightedNode(info.hoveredNode ? info.hoveredNode.id : null);
 
         // Send info to pop-out viewer if active
         if (this.magnifyGlass.popOutManager && this.magnifyGlass.popOutManager.isPopOutOpen()) {
@@ -281,8 +293,8 @@ export class InfoPanel {
         // Set the selected node in state manager
         this.stateManager.setSelectedNode(nodeId);
 
-        // Force an immediate info update
-        this.updateInfo();
+        // Force an immediate info update (bypasses isInfoHeld)
+        this.updateInfo(true);
     }
 
     /**

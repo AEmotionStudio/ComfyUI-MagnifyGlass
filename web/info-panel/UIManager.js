@@ -134,8 +134,8 @@ class UIManager {
     this.elements.controls.innerHTML = `
             <button class="control-btn unlock-btn" title="Unlock/Lock Panel from Glass" data-action="pin">${Icons.unlock}</button>
             <button class="control-btn pin-btn" title="Pin/Unpin Panel Position (Prevent Drag)" data-action="lock">${Icons.pin}</button>
-            <button class="control-btn persist-btn" title="Toggle Persist Mode (Sticky Info)" data-action="persist">${Icons.magnet}</button>
-            <button class="control-btn hold-btn" title="Hold Info (Freeze)" data-action="toggle-hold">${Icons.pause}</button>
+            <button class="control-btn persist-btn" title="Toggle Persist Mode - Sticky Info (S)" data-action="persist">${Icons.magnet}</button>
+            <button class="control-btn hold-btn" title="Hold Info - Pause/Play (P)" data-action="toggle-hold">${Icons.pause}</button>
             <button class="control-btn visibility-btn" title="Toggle Panel Visibility (I)" data-action="toggle-panel">${Icons.eye}</button>
             <button class="control-btn glass-btn" title="Toggle Glass Preview (G)" data-action="toggle-glass">${Icons.magnifyGlass}</button>
             <button class="control-btn cursor-btn" title="Toggle Cursor Preview" data-action="toggle-cursor">${Icons.cursor}</button>
@@ -301,7 +301,7 @@ class UIManager {
     if (persistBtn) {
       const isPersistConfigured = !!this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"];
       persistBtn.classList.toggle("active", isPersistConfigured);
-      persistBtn.title = isPersistConfigured ? "Disable Sticky Info" : "Enable Sticky Info (Persist)";
+      persistBtn.title = isPersistConfigured ? "Disable Sticky Info (S)" : "Enable Sticky Info (S)";
       persistBtn.style.display = isPanelVisible ? "flex" : "none";
     }
     const holdBtn = this.elements.controls.querySelector('[data-action="toggle-hold"]');
@@ -311,7 +311,7 @@ class UIManager {
       holdBtn.style.display = isPanelVisible && isPersistConfigured ? "flex" : "none";
       holdBtn.classList.toggle("active", isHeld);
       holdBtn.innerHTML = isHeld ? Icons.play : Icons.pause;
-      holdBtn.title = isHeld ? "Resume Info Update" : "Hold Info (Freeze)";
+      holdBtn.title = isHeld ? "Resume Info Update (P)" : "Pause Info Update (P)";
     }
     if (visibilityBtn) {
       visibilityBtn.classList.toggle("active", isPanelVisible);

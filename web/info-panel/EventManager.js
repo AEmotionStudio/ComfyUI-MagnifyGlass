@@ -139,16 +139,35 @@ class EventManager {
     }
     const holdInfoHotkey = (settings["🔍MagnifyGlass.HoldInfoHotkey"] || "p").toLowerCase();
     if (key === holdInfoHotkey) {
-      e.preventDefault();
-      const isHeld = this.stateManager.toggleHold();
-      Logger.debug(`Hold Info toggled: ${isHeld ? "PAUSED" : "PLAYING"}`);
+      if (settings["🔍MagnifyGlass.InfoPanelPersist"]) {
+        e.preventDefault();
+        const isHeld = this.stateManager.toggleHold();
+        Logger.debug(`Hold Info toggled: ${isHeld ? "PAUSED" : "PLAYING"}`);
+        const infoPanel = window.infoPanelManager;
+        if (infoPanel == null ? void 0 : infoPanel.uiManager) {
+          infoPanel.uiManager.updateControlStates();
+        }
+      }
     }
     const stickyInfoHotkey = (settings["🔍MagnifyGlass.StickyInfoHotkey"] || "s").toLowerCase();
     if (key === stickyInfoHotkey) {
       e.preventDefault();
       const newValue = !settings["🔍MagnifyGlass.InfoPanelPersist"];
       settings["🔍MagnifyGlass.InfoPanelPersist"] = newValue;
+      try {
+        const app = window.app;
+        app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelPersist", newValue);
+      } catch (err) {
+        Logger.debug("Failed to persist sticky info setting");
+      }
+      if (!newValue) {
+        this.stateManager.state.isInfoHeld = false;
+      }
       Logger.debug(`Sticky Info toggled: ${newValue ? "ON" : "OFF"}`);
+      const infoPanel = window.infoPanelManager;
+      if (infoPanel == null ? void 0 : infoPanel.uiManager) {
+        infoPanel.uiManager.updateControlStates();
+      }
     }
   }
   handleMouseMove(e) {

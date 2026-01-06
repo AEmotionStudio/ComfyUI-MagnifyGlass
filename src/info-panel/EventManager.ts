@@ -214,9 +214,17 @@ export class EventManager {
         // Toggle Hold Info (Pause/Play)
         const holdInfoHotkey = (settings["🔍MagnifyGlass.HoldInfoHotkey"] as string || "p").toLowerCase();
         if (key === holdInfoHotkey) {
-            e.preventDefault();
-            const isHeld = this.stateManager.toggleHold();
-            Logger.debug(`Hold Info toggled: ${isHeld ? 'PAUSED' : 'PLAYING'}`);
+            // Only works when Sticky Info (Persist) is enabled
+            if (settings["🔍MagnifyGlass.InfoPanelPersist"]) {
+                e.preventDefault();
+                const isHeld = this.stateManager.toggleHold();
+                Logger.debug(`Hold Info toggled: ${isHeld ? 'PAUSED' : 'PLAYING'}`);
+                // Update the hover controls UI
+                const infoPanel = (window as any).infoPanelManager;
+                if (infoPanel?.uiManager) {
+                    infoPanel.uiManager.updateControlStates();
+                }
+            }
         }
 
         // Toggle Sticky Info (Persist mode)
@@ -224,8 +232,25 @@ export class EventManager {
         if (key === stickyInfoHotkey) {
             e.preventDefault();
             const newValue = !(settings["🔍MagnifyGlass.InfoPanelPersist"] as boolean);
+            // Update local state
             settings["🔍MagnifyGlass.InfoPanelPersist"] = newValue;
+            // Persist to ComfyUI settings
+            try {
+                const app = (window as any).app;
+                app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelPersist", newValue);
+            } catch (err) {
+                Logger.debug('Failed to persist sticky info setting');
+            }
+            // If disabling sticky, also disable hold
+            if (!newValue) {
+                this.stateManager.state.isInfoHeld = false;
+            }
             Logger.debug(`Sticky Info toggled: ${newValue ? 'ON' : 'OFF'}`);
+            // Update the hover controls UI
+            const infoPanel = (window as any).infoPanelManager;
+            if (infoPanel?.uiManager) {
+                infoPanel.uiManager.updateControlStates();
+            }
         }
     }
 

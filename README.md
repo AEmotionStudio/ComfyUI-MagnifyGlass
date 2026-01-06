@@ -23,14 +23,18 @@
 
 ---
 
-## 🚀 What's New in v1.9.0 (January 5, 2026)
+## 🚀 What's New in v1.10.0 (January 6, 2026)
 
-**Visual Accessibility Update & Rendering Overhaul**
+**Inspector Power-Ups & Settings Overhaul**
 
-*   **♿ Visual Methods**: New **Invert Colors**, **Grayscale**, and **Reduce Motion** modes for better accessibility.
-*   **A11y Settings**: High Contrast text, Text Glow, Font Scaling, and Node Title Emphasis.
-*   **Native Rendering**: Complete rewrite of the text rendering engine using native canvas drawing for crisp, aligned text.
-*   **Virtual Zoom Improvements**: Resolved missing widget issues in zoomed-out views.
+*   **📊 Popout Viewer Pro**: 
+    *   **Visual Charts**: Render images/charts directly in the popout.
+    *   **Window Controls**: Fullscreen, Fit-to-Window, and "Keep Alive" modes.
+    *   **Remote Control**: Select and focus nodes on the main canvas from the popout window.
+*   **🧭 Advanced Navigation**:
+    *   **Sortable Lists**: Find nodes by Execution Order or ID.
+    *   **Focus Target**: One-click zoom to any inspected node.
+*   **📋 Copy Everything**: Added one-click copy buttons to all text fields.
 
 > 📄 **See [CHANGELOG.md](CHANGELOG.md) for the complete version history.**
 

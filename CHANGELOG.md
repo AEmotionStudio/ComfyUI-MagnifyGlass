@@ -5,6 +5,41 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.0] - 2026-01-06
+
+### Added
+- **Popout Inspector Charts**: The popout inspector now properly renders charts and images (e.g., from Sigmas plotting nodes) instead of displaying escaped HTML.
+- **Popout Viewer Enhancements**:
+  - **Fullscreen & Fit Modes**: New controls to toggle fullscreen and fit-to-window scaling.
+  - **Keep Alive**: Option to prevent the popout from disconnecting or closing automatically.
+  - **Node Selection**: Full dropdown menu to search and select any node in the graph directly from the popout.
+  - **Comprehensive Data**: Now displays Node ID, Mode, Position, and extended properties.
+- **Copy to Clipboard**: Added copy buttons to all text fields in both the main inspector and popout inspector.
+- **Focus Node**: Added a "Target" icon button to the Location row in both inspectors to instantly center the canvas on that node.
+- **Node Navigation**:
+  - **Smart Sorting**: Node dropdowns now support sorting by **Execution Order** or **Node ID**.
+  - **Searchable Lists**: Quickly find nodes in complex workflows.
+- **Hotkeys**:
+  - **`S`**: Toggle "Sticky Info" (Persist Mode) on/off.
+  - **`P`**: Toggle "Hold Info" (Pause/Play) to freeze the inspector updates.
+  - Added hotkey hints to hover control tooltips.
+- **Node Highlight Toggle**: Added a setting to enable/disable the blue border highlight around the inspected node.
+- **Glass-less Operation**: The Info Panel can now continue to update and track nodes even when the Glass Preview is hidden (toggle with `G`).
+
+### Improved
+- **Settings Organization**: Completely reorganized the settings menu into logical, numbered groups (Appearance, Behavior, Hotkeys, Info Panel, etc.) for better usability.
+- **UI UX**:
+  - Copy buttons now show a green checkmark feedback animation.
+  - Popout inspector visual overhaul with gradient headers, card-based layout, and better typography.
+  - "Type" info removed from main inspector to reduce clutter.
+  - "Location" row moved to a more logical position in the popout inspector.
+
+### Fixed
+- **Popout Inspector**: Fixed data synchronization issues where some values weren't displaying correctly.
+- **Code Duplication**: Removed duplicate rendering logic in `popout-viewer.html`.
+
+---
+
 ## [1.9.0] - 2026-01-05
 
 ### Added

@@ -1227,25 +1227,19 @@
 
                 return `
                     <div style="
-                        display: flex;
-                        align-items: center;
-                        justify-content: space-between;
-                        padding: 8px 10px;
+                        padding: 10px 12px;
                         background: var(--bg-secondary);
                         border-radius: 6px;
-                        margin-bottom: 4px;
+                        margin-bottom: 6px;
                         border: 1px solid var(--border-subtle);
                         transition: all 0.15s ease;
                     " onmouseover="this.style.background='var(--bg-tertiary)'; this.style.borderColor='var(--border-default)'" 
                        onmouseout="this.style.background='var(--bg-secondary)'; this.style.borderColor='var(--border-subtle)'">
-                        <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: ${value ? '6px' : '0'};">
                             <span style="
-                                font-size: 11px;
-                                font-weight: 500;
+                                font-size: 12px;
+                                font-weight: 600;
                                 color: var(--text-primary);
-                                white-space: nowrap;
-                                overflow: hidden;
-                                text-overflow: ellipsis;
                             ">${name}</span>
                             ${type ? `<span style="
                                 font-size: 9px;
@@ -1256,23 +1250,20 @@
                                 font-weight: 500;
                                 text-transform: uppercase;
                                 letter-spacing: 0.3px;
-                                flex-shrink: 0;
                             ">${type}</span>` : ''}
                         </div>
-                        ${value ? `<span style="
+                        ${value ? `<div style="
                             font-size: 11px;
                             color: var(--accent-blue);
                             font-weight: 500;
-                            background: var(--accent-blue)11;
-                            padding: 2px 8px;
+                            background: var(--bg-tertiary);
+                            padding: 6px 10px;
                             border-radius: 4px;
-                            margin-left: 8px;
-                            max-width: 120px;
-                            overflow: hidden;
-                            text-overflow: ellipsis;
-                            white-space: nowrap;
-                            flex-shrink: 0;
-                        ">${value}</span>` : ''}
+                            word-break: break-word;
+                            white-space: pre-wrap;
+                            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+                            line-height: 1.4;
+                        ">${value}</div>` : ''}
                     </div>`;
             }).join('');
 

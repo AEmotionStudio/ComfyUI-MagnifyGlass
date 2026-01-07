@@ -40,7 +40,7 @@
 
 ---
 <div align="center">
-  <a href="https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/ComfyUI-MagnifyGlass.mp4">
+  <a href="https://youtu.be/aUz5kbJDs0I" target="_blank">
     <img src="https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/magnify_glass_action.webp" width="800" alt="Magnify Glass Demo">
   </a>
 </div>

@@ -39,7 +39,9 @@
 > 📄 **See [CHANGELOG.md](CHANGELOG.md) for the complete version history.**
 
 ---
-https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/ComfyUI-MagnifyGlass.mp4
+<div align="center">
+  <video src="https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/ComfyUI-MagnifyGlass.mp4" width="800" controls autoplay loop muted playsinline></video>
+</div>
 ## ✨ Features
 
 <div align="center">

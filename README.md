@@ -41,7 +41,7 @@
 ---
 <div align="center">
   <a href="https://youtu.be/aUz5kbJDs0I" target="_blank">
-    <img src="https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/magnify_glass_action.webp" width="800" alt="Magnify Glass Demo">
+    <img src="https://img.youtube.com/vi/aUz5kbJDs0I/maxresdefault.jpg" width="800" alt="Magnify Glass Demo">
   </a>
 </div>
 ## ✨ Features

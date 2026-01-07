@@ -39,7 +39,7 @@
 > 📄 **See [CHANGELOG.md](CHANGELOG.md) for the complete version history.**
 
 ---
-
+https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/ComfyUI-MagnifyGlass.mp4
 ## ✨ Features
 
 <div align="center">

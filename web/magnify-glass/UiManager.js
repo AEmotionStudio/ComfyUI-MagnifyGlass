@@ -310,70 +310,56 @@ class UiManager {
   injectMenuButton() {
     const stopTime = Date.now() + 3e4;
     const attemptInjection = () => {
-      const buttons = Array.from(document.querySelectorAll("button"));
-      let anchorBtn = buttons.find((b) => {
-        const title = (b.title || "").toLowerCase();
-        const aria = (b.getAttribute("aria-label") || "").toLowerCase();
-        const text = (b.textContent || "").toLowerCase();
-        return title.includes("map") && !title.includes("open") || aria.includes("map") && !aria.includes("open") || text.includes("map");
-      });
-      if (!anchorBtn) {
-        anchorBtn = buttons.find((b) => {
-          const title = (b.title || "").toLowerCase();
-          const aria = (b.getAttribute("aria-label") || "").toLowerCase();
-          return title.includes("link") || aria.includes("link");
-        });
+      const minimapBtn = document.querySelector('button[data-testid="toggle-minimap-button"]');
+      const linkVisibilityBtn = document.querySelector('button[data-testid="toggle-link-visibility-button"]');
+      if (!minimapBtn || !minimapBtn.parentElement) {
+        return false;
       }
-      if (anchorBtn && anchorBtn.parentElement) {
-        if (anchorBtn.parentElement.querySelector(".magnify-toggle-btn")) return true;
-        Logger.debug("Found menu anchor:", anchorBtn.title || anchorBtn.getAttribute("aria-label") || "Unknown Button");
-        const btn = document.createElement("button");
-        btn.className = anchorBtn.className + " magnify-toggle-btn";
-        const computed = window.getComputedStyle(anchorBtn);
-        btn.style.height = computed.height;
-        btn.style.minHeight = computed.minHeight;
-        btn.title = "Toggle Magnify Glass (X)";
-        btn.innerHTML = Icons.magnifyGlass;
-        btn.style.display = "inline-flex";
-        btn.style.alignItems = "center";
-        btn.style.justifyContent = "center";
-        btn.style.padding = "0 8px";
-        btn.style.cursor = "pointer";
-        if (anchorBtn.style.borderRadius) {
-          btn.style.borderRadius = anchorBtn.style.borderRadius;
-        } else {
-          btn.style.borderRadius = computed.borderRadius;
-        }
-        btn.addEventListener("click", () => {
-          if (this.onToggle) {
-            this.onToggle();
-            btn.classList.toggle("active");
-            btn.classList.toggle("p-highlight");
-            btn.classList.toggle("selected");
-          }
-        });
-        const isMinimap = (anchorBtn.title || "").toLowerCase().includes("map") || (anchorBtn.getAttribute("aria-label") || "").toLowerCase().includes("map");
-        if (isMinimap) {
-          if (anchorBtn.nextSibling) {
-            anchorBtn.parentElement.insertBefore(btn, anchorBtn.nextSibling);
-          } else {
-            anchorBtn.parentElement.appendChild(btn);
-          }
-        } else {
-          anchorBtn.parentElement.insertBefore(btn, anchorBtn);
-        }
-        Logger.debug("Menu toggle button injected successfully");
+      if (minimapBtn.parentElement.querySelector(".magnify-toggle-btn")) {
         return true;
       }
-      return false;
+      Logger.debug("Found minimap button in bottom toolbar, injecting magnify glass toggle");
+      const btn = document.createElement("button");
+      btn.className = minimapBtn.className + " magnify-toggle-btn";
+      const computed = window.getComputedStyle(minimapBtn);
+      btn.style.height = computed.height;
+      btn.style.minHeight = computed.minHeight;
+      btn.style.width = computed.width;
+      btn.title = "Toggle Magnify Glass (X)";
+      btn.setAttribute("data-testid", "toggle-magnify-glass-button");
+      btn.innerHTML = Icons.magnifyGlass;
+      btn.style.display = "inline-flex";
+      btn.style.alignItems = "center";
+      btn.style.justifyContent = "center";
+      btn.style.padding = "0";
+      btn.style.cursor = "pointer";
+      if (minimapBtn.style.borderRadius) {
+        btn.style.borderRadius = minimapBtn.style.borderRadius;
+      } else {
+        btn.style.borderRadius = computed.borderRadius;
+      }
+      btn.addEventListener("click", () => {
+        if (this.onToggle) {
+          this.onToggle();
+          btn.classList.toggle("active");
+          btn.classList.toggle("p-highlight");
+          btn.classList.toggle("selected");
+        }
+      });
+      if (linkVisibilityBtn && minimapBtn.parentElement === linkVisibilityBtn.parentElement) {
+        minimapBtn.parentElement.insertBefore(btn, linkVisibilityBtn);
+      } else if (minimapBtn.nextSibling) {
+        minimapBtn.parentElement.insertBefore(btn, minimapBtn.nextSibling);
+      } else {
+        minimapBtn.parentElement.appendChild(btn);
+      }
+      Logger.debug("Menu toggle button injected successfully between minimap and link visibility");
+      return true;
     };
     if (attemptInjection()) return;
     const checkForMenu = setInterval(() => {
       if (Date.now() > stopTime) {
-        console.warn(
-          "[MagnifyGlass] Menu injection timed out. Found buttons:",
-          Array.from(document.querySelectorAll("button")).map((b) => b.title || b.getAttribute("aria-label") || b.textContent || b.className).slice(0, 5)
-        );
+        console.warn("[MagnifyGlass] Menu injection timed out. Could not find toggle-minimap-button");
         clearInterval(checkForMenu);
         return;
       }

@@ -94,7 +94,7 @@ export class UIManager {
         const MARGIN = 20; // Minimum margin from viewport edges
 
         this.elements.panel.addEventListener('mouseenter', () => {
-            // FIX: If in Sticky Mode (Persist), disable this behavior to prevent bouncing
+            // Sticky Mode (Persist): disable this behavior to prevent bouncing
             if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"]) {
                 return;
             }
@@ -127,7 +127,7 @@ export class UIManager {
         });
 
         this.elements.panel.addEventListener('mouseleave', () => {
-            // FIX: If in Sticky Mode (Persist), disable this behavior to prevent bouncing
+            // Sticky Mode (Persist): disable this behavior to prevent bouncing
             if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"]) {
                 return;
             }

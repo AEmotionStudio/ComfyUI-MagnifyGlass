@@ -141,13 +141,9 @@ export class MagnifyGlass {
             // TURNING OFF - Force hide everything
             state.active = false;
             this.ui.hide();
-
-            // SIMPLE FIX: Force hide info panel directly by DOM
-            this.forceHideInfoPanel();
         } else {
             // TURNING ON
             state.active = true;
-            this.removeForceHide(); // Remove force-hidden class before showing
             this.ui.show();
             if (this.eventHandler) {
                 this.eventHandler.updateInitialPosition();
@@ -176,61 +172,6 @@ export class MagnifyGlass {
             this.ui.setPreviewVisibility(false);
             // The rendering will be skipped in updateMagnifiedView due to isPreviewHidden check
         }
-    }
-
-    /**
-     * Force hide the info panel using CSS class with !important.
-     * This bypasses all state management and inline style overrides.
-     */
-    private forceHideInfoPanel(): void {
-        // Ensure CSS rule exists
-        this.ensureForceHideCssRule();
-
-        // Add the force-hidden class to info panel
-        const infoPanel = document.querySelector('.magnify-info-panel');
-        if (infoPanel) {
-            infoPanel.classList.add('magnify-glass-force-hidden');
-        }
-
-        // Add the force-hidden class to floating controls
-        const floatingControls = document.querySelector('.floating-controls');
-        if (floatingControls) {
-            floatingControls.classList.add('magnify-glass-force-hidden');
-        }
-    }
-
-    /**
-     * Remove the force-hidden class when glass is showing.
-     */
-    private removeForceHide(): void {
-        const infoPanel = document.querySelector('.magnify-info-panel');
-        if (infoPanel) {
-            infoPanel.classList.remove('magnify-glass-force-hidden');
-        }
-
-        const floatingControls = document.querySelector('.floating-controls');
-        if (floatingControls) {
-            floatingControls.classList.remove('magnify-glass-force-hidden');
-        }
-    }
-
-    /**
-     * Ensure the CSS rule for force-hidden exists.
-     */
-    private ensureForceHideCssRule(): void {
-        const styleId = 'magnify-glass-force-hide-style';
-        if (document.getElementById(styleId)) return;
-
-        const style = document.createElement('style');
-        style.id = styleId;
-        style.textContent = `
-            .magnify-glass-force-hidden {
-                display: none !important;
-                visibility: hidden !important;
-                opacity: 0 !important;
-            }
-        `;
-        document.head.appendChild(style);
     }
 
     /**

@@ -88,10 +88,8 @@ class MagnifyGlass {
     if (state.active) {
       state.active = false;
       this.ui.hide();
-      this.forceHideInfoPanel();
     } else {
       state.active = true;
-      this.removeForceHide();
       this.ui.show();
       if (this.eventHandler) {
         this.eventHandler.updateInitialPosition();
@@ -113,51 +111,6 @@ class MagnifyGlass {
     } else {
       this.ui.setPreviewVisibility(false);
     }
-  }
-  /**
-   * Force hide the info panel using CSS class with !important.
-   * This bypasses all state management and inline style overrides.
-   */
-  forceHideInfoPanel() {
-    this.ensureForceHideCssRule();
-    const infoPanel = document.querySelector(".magnify-info-panel");
-    if (infoPanel) {
-      infoPanel.classList.add("magnify-glass-force-hidden");
-    }
-    const floatingControls = document.querySelector(".floating-controls");
-    if (floatingControls) {
-      floatingControls.classList.add("magnify-glass-force-hidden");
-    }
-  }
-  /**
-   * Remove the force-hidden class when glass is showing.
-   */
-  removeForceHide() {
-    const infoPanel = document.querySelector(".magnify-info-panel");
-    if (infoPanel) {
-      infoPanel.classList.remove("magnify-glass-force-hidden");
-    }
-    const floatingControls = document.querySelector(".floating-controls");
-    if (floatingControls) {
-      floatingControls.classList.remove("magnify-glass-force-hidden");
-    }
-  }
-  /**
-   * Ensure the CSS rule for force-hidden exists.
-   */
-  ensureForceHideCssRule() {
-    const styleId = "magnify-glass-force-hide-style";
-    if (document.getElementById(styleId)) return;
-    const style = document.createElement("style");
-    style.id = styleId;
-    style.textContent = `
-            .magnify-glass-force-hidden {
-                display: none !important;
-                visibility: hidden !important;
-                opacity: 0 !important;
-            }
-        `;
-    document.head.appendChild(style);
   }
   /**
    * Check if the glass preview is visible.

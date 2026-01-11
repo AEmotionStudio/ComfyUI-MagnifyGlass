@@ -13,13 +13,30 @@ export class CanvasHighlighter {
     private originalOnDrawForeground: ((ctx: CanvasRenderingContext2D, visible_nodes: any) => void) | null = null;
     private highlightedNodeId: number | null = null;
 
-    // Configuration
-    private readonly HIGHLIGHT_COLOR = '#007bff'; // Bootstrap blue
-    private readonly HIGHLIGHT_WIDTH = 2; // px
-    private readonly HIGHLIGHT_PADDING = 0; // px
+    private highlightEl: HTMLDivElement | null = null;
+    // Cache for DOM updates to minimize thrashing
+    private lastStyleState: string = '';
 
     constructor() {
+        this.createHighlightElement();
         this.hookCanvas();
+    }
+
+    private createHighlightElement(): void {
+        this.highlightEl = document.createElement("div");
+        this.highlightEl.id = "magnify-glass-node-highlight";
+        this.highlightEl.style.cssText = `
+            position: fixed;
+            pointer-events: none;
+            border: 2px solid #007bff;
+            border-radius: 10px;
+            z-index: 1000;
+            display: none;
+            box-sizing: border-box;
+            box-shadow: 0 0 10px rgba(0, 123, 255, 0.3);
+            transition: all 0.05s linear;
+        `;
+        document.body.appendChild(this.highlightEl);
     }
 
     /**
@@ -43,18 +60,21 @@ export class CanvasHighlighter {
     /**
      * Set the node ID to highlight.
      */
-    /**
-     * Set the node ID to highlight.
-     */
     setHighlightedNode(nodeId: number | null): void {
         this.ensureHook(); // Ensure we are still hooked
 
         if (this.highlightedNodeId === nodeId) return;
         this.highlightedNodeId = nodeId;
-        // Force redraw to update highlight immediately
+
+        // Force redraw effectively updates our position logic via the hook
         const app = (window as any).app;
         if (app && app.canvas) {
             app.canvas.setDirty(true, true);
+        }
+
+        // Immediate update attempt (in case canvas isn't dirty)
+        if (nodeId === null && this.highlightEl) {
+            this.highlightEl.style.display = 'none';
         }
     }
 
@@ -67,7 +87,6 @@ export class CanvasHighlighter {
 
         // If our hook was overwritten (e.g. by another extension), re-hook
         if (app.canvas.onDrawForeground !== this.boundOnDrawForeground) {
-            // console.log('[MagnifyGlass] Re-hooking CanvasHighlighter');
             this.originalOnDrawForeground = app.canvas.onDrawForeground;
             app.canvas.onDrawForeground = this.boundOnDrawForeground;
         }
@@ -80,76 +99,86 @@ export class CanvasHighlighter {
             this.originalOnDrawForeground.call((window as any).app.canvas, ctx, visible_nodes);
         }
 
-        // Draw our highlight
-        const app = (window as any).app;
-        if (app && app.canvas) {
-            this.drawHighlight(ctx, app.canvas.ds.scale);
-        }
+        // Update DOM Highlight Position
+        this.updateHighlightPosition();
     };
 
     /**
-     * Draw the highlight rectangle around the target node.
+     * Update the position of the DOM highlight element.
      */
-    private drawHighlight(ctx: CanvasRenderingContext2D, scale: number): void {
-        if (this.highlightedNodeId === null) return;
+    private updateHighlightPosition(): void {
+        if (!this.highlightEl) return;
         const app = (window as any).app;
-        if (!app) return;
+        if (!app || !app.canvas || !app.graph) return;
 
-        // Check if highlight is enabled via settings
+        // 1. Check Visibility Settings
         const highlightEnabled = app.ui?.settings?.getSettingValue('🔍MagnifyGlass.NodeHighlightEnabled') ?? true;
-        if (!highlightEnabled) return;
+        if (!highlightEnabled || this.highlightedNodeId === null) {
+            if (this.highlightEl.style.display !== 'none') {
+                this.highlightEl.style.display = 'none';
+            }
+            return;
+        }
 
+        // 2. Get Node
         const node = app.graph.getNodeById(this.highlightedNodeId);
-        if (!node) return;
+        if (!node) {
+            if (this.highlightEl.style.display !== 'none') {
+                this.highlightEl.style.display = 'none';
+            }
+            return;
+        }
 
-        // Save context
-        ctx.save();
+        // 3. Get Canvas Element's position on the page
+        const canvasEl = app.canvas.canvas as HTMLCanvasElement;
+        if (!canvasEl) return;
+        const canvasRect = canvasEl.getBoundingClientRect();
 
-        // Reset transform to draw in graph coordinates
-        // Note: ctx passed to onDrawForeground is already transformed by LiteGraph to graph coordinates
-        // so we can draw using node.pos directly.
+        // 4. Coordinate Math
+        const ds = app.canvas.ds;
+        const scale = ds.scale;
+        const offset = ds.offset;
 
-        // In LiteGraph, node.size only represents the body dimensions (without title bar)
-        // The title bar height must be added to get the full visual node height
         const LiteGraph = (window as any).LiteGraph;
         const titleHeight = LiteGraph?.NODE_TITLE_HEIGHT ?? 30;
+        const padding = 6;
 
-        // Debug: Log values to browser console
-        console.log('[MagnifyGlass] Highlight debug:', {
-            titleHeight,
-            nodePos: node.pos,
-            nodeSize: node.size,
-            NODE_TITLE_HEIGHT: LiteGraph?.NODE_TITLE_HEIGHT
-        });
+        // Graph coordinates
+        // Assuming node.pos is top of body, we shift up by titleHeight to cover title
+        // And use total height = title + body
+        const graphX = node.pos[0];
+        const graphY = node.pos[1] - titleHeight;
+        const graphW = node.size[0];
+        const graphH = titleHeight + node.size[1];
 
-        const padding = 10;
-        const x = node.pos[0] - padding;
-        // Account for the title bar above the node body
-        const y = node.pos[1] - padding - titleHeight;
-        const w = node.size[0] + (padding * 2);
-        // Total node height = title bar + body size
-        const h = titleHeight + node.size[1] + (padding * 2);
+        // Canvas-relative screen coordinates (CSS pixels within the canvas element)
+        // LiteGraph transform is: (Graph + Offset) * Scale
+        const canvasX = (graphX + offset[0]) * scale;
+        const canvasY = (graphY + offset[1]) * scale;
+        const canvasW = graphW * scale;
+        const canvasH = graphH * scale;
 
-        // Draw large blue bar/border
-        ctx.lineWidth = 10; // Thicker border
-        ctx.strokeStyle = '#007bff'; // Blue
-        // ctx.shadowColor = '#007bff'; // Optional glow
-        // ctx.shadowBlur = 0; 
-        ctx.lineJoin = 'round';
-        ctx.lineCap = 'round';
+        // Page-absolute coordinates (add canvas position on the page)
+        const pageX = canvasRect.left + canvasX - padding;
+        const pageY = canvasRect.top + canvasY - padding; // Removed hardcoded offset
+        const finalW = canvasW + (padding * 2);
+        const finalH = canvasH + (padding * 2);
 
-        // Use roundRect if available (modern browsers), else rect
-        ctx.beginPath();
-        if (typeof ctx.roundRect === 'function') {
-            const radius = 10;
-            ctx.roundRect(x, y, w, h, radius);
-        } else {
-            ctx.rect(x, y, w, h);
+        // 5. Update DOM
+        const styleState = `${pageX.toFixed(1)},${pageY.toFixed(1)},${finalW.toFixed(1)},${finalH.toFixed(1)}`;
+        if (this.lastStyleState !== styleState || this.highlightEl.style.display === 'none') {
+            this.highlightEl.style.display = 'block';
+            this.highlightEl.style.left = `${pageX}px`;
+            this.highlightEl.style.top = `${pageY}px`;
+            this.highlightEl.style.width = `${finalW}px`;
+            this.highlightEl.style.height = `${finalH}px`;
+
+            // Border width scales with zoom (clamped 2-6px)
+            const borderWidth = Math.max(2, Math.min(6, 3 * scale));
+            this.highlightEl.style.borderWidth = `${borderWidth}px`;
+
+            this.lastStyleState = styleState;
         }
-        ctx.stroke();
-
-        // Restore context
-        ctx.restore();
     }
 
     /**
@@ -161,6 +190,11 @@ export class CanvasHighlighter {
             if (app.canvas.onDrawForeground === this.boundOnDrawForeground) {
                 app.canvas.onDrawForeground = this.originalOnDrawForeground;
             }
+        }
+
+        if (this.highlightEl) {
+            this.highlightEl.remove();
+            this.highlightEl = null;
         }
     }
 }

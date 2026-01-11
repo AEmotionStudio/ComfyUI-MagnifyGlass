@@ -109,11 +109,26 @@ export class CanvasHighlighter {
         // Note: ctx passed to onDrawForeground is already transformed by LiteGraph to graph coordinates
         // so we can draw using node.pos directly.
 
+        // In LiteGraph, node.size only represents the body dimensions (without title bar)
+        // The title bar height must be added to get the full visual node height
+        const LiteGraph = (window as any).LiteGraph;
+        const titleHeight = LiteGraph?.NODE_TITLE_HEIGHT ?? 30;
+
+        // Debug: Log values to browser console
+        console.log('[MagnifyGlass] Highlight debug:', {
+            titleHeight,
+            nodePos: node.pos,
+            nodeSize: node.size,
+            NODE_TITLE_HEIGHT: LiteGraph?.NODE_TITLE_HEIGHT
+        });
+
         const padding = 10;
         const x = node.pos[0] - padding;
-        const y = node.pos[1] - padding;
+        // Account for the title bar above the node body
+        const y = node.pos[1] - padding - titleHeight;
         const w = node.size[0] + (padding * 2);
-        const h = node.size[1] + (padding * 2);
+        // Total node height = title bar + body size
+        const h = titleHeight + node.size[1] + (padding * 2);
 
         // Draw large blue bar/border
         ctx.lineWidth = 10; // Thicker border

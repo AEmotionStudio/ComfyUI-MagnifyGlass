@@ -76,11 +76,19 @@ class CanvasHighlighter {
     const node = app.graph.getNodeById(this.highlightedNodeId);
     if (!node) return;
     ctx.save();
+    const LiteGraph = window.LiteGraph;
+    const titleHeight = (LiteGraph == null ? void 0 : LiteGraph.NODE_TITLE_HEIGHT) ?? 30;
+    console.log("[MagnifyGlass] Highlight debug:", {
+      titleHeight,
+      nodePos: node.pos,
+      nodeSize: node.size,
+      NODE_TITLE_HEIGHT: LiteGraph == null ? void 0 : LiteGraph.NODE_TITLE_HEIGHT
+    });
     const padding = 10;
     const x = node.pos[0] - padding;
-    const y = node.pos[1] - padding;
+    const y = node.pos[1] - padding - titleHeight;
     const w = node.size[0] + padding * 2;
-    const h = node.size[1] + padding * 2;
+    const h = titleHeight + node.size[1] + padding * 2;
     ctx.lineWidth = 10;
     ctx.strokeStyle = "#007bff";
     ctx.lineJoin = "round";

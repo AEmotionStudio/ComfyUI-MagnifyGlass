@@ -30,7 +30,6 @@ class CanvasHighlighter {
             display: none;
             box-sizing: border-box;
             box-shadow: 0 0 10px rgba(0, 123, 255, 0.3);
-            transition: all 0.05s linear;
         `;
     document.body.appendChild(this.highlightEl);
   }

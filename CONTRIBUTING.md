@@ -2,47 +2,67 @@
 
 First off, thank you for considering contributing to ComfyUI-MagnifyGlass! Your help is greatly appreciated.
 
-## Code of Conduct
-
-This project and everyone participating in it is governed by the [Contributor Covenant Code of Conduct](https
-://www.contributor-covenant.org/version/2/1/code_of_conduct/code_of_conduct.md). By participating, you are expected to uphold this code. Please report unacceptable behavior to the project owner.
-
 ## How Can I Contribute?
+
+There are many ways to contribute, from reporting bugs to suggesting new features or submitting pull requests.
 
 ### Reporting Bugs
 
-If you encounter a bug, please open an issue on GitHub. Before submitting, please check if the issue has already been reported. When creating a bug report, please include as many details as possible, such as:
+If you encounter a bug, please open an issue on our [GitHub issue tracker](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/issues). Please include the following information:
 
 - A clear and descriptive title.
-- A step-by-step description of how to reproduce the bug.
-- The expected behavior and what actually happened.
+- A detailed description of the bug, including steps to reproduce it.
 - Your ComfyUI version and browser information.
 - Any relevant screenshots or error messages.
 
-### Suggesting Enhancements
-
-If you have an idea for a new feature or an improvement to an existing one, please open an issue on GitHub. Provide a clear and detailed explanation of the feature, including:
-
-- A clear and descriptive title.
-- A step-by-step description of the proposed enhancement.
-- The motivation or use case for the enhancement.
-- Any visual mockups or examples that might help explain the feature.
-
 ### Pull Requests
 
-If you'd like to contribute code, please follow these steps:
+We welcome pull requests!
 
-1. Fork the repository and create a new branch from `main`.
-2. Make your changes in the new branch.
-3. Ensure your code follows the existing coding style.
-4. Test your changes to make sure they work as expected.
-5. Create a pull request with a clear title and description of your changes.
+1. Fork the repository.
+2. Create a new branch for your changes (`git checkout -b feature/your-feature-name`).
+3. Make your changes and commit them with a clear and descriptive commit message.
+4. Push your changes to your fork (`git push origin feature/your-feature-name`).
+5. Open a pull request to the `main` branch of this repository.
 
 ## Development Setup
 
-1. Clone your forked repository to your `ComfyUI/custom_nodes` directory.
-2. Install the necessary dependencies with `npm install` (if applicable).
-3. Restart ComfyUI to load the extension.
-4. Make your changes and test them in ComfyUI.
+The project has recently migrated to **TypeScript** for improved stability and developer experience.
 
-Thank you for your contribution!
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) (v18 or higher recommended)
+- [pnpm](https://pnpm.io/) (preferred), npm, or yarn
+
+### Setup Instructions
+
+1.  Clone the repository into your `ComfyUI/custom_nodes` folder.
+2.  Install dependencies:
+    ```bash
+    pnpm install
+    ```
+
+### Workflow Commands
+
+| Command | Description |
+| :--- | :--- |
+| `pnpm run dev` | Watch mode: Automatically rebuilds TypeScript to JavaScript on change. |
+| `pnpm run build` | One-time production build. |
+| `pnpm run typecheck` | Run the TypeScript compiler to check for type errors. |
+| `pnpm run test:unit` | Run Unit and Integration tests using **Vitest**. |
+| `pnpm run test:e2e` | Run End-to-End tests using **Playwright**. |
+
+## Project Structure
+
+- **`src/`**: Contains the TypeScript source code. **Always edit files here.**
+- **`web/`**: Contains the compiled JavaScript files. (Do not edit these manually).
+- **`tests/`**: Contains End-to-End test suites.
+- **`__init__.py`**: ComfyUI entry point (Python).
+
+## Code Style
+
+- Use TypeScript for all new logic.
+- Ensure all tests pass before submitting a PR.
+- Document new features in the code and update the README if necessary.
+
+Thank you for your contributions!

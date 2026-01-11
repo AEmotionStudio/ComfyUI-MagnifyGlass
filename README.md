@@ -39,41 +39,76 @@
 > 📄 **See [CHANGELOG.md](CHANGELOG.md) for the complete version history.**
 
 ---
-<div align="center">
-  <a href="https://youtu.be/aUz5kbJDs0I" target="_blank">
-    <img src="https://img.youtube.com/vi/aUz5kbJDs0I/maxresdefault.jpg" width="800" alt="Magnify Glass Demo">
-  </a>
-</div>
+
+[<img src="https://img.youtube.com/vi/aUz5kbJDs0I/maxresdefault.jpg" width="100%">](https://youtu.be/aUz5kbJDs0I)
+
+<p align="center"><i>NotebookLM Overview: Exploring the features and updates of the ComfyUI-MagnifyGlass extension.</i></p>
+
 ## ✨ Features
 
-<div align="center">
-  <img src="https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/magnify_glass_action.webp" width="800" alt="Magnify Glass Demo">
-</div>
+<table>
+<tr>
+<td width="50%">
 
 ### 🔍 Magnifying Glass
+![Magnifying Glass](https://via.placeholder.com/800x450.png?text=Magnifying+Glass+Demo)
+
 *   **WebGL-Powered**: Smooth, high-performance rendering at any zoom level.
 *   **Smart Interactions**: Follows your cursor or stays fixed. Toggles transparently for click-through.
 *   **Customizable**: Adjust zoom (up to 10x), size, border, and shape (Circle/Square/Rounded).
 
+</td>
+<td width="50%">
+
 ### ℹ️ Inspector Panel
+![Inspector Panel](https://via.placeholder.com/800x450.png?text=Inspector+Panel+Demo)
+
 *   **Deep Analysis**: View node parameters (Seed, CFG, Steps), text content, and image details on hover.
 *   **Dockable Interface**: Pin the panel to keep it stable, or let it follow the glass.
 *   **Themed**: Automatically matches any ComfyUI theme (Dark, Light, Solarized, Arc, Nord, GitHub).
 
+</td>
+</tr>
+<tr>
+<td width="50%">
+
 ### ⚙️ Sidebar Integration
+![Sidebar Integration](https://via.placeholder.com/800x450.png?text=Sidebar+Integration+Demo)
+
 *   **Organized Settings**: All Magnify Glass and Info Panel settings in one place.
 *   **Live Previews**: Changes apply instantly without needing to refresh.
 *   **Reset Options**: Quickly restore defaults with individual or global reset buttons.
 
+</td>
+<td width="50%">
+
 ### 🖥️ Multi-Monitor Pop-Out
+![Multi-Monitor Pop-Out](https://via.placeholder.com/800x450.png?text=Pop-Out+Viewer+Demo)
+
 *   **Detachable Viewer**: Open the magnified view in a separate browser tab.
 *   **Inspector Sidebar**: Real-time node details, cursor position, and canvas scale.
 *   **Resizable Canvas**: Drag to resize, size persists across sessions.
 
+</td>
+</tr>
+<tr>
+<td width="50%">
+
 ### ♿ Accessibility Suite
+![Accessibility Suite](https://via.placeholder.com/800x450.png?text=Accessibility+Options+Demo)
+
 *   **Visual Modes**: Toggle **Invert Colors** or **Grayscale** for high-contrast viewing.
 *   **Reduce Motion**: Disable smooth animations for instant feedback.
 *   **Text Enhancements**: Scaling, Bold, Glow, and Outline options for maximum legibility.
+
+</td>
+<td width="50%">
+
+<!-- Empty cell for layout balance or future feature -->
+
+</td>
+</tr>
+</table>
 
 ---
 
@@ -114,7 +149,9 @@ git clone https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass.git
 
 Access settings via the **new Sidebar Panel** or the ComfyUI Settings (⚙️) menu.
 
-**Magnify Glass**
+<details>
+<summary><b>🔍 Magnify Glass</b></summary>
+
 | Setting | Default | Description |
 | :--- | :--- | :--- |
 | **Zoom Factor** | `300` | Magnification level (300 = 3x). |
@@ -122,7 +159,11 @@ Access settings via the **new Sidebar Panel** or the ComfyUI Settings (⚙️) m
 | **Shape** | `Rounded` | Circle, Square, or Rounded Square. |
 | **Activation Key** | `X` | Hotkey to toggle the tool. |
 
-**Information Panel**
+</details>
+
+<details>
+<summary><b>ℹ️ Information Panel</b></summary>
+
 | Setting | Default | Description |
 | :--- | :--- | :--- |
 | **Theme** | `Auto` | Syncs with ComfyUI theme automatically. |
@@ -130,11 +171,7 @@ Access settings via the **new Sidebar Panel** or the ComfyUI Settings (⚙️) m
 | **Show Hover Controls** | `On` | Displays the quick-action toolbar on the panel. |
 | **Controls Position** | `Top` | Position of hover controls (Top/Bottom). |
 
----
-
-## 📝 License
-
-This project is licensed under the [GPL-3.0](LICENSE) License - see the [LICENSE](LICENSE) file for details.
+</details>
 
 ---
 
@@ -147,13 +184,19 @@ This project is licensed under the [GPL-3.0](LICENSE) License - see the [LICENSE
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please submit a Pull Request or open an Issue on GitHub.
+Contributions are welcome! Please see the [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to get started. Whether it's bug reports, feature suggestions, or pull requests, your help is appreciated.
 
 1.  Fork the Project
 2.  Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
 3.  Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
 4.  Push to the Branch (`git push origin feature/AmazingFeature`)
 5.  Open a Pull Request
+
+---
+
+## 📝 License
+
+This project is licensed under the [GPL-3.0](LICENSE) License - see the [LICENSE](LICENSE) file for details.
 
 ---
 

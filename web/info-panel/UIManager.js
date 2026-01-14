@@ -50,6 +50,7 @@ class UIManager {
     this.applyStyles();
     if (this.stateManager.state.isPanelMinimized) {
       this.elements.panel.classList.add("panel-minimized");
+      this.updateMinimizedState();
     }
     document.body.appendChild(this.elements.panel);
     let originalTop = null;

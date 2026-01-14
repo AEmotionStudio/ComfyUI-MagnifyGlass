@@ -84,6 +84,7 @@ export class UIManager {
         // Apply initial minimized state if set
         if (this.stateManager.state.isPanelMinimized) {
             this.elements.panel.classList.add('panel-minimized');
+            this.updateMinimizedState(); // Correctly set aria-expanded state
         }
         document.body.appendChild(this.elements.panel);
 

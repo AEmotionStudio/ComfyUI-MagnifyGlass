@@ -776,7 +776,8 @@ export class UIManager {
                 label: 'Location',
                 value: `<span style="display: flex; align-items: center; gap: 6px;">${Icons.focus} Focus Node</span>`,
                 clickable: 'zoom',
-                nodeId: info.hoveredNode.id
+                nodeId: info.hoveredNode.id,
+                isHtml: true
             });
 
             // Add category if available
@@ -883,7 +884,7 @@ export class UIManager {
                 <div class="section-content">
                     <div class="section-body">
                         ${section.content.map((item: any) => {
-            const value = formatValue(item.value, item.label);
+            const value = item.isHtml ? item.value : formatValue(item.value, item.label);
             const valueClass = getValueClass(item.value);
             const valueAttributes = getValueAttributes(item.value);
             const clickableAttr = item.clickable ? `data-clickable="${item.clickable}"` : '';

@@ -199,7 +199,7 @@ function renderSettingsPanel(container) {
     getSettingValue("🔍MagnifyGlass.GlassPosition", "Top-Right"),
     GLASS_POSITIONS,
     (value) => setSettingValue("🔍MagnifyGlass.GlassPosition", value),
-    `Default position of the glass. Press ${resetKey} to reset.`
+    "Position of the glass relative to the cursor"
   ));
   glassSection.body.appendChild(createSelect(
     "Filtering",
@@ -773,6 +773,7 @@ function renderSettingsPanel(container) {
   resetAllBtn.innerHTML = `${Icons.reset} Reset All Settings`;
   resetAllBtn.title = "Reset all settings to their default values";
   resetAllBtn.addEventListener("click", (e) => {
+    var _a, _b, _c, _d;
     e.stopPropagation();
     if (!confirm("Reset all MagnifyGlass settings to defaults?")) {
       return;
@@ -806,6 +807,16 @@ function renderSettingsPanel(container) {
     setSettingValue("🔍MagnifyGlass.InfoPanelAnimations", false);
     setSettingValue("🔍MagnifyGlass.ShowHoveringControls", true);
     setSettingValue("🔍MagnifyGlass.ControlsPosition", "left");
+    const infoPanel = window.infoPanelManager;
+    if ((_b = (_a = infoPanel == null ? void 0 : infoPanel.stateManager) == null ? void 0 : _a.state) == null ? void 0 : _b.settings) {
+      infoPanel.stateManager.state.settings["🔍MagnifyGlass.ControlsPosition"] = "left";
+      if (infoPanel.uiManager && infoPanel.uiManager.updateControlsLayout) {
+        infoPanel.uiManager.updateControlsLayout("left");
+      }
+      if (((_d = (_c = infoPanel.magnifyGlass) == null ? void 0 : _c.state) == null ? void 0 : _d.active) && infoPanel.positionManager) {
+        infoPanel.positionManager.positionFloatingControls();
+      }
+    }
     setSettingValue("🔍MagnifyGlass.ToggleHotkey", "i");
     setSettingValue("🔍MagnifyGlass.GlassPreviewToggleHotkey", "g");
     setSettingValue("🔍MagnifyGlass.PinPanelHotkey", "u");

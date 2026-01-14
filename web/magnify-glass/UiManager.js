@@ -326,6 +326,8 @@ class UiManager {
       btn.style.minHeight = computed.minHeight;
       btn.style.width = computed.width;
       btn.title = "Toggle Magnify Glass (X)";
+      btn.setAttribute("aria-label", "Toggle Magnify Glass");
+      btn.setAttribute("aria-pressed", "false");
       btn.setAttribute("data-testid", "toggle-magnify-glass-button");
       btn.innerHTML = Icons.magnifyGlass;
       btn.style.display = "inline-flex";
@@ -341,9 +343,10 @@ class UiManager {
       btn.addEventListener("click", () => {
         if (this.onToggle) {
           this.onToggle();
-          btn.classList.toggle("active");
+          const isActive = btn.classList.toggle("active");
           btn.classList.toggle("p-highlight");
           btn.classList.toggle("selected");
+          btn.setAttribute("aria-pressed", String(isActive));
         }
       });
       if (linkVisibilityBtn && minimapBtn.parentElement === linkVisibilityBtn.parentElement) {

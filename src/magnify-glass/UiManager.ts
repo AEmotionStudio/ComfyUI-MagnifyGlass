@@ -441,6 +441,8 @@ export class UiManager {
             btn.style.width = computed.width; // Match width for consistency
 
             btn.title = "Toggle Magnify Glass (X)";
+            btn.setAttribute('aria-label', "Toggle Magnify Glass");
+            btn.setAttribute('aria-pressed', 'false');
             btn.setAttribute('data-testid', 'toggle-magnify-glass-button');
             btn.innerHTML = Icons.magnifyGlass;
 
@@ -463,9 +465,10 @@ export class UiManager {
                 if (this.onToggle) {
                     this.onToggle();
                     // Toggle active states to match ComfyUI's button styling
-                    btn.classList.toggle('active');
+                    const isActive = btn.classList.toggle('active');
                     btn.classList.toggle('p-highlight'); // PrimeVue
                     btn.classList.toggle('selected');
+                    btn.setAttribute('aria-pressed', String(isActive));
                 }
             });
 

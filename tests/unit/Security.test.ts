@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { formatValue } from '../../src/info-panel/ValueFormatter';
+import { escapeHtml } from '../../src/shared/utils';
 
 describe('Security', () => {
     describe('formatValue', () => {
@@ -49,6 +50,21 @@ describe('Security', () => {
 
             expect(renderedValue).not.toContain('<script>');
             expect(renderedValue).toContain('&lt;script&gt;');
+        });
+    });
+
+    describe('Robustness', () => {
+        it('should safely handle non-string inputs in escapeHtml', () => {
+            expect(escapeHtml(123)).toBe('123');
+            expect(escapeHtml(0)).toBe('0');
+            expect(escapeHtml(true)).toBe('true');
+            expect(escapeHtml(false)).toBe('false');
+            expect(escapeHtml(null)).toBe('');
+            expect(escapeHtml(undefined)).toBe('');
+
+            // Object with toString
+            const obj = { toString: () => '<script>' };
+            expect(escapeHtml(obj)).toBe('&lt;script&gt;');
         });
     });
 });

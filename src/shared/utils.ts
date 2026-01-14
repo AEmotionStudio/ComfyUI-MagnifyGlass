@@ -165,9 +165,9 @@ export function createDebugLogger(
  * @param str - The string to escape
  * @returns Escaped string
  */
-export function escapeHtml(str: string): string {
-    if (!str) return str;
-    return str
+export function escapeHtml(str: unknown): string {
+    if (str === null || str === undefined) return '';
+    return String(str)
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")

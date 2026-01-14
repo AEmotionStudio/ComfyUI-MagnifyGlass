@@ -1,10 +1,11 @@
+import { escapeHtml } from "../shared/utils.js";
 function formatValue(value, label) {
   if (value === null || value === void 0) return "";
   const str = String(value);
   if (label && (label.toLowerCase().includes("text") || label.toLowerCase().includes("prompt") || label.toLowerCase().includes("model") || label.toLowerCase().includes("file") || label.toLowerCase().includes("conditioning") || label.toLowerCase().includes("positive") || label.toLowerCase().includes("negative"))) {
-    return str;
+    return escapeHtml(str);
   }
-  return str;
+  return escapeHtml(str);
 }
 function getValueClass(value) {
   if (!value) return "";
@@ -19,7 +20,7 @@ function getValueAttributes(value) {
   if (!value) return "";
   const str = String(value);
   if (str.length > 500) {
-    return `title="${str.replace(/"/g, "&quot;")}"`;
+    return `title="${escapeHtml(str)}"`;
   }
   return "";
 }

@@ -154,10 +154,18 @@ Access settings via the **new Sidebar Panel** or the ComfyUI Settings (⚙️) m
 
 | Setting | Default | Description |
 | :--- | :--- | :--- |
-| **Zoom Factor** | `300` | Magnification level (300 = 3x). |
-| **Glass Size** | `300px` | Diameter of the lens. |
-| **Shape** | `Rounded` | Circle, Square, or Rounded Square. |
-| **Activation Key** | `X` | Hotkey to toggle the tool. |
+| **Zoom Factor** | `300%` | Magnification level (100% - 1000%). |
+| **Glass Size** | `300px` | Diameter/Size of the lens (50px - 500px). |
+| **Shape** | `Rounded Square` | Circle, Square, or Rounded Square. |
+| **Position** | `Top-Right` | Offset position relative to cursor. |
+| **Filtering** | `Linear` | Texture filtering: Linear (smooth) or Nearest (pixelated). |
+| **Border Width** | `2px` | Width of the glass border. |
+| **Border Color** | `#FFFFFF` | Color of the glass border. |
+| **Show Border** | `On` | Toggle the glass border visibility. |
+| **Follow Cursor** | `Off` | If On, glass moves with your mouse. |
+| **Always Active** | `On` | Keep the glass visible after activation. |
+| **Force Direct Capture**| `Off` | High-accuracy mode for low zoom levels. |
+| **Show Mini Cursor** | `Off` | Displays a cursor preview inside the glass. |
 
 </details>
 
@@ -166,10 +174,40 @@ Access settings via the **new Sidebar Panel** or the ComfyUI Settings (⚙️) m
 
 | Setting | Default | Description |
 | :--- | :--- | :--- |
-| **Theme** | `Auto` | Syncs with ComfyUI theme automatically. |
-| **Opacity** | `100%` | Transparency of the panel background. |
-| **Show Hover Controls** | `On` | Displays the quick-action toolbar on the panel. |
-| **Controls Position** | `Top` | Position of hover controls (Top/Bottom). |
+| **Enable Panel** | `On` | Toggle the visibility of the node inspector. |
+| **Persist Info** | `Off` | Keep last node info visible when not hovering a node. |
+| **Node Highlight** | `On` | Show high-contrast border around inspected node. |
+| **Position** | `Bottom` | Position relative to the glass (Top/Bottom/Left/Right). |
+| **Width** | `300px` | Width of the inspector panel. |
+| **Max Height** | `300px` | Maximum vertical size before scrolling. |
+| **Font Size** | `14px` | Size of the text in the inspector. |
+| **Opacity** | `100%` | Background transparency of the panel. |
+| **Font Family** | `System` | Custom font selection for the panel. |
+| **Text Color** | `#6B7280` | Custom text color for node data. |
+| **Accent Color** | `#3B82F6` | Color for headers and highlights. |
+| **Hover Controls** | `On` | Show floating quick-action buttons. |
+| **Controls Position** | `Left` | Anchor point for the floating controls. |
+
+</details>
+
+<details>
+<summary><b>♿ Accessibility</b></summary>
+
+| Setting | Default | Description |
+| :--- | :--- | :--- |
+| **Enable Accessibility** | `Off` | Enable accessibility enhancements for the glass preview. |
+| **High Contrast** | `Off` | Boost text contrast with bright colors. |
+| **Text Glow** | `Off` | Add a glow effect behind text for better visibility. |
+| **Glow Color** | `#FFFF00` | Customizable color for the text glow. |
+| **Glow Intensity** | `5px` | Blur radius/intensity of the text glow. |
+| **Font Scale** | `100%` | Increase text size within the glass view (up to 200%). |
+| **Bold Text** | `Off` | Force bold text weight for improved legibility. |
+| **Text Outline** | `Off` | Add a high-contrast outline around text. |
+| **Outline Color** | `#000000` | Customizable color for the text outline. |
+| **Node Emphasis** | `Off` | Apply extra styling/weight to node titles. |
+| **Invert Colors** | `Off` | Invert all colors in the glass view. |
+| **Grayscale Mode** | `Off` | Remove all color saturation from the view. |
+| **Reduce Motion** | `Off` | Disable smooth animations for instant feedback. |
 
 </details>
 

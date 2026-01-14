@@ -15,6 +15,10 @@ import {
     DIRECT_CAPTURE_KEYS,
     PANEL_POSITIONS
 } from '../shared/constants';
+import {
+    getSettingValue,
+    setSettingValue
+} from '../shared/utils';
 
 /**
  * Icons for the settings panel
@@ -214,28 +218,6 @@ function createColorPicker(
     return row;
 }
 
-/**
- * Get current MagnifyGlass settings from app.ui.settings
- */
-function getSettingValue(id: string, defaultValue: any): any {
-    try {
-        const value = app.ui.settings.getSettingValue(id);
-        return value !== undefined ? value : defaultValue;
-    } catch {
-        return defaultValue;
-    }
-}
-
-/**
- * Set a MagnifyGlass setting via app.ui.settings
- */
-function setSettingValue(id: string, value: any): void {
-    try {
-        app.ui.settings.setSettingValue(id, value);
-    } catch (e) {
-        console.warn(`Failed to set setting ${id}:`, e);
-    }
-}
 
 /** Storage key for section states */
 const SECTION_STATE_KEY = 'magnifyglass-sidebar-sections';

@@ -515,7 +515,11 @@ export class MagnifyGlass {
                             video.crossOrigin = originalVideo.crossOrigin;
                             video.muted = true;
                             if (!originalVideo.paused) {
-                                video.play().catch(e => console.warn("Magnify Glass: Cloned video play failed", e));
+                                video.play().catch(e => {
+                                    if (e.name !== 'AbortError') {
+                                        console.warn("Magnify Glass: Cloned video play failed", e);
+                                    }
+                                });
                             }
                             video.currentTime = originalVideo.currentTime;
                         } else if (isImageElement) {

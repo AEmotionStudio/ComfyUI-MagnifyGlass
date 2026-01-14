@@ -293,9 +293,21 @@ export class OffscreenRenderer {
                 }
             }
 
+            const origUpdatePreviews = lgCanvas.updatePreviews;
             try {
+                // Temporarily disable ComfyUI's image preview updates during capture
+                // This prevents massive console spam if images are missing (404s)
+                if (typeof origUpdatePreviews === 'function') {
+                    lgCanvas.updatePreviews = () => { };
+                }
+
                 lgCanvas.draw(true, true);
             } finally {
+                // Restore immediately after draw (in finally to handle exceptions)
+                if (typeof origUpdatePreviews === 'function') {
+                    lgCanvas.updatePreviews = origUpdatePreviews;
+                }
+
                 // Restore images
                 for (const [node, imgs] of hiddenNodeImages.entries()) {
                     node.imgs = imgs;
@@ -349,14 +361,23 @@ export class OffscreenRenderer {
                 this.drawCursorPreview(renderSize);
             }
 
-            // Restore original zoom state by directly setting the saved values.
-            // IMPORTANT: Do NOT use setZoom() here! setZoom() recalculates offset from a pivot point,
-            // which introduces floating-point drift (1-2px per call) causing vertical/horizontal drift.
-            // We must restore the EXACT original offset values to prevent cumulative drift.
+            // Restore original zoom state and draw one clean frame
             lgCanvas.ds.scale = origScale;
             lgCanvas.ds.offset[0] = origOffsetX;
             lgCanvas.ds.offset[1] = origOffsetY;
-            lgCanvas.draw(true, true);
+
+            const finalOrigUpdatePreviews = lgCanvas.updatePreviews;
+            try {
+                if (typeof finalOrigUpdatePreviews === 'function') {
+                    lgCanvas.updatePreviews = () => { };
+                }
+
+                lgCanvas.draw(true, true);
+            } finally {
+                if (typeof finalOrigUpdatePreviews === 'function') {
+                    lgCanvas.updatePreviews = finalOrigUpdatePreviews;
+                }
+            }
 
             this.isCapturing = false;
             (window as any).__magnifyGlassCapturing = false;

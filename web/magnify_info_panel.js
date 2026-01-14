@@ -27,7 +27,7 @@ function initializeInfoPanel() {
       window.comfyUIMagnifyGlassExtensions = [];
     }
     window.comfyUIMagnifyGlassExtensions.push(infoPanel);
-    Logger.info("Info Panel extension initialized");
+    Logger.debug("Info Panel extension initialized");
   } catch (e) {
     Logger.error("Error during initialization:", e);
   }

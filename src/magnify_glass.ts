@@ -29,6 +29,6 @@ app.registerExtension({
         // Initialize sidebar
         initSidebar();
 
-        Logger.info('Magnify Glass extension initialized');
+        Logger.debug('Magnify Glass extension initialized');
     }
 });

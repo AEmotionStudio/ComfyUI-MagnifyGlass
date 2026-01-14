@@ -206,9 +206,17 @@ const _OffscreenRenderer = class _OffscreenRenderer {
           }
         }
       }
+      const origUpdatePreviews = lgCanvas.updatePreviews;
       try {
+        if (typeof origUpdatePreviews === "function") {
+          lgCanvas.updatePreviews = () => {
+          };
+        }
         lgCanvas.draw(true, true);
       } finally {
+        if (typeof origUpdatePreviews === "function") {
+          lgCanvas.updatePreviews = origUpdatePreviews;
+        }
         for (const [node, imgs] of hiddenNodeImages.entries()) {
           node.imgs = imgs;
         }
@@ -252,7 +260,18 @@ const _OffscreenRenderer = class _OffscreenRenderer {
       lgCanvas.ds.scale = origScale;
       lgCanvas.ds.offset[0] = origOffsetX;
       lgCanvas.ds.offset[1] = origOffsetY;
-      lgCanvas.draw(true, true);
+      const finalOrigUpdatePreviews = lgCanvas.updatePreviews;
+      try {
+        if (typeof finalOrigUpdatePreviews === "function") {
+          lgCanvas.updatePreviews = () => {
+          };
+        }
+        lgCanvas.draw(true, true);
+      } finally {
+        if (typeof finalOrigUpdatePreviews === "function") {
+          lgCanvas.updatePreviews = finalOrigUpdatePreviews;
+        }
+      }
       this.isCapturing = false;
       window.__magnifyGlassCapturing = false;
       return this.offscreenCanvas;

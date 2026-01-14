@@ -115,7 +115,6 @@ export function registerSidebar(): void {
         });
 
         sidebarRegistered = true;
-        console.log('MagnifyGlass: Sidebar registered successfully');
     } catch (e) {
         console.warn('MagnifyGlass: Failed to register sidebar:', e);
     }

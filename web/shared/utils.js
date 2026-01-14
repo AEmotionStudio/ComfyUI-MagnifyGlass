@@ -4,7 +4,7 @@ function getSettingValue(key, fallback) {
     const value = app.ui.settings.getSettingValue(key);
     return value === void 0 ? fallback : value;
   } catch (e) {
-    console.warn(`ComfyUI Magnifying Glass: Could not get setting ${key}, using default ${fallback}. Error: ${e}`);
+    console.warn(`ComfyUI Magnifying Glass: Could not get setting ${key}, using fallback ${fallback}. Error: ${e}`);
     return fallback;
   }
 }

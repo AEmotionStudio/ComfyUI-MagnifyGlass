@@ -1,11 +1,18 @@
 import { app } from "/scripts/app.js";
-function getSettingValue(key, defaultValue) {
+function getSettingValue(key, fallback) {
   try {
     const value = app.ui.settings.getSettingValue(key);
-    return value === void 0 ? defaultValue : value;
+    return value === void 0 ? fallback : value;
   } catch (e) {
-    console.warn(`ComfyUI Magnifying Glass: Could not get setting ${key}, using default ${defaultValue}. Error: ${e}`);
-    return defaultValue;
+    console.warn(`ComfyUI Magnifying Glass: Could not get setting ${key}, using default ${fallback}. Error: ${e}`);
+    return fallback;
+  }
+}
+function setSettingValue(key, value) {
+  try {
+    app.ui.settings.setSettingValue(key, value);
+  } catch (e) {
+    console.warn(`Failed to set setting ${key}:`, e);
   }
 }
 function isUserTyping() {
@@ -53,6 +60,7 @@ export {
   findLiteGraphCanvas,
   getSettingValue,
   isUserTyping,
-  rectsOverlap
+  rectsOverlap,
+  setSettingValue
 };
 //# sourceMappingURL=utils.js.map

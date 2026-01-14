@@ -1,5 +1,5 @@
-import { app } from "/scripts/app.js";
 import { GLASS_SHAPES, GLASS_POSITIONS, ACTIVATION_KEYS, RESET_KEYS, TOGGLE_FOLLOW_KEYS, DIRECT_CAPTURE_KEYS, PANEL_POSITIONS } from "../shared/constants.js";
+import { getSettingValue, setSettingValue } from "../shared/utils.js";
 const Icons = {
   chevronDown: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`,
   reset: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>`
@@ -110,21 +110,6 @@ function createColorPicker(label, value, onChange, tooltip, onInput) {
   row.appendChild(labelEl);
   row.appendChild(colorWrapper);
   return row;
-}
-function getSettingValue(id, defaultValue) {
-  try {
-    const value = app.ui.settings.getSettingValue(id);
-    return value !== void 0 ? value : defaultValue;
-  } catch {
-    return defaultValue;
-  }
-}
-function setSettingValue(id, value) {
-  try {
-    app.ui.settings.setSettingValue(id, value);
-  } catch (e) {
-    console.warn(`Failed to set setting ${id}:`, e);
-  }
 }
 function createSection(title, defaultCollapsed = false) {
   const section = document.createElement("div");

@@ -34,13 +34,26 @@ export interface DebugLogger {
  * @param defaultValue - Default value if setting not found
  * @returns The setting value or default
  */
-export function getSettingValue<T>(key: string, defaultValue: T): T {
+export function getSettingValue<T>(key: string, fallback: T): T {
     try {
         const value = app.ui.settings.getSettingValue(key);
-        return value === undefined ? defaultValue : value as T;
+        return value === undefined ? fallback : value as T;
     } catch (e) {
-        console.warn(`ComfyUI Magnifying Glass: Could not get setting ${key}, using default ${defaultValue}. Error: ${e}`);
-        return defaultValue;
+        console.warn(`ComfyUI Magnifying Glass: Could not get setting ${key}, using default ${fallback}. Error: ${e}`);
+        return fallback;
+    }
+}
+
+/**
+ * Safely set a setting value in ComfyUI settings.
+ * @param key - The setting key
+ * @param value - The value to set
+ */
+export function setSettingValue(key: string, value: any): void {
+    try {
+        app.ui.settings.setSettingValue(key, value);
+    } catch (e) {
+        console.warn(`Failed to set setting ${key}:`, e);
     }
 }
 

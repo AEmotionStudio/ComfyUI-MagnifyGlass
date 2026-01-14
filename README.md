@@ -200,6 +200,8 @@ This project is licensed under the [GPL-3.0](LICENSE) License - see the [LICENSE
 
 ---
 
+
+
 <div align="center">
 
 **Developed by [Æmotion Studio](https://aemotionstudio.org/)**
@@ -207,5 +209,19 @@ This project is licensed under the [GPL-3.0](LICENSE) License - see the [LICENSE
 [![YouTube](https://img.shields.io/badge/YouTube-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://www.youtube.com/@aemotionstudio/videos)
 [![Discord](https://img.shields.io/badge/Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/UzC9353mfp)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-F16061?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/aemotionstudio)
+
+</div>
+
+---
+
+<div align="center">
+
+## 📺 STOP SQUINTING!
+
+**Are YOU tired of tiny nodes? Do messy workflows make you want to SCREAM? 😱**
+**Get ComfyUI-MagnifyGlass TODAY!**
+*It ZOOMS! It INSPECTS! It POPS OUT!* ⚡️🔍
+
+[<img src="https://img.youtube.com/vi/2qOlO-QPZ4o/maxresdefault.jpg" width="100%">](https://youtu.be/2qOlO-QPZ4o)
 
 </div>

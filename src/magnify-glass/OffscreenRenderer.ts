@@ -293,21 +293,21 @@ export class OffscreenRenderer {
                 }
             }
 
+            const origUpdatePreviews = lgCanvas.updatePreviews;
             try {
                 // Temporarily disable ComfyUI's image preview updates during capture
                 // This prevents massive console spam if images are missing (404s)
-                const origUpdatePreviews = lgCanvas.updatePreviews;
                 if (typeof origUpdatePreviews === 'function') {
                     lgCanvas.updatePreviews = () => { };
                 }
 
                 lgCanvas.draw(true, true);
-
-                // Restore immediately after draw
+            } finally {
+                // Restore immediately after draw (in finally to handle exceptions)
                 if (typeof origUpdatePreviews === 'function') {
                     lgCanvas.updatePreviews = origUpdatePreviews;
                 }
-            } finally {
+
                 // Restore images
                 for (const [node, imgs] of hiddenNodeImages.entries()) {
                     node.imgs = imgs;
@@ -367,14 +367,16 @@ export class OffscreenRenderer {
             lgCanvas.ds.offset[1] = origOffsetY;
 
             const finalOrigUpdatePreviews = lgCanvas.updatePreviews;
-            if (typeof finalOrigUpdatePreviews === 'function') {
-                lgCanvas.updatePreviews = () => { };
-            }
+            try {
+                if (typeof finalOrigUpdatePreviews === 'function') {
+                    lgCanvas.updatePreviews = () => { };
+                }
 
-            lgCanvas.draw(true, true);
-
-            if (typeof finalOrigUpdatePreviews === 'function') {
-                lgCanvas.updatePreviews = finalOrigUpdatePreviews;
+                lgCanvas.draw(true, true);
+            } finally {
+                if (typeof finalOrigUpdatePreviews === 'function') {
+                    lgCanvas.updatePreviews = finalOrigUpdatePreviews;
+                }
             }
 
             this.isCapturing = false;

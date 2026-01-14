@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.10.1] - 2026-01-13
+
+### Improved
+- **Performance**: Significant optimization of mouse movement tracking using `requestAnimationFrame`, resulting in smoother operation and reduced CPU load.
+- **Documentation**:
+  - Added `CONTRIBUTING.md` to guide new contributors.
+  - Added standard GitHub Issue Templates for bug reports and feature requests.
+  - Updated README with a new high-quality YouTube demo video.
+
+### Fixed
+- **UI Layout**: Corrected the positioning of the toggle icon in the bottom toolbar.
+- **Stability**: Fixed a startup error related to `Comfy.ColorPalette` detection.
+
+---
+
+
 ## [1.10.0] - 2026-01-06
 
 ### Added

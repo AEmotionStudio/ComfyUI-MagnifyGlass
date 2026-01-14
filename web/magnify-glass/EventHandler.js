@@ -7,6 +7,7 @@ import { DEFAULT_PADDING, DEFAULT_GLASS_Y_OFFSET } from "../shared/constants.js"
 class EventHandler {
   constructor(magnifyGlass) {
     __publicField(this, "magnifyGlass");
+    __publicField(this, "rafId", null);
     this.magnifyGlass = magnifyGlass;
     this.handleKeyDown = this.handleKeyDown.bind(this);
     this.handleKeyUp = this.handleKeyUp.bind(this);
@@ -30,6 +31,10 @@ class EventHandler {
     document.removeEventListener("keyup", this.handleKeyUp);
     document.removeEventListener("mousemove", this.handleMouseMove);
     window.removeEventListener("resize", this.handleResize);
+    if (this.rafId !== null) {
+      cancelAnimationFrame(this.rafId);
+      this.rafId = null;
+    }
   }
   /**
    * Handle window resize events.
@@ -167,19 +172,27 @@ class EventHandler {
     this.magnifyGlass.lastKnownMousePosition.x = e.clientX;
     this.magnifyGlass.lastKnownMousePosition.y = e.clientY;
     if (!this.magnifyGlass.state.active || !this.magnifyGlass.litegraphCanvas) return;
-    const rect = this.magnifyGlass.litegraphCanvas.getBoundingClientRect();
-    const cssMouseXOnCanvas = e.clientX - rect.left;
-    const cssMouseYOnCanvas = e.clientY - rect.top;
-    if (cssMouseXOnCanvas >= 0 && cssMouseXOnCanvas <= rect.width && cssMouseYOnCanvas >= 0 && cssMouseYOnCanvas <= rect.height) {
-      const canvasElement = this.magnifyGlass.litegraphCanvas;
-      const scaleX = rect.width > 0 ? canvasElement.width / rect.width : 1;
-      const scaleY = rect.height > 0 ? canvasElement.height / rect.height : 1;
-      const pixelX = cssMouseXOnCanvas * scaleX;
-      const pixelY = cssMouseYOnCanvas * scaleY;
-      this.magnifyGlass.state.x = pixelX;
-      this.magnifyGlass.state.y = pixelY;
-      this.magnifyGlass.ui.positionGlass(e.clientX, e.clientY);
-      this.magnifyGlass.updateMagnifiedView();
+    if (this.rafId === null) {
+      this.rafId = requestAnimationFrame(() => {
+        this.rafId = null;
+        if (!this.magnifyGlass.state.active || !this.magnifyGlass.litegraphCanvas) return;
+        const clientX = this.magnifyGlass.lastKnownMousePosition.x;
+        const clientY = this.magnifyGlass.lastKnownMousePosition.y;
+        const rect = this.magnifyGlass.litegraphCanvas.getBoundingClientRect();
+        const cssMouseXOnCanvas = clientX - rect.left;
+        const cssMouseYOnCanvas = clientY - rect.top;
+        if (cssMouseXOnCanvas >= 0 && cssMouseXOnCanvas <= rect.width && cssMouseYOnCanvas >= 0 && cssMouseYOnCanvas <= rect.height) {
+          const canvasElement = this.magnifyGlass.litegraphCanvas;
+          const scaleX = rect.width > 0 ? canvasElement.width / rect.width : 1;
+          const scaleY = rect.height > 0 ? canvasElement.height / rect.height : 1;
+          const pixelX = cssMouseXOnCanvas * scaleX;
+          const pixelY = cssMouseYOnCanvas * scaleY;
+          this.magnifyGlass.state.x = pixelX;
+          this.magnifyGlass.state.y = pixelY;
+          this.magnifyGlass.ui.positionGlass(clientX, clientY);
+          this.magnifyGlass.updateMagnifiedView();
+        }
+      });
     }
   }
   /**

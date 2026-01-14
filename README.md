@@ -3,7 +3,7 @@
 # ComfyUI-MagnifyGlass
 
 [![ComfyUI](https://img.shields.io/badge/ComfyUI-Extension-green?style=for-the-badge)](https://github.com/comfyanonymous/ComfyUI)
-[![Version](https://img.shields.io/badge/Version-1.10.0-orange?style=for-the-badge)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases)
+[![Version](https://img.shields.io/badge/Version-1.10.1-orange?style=for-the-badge)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases)
 [![License](https://img.shields.io/badge/License-GPLv3-red?style=for-the-badge)](LICENSE)
 [![Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen?style=for-the-badge&color=blue)](package.json)
 
@@ -23,7 +23,7 @@
 
 ---
 
-## 🚀 What's New in v1.10.0 (January 6, 2026)
+## 🚀 What's New in v1.10.1 (January 13, 2026)
 
 **Inspector Power-Ups & Settings Overhaul**
 

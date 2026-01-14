@@ -1,6 +1,6 @@
 {
   "name": "comfyui-magnifyglass",
-  "version": "1.5.0",
+  "version": "1.10.1",
   "type": "module",
   "description": "A professional magnifying glass and info panel for ComfyUI",
   "scripts": {

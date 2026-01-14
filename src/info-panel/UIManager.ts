@@ -572,10 +572,7 @@ export class UIManager {
 
         const settings = this.stateManager.state.settings;
 
-        // Debug Log
-        console.log(`[UIManager] applyStyles - MaxHeight: ${settings["🔍MagnifyGlass.InfoPanelMaxHeight"]}`);
-
-        // 1. Apply dimensions
+        // Apply dimensions
         this.elements.panel.style.width = `${settings["🔍MagnifyGlass.InfoPanelWidth"]}px`;
         // Set max-height via CSS variable so CSS :hover rules can override
         const maxHeight = settings["🔍MagnifyGlass.InfoPanelMaxHeight"];

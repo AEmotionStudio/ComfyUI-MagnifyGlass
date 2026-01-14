@@ -31,15 +31,16 @@ export interface DebugLogger {
 /**
  * Safely get a setting value from ComfyUI settings with fallback to default.
  * @param key - The setting key
- * @param defaultValue - Default value if setting not found
+ * @param fallback - Fallback value if setting not found
  * @returns The setting value or default
  */
 export function getSettingValue<T>(key: string, fallback: T): T {
     try {
+        // We only pass the key to avoid the "Parameter defaultValue is deprecated" warning in ComfyUI core
         const value = app.ui.settings.getSettingValue(key);
         return value === undefined ? fallback : value as T;
     } catch (e) {
-        console.warn(`ComfyUI Magnifying Glass: Could not get setting ${key}, using default ${fallback}. Error: ${e}`);
+        console.warn(`ComfyUI Magnifying Glass: Could not get setting ${key}, using fallback ${fallback}. Error: ${e}`);
         return fallback;
     }
 }

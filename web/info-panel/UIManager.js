@@ -404,7 +404,6 @@ class UIManager {
   applyStyles() {
     if (!this.elements.panel) return;
     const settings = this.stateManager.state.settings;
-    console.log(`[UIManager] applyStyles - MaxHeight: ${settings["🔍MagnifyGlass.InfoPanelMaxHeight"]}`);
     this.elements.panel.style.width = `${settings["🔍MagnifyGlass.InfoPanelWidth"]}px`;
     const maxHeight = settings["🔍MagnifyGlass.InfoPanelMaxHeight"];
     this.elements.panel.style.setProperty("--panel-max-height", `${maxHeight}px`);

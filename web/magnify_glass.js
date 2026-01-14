@@ -9,7 +9,7 @@ app.registerExtension({
     window.comfyUIMagnifyGlass = magnifyGlass;
     magnifyGlass.init();
     initSidebar();
-    Logger.info("Magnify Glass extension initialized");
+    Logger.debug("Magnify Glass extension initialized");
   }
 });
 //# sourceMappingURL=magnify_glass.js.map

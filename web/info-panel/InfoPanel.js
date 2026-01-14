@@ -54,7 +54,7 @@ class InfoPanel {
     this.uiManager.onNodeSelected = (nodeId) => {
       this.onNodeSelected(nodeId);
     };
-    Logger.info("Info Panel initialized successfully");
+    Logger.debug("Info Panel initialized successfully");
   }
   hookIntoMagnifyGlass() {
     const originalUpdateMagnifiedView = this.magnifyGlass.updateMagnifiedView.bind(this.magnifyGlass);

@@ -1,6 +1,7 @@
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
+import { getSettingValue } from "../shared/utils.js";
 class CanvasHighlighter {
   constructor() {
     __publicField(this, "originalOnDrawForeground", null);
@@ -16,7 +17,6 @@ class CanvasHighlighter {
       this.updateHighlightPosition();
     });
     this.createHighlightElement();
-    this.hookCanvas();
   }
   createHighlightElement() {
     this.highlightEl = document.createElement("div");
@@ -39,12 +39,15 @@ class CanvasHighlighter {
   hookCanvas() {
     const app = window.app;
     if (!app || !app.canvas) {
-      console.warn("[MagnifyGlass] Canvas not found, cannot hook highlighter");
-      return;
+      return false;
     }
     const canvas = app.canvas;
+    if (canvas.onDrawForeground === this.boundOnDrawForeground) {
+      return true;
+    }
     this.originalOnDrawForeground = canvas.onDrawForeground;
     canvas.onDrawForeground = this.boundOnDrawForeground;
+    return true;
   }
   /**
    * Set the node ID to highlight.
@@ -76,11 +79,10 @@ class CanvasHighlighter {
    * Update the position of the DOM highlight element.
    */
   updateHighlightPosition() {
-    var _a, _b;
     if (!this.highlightEl) return;
     const app = window.app;
     if (!app || !app.canvas || !app.graph) return;
-    const highlightEnabled = ((_b = (_a = app.ui) == null ? void 0 : _a.settings) == null ? void 0 : _b.getSettingValue("🔍MagnifyGlass.NodeHighlightEnabled")) ?? true;
+    const highlightEnabled = getSettingValue("🔍MagnifyGlass.NodeHighlightEnabled", true);
     if (!highlightEnabled || this.highlightedNodeId === null) {
       if (this.highlightEl.style.display !== "none") {
         this.highlightEl.style.display = "none";

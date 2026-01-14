@@ -294,7 +294,19 @@ export class OffscreenRenderer {
             }
 
             try {
+                // Temporarily disable ComfyUI's image preview updates during capture
+                // This prevents massive console spam if images are missing (404s)
+                const origUpdatePreviews = lgCanvas.updatePreviews;
+                if (typeof origUpdatePreviews === 'function') {
+                    lgCanvas.updatePreviews = () => { };
+                }
+
                 lgCanvas.draw(true, true);
+
+                // Restore immediately after draw
+                if (typeof origUpdatePreviews === 'function') {
+                    lgCanvas.updatePreviews = origUpdatePreviews;
+                }
             } finally {
                 // Restore images
                 for (const [node, imgs] of hiddenNodeImages.entries()) {
@@ -349,14 +361,21 @@ export class OffscreenRenderer {
                 this.drawCursorPreview(renderSize);
             }
 
-            // Restore original zoom state by directly setting the saved values.
-            // IMPORTANT: Do NOT use setZoom() here! setZoom() recalculates offset from a pivot point,
-            // which introduces floating-point drift (1-2px per call) causing vertical/horizontal drift.
-            // We must restore the EXACT original offset values to prevent cumulative drift.
+            // Restore original zoom state and draw one clean frame
             lgCanvas.ds.scale = origScale;
             lgCanvas.ds.offset[0] = origOffsetX;
             lgCanvas.ds.offset[1] = origOffsetY;
+
+            const finalOrigUpdatePreviews = lgCanvas.updatePreviews;
+            if (typeof finalOrigUpdatePreviews === 'function') {
+                lgCanvas.updatePreviews = () => { };
+            }
+
             lgCanvas.draw(true, true);
+
+            if (typeof finalOrigUpdatePreviews === 'function') {
+                lgCanvas.updatePreviews = finalOrigUpdatePreviews;
+            }
 
             this.isCapturing = false;
             (window as any).__magnifyGlassCapturing = false;

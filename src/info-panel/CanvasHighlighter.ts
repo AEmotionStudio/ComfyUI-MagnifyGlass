@@ -6,6 +6,7 @@
  */
 
 import { ComfyApp, ComfyNode } from '../types/comfyui';
+import { getSettingValue } from '../shared/utils';
 
 declare const app: ComfyApp;
 
@@ -19,7 +20,7 @@ export class CanvasHighlighter {
 
     constructor() {
         this.createHighlightElement();
-        this.hookCanvas();
+        // Don't hook immediately, will hook lazily when needed
     }
 
     private createHighlightElement(): void {
@@ -41,19 +42,24 @@ export class CanvasHighlighter {
     /**
      * Hook into the main canvas onDrawForeground method.
      */
-    private hookCanvas(): void {
+    private hookCanvas(): boolean {
         const app = (window as any).app;
         if (!app || !app.canvas) {
-            console.warn('[MagnifyGlass] Canvas not found, cannot hook highlighter');
-            return;
+            return false;
         }
         const canvas = app.canvas;
+
+        // Already hooked?
+        if (canvas.onDrawForeground === this.boundOnDrawForeground) {
+            return true;
+        }
 
         // Save original method
         this.originalOnDrawForeground = canvas.onDrawForeground;
 
         // Override
         canvas.onDrawForeground = this.boundOnDrawForeground;
+        return true;
     }
 
     /**
@@ -111,7 +117,7 @@ export class CanvasHighlighter {
         if (!app || !app.canvas || !app.graph) return;
 
         // 1. Check Visibility Settings
-        const highlightEnabled = app.ui?.settings?.getSettingValue('🔍MagnifyGlass.NodeHighlightEnabled') ?? true;
+        const highlightEnabled = getSettingValue('🔍MagnifyGlass.NodeHighlightEnabled', true);
         if (!highlightEnabled || this.highlightedNodeId === null) {
             if (this.highlightEl.style.display !== 'none') {
                 this.highlightEl.style.display = 'none';

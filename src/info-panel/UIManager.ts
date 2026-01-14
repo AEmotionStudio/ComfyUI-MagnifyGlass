@@ -69,7 +69,7 @@ export class UIManager {
                 <div class="header-subtitle">Real-time analysis</div>
             </div>
             <div class="header-controls">
-                <button class="control-btn minimize-btn" title="Minimize Panel" data-action="minimize">${Icons.minus}</button>
+                <button class="control-btn minimize-btn" title="Minimize Panel" aria-label="Minimize Panel" aria-expanded="true" data-action="minimize">${Icons.minus}</button>
             </div>
         `;
 
@@ -220,16 +220,16 @@ export class UIManager {
          *   - Pin icon = pin position (prevent drag)
          */
         this.elements.controls.innerHTML = `
-            <button class="control-btn unlock-btn" title="Unlock/Lock Panel from Glass" data-action="pin">${Icons.unlock}</button>
-            <button class="control-btn pin-btn" title="Pin/Unpin Panel Position (Prevent Drag)" data-action="lock">${Icons.pin}</button>
-            <button class="control-btn persist-btn" title="Toggle Persist Mode - Sticky Info (S)" data-action="persist">${Icons.magnet}</button>
-            <button class="control-btn hold-btn" title="Hold Info - Pause/Play (P)" data-action="toggle-hold">${Icons.pause}</button>
-            <button class="control-btn visibility-btn" title="Toggle Panel Visibility (I)" data-action="toggle-panel">${Icons.eye}</button>
-            <button class="control-btn glass-btn" title="Toggle Glass Preview (G)" data-action="toggle-glass">${Icons.magnifyGlass}</button>
-            <button class="control-btn cursor-btn" title="Toggle Cursor Preview" data-action="toggle-cursor">${Icons.cursor}</button>
-            <button class="control-btn drag-glass-btn" title="Move Glass Position (H)" data-action="drag-glass">${Icons.move}</button>
-            <button class="control-btn reset-glass-btn" title="Reset Glass Position (O)" data-action="reset-glass">${Icons.reset}</button>
-            <button class="control-btn popout-btn" title="Open in New Tab (Shift+P)" data-action="popout">${Icons.externalLink}</button>
+            <button class="control-btn unlock-btn" title="Unlock/Lock Panel from Glass" aria-label="Unlock or Lock Panel from Glass" aria-pressed="false" data-action="pin">${Icons.unlock}</button>
+            <button class="control-btn pin-btn" title="Pin/Unpin Panel Position (Prevent Drag)" aria-label="Pin or Unpin Panel Position" aria-pressed="false" data-action="lock">${Icons.pin}</button>
+            <button class="control-btn persist-btn" title="Toggle Persist Mode - Sticky Info (S)" aria-label="Toggle Sticky Info" aria-pressed="false" data-action="persist">${Icons.magnet}</button>
+            <button class="control-btn hold-btn" title="Hold Info - Pause/Play (P)" aria-label="Hold Info" aria-pressed="false" data-action="toggle-hold">${Icons.pause}</button>
+            <button class="control-btn visibility-btn" title="Toggle Panel Visibility (I)" aria-label="Toggle Panel Visibility" aria-pressed="true" data-action="toggle-panel">${Icons.eye}</button>
+            <button class="control-btn glass-btn" title="Toggle Glass Preview (G)" aria-label="Toggle Glass Preview" aria-pressed="true" data-action="toggle-glass">${Icons.magnifyGlass}</button>
+            <button class="control-btn cursor-btn" title="Toggle Cursor Preview" aria-label="Toggle Cursor Preview" aria-pressed="false" data-action="toggle-cursor">${Icons.cursor}</button>
+            <button class="control-btn drag-glass-btn" title="Move Glass Position (H)" aria-label="Move Glass Position" aria-pressed="false" data-action="drag-glass">${Icons.move}</button>
+            <button class="control-btn reset-glass-btn" title="Reset Glass Position (O)" aria-label="Reset Glass Position" data-action="reset-glass">${Icons.reset}</button>
+            <button class="control-btn popout-btn" title="Open in New Tab (Shift+P)" aria-label="Open in New Tab" aria-pressed="false" data-action="popout">${Icons.externalLink}</button>
         `;
 
         // Insert before the panel in the document body, not as a child
@@ -402,6 +402,7 @@ export class UIManager {
 
         if (pinBtn) {
             pinBtn.classList.toggle('active', this.stateManager.state.isPanelPinned);
+            pinBtn.setAttribute('aria-pressed', String(this.stateManager.state.isPanelPinned));
             pinBtn.title = this.stateManager.state.isPanelPinned ? "Lock Panel" : "Unlock Panel";
             pinBtn.innerHTML = this.stateManager.state.isPanelPinned ? Icons.lock : Icons.unlock;
             // Hide unlock button when panel is hidden
@@ -424,6 +425,7 @@ export class UIManager {
             const showLockBtn = isPanelVisible && this.stateManager.state.isPanelPinned;
             lockBtn.style.display = showLockBtn ? 'flex' : 'none';
             lockBtn.classList.toggle('active', this.stateManager.state.isPanelLocked);
+            lockBtn.setAttribute('aria-pressed', String(this.stateManager.state.isPanelLocked));
             lockBtn.title = this.stateManager.state.isPanelLocked ? "Unpin Panel Position" : "Pin Panel Position";
             lockBtn.disabled = !this.stateManager.state.isPanelPinned;
         }
@@ -432,6 +434,7 @@ export class UIManager {
         if (persistBtn) {
             const isPersistConfigured = !!this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"];
             persistBtn.classList.toggle('active', isPersistConfigured);
+            persistBtn.setAttribute('aria-pressed', String(isPersistConfigured));
             persistBtn.title = isPersistConfigured ? "Disable Sticky Info (S)" : "Enable Sticky Info (S)";
             persistBtn.style.display = isPanelVisible ? 'flex' : 'none';
         }
@@ -445,6 +448,7 @@ export class UIManager {
             holdBtn.style.display = (isPanelVisible && isPersistConfigured) ? 'flex' : 'none';
 
             holdBtn.classList.toggle('active', isHeld);
+            holdBtn.setAttribute('aria-pressed', String(isHeld));
             // Toggle icon: Pause (to hold) vs Play (to resume)
             holdBtn.innerHTML = isHeld ? Icons.play : Icons.pause;
             holdBtn.title = isHeld ? "Resume Info Update (P)" : "Pause Info Update (P)";
@@ -453,6 +457,7 @@ export class UIManager {
         if (visibilityBtn) {
             // Active means "Panel is Visible"
             visibilityBtn.classList.toggle('active', isPanelVisible);
+            visibilityBtn.setAttribute('aria-pressed', String(isPanelVisible));
             visibilityBtn.title = isPanelVisible ? "Hide Panel" : "Show Panel";
 
             // Disable hide button if glass is hidden (prevent hiding everything)
@@ -468,6 +473,7 @@ export class UIManager {
 
         if (glassBtn) {
             glassBtn.classList.toggle('active', isGlassVisible);
+            glassBtn.setAttribute('aria-pressed', String(isGlassVisible));
             glassBtn.title = isGlassVisible ? "Hide Glass Preview" : "Show Glass Preview";
 
             // Only show glass toggle button if the inspector panel is visible
@@ -479,6 +485,7 @@ export class UIManager {
             const cglass = (window as any).comfyUIMagnifyGlass;
             const showCursor = cglass?.config?.showCursorPreview || false;
             cursorBtn.classList.toggle('active', showCursor);
+            cursorBtn.setAttribute('aria-pressed', String(showCursor));
             cursorBtn.title = showCursor ? "Hide Cursor Preview" : "Show Cursor Preview";
 
             // Logic: Visible when glass is visible AND:
@@ -494,6 +501,7 @@ export class UIManager {
             const mglass = (window as any).comfyUIMagnifyGlass;
             const isDragMode = mglass?.state?.isDragModeEnabled || false;
             dragGlassBtn.classList.toggle('active', isDragMode);
+            dragGlassBtn.setAttribute('aria-pressed', String(isDragMode));
             dragGlassBtn.title = isDragMode ? "Cancel Move Mode (H)" : "Move Glass Position (H)";
             // Only show drag button when glass is visible (even if panel is hidden)
             dragGlassBtn.style.display = isGlassVisible ? 'flex' : 'none';
@@ -511,6 +519,7 @@ export class UIManager {
             const isOpen = glass?.popOutManager?.isPopOutOpen() || false;
             // Logger.debug(`[UIManager] Popout button update - Glass: ${!!glass}, IsOpen: ${isOpen}`);
             popoutBtn.classList.toggle('active', isOpen);
+            popoutBtn.setAttribute('aria-pressed', String(isOpen));
             popoutBtn.title = isOpen ? "Close Pop-out Viewer" : "Open Pop-out Viewer";
         }
     }
@@ -675,6 +684,7 @@ export class UIManager {
         if (minimizeBtn) {
             minimizeBtn.textContent = this.stateManager.state.isPanelMinimized ? '+' : '−';
             (minimizeBtn as HTMLElement).title = this.stateManager.state.isPanelMinimized ? 'Expand Panel' : 'Minimize Panel';
+            minimizeBtn.setAttribute('aria-expanded', String(!this.stateManager.state.isPanelMinimized));
         }
     }
 
@@ -894,7 +904,7 @@ export class UIManager {
             const rawValue = String(item.value || '');
             const showCopyBtn = !item.clickable && rawValue.length > 3 && typeof item.value === 'string';
             const copyBtnHtml = showCopyBtn ? `
-                <button class="copy-btn" data-copy-value="${rawValue.replace(/"/g, '&quot;')}" title="Copy to clipboard">
+                <button class="copy-btn" data-copy-value="${rawValue.replace(/"/g, '&quot;')}" title="Copy to clipboard" aria-label="Copy to clipboard">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>

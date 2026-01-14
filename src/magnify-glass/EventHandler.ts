@@ -45,6 +45,11 @@ export class EventHandler {
         document.removeEventListener("keyup", this.handleKeyUp);
         document.removeEventListener("mousemove", this.handleMouseMove);
         window.removeEventListener("resize", this.handleResize);
+
+        if (this.rafId !== null) {
+            cancelAnimationFrame(this.rafId);
+            this.rafId = null;
+        }
     }
 
     /**

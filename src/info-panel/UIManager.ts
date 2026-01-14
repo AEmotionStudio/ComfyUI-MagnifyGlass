@@ -9,6 +9,7 @@ import { StateManager } from './StateManager';
 import { Icons } from '../shared/icons';
 import { Logger } from '../shared/logger';
 import { INFO_PANEL_ID } from '../shared/constants';
+import { escapeHtml } from '../shared/utils';
 import { formatValue, getValueClass, getValueAttributes, formatWidgetValue } from './ValueFormatter';
 import {
     getCheckpointInfo,
@@ -787,7 +788,8 @@ export class UIManager {
                 label: 'Location',
                 value: `<span class="focus-node-btn">${Icons.focus} Focus Node</span>`,
                 clickable: 'zoom',
-                nodeId: info.hoveredNode.id
+                nodeId: info.hoveredNode.id,
+                isHtml: true
             });
 
             // Add category if available
@@ -884,17 +886,17 @@ export class UIManager {
         }
 
         this.elements.content.innerHTML = sections.map(section => `
-            <div class="info-section" data-section="${section.id}">
-                <div class="section-header" data-section="${section.id}">
+            <div class="info-section" data-section="${escapeHtml(section.id)}">
+                <div class="section-header" data-section="${escapeHtml(section.id)}">
                     <span class="section-icon">${section.icon}</span>
-                    <span class="section-title">${section.title}</span>
-                    ${section.badge ? `<span class="section-badge">${section.badge}</span>` : ''}
+                    <span class="section-title">${escapeHtml(section.title)}</span>
+                    ${section.badge ? `<span class="section-badge">${escapeHtml(section.badge)}</span>` : ''}
                     ${section.id !== 'node' ? `<span class="expand-icon">${Icons.chevronRight}</span>` : ''}
                 </div>
                 <div class="section-content">
                     <div class="section-body">
                         ${section.content.map((item: any) => {
-            const value = formatValue(item.value, item.label);
+            const value = item.isHtml ? item.value : formatValue(item.value, item.label);
             const valueClass = getValueClass(item.value);
             const valueAttributes = getValueAttributes(item.value);
             const clickableAttr = item.clickable ? `data-clickable="${item.clickable}"` : '';
@@ -906,7 +908,7 @@ export class UIManager {
             const rawValue = String(item.value || '');
             const showCopyBtn = !item.clickable && rawValue.length > 3 && typeof item.value === 'string';
             const copyBtnHtml = showCopyBtn ? `
-                <button class="copy-btn" data-copy-value="${rawValue.replace(/"/g, '&quot;')}" title="Copy to clipboard" aria-label="Copy to clipboard">
+                <button class="copy-btn" data-copy-value="${escapeHtml(rawValue)}" title="Copy to clipboard" aria-label="Copy to clipboard">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
                         <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
@@ -914,7 +916,7 @@ export class UIManager {
                 </button>` : '';
             return `
                             <div class="info-row ${clickableClass}" ${clickableAttr} ${nodeIdAttr} style="${item.clickable ? 'cursor: pointer;' : ''}">
-                                <span class="info-label">${item.label}</span>
+                                <span class="info-label">${escapeHtml(item.label)}</span>
                                 <span class="info-value ${valueClass}" ${valueAttributes}>${value}${dropdownIcon}</span>
                                 ${copyBtnHtml}
                             </div>`;
@@ -1138,13 +1140,13 @@ export class UIManager {
                 const execNode = node as NodeExecOrderEntry;
                 item.innerHTML = `
                     <span style="color: var(--info-panel-accent-color, #4ecdc4); font-weight: 600; min-width: 24px;">#${execNode.order}</span>
-                    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${execNode.title} (#${execNode.id})</span>
-                    <span style="color: #888; font-size: 11px;">${execNode.type}</span>
+                    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(execNode.title)} (#${execNode.id})</span>
+                    <span style="color: #888; font-size: 11px;">${escapeHtml(execNode.type)}</span>
                 `;
             } else {
                 item.innerHTML = `
-                    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${node.title} (#${node.id})</span>
-                    <span style="color: #888; font-size: 11px;">${node.type}</span>
+                    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(node.title)} (#${node.id})</span>
+                    <span style="color: #888; font-size: 11px;">${escapeHtml(node.type)}</span>
                 `;
             }
 

@@ -5,6 +5,8 @@
  * Extracted from UIManager.ts for better modularity.
  */
 
+import { escapeHtml } from '../shared/utils';
+
 /**
  * Format a value for display in the info panel.
  * @param value - The value to format
@@ -26,11 +28,11 @@ export function formatValue(value: unknown, label?: string): string {
         label.toLowerCase().includes('positive') ||
         label.toLowerCase().includes('negative')
     )) {
-        return str;
+        return escapeHtml(str);
     }
 
     // Show full text for very long values (no truncation)
-    return str;
+    return escapeHtml(str);
 }
 
 /**
@@ -64,7 +66,7 @@ export function getValueAttributes(value: unknown): string {
 
     const str = String(value);
     if (str.length > 500) { // Only for extremely long text
-        return `title="${str.replace(/"/g, '&quot;')}"`;
+        return `title="${escapeHtml(str)}"`;
     }
 
     return '';

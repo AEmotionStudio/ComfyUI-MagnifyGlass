@@ -3,6 +3,7 @@ var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { en
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 import { Icons } from "../shared/icons.js";
 import { Logger } from "../shared/logger.js";
+import { INFO_PANEL_ID } from "../shared/constants.js";
 import { formatValue, getValueClass, getValueAttributes } from "./ValueFormatter.js";
 import { getCheckpointInfo, getImageInfo, getTextBoxContent, getImportantNodeParameters } from "./NodeDataExtractor.js";
 import { NodeSelector } from "./NodeSelector.js";
@@ -29,7 +30,7 @@ class UIManager {
    */
   createPanel() {
     this.elements.panel = document.createElement("div");
-    this.elements.panel.id = "comfyui-magnify-info-panel-pro-v2";
+    this.elements.panel.id = INFO_PANEL_ID;
     this.elements.panel.className = `magnify-info-panel theme-${this.stateManager.state.currentTheme}`;
     this.elements.header = document.createElement("div");
     this.elements.header.className = "panel-header";
@@ -557,7 +558,7 @@ class UIManager {
       }
       nodeContent.push({
         label: "Location",
-        value: `<span style="display: flex; align-items: center; gap: 6px;">${Icons.focus} Focus Node</span>`,
+        value: `<span class="focus-node-btn">${Icons.focus} Focus Node</span>`,
         clickable: "zoom",
         nodeId: info.hoveredNode.id
       });

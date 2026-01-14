@@ -43,6 +43,12 @@ function initializeInfoPanel() {
         // Expose orchestrator globally if needed
         window.infoPanelManager = infoPanel as any;
 
+        // Register as extension for central management (e.g. force hide on toggle)
+        if (!window.comfyUIMagnifyGlassExtensions) {
+            window.comfyUIMagnifyGlassExtensions = [];
+        }
+        window.comfyUIMagnifyGlassExtensions.push(infoPanel);
+
         // CSS is loaded by UIManager.injectStyles() - no need to load separately
 
         Logger.info('Info Panel extension initialized');

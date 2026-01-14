@@ -6,7 +6,7 @@
 
 import type { ComfyApp, ComfyNode } from '../types/comfyui';
 import { findLiteGraphCanvas, rectsOverlap, Rectangle } from '../shared/utils';
-import { DEFAULT_PADDING, DEFAULT_GLASS_Y_OFFSET } from '../shared/constants';
+import { DEFAULT_PADDING, DEFAULT_GLASS_Y_OFFSET, INFO_PANEL_ID } from '../shared/constants';
 import { registerGlassSettings, registerAccessibilitySettings } from '../shared/settings';
 import { ConfigManager } from './ConfigManager';
 import { MagnifierState } from './MagnifierState';
@@ -139,8 +139,7 @@ export class MagnifyGlass {
 
         if (state.active) {
             // TURNING OFF - Force hide everything
-            state.active = false;
-            this.ui.hide();
+            this.forceHideAllComponents();
         } else {
             // TURNING ON
             state.active = true;
@@ -148,6 +147,39 @@ export class MagnifyGlass {
             if (this.eventHandler) {
                 this.eventHandler.updateInitialPosition();
             }
+        }
+    }
+
+    /**
+     * Force hide all components including extensions (Info Panel, etc).
+     * This overcomes the "pinned" state of the info panel when the main tool is deactivated.
+     */
+    private forceHideAllComponents(): void {
+        this.state.active = false;
+        this.ui.hide();
+
+        // 1. Nuclear option: Direct DOM ID targeting
+        // This is necessary because in some cases object references might be stale or logic might prevent hiding
+        const panelEl = document.getElementById(INFO_PANEL_ID);
+        if (panelEl) {
+            panelEl.style.display = 'none';
+            // Also force opacity 0 just in case transition handles display
+            panelEl.style.opacity = '0';
+        }
+
+        // Iterate through all registered extensions and hide them if they have a hide method
+        const extensions = window.comfyUIMagnifyGlassExtensions;
+        if (extensions && extensions.length > 0) {
+            extensions.forEach((extension: any) => {
+                // Check basically any likely property for a UI manager or direct hide method
+                if (extension && extension.uiManager && typeof extension.uiManager.hide === 'function') {
+                    extension.uiManager.hide();
+                    // Explicitly force display none if available to be extra sure
+                    if (extension.uiManager.elements && extension.uiManager.elements.panel) {
+                        extension.uiManager.elements.panel.style.display = 'none';
+                    }
+                }
+            });
         }
     }
 

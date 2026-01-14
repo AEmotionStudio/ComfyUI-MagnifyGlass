@@ -23,6 +23,10 @@ function initializeInfoPanel() {
   try {
     const infoPanel = new InfoPanel(magnifyGlass);
     window.infoPanelManager = infoPanel;
+    if (!window.comfyUIMagnifyGlassExtensions) {
+      window.comfyUIMagnifyGlassExtensions = [];
+    }
+    window.comfyUIMagnifyGlassExtensions.push(infoPanel);
     Logger.info("Info Panel extension initialized");
   } catch (e) {
     Logger.error("Error during initialization:", e);

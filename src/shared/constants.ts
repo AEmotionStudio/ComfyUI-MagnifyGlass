@@ -64,6 +64,7 @@ export const DEFAULT_OFFSET_STEP = 5;
 export const DEFAULT_PANEL_WIDTH = 300;
 export const DEFAULT_PANEL_MAX_HEIGHT = 300;
 export const DEFAULT_PANEL_OPACITY = 100;
+export const INFO_PANEL_ID = "comfyui-magnify-info-panel-pro-v2";
 
 // Z-Index hierarchy
 export const Z_INDEX = {

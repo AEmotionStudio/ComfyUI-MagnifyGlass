@@ -662,3 +662,65 @@
 .pulse {
     animation: pulse 2s infinite;
 }
+
+/* Focus Node Button Styling - Premium Glass */
+.focus-node-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    /* Ghost Style Default */
+    background: transparent;
+    color: var(--info-panel-accent-color, #74b9ff);
+    border: 1px solid var(--info-panel-accent-color, #74b9ff);
+
+    padding: 2px 10px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 0.9em;
+    letter-spacing: 0.02em;
+
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 0 0 rgba(0, 0, 0, 0);
+    opacity: 0.9;
+}
+
+.focus-node-btn:hover {
+    /* Glowing active state */
+    background: var(--info-panel-accent-color, #74b9ff);
+    color: #fff;
+    /* Switch to white text on fill */
+
+    /* Create a glow effect using the accent color */
+    box-shadow: 0 4px 12px -2px var(--info-panel-accent-color, #74b9ff),
+        0 0 0 1px var(--info-panel-accent-color, #74b9ff);
+
+    transform: translateY(-1px) scale(1.02);
+    opacity: 1;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.focus-node-btn:active {
+    transform: translateY(0) scale(0.98);
+    box-shadow: 0 2px 4px -2px var(--info-panel-accent-color, #74b9ff);
+    filter: brightness(0.95);
+}
+
+.focus-node-btn .icon {
+    display: flex;
+    align-items: center;
+    transition: transform 0.2s ease;
+}
+
+.focus-node-btn:hover .icon {
+    transform: scale(1.1);
+}
+
+/* Ensure the SVG inside inherits color properly */
+.focus-node-btn svg {
+    stroke: currentColor;
+    width: 14px;
+    height: 14px;
+    stroke-width: 2.5;
+    /* Make icon slightly bolder */
+}

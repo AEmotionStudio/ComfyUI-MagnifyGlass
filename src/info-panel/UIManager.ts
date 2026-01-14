@@ -8,6 +8,7 @@
 import { StateManager } from './StateManager';
 import { Icons } from '../shared/icons';
 import { Logger } from '../shared/logger';
+import { INFO_PANEL_ID } from '../shared/constants';
 import { formatValue, getValueClass, getValueAttributes, formatWidgetValue } from './ValueFormatter';
 import {
     getCheckpointInfo,
@@ -56,7 +57,7 @@ export class UIManager {
     createPanel(): void {
         // Main panel container
         this.elements.panel = document.createElement("div");
-        this.elements.panel.id = "comfyui-magnify-info-panel-pro-v2";
+        this.elements.panel.id = INFO_PANEL_ID;
         this.elements.panel.className = `magnify-info-panel theme-${this.stateManager.state.currentTheme}`;
 
         // Header
@@ -773,7 +774,7 @@ export class UIManager {
             // Add Zoom to Node button
             nodeContent.push({
                 label: 'Location',
-                value: `<span style="display: flex; align-items: center; gap: 6px;">${Icons.focus} Focus Node</span>`,
+                value: `<span class="focus-node-btn">${Icons.focus} Focus Node</span>`,
                 clickable: 'zoom',
                 nodeId: info.hoveredNode.id
             });

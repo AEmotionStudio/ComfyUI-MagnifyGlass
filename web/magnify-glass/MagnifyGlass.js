@@ -2,7 +2,7 @@ var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 import { findLiteGraphCanvas, rectsOverlap } from "../shared/utils.js";
-import { DEFAULT_PADDING, DEFAULT_GLASS_Y_OFFSET } from "../shared/constants.js";
+import { INFO_PANEL_ID, DEFAULT_PADDING, DEFAULT_GLASS_Y_OFFSET } from "../shared/constants.js";
 import { registerGlassSettings } from "../shared/settings/glassSettings.js";
 import "/scripts/app.js";
 import { registerAccessibilitySettings } from "../shared/settings/accessibilitySettings.js";
@@ -86,14 +86,37 @@ class MagnifyGlass {
   toggle() {
     const state = this.state;
     if (state.active) {
-      state.active = false;
-      this.ui.hide();
+      this.forceHideAllComponents();
     } else {
       state.active = true;
       this.ui.show();
       if (this.eventHandler) {
         this.eventHandler.updateInitialPosition();
       }
+    }
+  }
+  /**
+   * Force hide all components including extensions (Info Panel, etc).
+   * This overcomes the "pinned" state of the info panel when the main tool is deactivated.
+   */
+  forceHideAllComponents() {
+    this.state.active = false;
+    this.ui.hide();
+    const panelEl = document.getElementById(INFO_PANEL_ID);
+    if (panelEl) {
+      panelEl.style.display = "none";
+      panelEl.style.opacity = "0";
+    }
+    const extensions = window.comfyUIMagnifyGlassExtensions;
+    if (extensions && extensions.length > 0) {
+      extensions.forEach((extension) => {
+        if (extension && extension.uiManager && typeof extension.uiManager.hide === "function") {
+          extension.uiManager.hide();
+          if (extension.uiManager.elements && extension.uiManager.elements.panel) {
+            extension.uiManager.elements.panel.style.display = "none";
+          }
+        }
+      });
     }
   }
   /**

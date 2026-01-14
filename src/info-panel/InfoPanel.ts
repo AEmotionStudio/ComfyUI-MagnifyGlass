@@ -152,6 +152,9 @@ export class InfoPanel {
             if (this.uiManager.elements.controls) {
                 this.uiManager.elements.controls.style.display = 'none';
             }
+
+            // Fix: Ensure highlight is cleared when glass is disabled
+            this.canvasHighlighter.setHighlightedNode(null);
         }).bind(this);
     }
 

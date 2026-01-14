@@ -100,6 +100,7 @@ class InfoPanel {
       if (this.uiManager.elements.controls) {
         this.uiManager.elements.controls.style.display = "none";
       }
+      this.canvasHighlighter.setHighlightedNode(null);
     }).bind(this);
   }
   scheduleInfoUpdate() {

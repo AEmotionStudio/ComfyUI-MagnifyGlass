@@ -794,6 +794,8 @@ function renderSettingsPanel(container) {
     setSettingValue("🔍MagnifyGlass.AltRequired", false);
     setSettingValue("🔍MagnifyGlass.OffsetStep", 5);
     setSettingValue("🔍MagnifyGlass.ShowCursorPreview", false);
+    setSettingValue("🔍MagnifyGlass.ForceDirectCapture", false);
+    setSettingValue("🔍MagnifyGlass.ForceDirectCaptureKey", "d");
     setSettingValue("🔍MagnifyGlass.InfoPanelEnabled", true);
     setSettingValue("🔍MagnifyGlass.InfoPanelPosition", "Bottom");
     setSettingValue("🔍MagnifyGlass.InfoPanelWidth", 300);
@@ -820,6 +822,16 @@ function renderSettingsPanel(container) {
     setSettingValue("🔍MagnifyGlass.ToggleHotkey", "i");
     setSettingValue("🔍MagnifyGlass.GlassPreviewToggleHotkey", "g");
     setSettingValue("🔍MagnifyGlass.PinPanelHotkey", "u");
+    setSettingValue("🔍MagnifyGlass.AccessibilityEnabled", false);
+    setSettingValue("🔍MagnifyGlass.HighContrastMode", false);
+    setSettingValue("🔍MagnifyGlass.TextGlowEnabled", false);
+    setSettingValue("🔍MagnifyGlass.TextGlowColor", "#ffff00");
+    setSettingValue("🔍MagnifyGlass.TextGlowIntensity", 5);
+    setSettingValue("🔍MagnifyGlass.FontScaleFactor", 100);
+    setSettingValue("🔍MagnifyGlass.BoldTextEnabled", false);
+    setSettingValue("🔍MagnifyGlass.TextOutlineEnabled", false);
+    setSettingValue("🔍MagnifyGlass.TextOutlineColor", "#000000");
+    setSettingValue("🔍MagnifyGlass.NodeTitleEmphasis", false);
     setSettingValue("🔍MagnifyGlass.InvertColors", false);
     setSettingValue("🔍MagnifyGlass.GrayscaleMode", false);
     setSettingValue("🔍MagnifyGlass.ReduceMotion", false);
@@ -827,6 +839,8 @@ function renderSettingsPanel(container) {
     if (magnifyGlass && magnifyGlass.resetOffsets) {
       magnifyGlass.resetOffsets();
     }
+    container.innerHTML = "";
+    renderSettingsPanel(container);
   });
   buttonRow.appendChild(resetAllBtn);
   container.appendChild(buttonRow);

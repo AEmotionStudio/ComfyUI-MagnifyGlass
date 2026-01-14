@@ -941,6 +941,8 @@ export function renderSettingsPanel(container: HTMLElement): void {
         setSettingValue('🔍MagnifyGlass.OffsetStep', 5);
         setSettingValue('🔍MagnifyGlass.ShowCursorPreview', false);
 
+        setSettingValue('🔍MagnifyGlass.ForceDirectCapture', false);
+        setSettingValue('🔍MagnifyGlass.ForceDirectCaptureKey', 'd');
 
         // Default panel settings
         setSettingValue('🔍MagnifyGlass.InfoPanelEnabled', true);
@@ -971,6 +973,18 @@ export function renderSettingsPanel(container: HTMLElement): void {
         setSettingValue('🔍MagnifyGlass.ToggleHotkey', 'i');
         setSettingValue('🔍MagnifyGlass.GlassPreviewToggleHotkey', 'g');
         setSettingValue('🔍MagnifyGlass.PinPanelHotkey', 'u');
+
+        // Accessibility Settings
+        setSettingValue('🔍MagnifyGlass.AccessibilityEnabled', false);
+        setSettingValue('🔍MagnifyGlass.HighContrastMode', false);
+        setSettingValue('🔍MagnifyGlass.TextGlowEnabled', false);
+        setSettingValue('🔍MagnifyGlass.TextGlowColor', '#ffff00');
+        setSettingValue('🔍MagnifyGlass.TextGlowIntensity', 5);
+        setSettingValue('🔍MagnifyGlass.FontScaleFactor', 100);
+        setSettingValue('🔍MagnifyGlass.BoldTextEnabled', false);
+        setSettingValue('🔍MagnifyGlass.TextOutlineEnabled', false);
+        setSettingValue('🔍MagnifyGlass.TextOutlineColor', '#000000');
+        setSettingValue('🔍MagnifyGlass.NodeTitleEmphasis', false);
         setSettingValue('🔍MagnifyGlass.InvertColors', false);
         setSettingValue('🔍MagnifyGlass.GrayscaleMode', false);
         setSettingValue('🔍MagnifyGlass.ReduceMotion', false);
@@ -980,6 +994,11 @@ export function renderSettingsPanel(container: HTMLElement): void {
         if (magnifyGlass && magnifyGlass.resetOffsets) {
             magnifyGlass.resetOffsets();
         }
+
+        // Refresh the UI to show the new default values
+        // We clear the container and re-render the entire panel
+        container.innerHTML = '';
+        renderSettingsPanel(container);
     });
 
     buttonRow.appendChild(resetAllBtn);

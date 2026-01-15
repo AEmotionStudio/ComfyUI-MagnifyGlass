@@ -97,7 +97,7 @@ function createSlider(
 /**
  * Create a toggle control with tooltip
  */
-function createToggle(
+export function createToggle(
     label: string,
     checked: boolean,
     onChange: (checked: boolean) => void,
@@ -107,15 +107,46 @@ function createToggle(
     row.className = 'magnify-toggle-row';
     if (tooltip) row.title = tooltip;
 
+    // Generate unique IDs for accessibility
+    const toggleId = `magnify-toggle-${Math.random().toString(36).substr(2, 9)}`;
+    const labelId = `${toggleId}-label`;
+
     const labelEl = document.createElement('label');
     labelEl.textContent = label;
+    labelEl.id = labelId;
+    labelEl.style.cursor = 'pointer'; // Make it look clickable
 
     const toggle = document.createElement('div');
     toggle.className = `magnify-toggle${checked ? ' active' : ''}`;
+    toggle.id = toggleId;
 
-    toggle.addEventListener('click', () => {
+    // Accessibility attributes
+    toggle.setAttribute('role', 'switch');
+    toggle.setAttribute('aria-checked', String(checked));
+    toggle.setAttribute('aria-labelledby', labelId);
+    toggle.tabIndex = 0; // Make focusable
+
+    const handleToggle = (e?: Event) => {
+        if (e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
         const isActive = toggle.classList.toggle('active');
+        toggle.setAttribute('aria-checked', String(isActive));
         onChange(isActive);
+    };
+
+    toggle.addEventListener('click', handleToggle);
+
+    // Allow clicking the label to toggle
+    labelEl.addEventListener('click', handleToggle);
+
+    // Keyboard support
+    toggle.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleToggle();
+        }
     });
 
     row.appendChild(labelEl);

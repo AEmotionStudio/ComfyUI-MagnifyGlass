@@ -382,6 +382,8 @@ export class MagnifyGlass {
 
         // Calculate source region in graph coordinates for culling
         // This mirrors calculateSourceRegion() but stops at graph coords
+        if (this.state.canvasScale === 0) return;
+
         const rect = this.litegraphCanvas.getBoundingClientRect();
         const dpr = rect.width > 0 ? this.litegraphCanvas.width / rect.width : 1;
         const cursorCssX = this.state.x / dpr;

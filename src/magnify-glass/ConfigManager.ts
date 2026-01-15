@@ -4,7 +4,7 @@
  * Manages configuration and settings for the magnifying glass.
  */
 
-import { getSettingValue } from '../shared/utils';
+import { getSettingValue, clamp } from '../shared/utils';
 import { STORAGE_KEYS } from '../shared/constants';
 import type { GlassPosition, GlassShape, TextureFilter } from '../shared/constants';
 
@@ -203,15 +203,25 @@ export class ConfigManager {
      * Load settings from ComfyUI settings system.
      */
     loadSettings(): void {
-        this.zoomFactor = getSettingValue<number>("🔍MagnifyGlass.ZoomFactor", this.zoomFactor * 100) / 100;
-        this.glassSize = getSettingValue<number>("🔍MagnifyGlass.GlassSize", this.glassSize);
-        this.borderColor = getSettingValue<string>("🔍MagnifyGlass.BorderColor", this.borderColor);
-        this.borderWidth = getSettingValue<number>("🔍MagnifyGlass.BorderWidth", this.borderWidth);
+        const rawZoom = getSettingValue<number>("🔍MagnifyGlass.ZoomFactor", this.zoomFactor * 100);
+        this.zoomFactor = this.validateNumber(rawZoom, 10, 5000, 300) / 100;
+
+        const rawGlassSize = getSettingValue<number>("🔍MagnifyGlass.GlassSize", this.glassSize);
+        this.glassSize = this.validateNumber(rawGlassSize, 50, 2000, 300);
+
+        const rawBorderColor = getSettingValue<string>("🔍MagnifyGlass.BorderColor", this.borderColor);
+        this.borderColor = this.validateColor(rawBorderColor, "#6b7280");
+
+        const rawBorderWidth = getSettingValue<number>("🔍MagnifyGlass.BorderWidth", this.borderWidth);
+        this.borderWidth = this.validateNumber(rawBorderWidth, 0, 50, 1);
+
         this.activationKey = getSettingValue<string>("🔍MagnifyGlass.ActivationKey", this.activationKey);
         this.altRequired = getSettingValue<boolean>("🔍MagnifyGlass.AltRequired", this.altRequired);
         this.followCursor = getSettingValue<boolean>("🔍MagnifyGlass.FollowCursor", this.followCursor);
 
-        this.offsetStep = getSettingValue<number>("🔍MagnifyGlass.OffsetStep", this.offsetStep);
+        const rawOffsetStep = getSettingValue<number>("🔍MagnifyGlass.OffsetStep", this.offsetStep);
+        this.offsetStep = this.validateNumber(rawOffsetStep, 1, 100, 5);
+
         this.glassPosition = getSettingValue<string>("🔍MagnifyGlass.GlassPosition", this.glassPosition);
         this.resetKey = getSettingValue<string>("🔍MagnifyGlass.ResetKey", this.resetKey);
         this.glassShape = getSettingValue<string>("🔍MagnifyGlass.GlassShape", this.glassShape);
@@ -227,16 +237,48 @@ export class ConfigManager {
         this.accessibilityEnabled = getSettingValue<boolean>("🔍MagnifyGlass.AccessibilityEnabled", this.accessibilityEnabled);
         this.highContrastMode = getSettingValue<boolean>("🔍MagnifyGlass.HighContrastMode", this.highContrastMode);
         this.textGlowEnabled = getSettingValue<boolean>("🔍MagnifyGlass.TextGlowEnabled", this.textGlowEnabled);
-        this.textGlowColor = getSettingValue<string>("🔍MagnifyGlass.TextGlowColor", this.textGlowColor);
-        this.textGlowIntensity = getSettingValue<number>("🔍MagnifyGlass.TextGlowIntensity", this.textGlowIntensity);
-        this.fontScaleFactor = getSettingValue<number>("🔍MagnifyGlass.FontScaleFactor", this.fontScaleFactor);
+
+        const rawGlowColor = getSettingValue<string>("🔍MagnifyGlass.TextGlowColor", this.textGlowColor);
+        this.textGlowColor = this.validateColor(rawGlowColor, "#ffff00");
+
+        const rawGlowIntensity = getSettingValue<number>("🔍MagnifyGlass.TextGlowIntensity", this.textGlowIntensity);
+        this.textGlowIntensity = this.validateNumber(rawGlowIntensity, 1, 50, 5);
+
+        const rawFontScale = getSettingValue<number>("🔍MagnifyGlass.FontScaleFactor", this.fontScaleFactor);
+        this.fontScaleFactor = this.validateNumber(rawFontScale, 50, 500, 100);
+
         this.boldTextEnabled = getSettingValue<boolean>("🔍MagnifyGlass.BoldTextEnabled", this.boldTextEnabled);
         this.textOutlineEnabled = getSettingValue<boolean>("🔍MagnifyGlass.TextOutlineEnabled", this.textOutlineEnabled);
-        this.textOutlineColor = getSettingValue<string>("🔍MagnifyGlass.TextOutlineColor", this.textOutlineColor);
+
+        const rawOutlineColor = getSettingValue<string>("🔍MagnifyGlass.TextOutlineColor", this.textOutlineColor);
+        this.textOutlineColor = this.validateColor(rawOutlineColor, "#000000");
+
         this.nodeTitleEmphasis = getSettingValue<boolean>("🔍MagnifyGlass.NodeTitleEmphasis", this.nodeTitleEmphasis);
         this.invertColors = getSettingValue<boolean>("🔍MagnifyGlass.InvertColors", this.invertColors);
         this.grayscaleMode = getSettingValue<boolean>("🔍MagnifyGlass.GrayscaleMode", this.grayscaleMode);
         this.reduceMotion = getSettingValue<boolean>("🔍MagnifyGlass.ReduceMotion", this.reduceMotion);
+    }
+
+    /**
+     * Validate numeric input with bounds checking.
+     */
+    private validateNumber(value: unknown, min: number, max: number, fallback: number): number {
+        const num = Number(value);
+        if (isNaN(num)) return fallback;
+        return clamp(num, min, max);
+    }
+
+    /**
+     * Validate color string (hex).
+     */
+    private validateColor(color: unknown, fallback: string): string {
+        if (!color || typeof color !== 'string') return fallback;
+        // Basic hex validation: #RGB, #RRGGBB, #RRGGBBAA
+        // We permit 3, 4, 6, or 8 hex digits
+        if (/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/.test(color)) {
+            return color;
+        }
+        return fallback;
     }
 
     /**

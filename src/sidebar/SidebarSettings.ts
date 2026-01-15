@@ -477,6 +477,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
             container.querySelectorAll('.magnify-alt-toggle .magnify-toggle').forEach(t => {
                 if (checked) t.classList.add('active');
                 else t.classList.remove('active');
+                t.setAttribute('aria-checked', String(checked));
             });
         },
         'Require Alt key to be held with activation key'
@@ -876,6 +877,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
             container.querySelectorAll('.magnify-alt-toggle .magnify-toggle').forEach(t => {
                 if (checked) t.classList.add('active');
                 else t.classList.remove('active');
+                t.setAttribute('aria-checked', String(checked));
             });
         },
         'Require Alt key to be held with hotkeys'
@@ -913,7 +915,10 @@ export function renderSettingsPanel(container: HTMLElement): void {
                 const label = row.querySelector('label');
                 if (label && label.textContent === 'Follow Cursor') {
                     const toggle = row.querySelector('.magnify-toggle');
-                    if (toggle) toggle.classList.remove('active');
+                    if (toggle) {
+                        toggle.classList.remove('active');
+                        toggle.setAttribute('aria-checked', 'false');
+                    }
                 }
             });
         }

@@ -380,7 +380,40 @@ export class MagnifyGlass {
         const nodes: ComfyNode[] = graph._nodes;
         if (!nodes) return;
 
+        // Calculate source region in graph coordinates for culling
+        // This mirrors calculateSourceRegion() but stops at graph coords
+        const rect = this.litegraphCanvas.getBoundingClientRect();
+        const dpr = rect.width > 0 ? this.litegraphCanvas.width / rect.width : 1;
+        const cursorCssX = this.state.x / dpr;
+        const cursorCssY = this.state.y / dpr;
+        const cursorGraphX = (cursorCssX - this.state.canvasOffsetX) / this.state.canvasScale;
+        const cursorGraphY = (cursorCssY - this.state.canvasOffsetY) / this.state.canvasScale;
+        const targetGraphCenterX = cursorGraphX + this.config.offsetX;
+        const targetGraphCenterY = cursorGraphY + this.config.offsetY;
+        const sourceGraphWidth = (this.config.glassSize / this.config.zoomFactor) / this.state.canvasScale;
+        const sourceGraphHeight = (this.config.glassSize / this.config.zoomFactor) / this.state.canvasScale;
+
+        const sourceGraphRect = {
+            x: targetGraphCenterX - (sourceGraphWidth / 2),
+            y: targetGraphCenterY - (sourceGraphHeight / 2),
+            width: sourceGraphWidth,
+            height: sourceGraphHeight
+        };
+
         for (const node of nodes) {
+            // Optimization: Cull nodes that are not in the source region
+            if (node.pos && node.size) {
+                const nodeRect = {
+                    x: node.pos[0],
+                    y: node.pos[1],
+                    width: node.size[0],
+                    height: node.size[1]
+                };
+                if (!rectsOverlap(sourceGraphRect, nodeRect)) {
+                    continue;
+                }
+            }
+
             const widgets = (node as any).widgets;
             if (!widgets) continue;
 

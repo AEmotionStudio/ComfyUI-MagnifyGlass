@@ -144,8 +144,7 @@ export function createToggle(
     // Keyboard support
     toggle.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            handleToggle();
+            handleToggle(e);
         }
     });
 

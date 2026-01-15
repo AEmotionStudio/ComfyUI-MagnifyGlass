@@ -59,32 +59,42 @@ describe('Sidebar Controls', () => {
             expect(onChange).toHaveBeenCalledWith(true);
         });
 
-        it('should toggle state on Enter key', () => {
+        it('should toggle state and stop propagation on Enter key', () => {
             const onChange = vi.fn();
             const toggleRow = createToggle('Test', false, onChange);
             const toggle = toggleRow.querySelector('.magnify-toggle') as HTMLElement;
 
-            // Create keyboard event
+            // Create keyboard event with spies
             const event = new KeyboardEvent('keydown', { key: 'Enter' });
+            const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
+            const stopPropagationSpy = vi.spyOn(event, 'stopPropagation');
+
             toggle.dispatchEvent(event);
 
             expect(toggle.classList.contains('active')).toBe(true);
             expect(toggle.getAttribute('aria-checked')).toBe('true');
             expect(onChange).toHaveBeenCalledWith(true);
+            expect(preventDefaultSpy).toHaveBeenCalled();
+            expect(stopPropagationSpy).toHaveBeenCalled();
         });
 
-        it('should toggle state on Space key', () => {
+        it('should toggle state and stop propagation on Space key', () => {
             const onChange = vi.fn();
             const toggleRow = createToggle('Test', false, onChange);
             const toggle = toggleRow.querySelector('.magnify-toggle') as HTMLElement;
 
-            // Create keyboard event
+            // Create keyboard event with spies
             const event = new KeyboardEvent('keydown', { key: ' ' });
+            const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
+            const stopPropagationSpy = vi.spyOn(event, 'stopPropagation');
+
             toggle.dispatchEvent(event);
 
             expect(toggle.classList.contains('active')).toBe(true);
             expect(toggle.getAttribute('aria-checked')).toBe('true');
             expect(onChange).toHaveBeenCalledWith(true);
+            expect(preventDefaultSpy).toHaveBeenCalled();
+            expect(stopPropagationSpy).toHaveBeenCalled();
         });
     });
 });

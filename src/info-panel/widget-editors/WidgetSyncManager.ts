@@ -227,9 +227,17 @@ export class WidgetSyncManager {
 
         // Handle combo (validate against options)
         if (widgetType === 'combo' && constraints.options) {
-            if (!constraints.options.includes(value)) {
+            // Use string comparison since HTML select values are always strings
+            const valueStr = String(value);
+            const hasMatch = constraints.options.some(opt => String(opt) === valueStr);
+            if (!hasMatch) {
                 Logger.warn(`[WidgetSync] Invalid combo value "${value}", keeping current`);
                 return widget.value;
+            }
+            // Return the original option type (may be number)
+            const matchedOption = constraints.options.find(opt => String(opt) === valueStr);
+            if (matchedOption !== undefined) {
+                return matchedOption;
             }
         }
 
@@ -339,9 +347,13 @@ export class WidgetSyncManager {
             }
         }
 
-        // Combo validation
-        if (constraints.options && !constraints.options.includes(value)) {
-            return { valid: false, error: `Invalid option selected` };
+        // Combo validation - use string comparison
+        if (constraints.options) {
+            const valueStr = String(value);
+            const hasMatch = constraints.options.some(opt => String(opt) === valueStr);
+            if (!hasMatch) {
+                return { valid: false, error: `Invalid option selected` };
+            }
         }
 
         return { valid: true };

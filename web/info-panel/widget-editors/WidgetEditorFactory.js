@@ -72,19 +72,27 @@ class WidgetEditorFactory {
       return (_a = config.onBlur) == null ? void 0 : _a.call(config);
     });
     decrementBtn.addEventListener("click", (e) => {
-      var _a;
+      var _a, _b;
       e.preventDefault();
       e.stopPropagation();
       const step = ((_a = config.constraints) == null ? void 0 : _a.step) ?? 1;
-      input.value = String(parseFloat(input.value) - step);
+      let newValue = parseFloat(input.value) - step;
+      if (((_b = config.constraints) == null ? void 0 : _b.min) !== void 0) {
+        newValue = Math.max(config.constraints.min, newValue);
+      }
+      input.value = String(newValue);
       syncValue();
     });
     incrementBtn.addEventListener("click", (e) => {
-      var _a;
+      var _a, _b;
       e.preventDefault();
       e.stopPropagation();
       const step = ((_a = config.constraints) == null ? void 0 : _a.step) ?? 1;
-      input.value = String(parseFloat(input.value) + step);
+      let newValue = parseFloat(input.value) + step;
+      if (((_b = config.constraints) == null ? void 0 : _b.max) !== void 0) {
+        newValue = Math.min(config.constraints.max, newValue);
+      }
+      input.value = String(newValue);
       syncValue();
     });
     input.addEventListener("keydown", (e) => {
@@ -194,11 +202,13 @@ class WidgetEditorFactory {
     const select = document.createElement("select");
     select.className = "widget-editor-select";
     const options = ((_a = config.constraints) == null ? void 0 : _a.options) ?? [];
+    const currentValueStr = String(config.currentValue);
     for (const opt of options) {
       const option = document.createElement("option");
-      option.value = String(opt);
-      option.textContent = String(opt);
-      if (opt === config.currentValue) {
+      const optStr = String(opt);
+      option.value = optStr;
+      option.textContent = optStr;
+      if (optStr === currentValueStr) {
         option.selected = true;
       }
       select.appendChild(option);

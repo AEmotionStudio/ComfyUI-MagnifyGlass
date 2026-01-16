@@ -999,7 +999,8 @@ export class UIManager {
         const widgetType = row.dataset.widgetType || 'text';
         const rawValue = row.dataset.rawValue;
 
-        if (!nodeId || !widgetName) return;
+        // Use isNaN check instead of !nodeId to allow nodeId 0
+        if (isNaN(nodeId) || !widgetName) return;
 
         // Get current constraints from the data extractor
         let constraints: any = {};
@@ -1014,6 +1015,7 @@ export class UIManager {
         }
 
         // Create the editor
+        const editorKey = `${nodeId}:${widgetName}`;
         const editor = WidgetEditorFactory.createEditor({
             nodeId,
             widgetName,
@@ -1026,16 +1028,20 @@ export class UIManager {
             },
             onBlur: () => {
                 // Exit edit mode after a small delay (allows for clicks within editor)
+                // Capture the current editor reference to avoid race condition
+                const currentEditor = this.activeEditors.get(editorKey);
                 setTimeout(() => {
-                    if (!container.contains(document.activeElement)) {
-                        this.exitEditMode(row, valueEl, container);
+                    // Only exit if the same editor is still active (not replaced by a new one)
+                    if (currentEditor && this.activeEditors.get(editorKey) === currentEditor) {
+                        if (!container.contains(document.activeElement)) {
+                            this.exitEditMode(row, valueEl, container);
+                        }
                     }
                 }, 100);
             }
         });
 
         // Track the editor
-        const editorKey = `${nodeId}:${widgetName}`;
         this.activeEditors.set(editorKey, editor);
 
         // Show editor, hide value

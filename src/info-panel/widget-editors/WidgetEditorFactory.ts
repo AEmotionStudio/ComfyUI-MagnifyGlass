@@ -122,7 +122,12 @@ export class WidgetEditorFactory {
             e.preventDefault();
             e.stopPropagation();
             const step = config.constraints?.step ?? 1;
-            input.value = String(parseFloat(input.value) - step);
+            let newValue = parseFloat(input.value) - step;
+            // Clamp to constraints
+            if (config.constraints?.min !== undefined) {
+                newValue = Math.max(config.constraints.min, newValue);
+            }
+            input.value = String(newValue);
             syncValue();
         });
 
@@ -130,7 +135,12 @@ export class WidgetEditorFactory {
             e.preventDefault();
             e.stopPropagation();
             const step = config.constraints?.step ?? 1;
-            input.value = String(parseFloat(input.value) + step);
+            let newValue = parseFloat(input.value) + step;
+            // Clamp to constraints
+            if (config.constraints?.max !== undefined) {
+                newValue = Math.min(config.constraints.max, newValue);
+            }
+            input.value = String(newValue);
             syncValue();
         });
 
@@ -243,11 +253,14 @@ export class WidgetEditorFactory {
 
         // Populate options
         const options = config.constraints?.options ?? [];
+        const currentValueStr = String(config.currentValue);
         for (const opt of options) {
             const option = document.createElement('option');
-            option.value = String(opt);
-            option.textContent = String(opt);
-            if (opt === config.currentValue) {
+            const optStr = String(opt);
+            option.value = optStr;
+            option.textContent = optStr;
+            // Use string comparison to handle non-string option types
+            if (optStr === currentValueStr) {
                 option.selected = true;
             }
             select.appendChild(option);

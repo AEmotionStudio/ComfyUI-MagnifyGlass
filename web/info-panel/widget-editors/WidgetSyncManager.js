@@ -139,9 +139,15 @@ class WidgetSyncManager {
       return numValue;
     }
     if (widgetType === "combo" && constraints.options) {
-      if (!constraints.options.includes(value)) {
+      const valueStr = String(value);
+      const hasMatch = constraints.options.some((opt) => String(opt) === valueStr);
+      if (!hasMatch) {
         Logger.warn(`[WidgetSync] Invalid combo value "${value}", keeping current`);
         return widget.value;
+      }
+      const matchedOption = constraints.options.find((opt) => String(opt) === valueStr);
+      if (matchedOption !== void 0) {
+        return matchedOption;
       }
     }
     if (widgetType === "toggle" || widgetType === "boolean") {
@@ -223,8 +229,12 @@ class WidgetSyncManager {
         return { valid: false, error: `Value must be at most ${constraints.max}` };
       }
     }
-    if (constraints.options && !constraints.options.includes(value)) {
-      return { valid: false, error: `Invalid option selected` };
+    if (constraints.options) {
+      const valueStr = String(value);
+      const hasMatch = constraints.options.some((opt) => String(opt) === valueStr);
+      if (!hasMatch) {
+        return { valid: false, error: `Invalid option selected` };
+      }
     }
     return { valid: true };
   }

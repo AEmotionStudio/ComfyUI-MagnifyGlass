@@ -724,7 +724,7 @@ class UIManager {
     const widgetName = row.dataset.widgetName || "";
     const widgetType = row.dataset.widgetType || "text";
     const rawValue = row.dataset.rawValue;
-    if (!nodeId || !widgetName) return;
+    if (isNaN(nodeId) || !widgetName) return;
     let constraints = {};
     try {
       const constraintsStr = row.dataset.constraints;
@@ -733,6 +733,7 @@ class UIManager {
       }
     } catch (e) {
     }
+    const editorKey = `${nodeId}:${widgetName}`;
     const editor = WidgetEditorFactory.createEditor({
       nodeId,
       widgetName,
@@ -743,14 +744,16 @@ class UIManager {
         row.dataset.rawValue = String(value);
       },
       onBlur: () => {
+        const currentEditor = this.activeEditors.get(editorKey);
         setTimeout(() => {
-          if (!container.contains(document.activeElement)) {
-            this.exitEditMode(row, valueEl, container);
+          if (currentEditor && this.activeEditors.get(editorKey) === currentEditor) {
+            if (!container.contains(document.activeElement)) {
+              this.exitEditMode(row, valueEl, container);
+            }
           }
         }, 100);
       }
     });
-    const editorKey = `${nodeId}:${widgetName}`;
     this.activeEditors.set(editorKey, editor);
     row.classList.add("editing");
     valueEl.style.display = "none";

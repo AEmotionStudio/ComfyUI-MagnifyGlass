@@ -913,7 +913,10 @@ export class UIManager {
             // Editable widget detection
             const isEditable = item.isEditable && isStickyEnabled && item.widgetName && item.nodeId !== undefined;
             const editableClass = isEditable ? 'editable' : '';
-            const editableAttrs = isEditable ? `data-editable="true" data-widget-name="${escapeHtml(item.widgetName)}" data-widget-type="${escapeHtml(item.widgetType || 'text')}" data-raw-value="${escapeHtml(String(item.rawValue ?? ''))}"` : '';
+            // Serialize constraints and rawValue properly (handle boolean specially to avoid "false" -> true coercion)
+            const constraintsJson = isEditable && item.constraints ? escapeHtml(JSON.stringify(item.constraints)) : '';
+            const rawValueStr = isEditable ? (typeof item.rawValue === 'boolean' ? (item.rawValue ? 'true' : 'false') : escapeHtml(String(item.rawValue ?? ''))) : '';
+            const editableAttrs = isEditable ? `data-editable="true" data-widget-name="${escapeHtml(item.widgetName)}" data-widget-type="${escapeHtml(item.widgetType || 'text')}" data-raw-value="${rawValueStr}" data-constraints="${constraintsJson}"` : '';
 
             // Only show dropdown arrow for actual dropdowns, not actions like zoom
             const dropdownIcon = (item.clickable && item.clickable !== 'zoom') ? '<span class="dropdown-indicator" style="margin-left: 4px; opacity: 0.6; font-size: 10px;">▼</span>' : '';

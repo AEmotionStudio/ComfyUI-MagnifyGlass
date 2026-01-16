@@ -46,13 +46,34 @@ function createToggle(label, checked, onChange, tooltip) {
   const row = document.createElement("div");
   row.className = "magnify-toggle-row";
   if (tooltip) row.title = tooltip;
+  const toggleId = `magnify-toggle-${Math.random().toString(36).substr(2, 9)}`;
+  const labelId = `${toggleId}-label`;
   const labelEl = document.createElement("label");
   labelEl.textContent = label;
+  labelEl.id = labelId;
+  labelEl.style.cursor = "pointer";
   const toggle = document.createElement("div");
   toggle.className = `magnify-toggle${checked ? " active" : ""}`;
-  toggle.addEventListener("click", () => {
+  toggle.id = toggleId;
+  toggle.setAttribute("role", "switch");
+  toggle.setAttribute("aria-checked", String(checked));
+  toggle.setAttribute("aria-labelledby", labelId);
+  toggle.tabIndex = 0;
+  const handleToggle = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     const isActive = toggle.classList.toggle("active");
+    toggle.setAttribute("aria-checked", String(isActive));
     onChange(isActive);
+  };
+  toggle.addEventListener("click", handleToggle);
+  labelEl.addEventListener("click", handleToggle);
+  toggle.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      handleToggle(e);
+    }
   });
   row.appendChild(labelEl);
   row.appendChild(toggle);
@@ -291,6 +312,7 @@ function renderSettingsPanel(container) {
       container.querySelectorAll(".magnify-alt-toggle .magnify-toggle").forEach((t) => {
         if (checked) t.classList.add("active");
         else t.classList.remove("active");
+        t.setAttribute("aria-checked", String(checked));
       });
     },
     "Require Alt key to be held with activation key"
@@ -718,6 +740,7 @@ function renderSettingsPanel(container) {
       container.querySelectorAll(".magnify-alt-toggle .magnify-toggle").forEach((t) => {
         if (checked) t.classList.add("active");
         else t.classList.remove("active");
+        t.setAttribute("aria-checked", String(checked));
       });
     },
     "Require Alt key to be held with hotkeys"
@@ -746,7 +769,10 @@ function renderSettingsPanel(container) {
         const label = row.querySelector("label");
         if (label && label.textContent === "Follow Cursor") {
           const toggle = row.querySelector(".magnify-toggle");
-          if (toggle) toggle.classList.remove("active");
+          if (toggle) {
+            toggle.classList.remove("active");
+            toggle.setAttribute("aria-checked", "false");
+          }
         }
       });
     }
@@ -831,6 +857,7 @@ function renderSettingsPanel(container) {
   container.appendChild(buttonRow);
 }
 export {
+  createToggle,
   renderSettingsPanel
 };
 //# sourceMappingURL=SidebarSettings.js.map

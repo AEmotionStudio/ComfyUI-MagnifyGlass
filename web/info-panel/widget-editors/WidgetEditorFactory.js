@@ -245,7 +245,8 @@ class WidgetEditorFactory {
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.className = "widget-editor-checkbox";
-    checkbox.checked = Boolean(config.currentValue);
+    const boolValue = config.currentValue === true || config.currentValue === "true";
+    checkbox.checked = boolValue;
     const slider = document.createElement("span");
     slider.className = "widget-editor-toggle-slider";
     checkbox.addEventListener("change", () => {

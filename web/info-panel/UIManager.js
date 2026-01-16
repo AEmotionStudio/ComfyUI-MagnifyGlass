@@ -657,7 +657,9 @@ class UIManager {
       const clickableClass = item.clickable ? "clickable-row" : "";
       const isEditable = item.isEditable && isStickyEnabled && item.widgetName && item.nodeId !== void 0;
       const editableClass = isEditable ? "editable" : "";
-      const editableAttrs = isEditable ? `data-editable="true" data-widget-name="${escapeHtml(item.widgetName)}" data-widget-type="${escapeHtml(item.widgetType || "text")}" data-raw-value="${escapeHtml(String(item.rawValue ?? ""))}"` : "";
+      const constraintsJson = isEditable && item.constraints ? escapeHtml(JSON.stringify(item.constraints)) : "";
+      const rawValueStr = isEditable ? typeof item.rawValue === "boolean" ? item.rawValue ? "true" : "false" : escapeHtml(String(item.rawValue ?? "")) : "";
+      const editableAttrs = isEditable ? `data-editable="true" data-widget-name="${escapeHtml(item.widgetName)}" data-widget-type="${escapeHtml(item.widgetType || "text")}" data-raw-value="${rawValueStr}" data-constraints="${constraintsJson}"` : "";
       const dropdownIcon = item.clickable && item.clickable !== "zoom" ? '<span class="dropdown-indicator" style="margin-left: 4px; opacity: 0.6; font-size: 10px;">▼</span>' : "";
       const rawValue = String(item.value || "");
       const showCopyBtn = !item.clickable && rawValue.length > 3 && typeof item.value === "string";

@@ -454,10 +454,10 @@ export class MagnifyGlass {
 
                 if (elementToProcess && (isTextElement || isVideoElement || isImageElement)) {
                     const widgetRect = elementToProcess.getBoundingClientRect();
-                    const canvasRect = this.litegraphCanvas!.getBoundingClientRect();
+                    // Optimization: Reuse canvasRect and dpr from top level scope
+                    const canvasRect = rect;
 
-                    // DPR = backing pixels / CSS pixels
-                    const dpr = canvasRect.width > 0 ? (this.litegraphCanvas!.width / canvasRect.width) : 1;
+                    // DPR is already calculated at function start
                     const currentScale = this.state.canvasScale;
                     const isVirtualZoomMode = currentScale < 0.7;
 

@@ -890,33 +890,38 @@
     width: 100%;
     cursor: pointer;
     appearance: none;
-    /* Match the blue text theme style */
-    background: transparent;
-    border: 1px solid transparent;
-    color: var(--info-panel-accent-color, #74b9ff);
+    /* Match the info-value row styling (green theme) */
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
     font-size: 14px;
-    padding: 4px 24px 4px 10px;
+    color: var(--info-panel-accent-color, #a0d468);
+    background: rgba(160, 212, 104, 0.12);
+    border: 1px solid transparent;
+    padding: 4px 28px 4px 10px;
     border-radius: 6px;
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2374b9ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+    /* Custom dropdown arrow in matching green color */
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a0d468' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
     background-repeat: no-repeat;
-    background-position: right 6px center;
+    background-position: right 8px center;
     background-size: 12px;
 }
 
 .widget-editor-select:hover {
-    background-color: rgba(116, 185, 255, 0.12);
+    background: rgba(160, 212, 104, 0.18);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     border-color: transparent;
 }
 
 .widget-editor-select:focus {
-    background-color: rgba(116, 185, 255, 0.15);
-    border-color: var(--info-panel-accent-color, #74b9ff);
-    box-shadow: 0 0 0 2px rgba(116, 185, 255, 0.2);
+    background: rgba(160, 212, 104, 0.22);
+    border-color: var(--info-panel-accent-color, #a0d468);
+    box-shadow: 0 0 0 2px rgba(160, 212, 104, 0.25);
 }
 
 .widget-editor-select option {
     background: #1a1a1f;
-    color: var(--info-panel-accent-color, #74b9ff);
+    color: #a0d468;
     padding: 8px;
 }
 

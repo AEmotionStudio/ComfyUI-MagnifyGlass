@@ -852,6 +852,7 @@
     stroke-width: 2.5;
     /* Make icon slightly bolder */
 }
+
 /* ==========================================================================
    Widget Editor Styles - Inspector Inline Editing
    ========================================================================== */
@@ -977,7 +978,7 @@
     padding-right: 4px;
 }
 
-/* Combo/dropdown editor - blue text theme style */
+/* Combo/dropdown editor - green bg with blue text to match theme */
 .widget-editor-combo {
     width: 100%;
 }
@@ -986,27 +987,33 @@
     width: 100%;
     cursor: pointer;
     appearance: none;
-    background: transparent;
-    border: 1px solid transparent;
-    color: var(--info-panel-accent-color, #74b9ff);
+    /* Green background to match info-value rows, blue text for theme */
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
     font-size: 14px;
-    padding: 4px 24px 4px 10px;
+    color: var(--info-panel-accent-color, #74b9ff);
+    background: rgba(160, 212, 104, 0.12);
+    border: 1px solid transparent;
+    padding: 4px 28px 4px 10px;
     border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+    /* Blue dropdown arrow to match text */
     background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2374b9ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
     background-repeat: no-repeat;
-    background-position: right 6px center;
+    background-position: right 8px center;
     background-size: 12px;
 }
 
 .widget-editor-select:hover {
-    background-color: rgba(116, 185, 255, 0.12);
+    background: rgba(160, 212, 104, 0.18);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     border-color: transparent;
 }
 
 .widget-editor-select:focus {
-    background-color: rgba(116, 185, 255, 0.15);
+    background: rgba(160, 212, 104, 0.22);
     border-color: var(--info-panel-accent-color, #74b9ff);
-    box-shadow: 0 0 0 2px rgba(116, 185, 255, 0.2);
+    box-shadow: 0 0 0 2px rgba(116, 185, 255, 0.25);
 }
 
 .widget-editor-select option {
@@ -1230,7 +1237,7 @@
     box-shadow: 0 0 0 2px rgba(116, 185, 255, 0.25);
 }
 
-/* Inline Dropdown - blue text theme style */
+/* Inline Dropdown - green bg with blue text to match theme */
 .inline-dropdown {
     min-width: 100px;
     max-width: 180px;
@@ -1238,32 +1245,34 @@
 
 .inline-dropdown-select {
     width: 100%;
-    padding: 4px 24px 4px 10px;
+    padding: 4px 28px 4px 10px;
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
     font-size: 14px;
-    background: transparent;
+    background: rgba(160, 212, 104, 0.12);
     border: 1px solid transparent;
     border-radius: 6px;
     color: var(--info-panel-accent-color, #74b9ff);
     cursor: pointer;
     appearance: none;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2374b9ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
     background-repeat: no-repeat;
-    background-position: right 6px center;
+    background-position: right 8px center;
     background-size: 12px;
     transition: all 0.2s ease;
 }
 
 .inline-dropdown-select:hover {
-    background-color: rgba(116, 185, 255, 0.12);
+    background: rgba(160, 212, 104, 0.18);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
     border-color: transparent;
 }
 
 .inline-dropdown-select:focus {
     outline: none;
-    background-color: rgba(116, 185, 255, 0.15);
+    background: rgba(160, 212, 104, 0.22);
     border-color: var(--info-panel-accent-color, #74b9ff);
-    box-shadow: 0 0 0 2px rgba(116, 185, 255, 0.2);
+    box-shadow: 0 0 0 2px rgba(116, 185, 255, 0.25);
 }
 
 .inline-dropdown-select option {

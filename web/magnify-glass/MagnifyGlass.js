@@ -255,7 +255,35 @@ class MagnifyGlass {
     };
     const nodes = graph._nodes;
     if (!nodes) return;
+    if (this.state.canvasScale === 0) return;
+    const rect = this.litegraphCanvas.getBoundingClientRect();
+    const dpr = rect.width > 0 ? this.litegraphCanvas.width / rect.width : 1;
+    const cursorCssX = this.state.x / dpr;
+    const cursorCssY = this.state.y / dpr;
+    const cursorGraphX = (cursorCssX - this.state.canvasOffsetX) / this.state.canvasScale;
+    const cursorGraphY = (cursorCssY - this.state.canvasOffsetY) / this.state.canvasScale;
+    const targetGraphCenterX = cursorGraphX + this.config.offsetX;
+    const targetGraphCenterY = cursorGraphY + this.config.offsetY;
+    const sourceGraphWidth = this.config.glassSize / this.config.zoomFactor / this.state.canvasScale;
+    const sourceGraphHeight = this.config.glassSize / this.config.zoomFactor / this.state.canvasScale;
+    const sourceGraphRect = {
+      x: targetGraphCenterX - sourceGraphWidth / 2,
+      y: targetGraphCenterY - sourceGraphHeight / 2,
+      width: sourceGraphWidth,
+      height: sourceGraphHeight
+    };
     for (const node of nodes) {
+      if (node.pos && node.size) {
+        const nodeRect = {
+          x: node.pos[0],
+          y: node.pos[1],
+          width: node.size[0],
+          height: node.size[1]
+        };
+        if (!rectsOverlap(sourceGraphRect, nodeRect)) {
+          continue;
+        }
+      }
       const widgets = node.widgets;
       if (!widgets) continue;
       for (const widget of widgets) {
@@ -288,15 +316,15 @@ class MagnifyGlass {
         if (elementToProcess && (isVideoElement || isImageElement)) {
           const widgetRect = elementToProcess.getBoundingClientRect();
           const canvasRect = this.litegraphCanvas.getBoundingClientRect();
-          const dpr = canvasRect.width > 0 ? this.litegraphCanvas.width / canvasRect.width : 1;
+          const dpr2 = canvasRect.width > 0 ? this.litegraphCanvas.width / canvasRect.width : 1;
           const currentScale = this.state.canvasScale;
           const isVirtualZoomMode = currentScale < 0.7;
           const widgetCssX = widgetRect.left - canvasRect.left;
           const widgetCssY = widgetRect.top - canvasRect.top;
           const widgetCssWidth = widgetRect.width;
           const widgetCssHeight = widgetRect.height;
-          const pivotCssX = this.state.x / dpr;
-          const pivotCssY = this.state.y / dpr;
+          const pivotCssX = this.state.x / dpr2;
+          const pivotCssY = this.state.y / dpr2;
           let finalWidgetCssX;
           let finalWidgetCssY;
           let finalWidgetCssWidth;
@@ -312,10 +340,10 @@ class MagnifyGlass {
             finalWidgetCssWidth = widgetCssWidth;
             finalWidgetCssHeight = widgetCssHeight;
           }
-          const widgetCanvasX = finalWidgetCssX * dpr;
-          const widgetCanvasY = finalWidgetCssY * dpr;
-          const widgetCanvasWidth = finalWidgetCssWidth * dpr;
-          const widgetCanvasHeight = finalWidgetCssHeight * dpr;
+          const widgetCanvasX = finalWidgetCssX * dpr2;
+          const widgetCanvasY = finalWidgetCssY * dpr2;
+          const widgetCanvasWidth = finalWidgetCssWidth * dpr2;
+          const widgetCanvasHeight = finalWidgetCssHeight * dpr2;
           const widgetSourceRect = {
             x: widgetCanvasX,
             y: widgetCanvasY,

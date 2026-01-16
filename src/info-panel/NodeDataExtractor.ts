@@ -7,13 +7,33 @@
 
 import { formatWidgetValue } from './ValueFormatter';
 import type { NodeInfo } from '../types/comfyui';
+import { WidgetSyncManager } from './widget-editors/WidgetSyncManager';
+
+/**
+ * Widget constraints for editors
+ */
+export interface WidgetConstraintsInfo {
+    min?: number;
+    max?: number;
+    step?: number;
+    precision?: number;
+    options?: unknown[];
+}
 
 /**
  * Interface for extracted parameter items.
+ * Extended to support inline editing in the inspector panel.
  */
 export interface ParameterItem {
     label: string;
     value: string;
+    // Editing metadata
+    widgetName?: string;       // Original widget name for syncing
+    widgetType?: string;       // Widget type (number, combo, text, etc.)
+    isEditable?: boolean;      // Whether this can be edited
+    rawValue?: unknown;        // Original unformatted value
+    constraints?: WidgetConstraintsInfo;  // Widget constraints for validation
+    nodeId?: number;           // Node ID for sync operations
 }
 
 /**
@@ -210,7 +230,7 @@ function shouldShowAllWidgets(nodeType: string): boolean {
 /**
  * Get important node parameters based on node type.
  * @param nodeInfo - Node information object
- * @returns Array of parameter items
+ * @returns Array of parameter items with editing metadata
  */
 export function getImportantNodeParameters(nodeInfo: NodeInfo): ParameterItem[] {
     const parameters: ParameterItem[] = [];
@@ -226,16 +246,32 @@ export function getImportantNodeParameters(nodeInfo: NodeInfo): ParameterItem[] 
         !typeLower.includes('model') &&
         !typeLower.includes('preview');
 
+    // Helper to create parameter item with full metadata
+    const createParameterItem = (widget: any): ParameterItem => {
+        const widgetType = WidgetSyncManager.getWidgetType(widget);
+        const constraints = WidgetSyncManager.extractConstraints(widget);
+        const isEditable = WidgetSyncManager.isWidgetEditable(widget);
+
+        return {
+            label: widget.name,
+            value: formatWidgetValue(widget.value),
+            // Editing metadata
+            widgetName: widget.name,
+            widgetType: widgetType,
+            isEditable: isEditable,
+            rawValue: widget.value,
+            constraints: constraints,
+            nodeId: nodeInfo.id
+        };
+    };
+
     // For complex nodes, show ALL widgets
     if (nodeType && shouldShowAllWidgets(nodeType)) {
         for (const widget of nodeInfo.widgets) {
             if (widget.name && widget.name !== '') {
                 const widgetName = widget.name.toLowerCase();
                 if (!SKIP_WIDGET_NAMES.some(skip => widgetName.includes(skip))) {
-                    parameters.push({
-                        label: widget.name,
-                        value: formatWidgetValue(widget.value)
-                    });
+                    parameters.push(createParameterItem(widget));
                 }
             }
         }
@@ -248,10 +284,7 @@ export function getImportantNodeParameters(nodeInfo: NodeInfo): ParameterItem[] 
     for (const widget of nodeInfo.widgets) {
         const paramName = widget.name.toLowerCase();
         if (importantParams.some(param => paramName.includes(param))) {
-            parameters.push({
-                label: widget.name,
-                value: formatWidgetValue(widget.value)
-            });
+            parameters.push(createParameterItem(widget));
         }
     }
 

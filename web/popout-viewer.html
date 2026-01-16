@@ -796,6 +796,46 @@
             color: var(--text-tertiary);
             font-size: 11px;
         }
+
+        /* Widget Editor Styles for Pop-out */
+        .widget-value-editable {
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: border-color 0.15s ease;
+        }
+        .widget-value-editable:hover {
+            border-color: var(--accent-blue);
+        }
+        .widget-editor-inline {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .widget-editor-input {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            background: var(--bg-primary);
+            border: 1px solid var(--accent-blue);
+            border-radius: 4px;
+            color: var(--text-primary);
+            padding: 4px 8px;
+            width: 100%;
+            outline: none;
+        }
+        .widget-editor-input:focus {
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
+        }
+        .widget-editor-select {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            background: var(--bg-primary);
+            border: 1px solid var(--accent-blue);
+            border-radius: 4px;
+            color: var(--text-primary);
+            padding: 4px 8px;
+            width: 100%;
+            cursor: pointer;
+        }
     </style>
 </head>
 
@@ -1017,7 +1057,11 @@
             }
         }
 
+        // Track current info for widget editing
+        let currentInfo = null;
+
         function handleInfo(info) {
+            currentInfo = info; // Store for widget editing
             if (!info) {
                 showEmptyState();
                 return;
@@ -1025,6 +1069,86 @@
 
             hideEmptyState();
             renderInfo(info);
+        }
+
+        /**
+         * Send widget edit to main window via BroadcastChannel
+         */
+        function sendWidgetEdit(nodeId, widgetName, value) {
+            channel.postMessage({
+                type: 'widget-edit',
+                data: {
+                    nodeId: nodeId,
+                    widgetName: widgetName,
+                    value: value
+                },
+                timestamp: Date.now()
+            });
+        }
+
+        /**
+         * Start editing a widget value inline
+         */
+        function editWidgetValue(element, nodeId, widgetName, currentValue, widgetType, options) {
+            // Already editing?
+            if (element.querySelector('.widget-editor-inline')) return;
+            
+            const originalHtml = element.innerHTML;
+            const isCombo = widgetType === 'combo' && Array.isArray(options) && options.length > 0;
+            const isNumber = widgetType === 'number' || widgetType === 'int' || widgetType === 'float';
+            const isBoolean = widgetType === 'toggle' || widgetType === 'boolean';
+            
+            let editorHtml;
+            
+            if (isCombo) {
+                const optionsHtml = options.map(opt => 
+                    `<option value="${escapeHtml(String(opt))}" ${opt == currentValue ? 'selected' : ''}>${escapeHtml(String(opt))}</option>`
+                ).join('');
+                editorHtml = `<select class="widget-editor-select" onchange="commitWidgetEdit(this, ${nodeId}, '${widgetName}')">${optionsHtml}</select>`;
+            } else if (isBoolean) {
+                // Toggle immediately for boolean
+                const newValue = currentValue !== true && currentValue !== 'true';
+                sendWidgetEdit(nodeId, widgetName, newValue);
+                element.innerHTML = `<span style="color: ${newValue ? 'var(--accent-green)' : 'var(--text-tertiary)'}">${newValue ? 'true' : 'false'}</span>`;
+                return;
+            } else {
+                const inputType = isNumber ? 'number' : 'text';
+                editorHtml = `<input type="${inputType}" class="widget-editor-input" value="${escapeHtml(String(currentValue))}" 
+                    onblur="commitWidgetEdit(this, ${nodeId}, '${widgetName}')" 
+                    onkeydown="if(event.key==='Enter'){this.blur();}if(event.key==='Escape'){cancelWidgetEdit(this,'${escapeHtml(originalHtml.replace(/'/g, "\\\\'"  ))}');}"/>`;
+            }
+            
+            element.innerHTML = `<div class="widget-editor-inline">${editorHtml}</div>`;
+            
+            const input = element.querySelector('input, select');
+            if (input) {
+                input.focus();
+                if (input.select) input.select();
+            }
+        }
+        
+        /**
+         * Commit widget edit and send to main window
+         */
+        function commitWidgetEdit(input, nodeId, widgetName) {
+            const value = input.type === 'number' ? parseFloat(input.value) : input.value;
+            sendWidgetEdit(nodeId, widgetName, value);
+            
+            // Update display
+            const container = input.closest('.widget-value-editable');
+            if (container) {
+                container.innerHTML = `<span style="color: var(--accent-blue);">${escapeHtml(String(value))}</span>`;
+            }
+        }
+        
+        /**
+         * Cancel widget edit
+         */
+        function cancelWidgetEdit(input, originalHtml) {
+            const container = input.closest('.widget-value-editable');
+            if (container) {
+                container.innerHTML = originalHtml;
+            }
         }
 
         function renderInfo(info) {

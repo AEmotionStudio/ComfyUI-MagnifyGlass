@@ -51,11 +51,15 @@ function findLiteGraphCanvas() {
   }
   return null;
 }
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
 function escapeHtml(str) {
   if (str === null || str === void 0) return "";
   return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
 }
 export {
+  clamp,
   escapeHtml,
   findLiteGraphCanvas,
   getSettingValue,

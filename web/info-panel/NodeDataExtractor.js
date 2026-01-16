@@ -1,4 +1,5 @@
 import { formatWidgetValue } from "./ValueFormatter.js";
+import { WidgetSyncManager } from "./widget-editors/WidgetSyncManager.js";
 function getCheckpointInfo(nodeInfo) {
   if (nodeInfo.type && (nodeInfo.type.includes("CheckpointLoader") || nodeInfo.type.includes("LoadCheckpoint") || nodeInfo.type.includes("ModelLoader") || nodeInfo.type.includes("UNETLoader") || nodeInfo.type.includes("VAELoader") || nodeInfo.type.includes("LoraLoader"))) {
     if (nodeInfo.widgets && nodeInfo.widgets.length > 0) {
@@ -174,15 +175,28 @@ function getImportantNodeParameters(nodeInfo) {
   const nodeType = nodeInfo.type || "";
   const typeLower = nodeType.toLowerCase();
   const isSaveNode = typeLower.includes("save") && !typeLower.includes("checkpoint") && !typeLower.includes("model") && !typeLower.includes("preview");
+  const createParameterItem = (widget) => {
+    const widgetType = WidgetSyncManager.getWidgetType(widget);
+    const constraints = WidgetSyncManager.extractConstraints(widget);
+    const isEditable = WidgetSyncManager.isWidgetEditable(widget);
+    return {
+      label: widget.name,
+      value: formatWidgetValue(widget.value),
+      // Editing metadata
+      widgetName: widget.name,
+      widgetType,
+      isEditable,
+      rawValue: widget.value,
+      constraints,
+      nodeId: nodeInfo.id
+    };
+  };
   if (nodeType && shouldShowAllWidgets(nodeType)) {
     for (const widget of nodeInfo.widgets) {
       if (widget.name && widget.name !== "") {
         const widgetName = widget.name.toLowerCase();
         if (!SKIP_WIDGET_NAMES.some((skip) => widgetName.includes(skip))) {
-          parameters.push({
-            label: widget.name,
-            value: formatWidgetValue(widget.value)
-          });
+          parameters.push(createParameterItem(widget));
         }
       }
     }
@@ -192,10 +206,7 @@ function getImportantNodeParameters(nodeInfo) {
   for (const widget of nodeInfo.widgets) {
     const paramName = widget.name.toLowerCase();
     if (importantParams.some((param) => paramName.includes(param))) {
-      parameters.push({
-        label: widget.name,
-        value: formatWidgetValue(widget.value)
-      });
+      parameters.push(createParameterItem(widget));
     }
   }
   return parameters;

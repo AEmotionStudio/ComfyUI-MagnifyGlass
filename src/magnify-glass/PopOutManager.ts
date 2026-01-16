@@ -7,14 +7,24 @@
 
 import { BROADCAST_CHANNEL_NAME } from '../shared/constants';
 import { Logger } from '../shared/logger';
+import { WidgetSyncManager } from '../info-panel/widget-editors/WidgetSyncManager';
 
 /**
  * Message types for BroadcastChannel communication
  */
 interface PopOutMessage {
-    type: 'frame' | 'config' | 'info' | 'close' | 'ping' | 'pong' | 'node-select' | 'nodes-list' | 'request-nodes' | 'zoom-node';
-    data?: string | Partial<PopOutConfig> | PopOutInfo | NodeListData | number;
+    type: 'frame' | 'config' | 'info' | 'close' | 'ping' | 'pong' | 'node-select' | 'nodes-list' | 'request-nodes' | 'zoom-node' | 'widget-edit';
+    data?: string | Partial<PopOutConfig> | PopOutInfo | NodeListData | number | WidgetEditData;
     timestamp?: number;
+}
+
+/**
+ * Widget edit command data from pop-out viewer
+ */
+interface WidgetEditData {
+    nodeId: number;
+    widgetName: string;
+    value: unknown;
 }
 
 /**
@@ -198,6 +208,33 @@ export class PopOutManager {
                     }
                 }
                 break;
+            case 'widget-edit':
+                // Popout is sending a widget value edit
+                this.handleWidgetEdit(message.data as WidgetEditData);
+                break;
+        }
+    }
+
+    /**
+     * Handle widget edit command from pop-out viewer.
+     * Syncs the edit to the actual node widget on the canvas.
+     */
+    private handleWidgetEdit(editData: WidgetEditData): void {
+        if (!editData || typeof editData.nodeId !== 'number' || !editData.widgetName) {
+            Logger.warn('[PopOut] Invalid widget edit data:', editData);
+            return;
+        }
+
+        const result = WidgetSyncManager.syncWidgetValue(
+            editData.nodeId,
+            editData.widgetName,
+            editData.value
+        );
+
+        if (result.success) {
+            Logger.debug(`[PopOut] Widget edit synced: ${editData.widgetName} = ${editData.value}`);
+        } else {
+            Logger.warn(`[PopOut] Widget edit failed: ${result.error}`);
         }
     }
 

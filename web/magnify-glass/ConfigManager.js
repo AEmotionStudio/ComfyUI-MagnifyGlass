@@ -1,7 +1,7 @@
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-import { getSettingValue } from "../shared/utils.js";
+import { getSettingValue, clamp } from "../shared/utils.js";
 import { STORAGE_KEYS } from "../shared/constants.js";
 const DEFAULT_GLASS_SETTINGS = {
   "🔍MagnifyGlass.ZoomFactor": 300,
@@ -148,14 +148,19 @@ class ConfigManager {
    * Load settings from ComfyUI settings system.
    */
   loadSettings() {
-    this.zoomFactor = getSettingValue("🔍MagnifyGlass.ZoomFactor", this.zoomFactor * 100) / 100;
-    this.glassSize = getSettingValue("🔍MagnifyGlass.GlassSize", this.glassSize);
-    this.borderColor = getSettingValue("🔍MagnifyGlass.BorderColor", this.borderColor);
-    this.borderWidth = getSettingValue("🔍MagnifyGlass.BorderWidth", this.borderWidth);
+    const rawZoom = getSettingValue("🔍MagnifyGlass.ZoomFactor", this.zoomFactor * 100);
+    this.zoomFactor = this.validateNumber(rawZoom, 10, 5e3, 300) / 100;
+    const rawGlassSize = getSettingValue("🔍MagnifyGlass.GlassSize", this.glassSize);
+    this.glassSize = this.validateNumber(rawGlassSize, 50, 2e3, 300);
+    const rawBorderColor = getSettingValue("🔍MagnifyGlass.BorderColor", this.borderColor);
+    this.borderColor = this.validateColor(rawBorderColor, "#6b7280");
+    const rawBorderWidth = getSettingValue("🔍MagnifyGlass.BorderWidth", this.borderWidth);
+    this.borderWidth = this.validateNumber(rawBorderWidth, 0, 50, 1);
     this.activationKey = getSettingValue("🔍MagnifyGlass.ActivationKey", this.activationKey);
     this.altRequired = getSettingValue("🔍MagnifyGlass.AltRequired", this.altRequired);
     this.followCursor = getSettingValue("🔍MagnifyGlass.FollowCursor", this.followCursor);
-    this.offsetStep = getSettingValue("🔍MagnifyGlass.OffsetStep", this.offsetStep);
+    const rawOffsetStep = getSettingValue("🔍MagnifyGlass.OffsetStep", this.offsetStep);
+    this.offsetStep = this.validateNumber(rawOffsetStep, 1, 100, 5);
     this.glassPosition = getSettingValue("🔍MagnifyGlass.GlassPosition", this.glassPosition);
     this.resetKey = getSettingValue("🔍MagnifyGlass.ResetKey", this.resetKey);
     this.glassShape = getSettingValue("🔍MagnifyGlass.GlassShape", this.glassShape);
@@ -169,16 +174,38 @@ class ConfigManager {
     this.accessibilityEnabled = getSettingValue("🔍MagnifyGlass.AccessibilityEnabled", this.accessibilityEnabled);
     this.highContrastMode = getSettingValue("🔍MagnifyGlass.HighContrastMode", this.highContrastMode);
     this.textGlowEnabled = getSettingValue("🔍MagnifyGlass.TextGlowEnabled", this.textGlowEnabled);
-    this.textGlowColor = getSettingValue("🔍MagnifyGlass.TextGlowColor", this.textGlowColor);
-    this.textGlowIntensity = getSettingValue("🔍MagnifyGlass.TextGlowIntensity", this.textGlowIntensity);
-    this.fontScaleFactor = getSettingValue("🔍MagnifyGlass.FontScaleFactor", this.fontScaleFactor);
+    const rawGlowColor = getSettingValue("🔍MagnifyGlass.TextGlowColor", this.textGlowColor);
+    this.textGlowColor = this.validateColor(rawGlowColor, "#ffff00");
+    const rawGlowIntensity = getSettingValue("🔍MagnifyGlass.TextGlowIntensity", this.textGlowIntensity);
+    this.textGlowIntensity = this.validateNumber(rawGlowIntensity, 1, 50, 5);
+    const rawFontScale = getSettingValue("🔍MagnifyGlass.FontScaleFactor", this.fontScaleFactor);
+    this.fontScaleFactor = this.validateNumber(rawFontScale, 50, 500, 100);
     this.boldTextEnabled = getSettingValue("🔍MagnifyGlass.BoldTextEnabled", this.boldTextEnabled);
     this.textOutlineEnabled = getSettingValue("🔍MagnifyGlass.TextOutlineEnabled", this.textOutlineEnabled);
-    this.textOutlineColor = getSettingValue("🔍MagnifyGlass.TextOutlineColor", this.textOutlineColor);
+    const rawOutlineColor = getSettingValue("🔍MagnifyGlass.TextOutlineColor", this.textOutlineColor);
+    this.textOutlineColor = this.validateColor(rawOutlineColor, "#000000");
     this.nodeTitleEmphasis = getSettingValue("🔍MagnifyGlass.NodeTitleEmphasis", this.nodeTitleEmphasis);
     this.invertColors = getSettingValue("🔍MagnifyGlass.InvertColors", this.invertColors);
     this.grayscaleMode = getSettingValue("🔍MagnifyGlass.GrayscaleMode", this.grayscaleMode);
     this.reduceMotion = getSettingValue("🔍MagnifyGlass.ReduceMotion", this.reduceMotion);
+  }
+  /**
+   * Validate numeric input with bounds checking.
+   */
+  validateNumber(value, min, max, fallback) {
+    const num = Number(value);
+    if (isNaN(num)) return fallback;
+    return clamp(num, min, max);
+  }
+  /**
+   * Validate color string (hex).
+   */
+  validateColor(color, fallback) {
+    if (!color || typeof color !== "string") return fallback;
+    if (/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/.test(color)) {
+      return color;
+    }
+    return fallback;
   }
   /**
    * Load saved offsets from localStorage.

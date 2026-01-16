@@ -5,9 +5,11 @@ import { Icons } from "../shared/icons.js";
 import { Logger } from "../shared/logger.js";
 import { INFO_PANEL_ID } from "../shared/constants.js";
 import { escapeHtml } from "../shared/utils.js";
-import { formatValue, getValueClass, getValueAttributes } from "./ValueFormatter.js";
+import { formatValue, getValueClass, getValueAttributes, formatWidgetValue } from "./ValueFormatter.js";
 import { getCheckpointInfo, getImageInfo, getTextBoxContent, getImportantNodeParameters } from "./NodeDataExtractor.js";
 import { NodeSelector } from "./NodeSelector.js";
+import { WidgetSyncManager } from "./widget-editors/WidgetSyncManager.js";
+import { WidgetEditorFactory } from "./widget-editors/WidgetEditorFactory.js";
 class UIManager {
   constructor(stateManager) {
     __publicField(this, "stateManager");
@@ -15,6 +17,8 @@ class UIManager {
     __publicField(this, "nodeSelector");
     __publicField(this, "currentDropdown", null);
     __publicField(this, "onNodeSelected", null);
+    // Track active widget editors for cleanup
+    __publicField(this, "activeEditors", /* @__PURE__ */ new Map());
     this.stateManager = stateManager;
     this.elements = {
       panel: null,
@@ -624,6 +628,7 @@ class UIManager {
    */
   renderSections(sections) {
     if (!this.elements.content) return;
+    this.cleanupEditors();
     if (sections.length === 0) {
       this.elements.content.innerHTML = `
                 <div class="empty-state">
@@ -633,6 +638,7 @@ class UIManager {
             `;
       return;
     }
+    const isStickyEnabled = !!this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"];
     this.elements.content.innerHTML = sections.map((section) => `
             <div class="info-section" data-section="${escapeHtml(section.id)}">
                 <div class="section-header" data-section="${escapeHtml(section.id)}">
@@ -650,6 +656,11 @@ class UIManager {
       const clickableAttr = item.clickable ? `data-clickable="${item.clickable}"` : "";
       const nodeIdAttr = item.nodeId !== void 0 ? `data-node-id="${item.nodeId}"` : "";
       const clickableClass = item.clickable ? "clickable-row" : "";
+      const isEditable = item.isEditable && isStickyEnabled && item.widgetName && item.nodeId !== void 0;
+      const editableClass = isEditable ? "editable" : "";
+      const constraintsJson = isEditable && item.constraints ? escapeHtml(JSON.stringify(item.constraints)) : "";
+      const rawValueStr = isEditable ? typeof item.rawValue === "boolean" ? item.rawValue ? "true" : "false" : escapeHtml(String(item.rawValue ?? "")) : "";
+      const editableAttrs = isEditable ? `data-editable="true" data-widget-name="${escapeHtml(item.widgetName)}" data-widget-type="${escapeHtml(item.widgetType || "text")}" data-raw-value="${rawValueStr}" data-constraints="${constraintsJson}"` : "";
       const dropdownIcon = item.clickable && item.clickable !== "zoom" ? '<span class="dropdown-indicator" style="margin-left: 4px; opacity: 0.6; font-size: 10px;">▼</span>' : "";
       const rawValue = String(item.value || "");
       const showCopyBtn = !item.clickable && rawValue.length > 3 && typeof item.value === "string";
@@ -661,9 +672,10 @@ class UIManager {
                     </svg>
                 </button>` : "";
       return `
-                            <div class="info-row ${clickableClass}" ${clickableAttr} ${nodeIdAttr} style="${item.clickable ? "cursor: pointer;" : ""}">
+                            <div class="info-row ${clickableClass} ${editableClass}" ${clickableAttr} ${nodeIdAttr} ${editableAttrs} style="${item.clickable ? "cursor: pointer;" : ""}">
                                 <span class="info-label">${escapeHtml(item.label)}</span>
-                                <span class="info-value ${valueClass}" ${valueAttributes}>${value}${dropdownIcon}</span>
+                                <span class="info-value ${valueClass} original" ${valueAttributes}>${value}${dropdownIcon}</span>
+                                <div class="widget-editor-container" style="display: none;"></div>
                                 ${copyBtnHtml}
                             </div>`;
     }).join("")}
@@ -671,6 +683,105 @@ class UIManager {
                 </div>
             </div>`).join("");
     this.attachDropdownClickHandlers();
+    if (isStickyEnabled) {
+      this.attachEditableRowHandlers();
+    }
+  }
+  /**
+   * Cleanup active widget editors.
+   */
+  cleanupEditors() {
+    this.activeEditors.forEach((editor) => {
+      try {
+        editor.destroy();
+      } catch (e) {
+      }
+    });
+    this.activeEditors.clear();
+  }
+  /**
+   * Attach click handlers to editable widget rows.
+   */
+  attachEditableRowHandlers() {
+    if (!this.elements.content) return;
+    const editableRows = this.elements.content.querySelectorAll('[data-editable="true"]');
+    editableRows.forEach((row) => {
+      const rowEl = row;
+      const valueEl = rowEl.querySelector(".info-value.original");
+      const editorContainer = rowEl.querySelector(".widget-editor-container");
+      if (!valueEl || !editorContainer) return;
+      valueEl.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.enterEditMode(rowEl, valueEl, editorContainer);
+      });
+    });
+  }
+  /**
+   * Enter edit mode for a row.
+   */
+  enterEditMode(row, valueEl, container) {
+    if (row.classList.contains("editing")) return;
+    const nodeId = parseInt(row.dataset.nodeId || "0", 10);
+    const widgetName = row.dataset.widgetName || "";
+    const widgetType = row.dataset.widgetType || "text";
+    const rawValue = row.dataset.rawValue;
+    if (isNaN(nodeId) || !widgetName) return;
+    let constraints = {};
+    try {
+      const constraintsStr = row.dataset.constraints;
+      if (constraintsStr) {
+        constraints = JSON.parse(constraintsStr);
+      }
+    } catch (e) {
+    }
+    const editorKey = `${nodeId}:${widgetName}`;
+    const editor = WidgetEditorFactory.createEditor({
+      nodeId,
+      widgetName,
+      widgetType,
+      currentValue: rawValue,
+      constraints,
+      onChange: (value) => {
+        row.dataset.rawValue = String(value);
+      },
+      onBlur: () => {
+        const currentEditor = this.activeEditors.get(editorKey);
+        setTimeout(() => {
+          if (currentEditor && this.activeEditors.get(editorKey) === currentEditor) {
+            if (!container.contains(document.activeElement)) {
+              this.exitEditMode(row, valueEl, container);
+            }
+          }
+        }, 100);
+      }
+    });
+    this.activeEditors.set(editorKey, editor);
+    row.classList.add("editing");
+    valueEl.style.display = "none";
+    container.style.display = "block";
+    container.innerHTML = "";
+    container.appendChild(editor.element);
+    editor.focus();
+  }
+  /**
+   * Exit edit mode for a row.
+   */
+  exitEditMode(row, valueEl, container) {
+    if (!row.classList.contains("editing")) return;
+    const nodeId = row.dataset.nodeId || "";
+    const widgetName = row.dataset.widgetName || "";
+    const editorKey = `${nodeId}:${widgetName}`;
+    const editor = this.activeEditors.get(editorKey);
+    if (editor) {
+      const actualValue = WidgetSyncManager.getWidgetValue(parseInt(nodeId, 10), widgetName);
+      valueEl.textContent = formatWidgetValue(actualValue ?? editor.getValue());
+      editor.destroy();
+      this.activeEditors.delete(editorKey);
+    }
+    row.classList.remove("editing");
+    valueEl.style.display = "";
+    container.style.display = "none";
+    container.innerHTML = "";
   }
   /**
    * Attach click handlers to clickable dropdown rows.
@@ -906,6 +1017,7 @@ class UIManager {
     }
   }
   cleanup() {
+    this.cleanupEditors();
     if (this.elements.panel && this.elements.panel.parentNode) {
       this.elements.panel.parentNode.removeChild(this.elements.panel);
     }

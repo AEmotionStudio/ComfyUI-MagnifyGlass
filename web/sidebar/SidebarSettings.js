@@ -8,10 +8,12 @@ function createSlider(label, value, min, max, step, unit, onChange, tooltip, onI
   const row = document.createElement("div");
   row.className = "magnify-control-row";
   if (tooltip) row.title = tooltip;
+  const sliderId = `magnify-slider-${Math.random().toString(36).substr(2, 9)}`;
   const labelRow = document.createElement("div");
   labelRow.className = "magnify-control-label-row";
   const labelEl = document.createElement("label");
   labelEl.textContent = label;
+  labelEl.htmlFor = sliderId;
   const valueEl = document.createElement("span");
   valueEl.className = "control-value";
   valueEl.textContent = `${value}${unit}`;
@@ -19,6 +21,7 @@ function createSlider(label, value, min, max, step, unit, onChange, tooltip, onI
   labelRow.appendChild(valueEl);
   const slider = document.createElement("input");
   slider.type = "range";
+  slider.id = sliderId;
   slider.className = "magnify-slider";
   slider.min = String(min);
   slider.max = String(max);
@@ -83,9 +86,12 @@ function createSelect(label, value, options, onChange, tooltip, onInput) {
   const row = document.createElement("div");
   row.className = "magnify-control-row";
   if (tooltip) row.title = tooltip;
+  const selectId = `magnify-select-${Math.random().toString(36).substr(2, 9)}`;
   const labelEl = document.createElement("label");
   labelEl.textContent = label;
+  labelEl.htmlFor = selectId;
   const select = document.createElement("select");
+  select.id = selectId;
   select.className = "magnify-select";
   options.forEach((opt) => {
     const option = document.createElement("option");
@@ -108,12 +114,15 @@ function createColorPicker(label, value, onChange, tooltip, onInput) {
   const row = document.createElement("div");
   row.className = "magnify-control-row magnify-color-row";
   if (tooltip) row.title = tooltip;
+  const colorId = `magnify-color-${Math.random().toString(36).substr(2, 9)}`;
   const labelEl = document.createElement("label");
   labelEl.textContent = label;
+  labelEl.htmlFor = colorId;
   const colorWrapper = document.createElement("div");
   colorWrapper.className = "magnify-color-wrapper";
   const colorInput = document.createElement("input");
   colorInput.type = "color";
+  colorInput.id = colorId;
   colorInput.className = "magnify-color-input";
   colorInput.value = value;
   const colorPreview = document.createElement("span");
@@ -857,6 +866,9 @@ function renderSettingsPanel(container) {
   container.appendChild(buttonRow);
 }
 export {
+  createColorPicker,
+  createSelect,
+  createSlider,
   createToggle,
   renderSettingsPanel
 };

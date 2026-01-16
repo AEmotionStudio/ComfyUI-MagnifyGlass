@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { createToggle } from '../../src/sidebar/SidebarSettings';
+import { createToggle, createSlider, createSelect, createColorPicker } from '../../src/sidebar/SidebarSettings';
 
 describe('Sidebar Controls', () => {
     describe('createToggle', () => {
@@ -95,6 +95,51 @@ describe('Sidebar Controls', () => {
             expect(onChange).toHaveBeenCalledWith(true);
             expect(preventDefaultSpy).toHaveBeenCalled();
             expect(stopPropagationSpy).toHaveBeenCalled();
+        });
+    });
+
+    describe('createSlider', () => {
+        it('should create an accessible slider', () => {
+            const onChange = vi.fn();
+            const sliderRow = createSlider('Test Slider', 50, 0, 100, 1, '%', onChange);
+
+            const labelEl = sliderRow.querySelector('label') as HTMLElement;
+            const input = sliderRow.querySelector('input[type="range"]') as HTMLInputElement;
+
+            expect(input).toBeTruthy();
+            expect(input.id).toBeTruthy();
+            expect(labelEl.getAttribute('for')).toBe(input.id);
+            expect(input.id).toMatch(/^magnify-slider-/);
+        });
+    });
+
+    describe('createSelect', () => {
+        it('should create an accessible select', () => {
+            const onChange = vi.fn();
+            const selectRow = createSelect('Test Select', 'Option 1', ['Option 1', 'Option 2'], onChange);
+
+            const labelEl = selectRow.querySelector('label') as HTMLElement;
+            const select = selectRow.querySelector('select') as HTMLSelectElement;
+
+            expect(select).toBeTruthy();
+            expect(select.id).toBeTruthy();
+            expect(labelEl.getAttribute('for')).toBe(select.id);
+            expect(select.id).toMatch(/^magnify-select-/);
+        });
+    });
+
+    describe('createColorPicker', () => {
+        it('should create an accessible color picker', () => {
+            const onChange = vi.fn();
+            const colorRow = createColorPicker('Test Color', '#000000', onChange);
+
+            const labelEl = colorRow.querySelector('label') as HTMLElement;
+            const input = colorRow.querySelector('input[type="color"]') as HTMLInputElement;
+
+            expect(input).toBeTruthy();
+            expect(input.id).toBeTruthy();
+            expect(labelEl.getAttribute('for')).toBe(input.id);
+            expect(input.id).toMatch(/^magnify-color-/);
         });
     });
 });

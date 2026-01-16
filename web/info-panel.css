@@ -613,6 +613,62 @@
     line-height: 1.4;
 }
 
+/* Copy button wrapper for copyable rows */
+.info-value-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    justify-content: flex-end;
+}
+
+/* Copyable rows need relative positioning for absolute copy button */
+.copyable-row {
+    position: relative;
+}
+
+/* Copy to clipboard button - positioned in top right corner */
+.copy-btn {
+    position: absolute !important;
+    top: 4px !important;
+    right: 4px !important;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(40, 40, 50, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 4px;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    padding: 3px 5px;
+    opacity: 0.7;
+    transition: all 0.2s ease;
+    z-index: 10;
+}
+
+.copy-btn:hover {
+    background: rgba(116, 185, 255, 0.3);
+    border-color: var(--info-panel-accent-color, #74b9ff);
+    color: var(--info-panel-accent-color, #74b9ff);
+}
+
+.copy-btn:active {
+    transform: scale(0.95);
+}
+
+.copy-btn.copied {
+    opacity: 1;
+    background: rgba(160, 212, 104, 0.3);
+    border-color: rgba(160, 212, 104, 0.6);
+    color: #a0d468;
+}
+
+.copy-btn svg {
+    width: 12px;
+    height: 12px;
+    stroke: currentColor;
+}
+
 .empty-state {
     text-align: center;
     padding: 50px 25px;

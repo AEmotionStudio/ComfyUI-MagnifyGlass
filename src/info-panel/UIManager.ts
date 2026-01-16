@@ -814,13 +814,13 @@ export class UIManager {
 
             // Add category if available
             if (info.hoveredNode.category) {
-                nodeContent.push({ label: 'Category', value: info.hoveredNode.category });
+                nodeContent.push({ label: 'Category', value: info.hoveredNode.category, copyable: true });
             }
 
             // Add python module path if available
             if (info.hoveredNode.pythonModule) {
                 const path = info.hoveredNode.pythonModule.replace(/\./g, '/') + '.py';
-                nodeContent.push({ label: 'Path', value: path });
+                nodeContent.push({ label: 'Path', value: path, copyable: true });
             }
 
             // Check if this is a complex node that shows all widgets
@@ -939,8 +939,11 @@ export class UIManager {
 
             // Only show dropdown arrow for actual dropdowns, not actions like zoom
             const dropdownIcon = (item.clickable && item.clickable !== 'zoom') ? '<span class="dropdown-indicator" style="margin-left: 4px; opacity: 0.6; font-size: 10px;">▼</span>' : '';
+            // Add copy button for copyable items (category, path) - placed as direct child of row for absolute positioning
+            const copyButton = item.copyable ? `<button class="copy-btn" data-copy-value="${escapeHtml(String(item.value))}" title="Copy to clipboard">${Icons.copy}</button>` : '';
             return `
-                            <div class="info-row ${clickableClass} ${editableClass}" ${clickableAttr} ${nodeIdAttr} ${editableAttrs} style="${item.clickable ? 'cursor: pointer;' : ''}">
+                            <div class="info-row ${clickableClass} ${editableClass}${item.copyable ? ' copyable-row' : ''}" ${clickableAttr} ${nodeIdAttr} ${editableAttrs} style="${item.clickable ? 'cursor: pointer;' : ''}">
+                                ${copyButton}
                                 <span class="info-label">${escapeHtml(item.label)}</span>
                                 <span class="info-value ${valueClass} original" ${valueAttributes}>${value}${dropdownIcon}</span>
                                 <div class="inline-control-container" style="display: none;"></div>
@@ -953,6 +956,9 @@ export class UIManager {
 
         // Add click handlers for clickable rows
         this.attachDropdownClickHandlers();
+
+        // Add click handlers for copy buttons
+        this.attachCopyButtonHandlers();
 
         // Add click handlers for editable rows (only when sticky is enabled)
         if (isStickyEnabled) {
@@ -1173,6 +1179,40 @@ export class UIManager {
         valueEl.style.display = '';
         container.style.display = 'none';
         container.innerHTML = '';
+    }
+
+    /**
+     * Attach click handlers to copy buttons for copying values to clipboard.
+     */
+    private attachCopyButtonHandlers(): void {
+        if (!this.elements.content) return;
+
+        const copyButtons = this.elements.content.querySelectorAll('.copy-btn');
+        copyButtons.forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                e.preventDefault();
+
+                const button = btn as HTMLButtonElement;
+                const valueToCopy = button.dataset.copyValue || '';
+
+                try {
+                    await navigator.clipboard.writeText(valueToCopy);
+
+                    // Visual feedback - temporarily change to checkmark
+                    const originalHtml = button.innerHTML;
+                    button.innerHTML = '✓';
+                    button.classList.add('copied');
+
+                    setTimeout(() => {
+                        button.innerHTML = originalHtml;
+                        button.classList.remove('copied');
+                    }, 1500);
+                } catch (err) {
+                    Logger.error('[UIManager] Failed to copy to clipboard:', err);
+                }
+            });
+        });
     }
 
     /**
@@ -1420,17 +1460,49 @@ export class UIManager {
 
         this.currentDropdown = dropdown;
 
-        // Close on click outside
+        // Cleanup function to remove all listeners
+        const cleanup = () => {
+            document.removeEventListener('mousedown', closeHandler, true);
+            document.removeEventListener('keydown', keyHandler);
+            if (this.elements.panel) {
+                this.elements.panel.removeEventListener('mousedown', panelCloseHandler, true);
+            }
+        };
+
+        // Close on click outside - use mousedown with capture to ensure it fires before other handlers
         const closeHandler = (e: MouseEvent) => {
             if (!dropdown.contains(e.target as Node) && !anchorElement.contains(e.target as Node)) {
                 this.hideDropdown();
-                document.removeEventListener('click', closeHandler);
+                cleanup();
+            }
+        };
+
+        // Close when clicking within the panel but outside dropdown
+        const panelCloseHandler = (e: MouseEvent) => {
+            if (!dropdown.contains(e.target as Node) && !anchorElement.contains(e.target as Node)) {
+                this.hideDropdown();
+                cleanup();
+            }
+        };
+
+        // Close on ESC key
+        const keyHandler = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                this.hideDropdown();
+                cleanup();
             }
         };
 
         // Delay adding the listener to avoid immediate closure
         setTimeout(() => {
-            document.addEventListener('click', closeHandler);
+            document.addEventListener('mousedown', closeHandler, true);  // true = capture phase
+            document.addEventListener('keydown', keyHandler);
+            // Also listen on the panel itself with capture phase
+            if (this.elements.panel) {
+                this.elements.panel.addEventListener('mousedown', panelCloseHandler, true);
+            }
         }, 10);
     }
 

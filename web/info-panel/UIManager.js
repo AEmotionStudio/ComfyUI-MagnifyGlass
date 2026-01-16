@@ -589,11 +589,11 @@ class UIManager {
         isHtml: true
       });
       if (info.hoveredNode.category) {
-        nodeContent.push({ label: "Category", value: info.hoveredNode.category });
+        nodeContent.push({ label: "Category", value: info.hoveredNode.category, copyable: true });
       }
       if (info.hoveredNode.pythonModule) {
         const path = info.hoveredNode.pythonModule.replace(/\./g, "/") + ".py";
-        nodeContent.push({ label: "Path", value: path });
+        nodeContent.push({ label: "Path", value: path, copyable: true });
       }
       const nodeType = info.hoveredNode.type ? info.hoveredNode.type.toLowerCase() : "";
       const isSaveNode = nodeType.includes("save") && !nodeType.includes("checkpoint") && !nodeType.includes("model") && !nodeType.includes("preview");
@@ -672,8 +672,10 @@ class UIManager {
       const rawValueStr = isEditable ? typeof item.rawValue === "boolean" ? item.rawValue ? "true" : "false" : escapeHtml(String(item.rawValue ?? "")) : "";
       const editableAttrs = isEditable ? `data-editable="true" data-widget-name="${escapeHtml(item.widgetName)}" data-widget-type="${escapeHtml(item.widgetType || "text")}" data-raw-value="${rawValueStr}" data-constraints="${constraintsJson}"` : "";
       const dropdownIcon = item.clickable && item.clickable !== "zoom" ? '<span class="dropdown-indicator" style="margin-left: 4px; opacity: 0.6; font-size: 10px;">▼</span>' : "";
+      const copyButton = item.copyable ? `<button class="copy-btn" data-copy-value="${escapeHtml(String(item.value))}" title="Copy to clipboard">${Icons.copy}</button>` : "";
       return `
-                            <div class="info-row ${clickableClass} ${editableClass}" ${clickableAttr} ${nodeIdAttr} ${editableAttrs} style="${item.clickable ? "cursor: pointer;" : ""}">
+                            <div class="info-row ${clickableClass} ${editableClass}${item.copyable ? " copyable-row" : ""}" ${clickableAttr} ${nodeIdAttr} ${editableAttrs} style="${item.clickable ? "cursor: pointer;" : ""}">
+                                ${copyButton}
                                 <span class="info-label">${escapeHtml(item.label)}</span>
                                 <span class="info-value ${valueClass} original" ${valueAttributes}>${value}${dropdownIcon}</span>
                                 <div class="inline-control-container" style="display: none;"></div>
@@ -684,6 +686,7 @@ class UIManager {
                 </div>
             </div>`).join("");
     this.attachDropdownClickHandlers();
+    this.attachCopyButtonHandlers();
     if (isStickyEnabled) {
       this.attachEditableRowHandlers();
     }
@@ -846,6 +849,33 @@ class UIManager {
     valueEl.style.display = "";
     container.style.display = "none";
     container.innerHTML = "";
+  }
+  /**
+   * Attach click handlers to copy buttons for copying values to clipboard.
+   */
+  attachCopyButtonHandlers() {
+    if (!this.elements.content) return;
+    const copyButtons = this.elements.content.querySelectorAll(".copy-btn");
+    copyButtons.forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const button = btn;
+        const valueToCopy = button.dataset.copyValue || "";
+        try {
+          await navigator.clipboard.writeText(valueToCopy);
+          const originalHtml = button.innerHTML;
+          button.innerHTML = "✓";
+          button.classList.add("copied");
+          setTimeout(() => {
+            button.innerHTML = originalHtml;
+            button.classList.remove("copied");
+          }, 1500);
+        } catch (err) {
+          Logger.error("[UIManager] Failed to copy to clipboard:", err);
+        }
+      });
+    });
   }
   /**
    * Attach click handlers to clickable dropdown rows.
@@ -1043,14 +1073,39 @@ class UIManager {
       dropdown.style.top = `${anchorRect.top - dropdownRect.height - 4}px`;
     }
     this.currentDropdown = dropdown;
+    const cleanup = () => {
+      document.removeEventListener("mousedown", closeHandler, true);
+      document.removeEventListener("keydown", keyHandler);
+      if (this.elements.panel) {
+        this.elements.panel.removeEventListener("mousedown", panelCloseHandler, true);
+      }
+    };
     const closeHandler = (e) => {
       if (!dropdown.contains(e.target) && !anchorElement.contains(e.target)) {
         this.hideDropdown();
-        document.removeEventListener("click", closeHandler);
+        cleanup();
+      }
+    };
+    const panelCloseHandler = (e) => {
+      if (!dropdown.contains(e.target) && !anchorElement.contains(e.target)) {
+        this.hideDropdown();
+        cleanup();
+      }
+    };
+    const keyHandler = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        this.hideDropdown();
+        cleanup();
       }
     };
     setTimeout(() => {
-      document.addEventListener("click", closeHandler);
+      document.addEventListener("mousedown", closeHandler, true);
+      document.addEventListener("keydown", keyHandler);
+      if (this.elements.panel) {
+        this.elements.panel.addEventListener("mousedown", panelCloseHandler, true);
+      }
     }, 10);
   }
   /**

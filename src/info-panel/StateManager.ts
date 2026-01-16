@@ -5,7 +5,7 @@
  */
 
 import type { GatheredInfo, SettingsChange } from '../types/comfyui';
-import { getSettingValue } from '../shared/utils';
+import { getSettingValue, clamp } from '../shared/utils';
 import { DEFAULT_PANEL_SETTINGS } from '../shared/settings';
 
 export interface InfoPanelStateData {
@@ -304,15 +304,91 @@ export class StateManager {
     }
 
     loadSettings(): void {
-        Object.keys(DEFAULT_PANEL_SETTINGS).forEach(key => {
+        const defaults = DEFAULT_PANEL_SETTINGS;
+
+        Object.keys(defaults).forEach(key => {
             // Skip the theme setting since we auto-detect it
             if (key !== "🔍MagnifyGlass.InfoPanelTheme") {
-                this.state.settings[key] = getSettingValue(key, (DEFAULT_PANEL_SETTINGS as any)[key]);
+                this.state.settings[key] = getSettingValue(key, (defaults as any)[key]);
             }
         });
 
+        // Validate numeric settings
+        this.state.settings["🔍MagnifyGlass.InfoPanelWidth"] = this.validateNumber(
+            this.state.settings["🔍MagnifyGlass.InfoPanelWidth"], 200, 600, defaults["🔍MagnifyGlass.InfoPanelWidth"] as number
+        );
+
+        this.state.settings["🔍MagnifyGlass.InfoPanelMaxHeight"] = this.validateNumber(
+            this.state.settings["🔍MagnifyGlass.InfoPanelMaxHeight"], 200, 1500, defaults["🔍MagnifyGlass.InfoPanelMaxHeight"] as number
+        );
+
+        this.state.settings["🔍MagnifyGlass.InfoPanelOpacity"] = this.validateNumber(
+            this.state.settings["🔍MagnifyGlass.InfoPanelOpacity"], 10, 100, defaults["🔍MagnifyGlass.InfoPanelOpacity"] as number
+        );
+
+        this.state.settings["🔍MagnifyGlass.InfoPanelFontSize"] = this.validateNumber(
+            this.state.settings["🔍MagnifyGlass.InfoPanelFontSize"], 8, 24, defaults["🔍MagnifyGlass.InfoPanelFontSize"] as number
+        );
+
+        // Validate colors
+        this.state.settings["🔍MagnifyGlass.InfoPanelTextColor"] = this.validateColor(
+            this.state.settings["🔍MagnifyGlass.InfoPanelTextColor"], defaults["🔍MagnifyGlass.InfoPanelTextColor"] as string
+        );
+
+        this.state.settings["🔍MagnifyGlass.InfoPanelAccentColor"] = this.validateColor(
+            this.state.settings["🔍MagnifyGlass.InfoPanelAccentColor"], defaults["🔍MagnifyGlass.InfoPanelAccentColor"] as string
+        );
+
+        // Validate Enums
+        const validPanelPositions = ['Bottom', 'Top', 'Left', 'Right'];
+        this.state.settings["🔍MagnifyGlass.InfoPanelPosition"] = this.validateStringOption(
+            this.state.settings["🔍MagnifyGlass.InfoPanelPosition"], validPanelPositions, defaults["🔍MagnifyGlass.InfoPanelPosition"] as string
+        );
+
+        const validControlPositions = ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'top', 'bottom', 'left', 'right'];
+        this.state.settings["🔍MagnifyGlass.ControlsPosition"] = this.validateStringOption(
+            this.state.settings["🔍MagnifyGlass.ControlsPosition"], validControlPositions, defaults["🔍MagnifyGlass.ControlsPosition"] as string
+        );
+
+        const validFonts = [
+            'System Default', 'Inter', 'Roboto', 'JetBrains Mono', 'Fira Code',
+            'IBM Plex Sans', 'Space Grotesk', 'Lexend', 'Outfit', 'monospace', 'system-ui'
+        ];
+        this.state.settings["🔍MagnifyGlass.InfoPanelFontFamily"] = this.validateStringOption(
+            this.state.settings["🔍MagnifyGlass.InfoPanelFontFamily"], validFonts, defaults["🔍MagnifyGlass.InfoPanelFontFamily"] as string
+        );
+
         // Set theme to auto-detected value
         this.state.settings["🔍MagnifyGlass.InfoPanelTheme"] = this.state.currentTheme;
+    }
+
+    /**
+     * Validate numeric input with bounds checking.
+     */
+    private validateNumber(value: unknown, min: number, max: number, fallback: number): number {
+        const num = Number(value);
+        if (isNaN(num)) return fallback;
+        return clamp(num, min, max);
+    }
+
+    /**
+     * Validate color string (hex).
+     */
+    private validateColor(color: unknown, fallback: string): string {
+        if (!color || typeof color !== 'string') return fallback;
+        // Basic hex validation: #RGB, #RRGGBB, #RRGGBBAA
+        if (/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/.test(color)) {
+            return color;
+        }
+        return fallback;
+    }
+
+    /**
+     * Validate string against an allowlist.
+     */
+    private validateStringOption(value: unknown, options: string[], fallback: string): string {
+        if (typeof value !== 'string') return fallback;
+        return options.includes(value) ? value : fallback;
     }
 
     updateSettings(): Record<string, SettingsChange> {

@@ -127,8 +127,15 @@ export class InlineControlFactory {
             select.appendChild(option);
         }
 
-        // Stop propagation to prevent row click handlers
-        container.addEventListener('click', (e) => e.stopPropagation());
+        // Stop propagation on all events to prevent parent handlers from interfering
+        const stopProp = (e: Event) => e.stopPropagation();
+        container.addEventListener('click', stopProp);
+        container.addEventListener('mousedown', stopProp);
+        container.addEventListener('mouseup', stopProp);
+        select.addEventListener('click', stopProp);
+        select.addEventListener('mousedown', stopProp);
+        select.addEventListener('mouseup', stopProp);
+        select.addEventListener('focus', stopProp);
 
         // Sync on change
         select.addEventListener('change', () => {

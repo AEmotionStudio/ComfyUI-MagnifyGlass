@@ -165,10 +165,6 @@
     transition: none !important;
 }
 
-.magnify-info-panel.panel-minimized {
-    height: auto !important;
-}
-
 .magnify-info-panel.panel-minimized .panel-content {
     max-height: 0 !important;
     height: 0 !important;
@@ -189,26 +185,27 @@
     overflow: visible !important;
 }
 
-/* 
- * STIICKY MODE (PERSIST) OVERRIDES
- * When sticky mode is active, we enforce the max-height and enable scrolling.
- * This overrides the hover-expansion behavior to ensure the panel stays within bounds.
+/*
+ * STICKY MODE (PERSIST) OVERRIDES
+ * When sticky mode is active, the panel stays on the selected node
+ * and doesn't auto-minimize when moving to empty canvas.
+ * Content shows with scrolling if it exceeds viewport height.
  */
 .magnify-info-panel.persist-active:not(.panel-minimized) {
-    /* Use viewport height limit instead of user setting to allow full expansion */
-    max-height: 85vh !important;
-    /* Ensure flex column layout for scrolling content */
+    /* Use viewport height as max, with some margin for top positioning */
+    max-height: calc(100vh - 40px) !important;
+    overflow: hidden !important;
     display: flex !important;
     flex-direction: column !important;
 }
 
 .magnify-info-panel.persist-active:not(.panel-minimized) .panel-content {
-    /* Allow scrolling inside the content area */
+    /* Enable scrolling for content that exceeds the height */
     overflow-y: auto !important;
-    /* Reset max-height so it fills the parent (which is constrained) */
-    max-height: none !important;
-    /* Ensure it takes available space */
+    /* Calculate height based on available space minus header (~60px) */
+    max-height: calc(100vh - 120px) !important;
     flex: 1 1 auto;
+    scrollbar-width: thin;
 }
 
 .floating-controls {
@@ -233,64 +230,6 @@
 .floating-controls.horizontal-layout {
     flex-direction: row;
     gap: 4px;
-}
-
-/* Theme variations for floating controls */
-.floating-controls.theme-dark {
-    background: rgba(0, 0, 0, 0.95);
-    border: 1px solid rgba(100, 100, 120, 0.4);
-}
-
-.floating-controls.theme-light {
-    background: rgba(250, 250, 255, 0.95);
-    border: 1px solid rgba(200, 200, 220, 0.5);
-}
-
-.floating-controls.theme-light .control-btn {
-    background: rgba(220, 220, 230, 0.8);
-    border-color: rgba(150, 150, 160, 0.5);
-    color: #333;
-}
-
-.floating-controls.theme-solarized {
-    background: rgba(0, 43, 54, 0.95);
-    border: 1px solid rgba(88, 110, 117, 0.5);
-}
-
-.floating-controls.theme-arc {
-    background: rgba(56, 60, 74, 0.95);
-    border: 1px solid rgba(90, 100, 120, 0.5);
-}
-
-.floating-controls.theme-nord {
-    background: rgba(46, 52, 64, 0.95);
-    border: 1px solid rgba(76, 86, 106, 0.5);
-}
-
-.floating-controls.theme-gruvbox {
-    background: rgba(40, 40, 40, 0.95);
-    border: 1px solid rgba(104, 92, 86, 0.5);
-}
-
-.floating-controls.theme-monokai {
-    background: rgba(39, 40, 34, 0.95);
-    border: 1px solid rgba(117, 113, 94, 0.5);
-}
-
-.floating-controls.theme-dracula {
-    background: rgba(40, 42, 54, 0.95);
-    border: 1px solid rgba(68, 71, 90, 0.5);
-}
-
-.floating-controls.theme-github {
-    background: rgba(255, 255, 255, 0.95);
-    border: 1px solid rgba(225, 228, 232, 0.8);
-}
-
-.floating-controls.theme-github .control-btn {
-    background: rgba(246, 248, 250, 0.9);
-    border-color: rgba(225, 228, 232, 0.8);
-    color: #24292e;
 }
 
 .control-btn {
@@ -369,11 +308,11 @@
 
 .header-title {
     font-weight: 600;
-    font-size: 1.125em;
+    font-size: 18px;
 }
 
 .header-subtitle {
-    font-size: 0.875em;
+    font-size: 14px;
     opacity: 0.7;
     font-style: italic;
 }
@@ -413,6 +352,7 @@
     flex: 1;
     min-height: 0;
     overflow: visible;
+    scrollbar-width: thin;
 }
 
 .panel-content::-webkit-scrollbar {
@@ -439,7 +379,7 @@
 
 .info-section:hover {
     background: rgba(255, 255, 255, 0.04);
-    /* Removed transform */
+    /* Removed transform to prevent bounce */
 }
 
 .section-header {
@@ -474,7 +414,7 @@
 
 .section-header:hover {
     background: rgba(255, 255, 255, 0.08);
-    /* Removed transform */
+    /* Removed transform: translateX(2px) */
     box-shadow: inset 2px 0 0 rgba(116, 185, 255, 0.5);
 }
 
@@ -553,7 +493,7 @@
 
 .section-title {
     flex: 1;
-    font-size: 1em;
+    font-size: 16px;
     font-weight: 600;
     letter-spacing: 0.3px;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
@@ -564,7 +504,7 @@
     color: #8bb3ff;
     padding: 3px 10px;
     border-radius: 10px;
-    font-size: 0.81em;
+    font-size: 13px;
     font-weight: 500;
 }
 
@@ -636,7 +576,7 @@
 .info-label {
     font-weight: 500;
     opacity: 0.85;
-    font-size: 0.94em;
+    font-size: 15px;
     min-width: 80px;
     padding-right: 12px;
     line-height: 1.5;
@@ -644,7 +584,7 @@
 
 .info-value {
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    font-size: 0.88em;
+    font-size: 14px;
     color: var(--info-panel-accent-color, #a0d468);
     background: rgba(160, 212, 104, 0.12);
     padding: 4px 10px;
@@ -662,7 +602,7 @@
 
 .info-value:hover {
     background: rgba(160, 212, 104, 0.18);
-    /* Removed transform */
+    /* Removed transform: translateY(-1px) */
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
@@ -690,49 +630,15 @@
     font-style: italic;
 }
 
-/* Copy button for values */
-.info-row {
-    position: relative;
-}
-
-.copy-btn {
+/* Copy to clipboard functionality */
+.info-value[title]:hover::after {
+    content: '📋';
     position: absolute;
-    right: 4px;
-    top: 8px;
-    background: var(--comfy-input-bg, rgba(60, 60, 70, 0.8));
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-radius: 4px;
-    padding: 4px 6px;
-    cursor: pointer;
-    display: none;
-    align-items: center;
-    justify-content: center;
+    right: -20px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
     opacity: 0.7;
-    transition: all 0.15s ease;
-    z-index: 10;
-}
-
-.info-row:hover .copy-btn {
-    display: flex;
-}
-
-.copy-btn:hover {
-    opacity: 1;
-    background: rgba(80, 80, 90, 0.9);
-}
-
-.copy-btn svg {
-    width: 12px;
-    height: 12px;
-    stroke: currentColor;
-}
-
-.copy-btn.copied {
-    border-color: #22c55e;
-}
-
-.copy-btn.copied svg {
-    stroke: #22c55e;
 }
 
 /* Smooth loading states */
@@ -978,7 +884,7 @@
     padding-right: 4px;
 }
 
-/* Combo/dropdown editor - green bg with blue text to match theme */
+/* Combo/dropdown editor */
 .widget-editor-combo {
     width: 100%;
 }
@@ -987,18 +893,18 @@
     width: 100%;
     cursor: pointer;
     appearance: none;
-    /* Green background to match info-value rows, blue text for theme */
+    /* Match the info-value row styling (green theme) */
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
     font-size: 14px;
-    color: var(--info-panel-accent-color, #74b9ff);
+    color: var(--info-panel-accent-color, #a0d468);
     background: rgba(160, 212, 104, 0.12);
     border: 1px solid transparent;
     padding: 4px 28px 4px 10px;
     border-radius: 6px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     transition: all 0.2s ease;
-    /* Blue dropdown arrow to match text */
-    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2374b9ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    /* Custom dropdown arrow in matching green color */
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23a0d468' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
     background-repeat: no-repeat;
     background-position: right 8px center;
     background-size: 12px;
@@ -1012,13 +918,13 @@
 
 .widget-editor-select:focus {
     background: rgba(160, 212, 104, 0.22);
-    border-color: var(--info-panel-accent-color, #74b9ff);
-    box-shadow: 0 0 0 2px rgba(116, 185, 255, 0.25);
+    border-color: var(--info-panel-accent-color, #a0d468);
+    box-shadow: 0 0 0 2px rgba(160, 212, 104, 0.25);
 }
 
 .widget-editor-select option {
     background: #1a1a1f;
-    color: var(--info-panel-accent-color, #74b9ff);
+    color: #a0d468;
     padding: 8px;
 }
 
@@ -1168,6 +1074,100 @@
     display: none;
 }
 
+/* Copy button styling (for coexistence with edit) */
+.copy-btn {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    margin-left: 4px;
+}
+
+.copy-btn svg {
+    width: 14px;
+    height: 14px;
+    stroke: currentColor;
+    opacity: 0.6;
+}
+
+.copy-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+}
+
+.copy-btn:hover svg {
+    opacity: 1;
+}
+
+.copy-btn.copied {
+    background: rgba(34, 197, 94, 0.2);
+}
+
+/* Theme-specific adjustments for editors */
+.magnify-info-panel.theme-light .widget-editor-input,
+.magnify-info-panel.theme-light .widget-editor-textarea {
+    background: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.2);
+}
+
+.magnify-info-panel.theme-light .widget-editor-input:focus,
+.magnify-info-panel.theme-light .widget-editor-textarea:focus {
+    background: rgba(0, 0, 0, 0.08);
+}
+
+.magnify-info-panel.theme-light .widget-editor-select {
+    background: transparent;
+    border-color: transparent;
+    color: var(--info-panel-accent-color, #0066cc);
+}
+
+.magnify-info-panel.theme-light .widget-editor-select:hover {
+    background-color: rgba(0, 102, 204, 0.08);
+}
+
+.magnify-info-panel.theme-light .widget-editor-select option {
+    background: #ffffff;
+    color: var(--info-panel-accent-color, #0066cc);
+}
+
+.magnify-info-panel.theme-light .widget-editor-stepper {
+    border-color: rgba(0, 0, 0, 0.15);
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.magnify-info-panel.theme-light .widget-editor-toggle-slider {
+    background: rgba(0, 0, 0, 0.15);
+    border-color: rgba(0, 0, 0, 0.2);
+}
+
+.magnify-info-panel.theme-github .widget-editor-input,
+.magnify-info-panel.theme-github .widget-editor-textarea {
+    background: #f6f8fa;
+    border-color: #d1d5db;
+    color: #24292e;
+}
+
+.magnify-info-panel.theme-github .widget-editor-select {
+    background: transparent;
+    border-color: transparent;
+    color: var(--info-panel-accent-color, #0366d6);
+}
+
+.magnify-info-panel.theme-github .widget-editor-select:hover {
+    background-color: rgba(3, 102, 214, 0.08);
+}
+
+.magnify-info-panel.theme-github .widget-editor-select option {
+    background: #ffffff;
+    color: var(--info-panel-accent-color, #0366d6);
+}
+
 /* ==========================================================================
    Inline Controls - Compact controls that render directly in rows
    ========================================================================== */
@@ -1237,7 +1237,7 @@
     box-shadow: 0 0 0 2px rgba(116, 185, 255, 0.25);
 }
 
-/* Inline Dropdown - green bg with blue text to match theme */
+/* Inline Dropdown - Compact version matching info-value theme (green bg, blue text) */
 .inline-dropdown {
     min-width: 100px;
     max-width: 180px;
@@ -1245,34 +1245,35 @@
 
 .inline-dropdown-select {
     width: 100%;
-    padding: 4px 28px 4px 10px;
+    padding: 4px 24px 4px 10px;
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
     font-size: 14px;
+    /* Match info-value style: green background with blue text */
     background: rgba(160, 212, 104, 0.12);
     border: 1px solid transparent;
     border-radius: 6px;
     color: var(--info-panel-accent-color, #74b9ff);
     cursor: pointer;
     appearance: none;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2374b9ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
     background-repeat: no-repeat;
-    background-position: right 8px center;
+    background-position: right 6px center;
     background-size: 12px;
     transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .inline-dropdown-select:hover {
-    background: rgba(160, 212, 104, 0.18);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    background-color: rgba(160, 212, 104, 0.18);
     border-color: transparent;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .inline-dropdown-select:focus {
     outline: none;
-    background: rgba(160, 212, 104, 0.22);
+    background-color: rgba(160, 212, 104, 0.2);
     border-color: var(--info-panel-accent-color, #74b9ff);
-    box-shadow: 0 0 0 2px rgba(116, 185, 255, 0.25);
+    box-shadow: 0 0 0 2px rgba(116, 185, 255, 0.2);
 }
 
 .inline-dropdown-select option {

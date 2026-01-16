@@ -80,7 +80,14 @@ class InlineControlFactory {
       }
       select.appendChild(option);
     }
-    container.addEventListener("click", (e) => e.stopPropagation());
+    const stopProp = (e) => e.stopPropagation();
+    container.addEventListener("click", stopProp);
+    container.addEventListener("mousedown", stopProp);
+    container.addEventListener("mouseup", stopProp);
+    select.addEventListener("click", stopProp);
+    select.addEventListener("mousedown", stopProp);
+    select.addEventListener("mouseup", stopProp);
+    select.addEventListener("focus", stopProp);
     select.addEventListener("change", () => {
       var _a2;
       WidgetSyncManager.syncWidgetValue(config.nodeId, config.widgetName, select.value);

@@ -187,22 +187,25 @@
 
 /*
  * STICKY MODE (PERSIST) OVERRIDES
- * When sticky mode is active, we enforce the max-height and enable scrolling.
- * This ensures the panel respects user-configured height and can scroll.
+ * When sticky mode is active, the panel stays on the selected node
+ * and doesn't auto-minimize when moving to empty canvas.
+ * Content shows with scrolling if it exceeds viewport height.
  */
 .magnify-info-panel.persist-active:not(.panel-minimized) {
-    /* Use the CSS variable set by JS for max-height */
-    max-height: var(--panel-max-height, 600px) !important;
+    /* Use viewport height as max, with some margin for top positioning */
+    max-height: calc(100vh - 40px) !important;
     overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
 }
 
 .magnify-info-panel.persist-active:not(.panel-minimized) .panel-content {
-    /* Allow scrolling inside the content area */
+    /* Enable scrolling for content that exceeds the height */
     overflow-y: auto !important;
-    /* Reset max-height so it fills the parent (which is constrained) */
-    max-height: none !important;
-    /* Ensure it takes available space */
+    /* Calculate height based on available space minus header (~60px) */
+    max-height: calc(100vh - 120px) !important;
     flex: 1 1 auto;
+    scrollbar-width: thin;
 }
 
 .floating-controls {
@@ -1234,7 +1237,7 @@
     box-shadow: 0 0 0 2px rgba(116, 185, 255, 0.25);
 }
 
-/* Inline Dropdown - Compact version matching blue text theme */
+/* Inline Dropdown - Compact version matching info-value theme (green bg, blue text) */
 .inline-dropdown {
     min-width: 100px;
     max-width: 180px;
@@ -1245,8 +1248,8 @@
     padding: 4px 24px 4px 10px;
     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
     font-size: 14px;
-    /* Match the blue text theme style */
-    background: transparent;
+    /* Match info-value style: green background with blue text */
+    background: rgba(160, 212, 104, 0.12);
     border: 1px solid transparent;
     border-radius: 6px;
     color: var(--info-panel-accent-color, #74b9ff);
@@ -1257,16 +1260,18 @@
     background-position: right 6px center;
     background-size: 12px;
     transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .inline-dropdown-select:hover {
-    background-color: rgba(116, 185, 255, 0.12);
+    background-color: rgba(160, 212, 104, 0.18);
     border-color: transparent;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .inline-dropdown-select:focus {
     outline: none;
-    background-color: rgba(116, 185, 255, 0.15);
+    background-color: rgba(160, 212, 104, 0.2);
     border-color: var(--info-panel-accent-color, #74b9ff);
     box-shadow: 0 0 0 2px rgba(116, 185, 255, 0.2);
 }

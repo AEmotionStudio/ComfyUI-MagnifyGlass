@@ -100,7 +100,8 @@ class WidgetEditorFactory {
       syncValue();
     });
     input.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") {
+      if (e.key === "Escape" || e.key === "Enter") {
+        e.preventDefault();
         input.blur();
       }
     });
@@ -231,7 +232,8 @@ class WidgetEditorFactory {
       return (_a2 = config.onBlur) == null ? void 0 : _a2.call(config);
     });
     select.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") {
+      if (e.key === "Escape" || e.key === "Enter") {
+        e.preventDefault();
         select.blur();
       }
     });

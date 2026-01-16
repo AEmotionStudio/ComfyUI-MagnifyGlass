@@ -20,7 +20,14 @@ import {
     type ParameterItem
 } from './NodeDataExtractor';
 import { NodeSelector, type NodeListEntry, type NodeExecOrderEntry } from './NodeSelector';
-import { WidgetEditorFactory, WidgetSyncManager, type WidgetEditorInstance } from './widget-editors';
+import {
+    WidgetEditorFactory,
+    WidgetSyncManager,
+    InlineControlFactory,
+    DragValueController,
+    type WidgetEditorInstance,
+    type InlineControlInstance
+} from './widget-editors';
 
 interface InfoPanelElements {
     panel: HTMLDivElement | null;
@@ -41,6 +48,10 @@ export class UIManager {
     onNodeSelected: ((nodeId: number) => void) | null = null;
     // Track active widget editors for cleanup
     private activeEditors: Map<string, WidgetEditorInstance> = new Map();
+    // Track active inline controls for cleanup
+    private activeInlineControls: Map<string, InlineControlInstance> = new Map();
+    // Track active drag controllers for cleanup
+    private activeDragControllers: Map<string, DragValueController> = new Map();
 
     constructor(stateManager: StateManager) {
         this.stateManager = stateManager;
@@ -718,9 +729,17 @@ export class UIManager {
 
     /**
      * Display information in the panel.
-     * @param info 
+     * @param info
      */
     displayInfo(info: any): void {
+        // Skip re-rendering if user is actively editing a value
+        // This prevents the editor from being destroyed mid-edit
+        if (this.activeEditors.size > 0) {
+            // Only update the header subtitle, don't re-render content
+            this.updateHeaderSubtitle(info);
+            return;
+        }
+
         const sections = this.buildSections(info);
         this.renderSections(sections);
         this.updateSectionStates();
@@ -920,22 +939,12 @@ export class UIManager {
 
             // Only show dropdown arrow for actual dropdowns, not actions like zoom
             const dropdownIcon = (item.clickable && item.clickable !== 'zoom') ? '<span class="dropdown-indicator" style="margin-left: 4px; opacity: 0.6; font-size: 10px;">▼</span>' : '';
-            // Show copy button for string values that are long enough to be worth copying
-            const rawValue = String(item.value || '');
-            const showCopyBtn = !item.clickable && rawValue.length > 3 && typeof item.value === 'string';
-            const copyBtnHtml = showCopyBtn ? `
-                <button class="copy-btn" data-copy-value="${escapeHtml(rawValue)}" title="Copy to clipboard" aria-label="Copy to clipboard">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                    </svg>
-                </button>` : '';
             return `
                             <div class="info-row ${clickableClass} ${editableClass}" ${clickableAttr} ${nodeIdAttr} ${editableAttrs} style="${item.clickable ? 'cursor: pointer;' : ''}">
                                 <span class="info-label">${escapeHtml(item.label)}</span>
                                 <span class="info-value ${valueClass} original" ${valueAttributes}>${value}${dropdownIcon}</span>
+                                <div class="inline-control-container" style="display: none;"></div>
                                 <div class="widget-editor-container" style="display: none;"></div>
-                                ${copyBtnHtml}
                             </div>`;
         }).join('')}
                     </div>
@@ -952,7 +961,7 @@ export class UIManager {
     }
 
     /**
-     * Cleanup active widget editors.
+     * Cleanup active widget editors, inline controls, and drag controllers.
      */
     private cleanupEditors(): void {
         this.activeEditors.forEach(editor => {
@@ -963,10 +972,29 @@ export class UIManager {
             }
         });
         this.activeEditors.clear();
+
+        this.activeInlineControls.forEach(control => {
+            try {
+                control.destroy();
+            } catch (e) {
+                // Ignore cleanup errors
+            }
+        });
+        this.activeInlineControls.clear();
+
+        this.activeDragControllers.forEach(controller => {
+            try {
+                controller.destroy();
+            } catch (e) {
+                // Ignore cleanup errors
+            }
+        });
+        this.activeDragControllers.clear();
     }
 
     /**
      * Attach click handlers to editable widget rows.
+     * Also creates inline controls for toggle/combo widgets and drag controllers.
      */
     private attachEditableRowHandlers(): void {
         if (!this.elements.content) return;
@@ -976,14 +1004,78 @@ export class UIManager {
             const rowEl = row as HTMLElement;
             const valueEl = rowEl.querySelector('.info-value.original') as HTMLElement;
             const editorContainer = rowEl.querySelector('.widget-editor-container') as HTMLElement;
+            const inlineContainer = rowEl.querySelector('.inline-control-container') as HTMLElement;
 
-            if (!valueEl || !editorContainer) return;
+            if (!valueEl) return;
 
-            // Click on value to enter edit mode
-            valueEl.addEventListener('click', (e) => {
-                e.stopPropagation();
-                this.enterEditMode(rowEl, valueEl, editorContainer);
-            });
+            const nodeId = parseInt(rowEl.dataset.nodeId || '0', 10);
+            const widgetName = rowEl.dataset.widgetName || '';
+            const widgetType = rowEl.dataset.widgetType || 'text';
+            const rawValue = rowEl.dataset.rawValue;
+
+            // Parse constraints
+            let constraints: any = {};
+            try {
+                const constraintsStr = rowEl.dataset.constraints;
+                if (constraintsStr) {
+                    constraints = JSON.parse(constraintsStr);
+                }
+            } catch (e) {
+                // Ignore parse errors
+            }
+
+            if (isNaN(nodeId) || !widgetName) return;
+
+            const controlKey = `${nodeId}:${widgetName}`;
+
+            // Check if this widget type should use inline controls
+            if (InlineControlFactory.shouldUseInlineControl(widgetType) && inlineContainer) {
+                // Create inline control
+                const control = InlineControlFactory.createControl({
+                    nodeId,
+                    widgetName,
+                    widgetType,
+                    currentValue: widgetType.toLowerCase() === 'boolean' || widgetType.toLowerCase() === 'toggle'
+                        ? rawValue === 'true'
+                        : rawValue,
+                    constraints,
+                    onChange: (value) => {
+                        rowEl.dataset.rawValue = String(value);
+                    }
+                });
+
+                if (control) {
+                    this.activeInlineControls.set(controlKey, control);
+                    inlineContainer.appendChild(control.element);
+                    inlineContainer.style.display = 'flex';
+                    // Hide the text value display
+                    valueEl.style.display = 'none';
+                }
+            } else if (editorContainer) {
+                // Fall back to click-to-edit for text/number types
+                valueEl.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.enterEditMode(rowEl, valueEl, editorContainer);
+                });
+            }
+
+            // Attach drag controller if widget type supports it and we don't have an inline control
+            if (DragValueController.isTypeSupported(widgetType) &&
+                !InlineControlFactory.shouldUseInlineControl(widgetType)) {
+                const dragController = new DragValueController(rowEl, {
+                    nodeId,
+                    widgetName,
+                    widgetType,
+                    currentValue: rawValue,
+                    constraints,
+                    onChange: (value) => {
+                        rowEl.dataset.rawValue = String(value);
+                        // Update displayed value
+                        valueEl.textContent = formatWidgetValue(value);
+                    }
+                });
+                this.activeDragControllers.set(controlKey, dragController);
+            }
         });
     }
 
@@ -1120,27 +1212,6 @@ export class UIManager {
             });
             row.addEventListener('mouseleave', () => {
                 (row as HTMLElement).style.background = '';
-            });
-        });
-
-        // Add click handlers for copy buttons
-        const copyButtons = this.elements.content.querySelectorAll('.copy-btn');
-        copyButtons.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                const value = (btn as HTMLElement).dataset.copyValue || '';
-                navigator.clipboard.writeText(value).then(() => {
-                    // Show success feedback
-                    btn.classList.add('copied');
-                    const originalHtml = btn.innerHTML;
-                    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-                    setTimeout(() => {
-                        btn.innerHTML = originalHtml;
-                        btn.classList.remove('copied');
-                    }, 1500);
-                }).catch(err => {
-                    console.error('Failed to copy:', err);
-                });
             });
         });
     }

@@ -150,9 +150,10 @@ export class WidgetEditorFactory {
             syncValue();
         });
 
-        // Handle keyboard
+        // Handle keyboard - Enter to confirm, Escape to cancel
         input.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
+            if (e.key === 'Escape' || e.key === 'Enter') {
+                e.preventDefault();
                 input.blur();
             }
         });
@@ -282,7 +283,8 @@ export class WidgetEditorFactory {
         select.addEventListener('blur', () => config.onBlur?.());
 
         select.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
+            if (e.key === 'Escape' || e.key === 'Enter') {
+                e.preventDefault();
                 select.blur();
             }
         });

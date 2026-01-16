@@ -852,3 +852,530 @@
     stroke-width: 2.5;
     /* Make icon slightly bolder */
 }
+/* ==========================================================================
+   Widget Editor Styles - Inspector Inline Editing
+   ========================================================================== */
+
+/* Base widget editor container */
+.widget-editor {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Shared input styles */
+.widget-editor-input,
+.widget-editor-textarea,
+.widget-editor-select {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 13px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--info-panel-accent-color, #74b9ff);
+    border-radius: 4px;
+    color: inherit;
+    padding: 6px 8px;
+    outline: none;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+}
+
+.widget-editor-input:focus,
+.widget-editor-textarea:focus,
+.widget-editor-select:focus {
+    border-color: var(--info-panel-accent-color, #74b9ff);
+    box-shadow: 0 0 0 2px rgba(116, 185, 255, 0.25);
+    background: rgba(0, 0, 0, 0.4);
+}
+
+.widget-editor-input:hover,
+.widget-editor-textarea:hover,
+.widget-editor-select:hover {
+    border-color: rgba(116, 185, 255, 0.7);
+}
+
+/* Number editor specific */
+.widget-editor-number {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.widget-editor-number .widget-editor-input {
+    flex: 1;
+    min-width: 60px;
+    max-width: 100px;
+    text-align: center;
+    appearance: textfield;
+    -moz-appearance: textfield;
+}
+
+.widget-editor-number .widget-editor-input::-webkit-outer-spin-button,
+.widget-editor-number .widget-editor-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+.widget-editor-stepper {
+    width: 24px;
+    height: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.1);
+    color: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+    transition: all 0.15s ease;
+    border-radius: 4px;
+}
+
+.widget-editor-stepper:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: var(--info-panel-accent-color, #74b9ff);
+}
+
+.widget-editor-stepper:active {
+    background: rgba(255, 255, 255, 0.3);
+    transform: scale(0.95);
+}
+
+.widget-editor-stepper.decrement {
+    border-radius: 4px 0 0 4px;
+}
+
+.widget-editor-stepper.increment {
+    border-radius: 0 4px 4px 0;
+}
+
+/* Text editor specific */
+.widget-editor-text {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+}
+
+.widget-editor-text .widget-editor-input {
+    width: 100%;
+}
+
+.widget-editor-textarea {
+    width: 100%;
+    min-height: 60px;
+    max-height: 200px;
+    resize: vertical;
+    line-height: 1.4;
+}
+
+.widget-editor-counter {
+    font-size: 11px;
+    opacity: 0.6;
+    text-align: right;
+    padding-right: 4px;
+}
+
+/* Combo/dropdown editor - blue text theme style */
+.widget-editor-combo {
+    width: 100%;
+}
+
+.widget-editor-select {
+    width: 100%;
+    cursor: pointer;
+    appearance: none;
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--info-panel-accent-color, #74b9ff);
+    font-size: 14px;
+    padding: 4px 24px 4px 10px;
+    border-radius: 6px;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2374b9ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+    background-size: 12px;
+}
+
+.widget-editor-select:hover {
+    background-color: rgba(116, 185, 255, 0.12);
+    border-color: transparent;
+}
+
+.widget-editor-select:focus {
+    background-color: rgba(116, 185, 255, 0.15);
+    border-color: var(--info-panel-accent-color, #74b9ff);
+    box-shadow: 0 0 0 2px rgba(116, 185, 255, 0.2);
+}
+
+.widget-editor-select option {
+    background: #1a1a1f;
+    color: var(--info-panel-accent-color, #74b9ff);
+    padding: 8px;
+}
+
+/* Boolean toggle editor */
+.widget-editor-boolean {
+    justify-content: flex-start;
+}
+
+.widget-editor-toggle {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    cursor: pointer;
+}
+
+.widget-editor-checkbox {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.widget-editor-toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 24px;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.widget-editor-toggle-slider::before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    left: 2px;
+    bottom: 2px;
+    background: white;
+    border-radius: 50%;
+    transition: all 0.3s ease;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.widget-editor-checkbox:checked+.widget-editor-toggle-slider {
+    background: var(--info-panel-accent-color, #74b9ff);
+    border-color: var(--info-panel-accent-color, #74b9ff);
+}
+
+.widget-editor-checkbox:checked+.widget-editor-toggle-slider::before {
+    transform: translateX(20px);
+}
+
+.widget-editor-checkbox:focus+.widget-editor-toggle-slider {
+    box-shadow: 0 0 0 2px rgba(116, 185, 255, 0.25);
+}
+
+/* Slider editor */
+.widget-editor-slider {
+    gap: 8px;
+}
+
+.widget-editor-range {
+    flex: 1;
+    height: 6px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+}
+
+.widget-editor-range::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--info-panel-accent-color, #74b9ff);
+    cursor: pointer;
+    border: 2px solid white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    transition: all 0.15s ease;
+}
+
+.widget-editor-range::-webkit-slider-thumb:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 0 4px rgba(116, 185, 255, 0.25);
+}
+
+.widget-editor-range::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--info-panel-accent-color, #74b9ff);
+    cursor: pointer;
+    border: 2px solid white;
+}
+
+.widget-editor-slider-value {
+    min-width: 50px;
+    text-align: center;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 12px;
+    color: var(--info-panel-accent-color, #74b9ff);
+    background: rgba(0, 0, 0, 0.2);
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+/* Editable row styling */
+.info-row.editable {
+    cursor: pointer;
+}
+
+.info-row.editable:hover {
+    background: rgba(116, 185, 255, 0.08);
+}
+
+.info-row.editable .info-value {
+    cursor: text;
+    border: 1px solid transparent;
+}
+
+.info-row.editable .info-value:hover {
+    border-color: rgba(116, 185, 255, 0.3);
+}
+
+.info-row.editing {
+    background: rgba(116, 185, 255, 0.1);
+    padding: 8px;
+    margin: 4px -8px;
+    border-radius: 6px;
+}
+
+.info-row.editing .info-label {
+    margin-bottom: 4px;
+}
+
+/* Hide original value when editing */
+.info-row.editing .info-value.original {
+    display: none;
+}
+
+/* ==========================================================================
+   Inline Controls - Compact controls that render directly in rows
+   ========================================================================== */
+
+.inline-control-container {
+    display: flex;
+    align-items: center;
+    margin-left: auto;
+}
+
+.inline-control {
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Inline Toggle - Compact version */
+.inline-toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+    cursor: pointer;
+}
+
+.inline-toggle-input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.inline-toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    transition: all 0.25s ease;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.inline-toggle-slider::before {
+    position: absolute;
+    content: "";
+    height: 14px;
+    width: 14px;
+    left: 2px;
+    bottom: 2px;
+    background: white;
+    border-radius: 50%;
+    transition: all 0.25s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.inline-toggle-input:checked+.inline-toggle-slider {
+    background: var(--info-panel-accent-color, #74b9ff);
+    border-color: var(--info-panel-accent-color, #74b9ff);
+}
+
+.inline-toggle-input:checked+.inline-toggle-slider::before {
+    transform: translateX(16px);
+}
+
+.inline-toggle-input:focus+.inline-toggle-slider {
+    box-shadow: 0 0 0 2px rgba(116, 185, 255, 0.25);
+}
+
+/* Inline Dropdown - blue text theme style */
+.inline-dropdown {
+    min-width: 100px;
+    max-width: 180px;
+}
+
+.inline-dropdown-select {
+    width: 100%;
+    padding: 4px 24px 4px 10px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 14px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--info-panel-accent-color, #74b9ff);
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2374b9ff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 6px center;
+    background-size: 12px;
+    transition: all 0.2s ease;
+}
+
+.inline-dropdown-select:hover {
+    background-color: rgba(116, 185, 255, 0.12);
+    border-color: transparent;
+}
+
+.inline-dropdown-select:focus {
+    outline: none;
+    background-color: rgba(116, 185, 255, 0.15);
+    border-color: var(--info-panel-accent-color, #74b9ff);
+    box-shadow: 0 0 0 2px rgba(116, 185, 255, 0.2);
+}
+
+.inline-dropdown-select option {
+    background: #1a1a1f;
+    color: var(--info-panel-accent-color, #74b9ff);
+    padding: 4px;
+}
+
+/* ==========================================================================
+   Drag Gesture Indicators
+   ========================================================================== */
+
+.info-row.draggable {
+    position: relative;
+    cursor: ew-resize;
+    user-select: none;
+}
+
+/* Value container in draggable rows should show text cursor for click-to-edit */
+.info-row.draggable .info-value {
+    cursor: text;
+    position: relative;
+    z-index: 1;
+}
+
+.info-row.draggable .info-value:hover {
+    background: rgba(116, 185, 255, 0.18);
+    border-color: rgba(116, 185, 255, 0.4);
+}
+
+.info-row.draggable::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 2px;
+    background: linear-gradient(90deg,
+            transparent 0%,
+            rgba(116, 185, 255, 0.3) 20%,
+            rgba(116, 185, 255, 0.3) 80%,
+            transparent 100%);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.info-row.draggable:hover::after {
+    opacity: 1;
+}
+
+.info-row.dragging {
+    background: rgba(116, 185, 255, 0.1) !important;
+}
+
+.info-row.dragging .info-value {
+    color: var(--info-panel-accent-color, #74b9ff);
+    font-weight: 600;
+}
+
+.drag-indicator {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px;
+    opacity: 0;
+    color: rgba(255, 255, 255, 0.4);
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.info-row.draggable:hover .drag-indicator {
+    opacity: 0.6;
+}
+
+.info-row.dragging .drag-indicator {
+    opacity: 1;
+    color: var(--info-panel-accent-color, #74b9ff);
+}
+
+/* Theme-specific adjustments for inline controls */
+.magnify-info-panel.theme-light .inline-toggle-slider {
+    background: rgba(0, 0, 0, 0.15);
+    border-color: rgba(0, 0, 0, 0.2);
+}
+
+.magnify-info-panel.theme-light .inline-dropdown-select {
+    background: transparent;
+    border-color: transparent;
+    color: var(--info-panel-accent-color, #0066cc);
+}
+
+.magnify-info-panel.theme-light .inline-dropdown-select:hover {
+    background-color: rgba(0, 102, 204, 0.08);
+}
+
+.magnify-info-panel.theme-light .inline-dropdown-select option {
+    background: #ffffff;
+    color: var(--info-panel-accent-color, #0066cc);
+}
+
+.magnify-info-panel.theme-github .inline-dropdown-select {
+    background: transparent;
+    border-color: transparent;
+    color: var(--info-panel-accent-color, #0366d6);
+}
+
+.magnify-info-panel.theme-github .inline-dropdown-select:hover {
+    background-color: rgba(3, 102, 214, 0.08);
+}
+
+.magnify-info-panel.theme-github .inline-dropdown-select option {
+    background: #ffffff;
+    color: var(--info-panel-accent-color, #0366d6);
+}

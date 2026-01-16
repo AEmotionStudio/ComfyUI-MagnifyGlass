@@ -3,6 +3,7 @@ var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { en
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 import { BROADCAST_CHANNEL_NAME } from "../shared/constants.js";
 import { Logger } from "../shared/logger.js";
+import { WidgetSyncManager } from "../info-panel/widget-editors/WidgetSyncManager.js";
 class PopOutManager {
   constructor() {
     __publicField(this, "channel", null);
@@ -106,6 +107,29 @@ class PopOutManager {
           }
         }
         break;
+      case "widget-edit":
+        this.handleWidgetEdit(message.data);
+        break;
+    }
+  }
+  /**
+   * Handle widget edit command from pop-out viewer.
+   * Syncs the edit to the actual node widget on the canvas.
+   */
+  handleWidgetEdit(editData) {
+    if (!editData || typeof editData.nodeId !== "number" || !editData.widgetName) {
+      Logger.warn("[PopOut] Invalid widget edit data:", editData);
+      return;
+    }
+    const result = WidgetSyncManager.syncWidgetValue(
+      editData.nodeId,
+      editData.widgetName,
+      editData.value
+    );
+    if (result.success) {
+      Logger.debug(`[PopOut] Widget edit synced: ${editData.widgetName} = ${editData.value}`);
+    } else {
+      Logger.warn(`[PopOut] Widget edit failed: ${result.error}`);
     }
   }
   /**

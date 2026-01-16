@@ -16,9 +16,11 @@ import {
     getImageInfo,
     getTextBoxContent,
     getImportantNodeParameters,
-    type ImageInfoResult
+    type ImageInfoResult,
+    type ParameterItem
 } from './NodeDataExtractor';
 import { NodeSelector, type NodeListEntry, type NodeExecOrderEntry } from './NodeSelector';
+import { WidgetEditorFactory, type WidgetEditorInstance } from './widget-editors';
 
 interface InfoPanelElements {
     panel: HTMLDivElement | null;
@@ -37,6 +39,8 @@ export class UIManager {
     nodeSelector: NodeSelector;
     currentDropdown: HTMLDivElement | null = null;
     onNodeSelected: ((nodeId: number) => void) | null = null;
+    // Track active widget editors for cleanup
+    private activeEditors: Map<string, WidgetEditorInstance> = new Map();
 
     constructor(stateManager: StateManager) {
         this.stateManager = stateManager;
@@ -872,6 +876,9 @@ export class UIManager {
     renderSections(sections: any[]): void {
         if (!this.elements.content) return;
 
+        // Cleanup existing editors before re-rendering
+        this.cleanupEditors();
+
         if (sections.length === 0) {
             this.elements.content.innerHTML = `
                 <div class="empty-state">
@@ -881,6 +888,9 @@ export class UIManager {
             `;
             return;
         }
+
+        // Check if Sticky Info is enabled (editing only works when sticky)
+        const isStickyEnabled = !!this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"];
 
         this.elements.content.innerHTML = sections.map(section => `
             <div class="info-section" data-section="${escapeHtml(section.id)}">
@@ -899,6 +909,12 @@ export class UIManager {
             const clickableAttr = item.clickable ? `data-clickable="${item.clickable}"` : '';
             const nodeIdAttr = item.nodeId !== undefined ? `data-node-id="${item.nodeId}"` : '';
             const clickableClass = item.clickable ? 'clickable-row' : '';
+
+            // Editable widget detection
+            const isEditable = item.isEditable && isStickyEnabled && item.widgetName && item.nodeId !== undefined;
+            const editableClass = isEditable ? 'editable' : '';
+            const editableAttrs = isEditable ? `data-editable="true" data-widget-name="${escapeHtml(item.widgetName)}" data-widget-type="${escapeHtml(item.widgetType || 'text')}" data-raw-value="${escapeHtml(String(item.rawValue ?? ''))}"` : '';
+
             // Only show dropdown arrow for actual dropdowns, not actions like zoom
             const dropdownIcon = (item.clickable && item.clickable !== 'zoom') ? '<span class="dropdown-indicator" style="margin-left: 4px; opacity: 0.6; font-size: 10px;">▼</span>' : '';
             // Show copy button for string values that are long enough to be worth copying
@@ -912,9 +928,10 @@ export class UIManager {
                     </svg>
                 </button>` : '';
             return `
-                            <div class="info-row ${clickableClass}" ${clickableAttr} ${nodeIdAttr} style="${item.clickable ? 'cursor: pointer;' : ''}">
+                            <div class="info-row ${clickableClass} ${editableClass}" ${clickableAttr} ${nodeIdAttr} ${editableAttrs} style="${item.clickable ? 'cursor: pointer;' : ''}">
                                 <span class="info-label">${escapeHtml(item.label)}</span>
-                                <span class="info-value ${valueClass}" ${valueAttributes}>${value}${dropdownIcon}</span>
+                                <span class="info-value ${valueClass} original" ${valueAttributes}>${value}${dropdownIcon}</span>
+                                <div class="widget-editor-container" style="display: none;"></div>
                                 ${copyBtnHtml}
                             </div>`;
         }).join('')}
@@ -924,6 +941,136 @@ export class UIManager {
 
         // Add click handlers for clickable rows
         this.attachDropdownClickHandlers();
+
+        // Add click handlers for editable rows (only when sticky is enabled)
+        if (isStickyEnabled) {
+            this.attachEditableRowHandlers();
+        }
+    }
+
+    /**
+     * Cleanup active widget editors.
+     */
+    private cleanupEditors(): void {
+        this.activeEditors.forEach(editor => {
+            try {
+                editor.destroy();
+            } catch (e) {
+                // Ignore cleanup errors
+            }
+        });
+        this.activeEditors.clear();
+    }
+
+    /**
+     * Attach click handlers to editable widget rows.
+     */
+    private attachEditableRowHandlers(): void {
+        if (!this.elements.content) return;
+
+        const editableRows = this.elements.content.querySelectorAll('[data-editable="true"]');
+        editableRows.forEach(row => {
+            const rowEl = row as HTMLElement;
+            const valueEl = rowEl.querySelector('.info-value.original') as HTMLElement;
+            const editorContainer = rowEl.querySelector('.widget-editor-container') as HTMLElement;
+
+            if (!valueEl || !editorContainer) return;
+
+            // Click on value to enter edit mode
+            valueEl.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.enterEditMode(rowEl, valueEl, editorContainer);
+            });
+        });
+    }
+
+    /**
+     * Enter edit mode for a row.
+     */
+    private enterEditMode(row: HTMLElement, valueEl: HTMLElement, container: HTMLElement): void {
+        // Exit if already editing
+        if (row.classList.contains('editing')) return;
+
+        const nodeId = parseInt(row.dataset.nodeId || '0', 10);
+        const widgetName = row.dataset.widgetName || '';
+        const widgetType = row.dataset.widgetType || 'text';
+        const rawValue = row.dataset.rawValue;
+
+        if (!nodeId || !widgetName) return;
+
+        // Get current constraints from the data extractor
+        let constraints: any = {};
+        try {
+            // Try to parse constraints if they were stored
+            const constraintsStr = row.dataset.constraints;
+            if (constraintsStr) {
+                constraints = JSON.parse(constraintsStr);
+            }
+        } catch (e) {
+            // Ignore parse errors
+        }
+
+        // Create the editor
+        const editor = WidgetEditorFactory.createEditor({
+            nodeId,
+            widgetName,
+            widgetType,
+            currentValue: rawValue,
+            constraints,
+            onChange: (value) => {
+                // Update the raw value attribute for next time
+                row.dataset.rawValue = String(value);
+            },
+            onBlur: () => {
+                // Exit edit mode after a small delay (allows for clicks within editor)
+                setTimeout(() => {
+                    if (!container.contains(document.activeElement)) {
+                        this.exitEditMode(row, valueEl, container);
+                    }
+                }, 100);
+            }
+        });
+
+        // Track the editor
+        const editorKey = `${nodeId}:${widgetName}`;
+        this.activeEditors.set(editorKey, editor);
+
+        // Show editor, hide value
+        row.classList.add('editing');
+        valueEl.style.display = 'none';
+        container.style.display = 'block';
+        container.innerHTML = '';
+        container.appendChild(editor.element);
+
+        // Focus the editor
+        editor.focus();
+    }
+
+    /**
+     * Exit edit mode for a row.
+     */
+    private exitEditMode(row: HTMLElement, valueEl: HTMLElement, container: HTMLElement): void {
+        if (!row.classList.contains('editing')) return;
+
+        const nodeId = row.dataset.nodeId || '';
+        const widgetName = row.dataset.widgetName || '';
+        const editorKey = `${nodeId}:${widgetName}`;
+
+        // Get and destroy the editor
+        const editor = this.activeEditors.get(editorKey);
+        if (editor) {
+            // Update the displayed value with the new value
+            const newValue = editor.getValue();
+            valueEl.textContent = formatWidgetValue(newValue);
+            editor.destroy();
+            this.activeEditors.delete(editorKey);
+        }
+
+        // Hide editor, show value
+        row.classList.remove('editing');
+        valueEl.style.display = '';
+        container.style.display = 'none';
+        container.innerHTML = '';
     }
 
     /**

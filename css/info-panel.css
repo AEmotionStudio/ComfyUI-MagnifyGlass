@@ -686,24 +686,20 @@
 }
 
 .focus-node-btn:hover {
-    /* Glowing active state */
+    /* Subtle glow state - no popout animation */
     background: var(--info-panel-accent-color, #74b9ff);
     color: #fff;
-    /* Switch to white text on fill */
 
-    /* Create a glow effect using the accent color */
-    box-shadow: 0 4px 12px -2px var(--info-panel-accent-color, #74b9ff),
-        0 0 0 1px var(--info-panel-accent-color, #74b9ff);
+    /* Subtle glow effect */
+    box-shadow: 0 2px 8px -2px var(--info-panel-accent-color, #74b9ff);
 
-    transform: translateY(-1px) scale(1.02);
     opacity: 1;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 .focus-node-btn:active {
-    transform: translateY(0) scale(0.98);
-    box-shadow: 0 2px 4px -2px var(--info-panel-accent-color, #74b9ff);
-    filter: brightness(0.95);
+    /* Subtle press feedback without scale */
+    box-shadow: 0 1px 4px -2px var(--info-panel-accent-color, #74b9ff);
+    filter: brightness(0.92);
 }
 
 .focus-node-btn .icon {
@@ -712,9 +708,7 @@
     transition: transform 0.2s ease;
 }
 
-.focus-node-btn:hover .icon {
-    transform: scale(1.1);
-}
+/* Icon remains stable on hover - no transform needed */
 
 /* Ensure the SVG inside inherits color properly */
 .focus-node-btn svg {
@@ -780,6 +774,7 @@
     min-width: 60px;
     max-width: 100px;
     text-align: center;
+    appearance: textfield;
     -moz-appearance: textfield;
 }
 
@@ -916,16 +911,16 @@
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
-.widget-editor-checkbox:checked + .widget-editor-toggle-slider {
+.widget-editor-checkbox:checked+.widget-editor-toggle-slider {
     background: var(--info-panel-accent-color, #74b9ff);
     border-color: var(--info-panel-accent-color, #74b9ff);
 }
 
-.widget-editor-checkbox:checked + .widget-editor-toggle-slider::before {
+.widget-editor-checkbox:checked+.widget-editor-toggle-slider::before {
     transform: translateX(20px);
 }
 
-.widget-editor-checkbox:focus + .widget-editor-toggle-slider {
+.widget-editor-checkbox:focus+.widget-editor-toggle-slider {
     box-shadow: 0 0 0 2px rgba(116, 185, 255, 0.25);
 }
 

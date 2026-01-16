@@ -47,6 +47,12 @@ export class MagnifyGlass {
     /** Current media element under cursor */
     currentMediaElement: HTMLImageElement | HTMLVideoElement | null;
 
+    /** Animation loop ID for continuous video rendering */
+    private animationLoopId: number | null;
+
+    /** Whether videos are currently visible in magnified view */
+    private hasVisibleVideos: boolean;
+
     constructor() {
         this.config = new ConfigManager();
         this.state = new MagnifierState();
@@ -74,6 +80,10 @@ export class MagnifyGlass {
         // Media tracking
         this.isOverMedia = false;
         this.currentMediaElement = null;
+
+        // Animation loop for video rendering
+        this.animationLoopId = null;
+        this.hasVisibleVideos = false;
     }
 
     /**
@@ -147,6 +157,8 @@ export class MagnifyGlass {
             if (this.eventHandler) {
                 this.eventHandler.updateInitialPosition();
             }
+            // Start continuous animation loop for smooth video playback
+            this.startAnimationLoop();
         }
     }
 
@@ -156,6 +168,8 @@ export class MagnifyGlass {
      */
     private forceHideAllComponents(): void {
         this.state.active = false;
+        this.stopAnimationLoop();
+        this.hasVisibleVideos = false;
         this.ui.hide();
 
         // 1. Nuclear option: Direct DOM ID targeting
@@ -370,6 +384,9 @@ export class MagnifyGlass {
 
         this.ui.htmlOverlayContainer.innerHTML = '';
 
+        // Track if any videos are found for animation loop management
+        let foundVideos = false;
+
         const magnifyRect: Rectangle = {
             x: this.state.sourceX,
             y: this.state.sourceY,
@@ -425,7 +442,19 @@ export class MagnifyGlass {
                 let isImageElement = false;
                 let elementToProcess: HTMLElement | null = null;
 
-                if (widget.element) {
+                // Check for VHS-style widgets with videoEl property (VideoHelperSuite pattern)
+                const widgetName = String(widget.name || '').toLowerCase();
+                if (widgetName === 'videopreview' || widgetName === 'audiopreview') {
+                    const videoEl = widget.videoEl as HTMLVideoElement | undefined;
+                    if (videoEl && !videoEl.hidden && videoEl.videoWidth > 0) {
+                        isVideoElement = true;
+                        foundVideos = true;
+                        elementToProcess = videoEl;
+                    }
+                }
+
+                // Check for standard DOM element widgets (existing logic)
+                if (!elementToProcess && widget.element) {
                     const element = widget.element as HTMLElement;
                     // Skip text elements - now rendered natively on canvas via OffscreenRenderer
                     if (widget.type === "text" || widget.type === "string" || element.tagName === 'TEXTAREA') {
@@ -433,6 +462,7 @@ export class MagnifyGlass {
                         // elementToProcess = element;
                     } else if (element.tagName === 'VIDEO') {
                         isVideoElement = true;
+                        foundVideos = true;
                         elementToProcess = element;
                     } else if (element.tagName === 'IMG') {
                         isImageElement = true;
@@ -441,6 +471,7 @@ export class MagnifyGlass {
                         const potentialVideo = element.querySelector('video');
                         if (potentialVideo) {
                             isVideoElement = true;
+                            foundVideos = true;
                             elementToProcess = potentialVideo;
                         } else {
                             const potentialImage = element.querySelector('img');
@@ -581,6 +612,77 @@ export class MagnifyGlass {
                 }
             }
         }
+
+        // Manage animation loop based on video presence
+        if (foundVideos && !this.hasVisibleVideos) {
+            this.hasVisibleVideos = true;
+            this.startAnimationLoop();
+        } else if (!foundVideos && this.hasVisibleVideos) {
+            this.hasVisibleVideos = false;
+            // Loop will stop itself on next iteration
+        }
+    }
+
+    /**
+     * Start the animation loop for continuous video rendering.
+     * Only runs when videos are visible in the magnified view.
+     * This loop directly renders without going through updateMagnifiedView's
+     * scheduling logic to ensure continuous frame updates for video playback.
+     */
+    private startAnimationLoop(): void {
+        if (this.animationLoopId !== null) return; // Already running
+
+        const animate = () => {
+            // Stop if glass is deactivated or renderer unavailable
+            if (!this.state.active || !this.renderer || !this.litegraphCanvas) {
+                this.stopAnimationLoop();
+                return;
+            }
+
+            // Skip if glass preview is hidden
+            if (this.state.isPreviewHidden) {
+                this.animationLoopId = requestAnimationFrame(animate);
+                return;
+            }
+
+            // Update canvas transformation and source region
+            this.updateCanvasTransformation();
+            this.calculateSourceRegion();
+
+            // Direct render (bypass isRenderScheduled to ensure continuous updates)
+            let sourceCanvas: HTMLCanvasElement = this.litegraphCanvas;
+            if (this.offscreenRenderer && this.offscreenRenderer.isAvailable()) {
+                const highResCanvas = this.offscreenRenderer.renderHighResRegion(this.litegraphCanvas);
+                if (highResCanvas) {
+                    sourceCanvas = highResCanvas;
+                }
+            }
+
+            // Render the magnified view
+            this.renderer.render(sourceCanvas);
+
+            // Render HTML overlays for video widgets
+            this.renderHtmlOverlays();
+
+            // Send frame to pop-out tab if open
+            if (this.popOutManager.isPopOutOpen() && this.ui.glassCanvas) {
+                this.popOutManager.sendFrame(this.ui.glassCanvas);
+            }
+
+            this.animationLoopId = requestAnimationFrame(animate);
+        };
+
+        this.animationLoopId = requestAnimationFrame(animate);
+    }
+
+    /**
+     * Stop the animation loop.
+     */
+    private stopAnimationLoop(): void {
+        if (this.animationLoopId !== null) {
+            cancelAnimationFrame(this.animationLoopId);
+            this.animationLoopId = null;
+        }
     }
 
     /**
@@ -666,6 +768,7 @@ export class MagnifyGlass {
      * Cleanup all resources.
      */
     cleanup(): void {
+        this.stopAnimationLoop();
         this.eventHandler.detachListeners();
         this.popOutManager.cleanup();
         this.ui.cleanup();

@@ -1,7 +1,7 @@
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-import { getSettingValue } from "../shared/utils.js";
+import { getSettingValue, clamp } from "../shared/utils.js";
 import { DEFAULT_PANEL_SETTINGS } from "../shared/settings/defaults.js";
 import "/scripts/app.js";
 class StateManager {
@@ -187,12 +187,100 @@ class StateManager {
     }
   }
   loadSettings() {
-    Object.keys(DEFAULT_PANEL_SETTINGS).forEach((key) => {
+    const defaults = DEFAULT_PANEL_SETTINGS;
+    Object.keys(defaults).forEach((key) => {
       if (key !== "🔍MagnifyGlass.InfoPanelTheme") {
-        this.state.settings[key] = getSettingValue(key, DEFAULT_PANEL_SETTINGS[key]);
+        this.state.settings[key] = getSettingValue(key, defaults[key]);
       }
     });
+    this.state.settings["🔍MagnifyGlass.InfoPanelWidth"] = this.validateNumber(
+      this.state.settings["🔍MagnifyGlass.InfoPanelWidth"],
+      200,
+      600,
+      defaults["🔍MagnifyGlass.InfoPanelWidth"]
+    );
+    this.state.settings["🔍MagnifyGlass.InfoPanelMaxHeight"] = this.validateNumber(
+      this.state.settings["🔍MagnifyGlass.InfoPanelMaxHeight"],
+      200,
+      1500,
+      defaults["🔍MagnifyGlass.InfoPanelMaxHeight"]
+    );
+    this.state.settings["🔍MagnifyGlass.InfoPanelOpacity"] = this.validateNumber(
+      this.state.settings["🔍MagnifyGlass.InfoPanelOpacity"],
+      10,
+      100,
+      defaults["🔍MagnifyGlass.InfoPanelOpacity"]
+    );
+    this.state.settings["🔍MagnifyGlass.InfoPanelFontSize"] = this.validateNumber(
+      this.state.settings["🔍MagnifyGlass.InfoPanelFontSize"],
+      8,
+      24,
+      defaults["🔍MagnifyGlass.InfoPanelFontSize"]
+    );
+    this.state.settings["🔍MagnifyGlass.InfoPanelTextColor"] = this.validateColor(
+      this.state.settings["🔍MagnifyGlass.InfoPanelTextColor"],
+      defaults["🔍MagnifyGlass.InfoPanelTextColor"]
+    );
+    this.state.settings["🔍MagnifyGlass.InfoPanelAccentColor"] = this.validateColor(
+      this.state.settings["🔍MagnifyGlass.InfoPanelAccentColor"],
+      defaults["🔍MagnifyGlass.InfoPanelAccentColor"]
+    );
+    const validPanelPositions = ["Bottom", "Top", "Left", "Right"];
+    this.state.settings["🔍MagnifyGlass.InfoPanelPosition"] = this.validateStringOption(
+      this.state.settings["🔍MagnifyGlass.InfoPanelPosition"],
+      validPanelPositions,
+      defaults["🔍MagnifyGlass.InfoPanelPosition"]
+    );
+    const validControlPositions = ["top-left", "top-right", "bottom-left", "bottom-right", "top", "bottom", "left", "right"];
+    this.state.settings["🔍MagnifyGlass.ControlsPosition"] = this.validateStringOption(
+      this.state.settings["🔍MagnifyGlass.ControlsPosition"],
+      validControlPositions,
+      defaults["🔍MagnifyGlass.ControlsPosition"]
+    );
+    const validFonts = [
+      "System Default",
+      "Inter",
+      "Roboto",
+      "JetBrains Mono",
+      "Fira Code",
+      "IBM Plex Sans",
+      "Space Grotesk",
+      "Lexend",
+      "Outfit",
+      "monospace",
+      "system-ui"
+    ];
+    this.state.settings["🔍MagnifyGlass.InfoPanelFontFamily"] = this.validateStringOption(
+      this.state.settings["🔍MagnifyGlass.InfoPanelFontFamily"],
+      validFonts,
+      defaults["🔍MagnifyGlass.InfoPanelFontFamily"]
+    );
     this.state.settings["🔍MagnifyGlass.InfoPanelTheme"] = this.state.currentTheme;
+  }
+  /**
+   * Validate numeric input with bounds checking.
+   */
+  validateNumber(value, min, max, fallback) {
+    const num = Number(value);
+    if (isNaN(num)) return fallback;
+    return clamp(num, min, max);
+  }
+  /**
+   * Validate color string (hex).
+   */
+  validateColor(color, fallback) {
+    if (!color || typeof color !== "string") return fallback;
+    if (/^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{4}|[0-9A-Fa-f]{6}|[0-9A-Fa-f]{8})$/.test(color)) {
+      return color;
+    }
+    return fallback;
+  }
+  /**
+   * Validate string against an allowlist.
+   */
+  validateStringOption(value, options, fallback) {
+    if (typeof value !== "string") return fallback;
+    return options.includes(value) ? value : fallback;
   }
   updateSettings() {
     const oldSettings = { ...this.state.settings };

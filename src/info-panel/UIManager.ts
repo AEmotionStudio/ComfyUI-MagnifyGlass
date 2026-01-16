@@ -20,7 +20,7 @@ import {
     type ParameterItem
 } from './NodeDataExtractor';
 import { NodeSelector, type NodeListEntry, type NodeExecOrderEntry } from './NodeSelector';
-import { WidgetEditorFactory, type WidgetEditorInstance } from './widget-editors';
+import { WidgetEditorFactory, WidgetSyncManager, type WidgetEditorInstance } from './widget-editors';
 
 interface InfoPanelElements {
     panel: HTMLDivElement | null;
@@ -1068,9 +1068,10 @@ export class UIManager {
         // Get and destroy the editor
         const editor = this.activeEditors.get(editorKey);
         if (editor) {
-            // Update the displayed value with the new value
-            const newValue = editor.getValue();
-            valueEl.textContent = formatWidgetValue(newValue);
+            // Get the actual constrained value from the widget (not the unconstrained input value)
+            // This ensures displayed value matches what was actually stored
+            const actualValue = WidgetSyncManager.getWidgetValue(parseInt(nodeId, 10), widgetName);
+            valueEl.textContent = formatWidgetValue(actualValue ?? editor.getValue());
             editor.destroy();
             this.activeEditors.delete(editorKey);
         }
@@ -1373,6 +1374,9 @@ export class UIManager {
     }
 
     cleanup(): void {
+        // Clean up active editors to prevent memory leaks
+        this.cleanupEditors();
+
         if (this.elements.panel && this.elements.panel.parentNode) {
             this.elements.panel.parentNode.removeChild(this.elements.panel);
         }

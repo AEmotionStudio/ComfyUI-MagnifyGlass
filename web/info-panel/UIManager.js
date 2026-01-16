@@ -8,6 +8,7 @@ import { escapeHtml } from "../shared/utils.js";
 import { formatValue, getValueClass, getValueAttributes, formatWidgetValue } from "./ValueFormatter.js";
 import { getCheckpointInfo, getImageInfo, getTextBoxContent, getImportantNodeParameters } from "./NodeDataExtractor.js";
 import { NodeSelector } from "./NodeSelector.js";
+import { WidgetSyncManager } from "./widget-editors/WidgetSyncManager.js";
 import { WidgetEditorFactory } from "./widget-editors/WidgetEditorFactory.js";
 class UIManager {
   constructor(stateManager) {
@@ -772,8 +773,8 @@ class UIManager {
     const editorKey = `${nodeId}:${widgetName}`;
     const editor = this.activeEditors.get(editorKey);
     if (editor) {
-      const newValue = editor.getValue();
-      valueEl.textContent = formatWidgetValue(newValue);
+      const actualValue = WidgetSyncManager.getWidgetValue(parseInt(nodeId, 10), widgetName);
+      valueEl.textContent = formatWidgetValue(actualValue ?? editor.getValue());
       editor.destroy();
       this.activeEditors.delete(editorKey);
     }
@@ -1016,6 +1017,7 @@ class UIManager {
     }
   }
   cleanup() {
+    this.cleanupEditors();
     if (this.elements.panel && this.elements.panel.parentNode) {
       this.elements.panel.parentNode.removeChild(this.elements.panel);
     }

@@ -122,7 +122,10 @@ export class WidgetEditorFactory {
             e.preventDefault();
             e.stopPropagation();
             const step = config.constraints?.step ?? 1;
-            let newValue = parseFloat(input.value) - step;
+            const currentVal = parseFloat(input.value);
+            // Handle NaN (empty input) - fall back to current value or min or 0
+            const baseValue = isNaN(currentVal) ? (config.constraints?.min ?? Number(config.currentValue) ?? 0) : currentVal;
+            let newValue = baseValue - step;
             // Clamp to constraints
             if (config.constraints?.min !== undefined) {
                 newValue = Math.max(config.constraints.min, newValue);
@@ -135,7 +138,10 @@ export class WidgetEditorFactory {
             e.preventDefault();
             e.stopPropagation();
             const step = config.constraints?.step ?? 1;
-            let newValue = parseFloat(input.value) + step;
+            const currentVal = parseFloat(input.value);
+            // Handle NaN (empty input) - fall back to current value or min or 0
+            const baseValue = isNaN(currentVal) ? (config.constraints?.min ?? Number(config.currentValue) ?? 0) : currentVal;
+            let newValue = baseValue + step;
             // Clamp to constraints
             if (config.constraints?.max !== undefined) {
                 newValue = Math.min(config.constraints.max, newValue);

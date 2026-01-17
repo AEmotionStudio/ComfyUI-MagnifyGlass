@@ -382,7 +382,8 @@ export class MagnifyGlass {
             return;
         }
 
-        this.ui.htmlOverlayContainer.innerHTML = '';
+        // Removed early clear to batch reads before writes
+        // this.ui.htmlOverlayContainer.innerHTML = '';
 
         // Track if any videos are found for animation loop management
         let foundVideos = false;
@@ -418,6 +419,16 @@ export class MagnifyGlass {
             width: sourceGraphWidth,
             height: sourceGraphHeight
         };
+
+        // Batch optimization: Collect all render tasks first (Read Phase)
+        interface RenderTask {
+            element: HTMLElement;
+            type: 'text' | 'video' | 'image';
+            // Store the calculated overlay geometry so we don't recalculate in loop 2
+            overlayRect: Rectangle;
+            fontSize?: number;
+        }
+        const renderTasks: RenderTask[] = [];
 
         for (const node of nodes) {
             // Optimization: Cull nodes that are not in the source region
@@ -484,11 +495,13 @@ export class MagnifyGlass {
                 }
 
                 if (elementToProcess && (isTextElement || isVideoElement || isImageElement)) {
+                    // READ: Force layout calculation here, batched together
                     const widgetRect = elementToProcess.getBoundingClientRect();
-                    // Optimization: Reuse canvasRect and dpr from top level scope
-                    const canvasRect = rect;
 
-                    // DPR is already calculated at function start
+                    // Optimization: Use the widgetRect to check overlap immediately before potentially expensive computations
+                    // Reuse canvasRect and dpr from top level scope
+                    const canvasRect = rect;
+                    const dpr = rect.width > 0 ? this.litegraphCanvas.width / rect.width : 1;
                     const currentScale = this.state.canvasScale;
                     const isVirtualZoomMode = currentScale < 0.7;
 
@@ -509,10 +522,8 @@ export class MagnifyGlass {
 
                     if (isVirtualZoomMode) {
                         // Virtual Zoom: Transform widget position to match virtual 1.0 scale capture
-                        // Formula: virtualCss = (widgetCss - pivotCss) / currentScale + pivotCss
                         finalWidgetCssX = (widgetCssX - pivotCssX) / currentScale + pivotCssX;
                         finalWidgetCssY = (widgetCssY - pivotCssY) / currentScale + pivotCssY;
-                        // Size also scales inversely
                         finalWidgetCssWidth = widgetCssWidth / currentScale;
                         finalWidgetCssHeight = widgetCssHeight / currentScale;
                     } else {
@@ -536,82 +547,117 @@ export class MagnifyGlass {
                         height: widgetCanvasHeight
                     };
 
+                    // Only process further if it actually overlaps
                     if (rectsOverlap(magnifyRect, widgetSourceRect)) {
-                        const clonedElement = elementToProcess.cloneNode(true) as HTMLElement;
-                        clonedElement.style.position = 'absolute';
-                        clonedElement.style.pointerEvents = 'none';
+                        const task: RenderTask = {
+                            element: elementToProcess,
+                            type: isTextElement ? 'text' : (isVideoElement ? 'video' : 'image'),
+                            overlayRect: widgetSourceRect, // Store calculated rect
+                            fontSize: undefined
+                        };
 
+                        // READ: Get computed style for text elements (only if overlapping)
                         if (isTextElement) {
-                            clonedElement.style.backgroundColor = elementToProcess.style.backgroundColor || '#222';
-                            clonedElement.style.color = elementToProcess.style.color || '#DDD';
-                            clonedElement.style.border = elementToProcess.style.border || '1px solid #555';
-                            // Hide scrollbar while keeping content visible
-                            clonedElement.style.overflow = 'hidden';
-                            (clonedElement as HTMLInputElement).disabled = true;
-
-                            // Dual adaptive font sizing:
-                            // - When zoomed OUT (below 50%): shrink text to fit all content
-                            // - When zoomed IN (above 50%): grow text for better readability
-                            const canvasScale = this.state.canvasScale;
-                            const originalFontSize = parseFloat(window.getComputedStyle(elementToProcess).fontSize);
-                            const threshold = 0.5; // 50% zoom threshold
-
-                            let adaptedFontSize: number;
-                            if (canvasScale < threshold) {
-                                // Zoomed out: shrink text aggressively to fit content
-                                // Scale from threshold down to minimum
-                                const shrinkFactor = canvasScale / threshold;
-                                adaptedFontSize = Math.max(6, originalFontSize * shrinkFactor * 0.8);
-                            } else {
-                                // Zoomed in: grow text for readability
-                                // Scale from 100% at threshold up to 150% at 100%+ zoom
-                                const growFactor = 1 + ((canvasScale - threshold) / (1 - threshold)) * 0.5;
-                                adaptedFontSize = originalFontSize * Math.min(1.5, growFactor);
-                            }
-
-                            clonedElement.style.fontSize = `${adaptedFontSize}px`;
-                            clonedElement.style.lineHeight = canvasScale < threshold ? '1.2' : '1.4';
-                        } else if (isVideoElement) {
-                            const video = clonedElement as HTMLVideoElement;
-                            const originalVideo = elementToProcess as HTMLVideoElement;
-                            video.src = originalVideo.src;
-                            video.autoplay = originalVideo.autoplay;
-                            video.loop = originalVideo.loop;
-                            video.preload = originalVideo.preload;
-                            video.crossOrigin = originalVideo.crossOrigin;
-                            video.muted = true;
-                            if (!originalVideo.paused) {
-                                video.play().catch(e => {
-                                    if (e.name !== 'AbortError') {
-                                        console.warn("Magnify Glass: Cloned video play failed", e);
-                                    }
-                                });
-                            }
-                            video.currentTime = originalVideo.currentTime;
-                        } else if (isImageElement) {
-                            const img = clonedElement as HTMLImageElement;
-                            const originalImg = elementToProcess as HTMLImageElement;
-                            img.src = originalImg.src;
-                            img.alt = originalImg.alt;
+                            task.fontSize = parseFloat(window.getComputedStyle(elementToProcess).fontSize);
                         }
 
-                        const relativeX = widgetSourceRect.x - magnifyRect.x;
-                        const relativeY = widgetSourceRect.y - magnifyRect.y;
-                        const magnifiedX = relativeX * this.config.zoomFactor;
-                        const magnifiedY = relativeY * this.config.zoomFactor;
+                        if (isVideoElement) {
+                            foundVideos = true;
+                        }
 
-                        clonedElement.style.left = `${magnifiedX}px`;
-                        clonedElement.style.top = `${magnifiedY}px`;
-                        clonedElement.style.width = `${widgetSourceRect.width}px`;
-                        clonedElement.style.height = `${widgetSourceRect.height}px`;
-                        clonedElement.style.transformOrigin = 'top left';
-                        clonedElement.style.transform = `scale(${this.config.zoomFactor})`;
-
-                        this.ui.htmlOverlayContainer!.appendChild(clonedElement);
+                        renderTasks.push(task);
                     }
                 }
             }
         }
+
+        // WRITE Phase: Clear container and append new elements
+        this.ui.htmlOverlayContainer.innerHTML = '';
+        const fragment = document.createDocumentFragment();
+
+        // Process collected tasks
+        for (const task of renderTasks) {
+            const elementToProcess = task.element;
+            const widgetSourceRect = task.overlayRect; // Use stored calculated rect
+            const isTextElement = task.type === 'text';
+            const isVideoElement = task.type === 'video';
+            const isImageElement = task.type === 'image';
+
+            const clonedElement = elementToProcess.cloneNode(true) as HTMLElement;
+            clonedElement.style.position = 'absolute';
+            clonedElement.style.pointerEvents = 'none';
+
+            if (isTextElement) {
+                clonedElement.style.backgroundColor = elementToProcess.style.backgroundColor || '#222';
+                clonedElement.style.color = elementToProcess.style.color || '#DDD';
+                clonedElement.style.border = elementToProcess.style.border || '1px solid #555';
+                // Hide scrollbar while keeping content visible
+                clonedElement.style.overflow = 'hidden';
+                (clonedElement as HTMLInputElement).disabled = true;
+
+                // Dual adaptive font sizing:
+                // - When zoomed OUT (below 50%): shrink text to fit all content
+                // - When zoomed IN (above 50%): grow text for better readability
+                const canvasScale = this.state.canvasScale;
+                // READ: Use stored font size
+                const originalFontSize = task.fontSize || 12; // Fallback
+                const threshold = 0.5; // 50% zoom threshold
+
+                let adaptedFontSize: number;
+                if (canvasScale < threshold) {
+                    // Zoomed out: shrink text aggressively to fit content
+                    // Scale from threshold down to minimum
+                    const shrinkFactor = canvasScale / threshold;
+                    adaptedFontSize = Math.max(6, originalFontSize * shrinkFactor * 0.8);
+                } else {
+                    // Zoomed in: grow text for readability
+                    // Scale from 100% at threshold up to 150% at 100%+ zoom
+                    const growFactor = 1 + ((canvasScale - threshold) / (1 - threshold)) * 0.5;
+                    adaptedFontSize = originalFontSize * Math.min(1.5, growFactor);
+                }
+
+                clonedElement.style.fontSize = `${adaptedFontSize}px`;
+                clonedElement.style.lineHeight = canvasScale < threshold ? '1.2' : '1.4';
+            } else if (isVideoElement) {
+                const video = clonedElement as HTMLVideoElement;
+                const originalVideo = elementToProcess as HTMLVideoElement;
+                video.src = originalVideo.src;
+                video.autoplay = originalVideo.autoplay;
+                video.loop = originalVideo.loop;
+                video.preload = originalVideo.preload;
+                video.crossOrigin = originalVideo.crossOrigin;
+                video.muted = true;
+                if (!originalVideo.paused) {
+                    video.play().catch(e => {
+                        if (e.name !== 'AbortError') {
+                            console.warn("Magnify Glass: Cloned video play failed", e);
+                        }
+                    });
+                }
+                video.currentTime = originalVideo.currentTime;
+            } else if (isImageElement) {
+                const img = clonedElement as HTMLImageElement;
+                const originalImg = elementToProcess as HTMLImageElement;
+                img.src = originalImg.src;
+                img.alt = originalImg.alt;
+            }
+
+            const relativeX = widgetSourceRect.x - magnifyRect.x;
+            const relativeY = widgetSourceRect.y - magnifyRect.y;
+            const magnifiedX = relativeX * this.config.zoomFactor;
+            const magnifiedY = relativeY * this.config.zoomFactor;
+
+            clonedElement.style.left = `${magnifiedX}px`;
+            clonedElement.style.top = `${magnifiedY}px`;
+            clonedElement.style.width = `${widgetSourceRect.width}px`;
+            clonedElement.style.height = `${widgetSourceRect.height}px`;
+            clonedElement.style.transformOrigin = 'top left';
+            clonedElement.style.transform = `scale(${this.config.zoomFactor})`;
+
+            fragment.appendChild(clonedElement);
+        }
+
+        this.ui.htmlOverlayContainer.appendChild(fragment);
 
         // Manage animation loop based on video presence
         if (foundVideos && !this.hasVisibleVideos) {

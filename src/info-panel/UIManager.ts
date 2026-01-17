@@ -1548,17 +1548,17 @@ export class UIManager {
 
         // Keyboard handler
         const keyHandler = (e: KeyboardEvent) => {
+            // Only handle keys if the dropdown or its children have focus
+            // This prevents intercepting keys (including Escape) when user tabs away
+            if (document.activeElement !== dropdown && !dropdown.contains(document.activeElement)) {
+                return;
+            }
+
             if (e.key === 'Escape') {
                 e.preventDefault();
                 e.stopPropagation();
                 this.hideDropdown();
                 // Cleanup is now handled by hideDropdown
-                return;
-            }
-
-            // Only handle navigation keys if the dropdown or its children have focus
-            // This prevents intercepting keys when user tabs away to another element
-            if (document.activeElement !== dropdown && !dropdown.contains(document.activeElement)) {
                 return;
             }
 
@@ -1582,6 +1582,12 @@ export class UIManager {
 
         // Delay adding the listener to avoid immediate closure
         setTimeout(() => {
+            // Check if dropdown was already closed (cleanup reference changed or nulled)
+            // or if it was removed from DOM
+            if (this.currentDropdownCleanup !== cleanup || !dropdown.parentNode) {
+                return;
+            }
+
             document.addEventListener('mousedown', closeHandler, true);  // true = capture phase
             document.addEventListener('keydown', keyHandler);
 

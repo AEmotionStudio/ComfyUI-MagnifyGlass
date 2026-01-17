@@ -153,13 +153,68 @@ describe('UIManager Dropdown Accessibility', () => {
         removeEventListenerSpy.mockClear();
 
         // Simulate re-opening (which calls hideDropdown then createDropdown)
-        // This simulates clicking the anchor again, or clicking another anchor which triggers hideDropdown first
         (uiManager as any).showTitleDropdown(anchor);
 
         // Verify that cleanup for the FIRST dropdown occurred
-        // We expect removeEventListener to be called for the listeners attached by the first call
         expect(removeEventListenerSpy).toHaveBeenCalledWith('keydown', expect.any(Function));
         expect(removeEventListenerSpy).toHaveBeenCalledWith('mousedown', expect.any(Function), true);
+
+        vi.useRealTimers();
+    });
+
+    it('should not intercept Escape key when focus is elsewhere', () => {
+        vi.useFakeTimers();
+
+        const nodes = [{ id: 1, title: 'Node 1', type: 'Type A' }];
+        const anchor = document.createElement('div');
+        document.body.appendChild(anchor);
+
+        (uiManager as any).createDropdown(nodes, anchor, 'title');
+        vi.advanceTimersByTime(100);
+
+        // Simulate focus moving elsewhere
+        const otherInput = document.createElement('input');
+        document.body.appendChild(otherInput);
+        otherInput.focus();
+
+        const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
+        const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
+        const stopPropagationSpy = vi.spyOn(event, 'stopPropagation');
+
+        document.dispatchEvent(event);
+
+        // If the bug exists, these will be called. We expect them NOT to be called.
+        expect(preventDefaultSpy).not.toHaveBeenCalled();
+        expect(stopPropagationSpy).not.toHaveBeenCalled();
+
+        // Also dropdown should still be open (or maybe not? The user requirement is just about blocking propagation)
+        // If we don't intercept, it stays open. But ideally pressing Escape on another input might close that input's menu, not ours.
+        // Or if it's a modal, maybe it should close?
+        // The reviewer says: "dropdown's handler will intercept the event and block propagation".
+        // So simply verifying propagation is not blocked is enough.
+
+        vi.useRealTimers();
+    });
+
+    it('should not add listeners if dropdown is closed before timeout', () => {
+        vi.useFakeTimers();
+        const addEventListenerSpy = vi.spyOn(document, 'addEventListener');
+
+        const nodes = [{ id: 1, title: 'Node 1', type: 'Type A' }];
+        const anchor = document.createElement('div');
+        document.body.appendChild(anchor);
+
+        (uiManager as any).createDropdown(nodes, anchor, 'title');
+
+        // Immediately close it (before timeout fires)
+        uiManager.hideDropdown();
+
+        // Advance time to let timeout fire
+        vi.advanceTimersByTime(100);
+
+        // Listeners should NOT have been added
+        expect(addEventListenerSpy).not.toHaveBeenCalledWith('keydown', expect.any(Function));
+        expect(addEventListenerSpy).not.toHaveBeenCalledWith('mousedown', expect.any(Function), true);
 
         vi.useRealTimers();
     });

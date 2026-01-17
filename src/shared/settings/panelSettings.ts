@@ -219,6 +219,16 @@ export function registerPanelSettings(stateManager: any, uiManager: any, positio
             { value: "Space Grotesk", text: "Space Grotesk" },
             { value: "Lexend", text: "Lexend" },
             { value: "Outfit", text: "Outfit" },
+            { value: "Cinzel", text: "Cinzel (Epic)" },
+            { value: "Playfair Display", text: "Playfair Display (Elegant)" },
+            { value: "Orbitron", text: "Orbitron (Sci-Fi)" },
+            { value: "Dancing Script", text: "Dancing Script (Cursive)" },
+            { value: "Amatic SC", text: "Amatic SC (Handwritten)" },
+            { value: "Comfortaa", text: "Comfortaa (Rounded)" },
+            { value: "Righteous", text: "Righteous (Modern)" },
+            { value: "Bangers", text: "Bangers (Comic)" },
+            { value: "Press Start 2P", text: "Press Start 2P (Pixel)" },
+            { value: "Audiowide", text: "Audiowide (Techno)" },
             { value: "monospace", text: "Monospace" },
         ],
         defaultValue: settings["🔍MagnifyGlass.InfoPanelFontFamily"],
@@ -262,6 +272,22 @@ export function registerPanelSettings(stateManager: any, uiManager: any, positio
                 const strValue = String(value);
                 const normalizedColor = strValue && !strValue.startsWith('#') ? `#${strValue}` : strValue;
                 stateManager.state.settings["🔍MagnifyGlass.InfoPanelAccentColor"] = normalizedColor;
+                if (uiManager) {
+                    uiManager.applyStyles();
+                }
+            }
+        }
+    });
+
+    app.ui.settings.addSetting({
+        id: "🔍MagnifyGlass.HighContrastText",
+        name: "🔍 [6] Panel Style: High Contrast Text",
+        type: "boolean",
+        defaultValue: settings["🔍MagnifyGlass.HighContrastText"] ?? false,
+        tooltip: "Increase contrast for text in input fields for better legibility.",
+        onChange: (value: any) => {
+            if (stateManager) {
+                stateManager.state.settings["🔍MagnifyGlass.HighContrastText"] = !!value;
                 if (uiManager) {
                     uiManager.applyStyles();
                 }

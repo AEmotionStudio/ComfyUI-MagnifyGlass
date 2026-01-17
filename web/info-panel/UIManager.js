@@ -457,6 +457,12 @@ class UIManager {
     } else {
       this.elements.panel.classList.remove("persist-active");
     }
+    const isHighContrastText = !!settings["🔍MagnifyGlass.HighContrastText"];
+    if (isHighContrastText) {
+      this.elements.panel.classList.add("high-contrast-text");
+    } else {
+      this.elements.panel.classList.remove("high-contrast-text");
+    }
   }
   /**
    * Show the panel.
@@ -1008,16 +1014,14 @@ class UIManager {
     const dropdown = document.createElement("div");
     dropdown.className = `node-selector-dropdown theme-${this.stateManager.state.currentTheme}`;
     dropdown.style.cssText = `
-            position: absolute;
+            position: fixed;
             z-index: 100000;
-            max-height: 300px;
             overflow-y: auto;
             background: var(--comfy-menu-bg, #2a2a2a);
             border: 1px solid var(--border-color, #444);
             border-radius: 6px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
             min-width: 200px;
-            max-width: 350px;
         `;
     nodes.forEach((node) => {
       const item = document.createElement("div");
@@ -1062,16 +1066,7 @@ class UIManager {
       dropdown.appendChild(item);
     });
     document.body.appendChild(dropdown);
-    const anchorRect = anchorElement.getBoundingClientRect();
-    dropdown.style.top = `${anchorRect.bottom + 4}px`;
-    dropdown.style.left = `${anchorRect.left}px`;
-    const dropdownRect = dropdown.getBoundingClientRect();
-    if (dropdownRect.right > window.innerWidth - 10) {
-      dropdown.style.left = `${window.innerWidth - dropdownRect.width - 10}px`;
-    }
-    if (dropdownRect.bottom > window.innerHeight - 10) {
-      dropdown.style.top = `${anchorRect.top - dropdownRect.height - 4}px`;
-    }
+    this.positionDropdownWithinViewport(dropdown, anchorElement);
     this.currentDropdown = dropdown;
     const cleanup = () => {
       document.removeEventListener("mousedown", closeHandler, true);
@@ -1116,6 +1111,49 @@ class UIManager {
       this.currentDropdown.parentNode.removeChild(this.currentDropdown);
       this.currentDropdown = null;
     }
+  }
+  /**
+   * Position a dropdown within viewport bounds.
+   * Allows dropdown to expand to fit content, constrained by available space.
+   */
+  positionDropdownWithinViewport(dropdown, anchor) {
+    const margin = 10;
+    const gap = 4;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const anchorRect = anchor.getBoundingClientRect();
+    dropdown.style.maxWidth = "none";
+    dropdown.style.maxHeight = "none";
+    const naturalRect = dropdown.getBoundingClientRect();
+    const spaceBelow = viewportHeight - anchorRect.bottom - margin - gap;
+    const spaceAbove = anchorRect.top - margin - gap;
+    const spaceRight = viewportWidth - anchorRect.left - margin;
+    const spaceLeft = anchorRect.right - margin;
+    let top;
+    let maxHeight;
+    if (spaceBelow >= naturalRect.height || spaceBelow >= spaceAbove) {
+      top = anchorRect.bottom + gap;
+      maxHeight = Math.max(100, spaceBelow);
+    } else {
+      maxHeight = Math.max(100, spaceAbove);
+      top = anchorRect.top - gap - Math.min(naturalRect.height, maxHeight);
+    }
+    let left = anchorRect.left;
+    let maxWidth;
+    if (naturalRect.width <= spaceRight) {
+      maxWidth = spaceRight;
+    } else if (naturalRect.width <= spaceLeft) {
+      left = anchorRect.right - naturalRect.width;
+      maxWidth = spaceLeft;
+    } else {
+      left = margin;
+      maxWidth = viewportWidth - margin * 2;
+    }
+    left = Math.max(margin, Math.min(left, viewportWidth - margin - naturalRect.width));
+    dropdown.style.top = `${Math.max(margin, top)}px`;
+    dropdown.style.left = `${Math.max(margin, left)}px`;
+    dropdown.style.maxWidth = `${maxWidth}px`;
+    dropdown.style.maxHeight = `${maxHeight}px`;
   }
   cleanup() {
     this.cleanupEditors();

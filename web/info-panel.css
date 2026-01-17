@@ -46,8 +46,8 @@
     border-radius: 12px;
     backdrop-filter: blur(20px);
     box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1);
+    /* font-size sets the base 1em for children */
     overflow: visible;
-    font-size: 16px;
     line-height: 1.6;
     pointer-events: auto;
     display: flex;
@@ -493,7 +493,7 @@
 
 .section-title {
     flex: 1;
-    font-size: 16px;
+    font-size: 1.1em;
     font-weight: 600;
     letter-spacing: 0.3px;
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
@@ -504,7 +504,7 @@
     color: #8bb3ff;
     padding: 3px 10px;
     border-radius: 10px;
-    font-size: 13px;
+    font-size: 0.85em;
     font-weight: 500;
 }
 
@@ -576,15 +576,15 @@
 .info-label {
     font-weight: 500;
     opacity: 0.85;
-    font-size: 15px;
+    font-size: 1em;
     min-width: 80px;
     padding-right: 12px;
     line-height: 1.5;
 }
 
 .info-value {
-    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-    font-size: 14px;
+    font-family: inherit;
+    font-size: 0.95em;
     color: var(--info-panel-accent-color, #a0d468);
     background: rgba(160, 212, 104, 0.12);
     padding: 4px 10px;
@@ -796,6 +796,28 @@
     /* Subtle press feedback without scale */
     box-shadow: 0 1px 4px -2px var(--info-panel-accent-color, #74b9ff);
     filter: brightness(0.92);
+}
+
+/* High Contrast Text Mode */
+.magnify-info-panel.high-contrast-text,
+.magnify-info-panel.high-contrast-text input,
+.magnify-info-panel.high-contrast-text textarea,
+.magnify-info-panel.high-contrast-text select,
+.magnify-info-panel.high-contrast-text .info-value,
+.magnify-info-panel.high-contrast-text .edit-input {
+    color: #ffffff !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8) !important;
+    font-weight: 600 !important;
+}
+
+.magnify-info-panel.high-contrast-text .edit-input,
+.magnify-info-panel.high-contrast-text textarea {
+    background: rgba(0, 0, 0, 0.6) !important;
+    border: 1px solid rgba(255, 255, 255, 0.4) !important;
+}
+
+.magnify-info-panel.high-contrast-text ::placeholder {
+    color: rgba(255, 255, 255, 0.7) !important;
 }
 
 .focus-node-btn .icon {

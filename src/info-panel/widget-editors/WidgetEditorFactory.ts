@@ -7,6 +7,7 @@
 
 import { WidgetSyncManager, WidgetConstraints } from './WidgetSyncManager';
 import { Logger } from '../../shared/logger';
+import { CustomDropdown, createDropdownTrigger, updateDropdownTriggerValue } from '../../shared/CustomDropdown';
 
 /**
  * Configuration for creating a widget editor
@@ -250,53 +251,100 @@ export class WidgetEditorFactory {
 
     /**
      * Create a combo/dropdown editor
+     * Uses custom dropdown for viewport-aware positioning
      */
     private static createComboEditor(config: WidgetEditorConfig): WidgetEditorInstance {
         const container = document.createElement('div');
         container.className = 'widget-editor widget-editor-combo';
 
-        const select = document.createElement('select');
-        select.className = 'widget-editor-select';
-
-        // Populate options
         const options = config.constraints?.options ?? [];
-        const currentValueStr = String(config.currentValue);
-        for (const opt of options) {
-            const option = document.createElement('option');
-            const optStr = String(opt);
-            option.value = optStr;
-            option.textContent = optStr;
-            // Use string comparison to handle non-string option types
-            if (optStr === currentValueStr) {
-                option.selected = true;
-            }
-            select.appendChild(option);
-        }
+        let currentValue = String(config.currentValue);
 
-        // Event handlers
-        select.addEventListener('change', () => {
-            WidgetSyncManager.syncWidgetValue(config.nodeId, config.widgetName, select.value);
-            config.onChange?.(select.value);
+        // Create trigger element that looks like a select
+        const trigger = createDropdownTrigger(currentValue, 'widget-editor-dropdown-trigger');
+        trigger.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            width: 100%;
+            padding: 4px 28px 4px 10px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            color: var(--info-panel-accent-color, #a0d468);
+            background: rgba(160, 212, 104, 0.12);
+            border: 1px solid transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
+        `;
+
+        let activeDropdown: CustomDropdown | null = null;
+
+        // Handle trigger click to show dropdown
+        const showDropdown = () => {
+            if (activeDropdown) {
+                activeDropdown.hide();
+                activeDropdown = null;
+                return;
+            }
+
+            config.onFocus?.();
+
+            activeDropdown = new CustomDropdown({
+                options: options.map(String),
+                currentValue,
+                anchor: trigger,
+                onChange: (value) => {
+                    currentValue = value;
+                    updateDropdownTriggerValue(trigger, value);
+                    WidgetSyncManager.syncWidgetValue(config.nodeId, config.widgetName, value);
+                    config.onChange?.(value);
+                },
+                onClose: () => {
+                    activeDropdown = null;
+                    config.onBlur?.();
+                }
+            });
+            activeDropdown.show();
+        };
+
+        trigger.addEventListener('click', showDropdown);
+
+        // Hover effect
+        trigger.addEventListener('mouseenter', () => {
+            trigger.style.background = 'rgba(160, 212, 104, 0.18)';
+            trigger.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
+        });
+        trigger.addEventListener('mouseleave', () => {
+            trigger.style.background = 'rgba(160, 212, 104, 0.12)';
+            trigger.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
         });
 
-        select.addEventListener('focus', () => config.onFocus?.());
-        select.addEventListener('blur', () => config.onBlur?.());
-
-        select.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' || e.key === 'Enter') {
+        // Keyboard support
+        trigger.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                select.blur();
+                showDropdown();
+            } else if (e.key === 'Escape' && activeDropdown) {
+                activeDropdown.hide();
             }
         });
 
-        container.appendChild(select);
+        container.appendChild(trigger);
 
         return {
             element: container,
-            getValue: () => select.value,
-            setValue: (v) => { select.value = String(v); },
-            focus: () => select.focus(),
-            destroy: () => { container.remove(); }
+            getValue: () => currentValue,
+            setValue: (v) => {
+                currentValue = String(v);
+                updateDropdownTriggerValue(trigger, currentValue);
+            },
+            focus: () => trigger.focus(),
+            destroy: () => {
+                activeDropdown?.hide();
+                container.remove();
+            }
         };
     }
 

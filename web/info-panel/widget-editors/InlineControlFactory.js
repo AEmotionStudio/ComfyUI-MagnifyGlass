@@ -1,5 +1,6 @@
 import { WidgetSyncManager } from "./WidgetSyncManager.js";
 import { Logger } from "../../shared/logger.js";
+import { createDropdownTrigger, CustomDropdown, updateDropdownTriggerValue } from "../../shared/CustomDropdown.js";
 class InlineControlFactory {
   /**
    * Check if a widget type should use inline controls
@@ -61,47 +62,86 @@ class InlineControlFactory {
   }
   /**
    * Create compact inline dropdown for combo values
+   * Uses custom dropdown for viewport-aware positioning
    */
   static createInlineDropdown(config) {
     var _a;
     const container = document.createElement("div");
     container.className = "inline-control inline-dropdown";
-    const select = document.createElement("select");
-    select.className = "inline-dropdown-select";
     const options = ((_a = config.constraints) == null ? void 0 : _a.options) ?? [];
-    const currentValueStr = String(config.currentValue);
-    for (const opt of options) {
-      const option = document.createElement("option");
-      const optStr = String(opt);
-      option.value = optStr;
-      option.textContent = optStr;
-      if (optStr === currentValueStr) {
-        option.selected = true;
-      }
-      select.appendChild(option);
-    }
+    let currentValue = String(config.currentValue);
+    const trigger = createDropdownTrigger(currentValue, "inline-dropdown-trigger");
+    trigger.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            background: rgba(160, 212, 104, 0.12);
+            border: 1px solid transparent;
+            border-radius: 6px;
+            color: var(--info-panel-accent-color, #74b9ff);
+            cursor: pointer;
+            min-width: 100px;
+            max-width: 180px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
+        `;
+    let activeDropdown = null;
     const stopProp = (e) => e.stopPropagation();
     container.addEventListener("click", stopProp);
     container.addEventListener("mousedown", stopProp);
     container.addEventListener("mouseup", stopProp);
-    select.addEventListener("click", stopProp);
-    select.addEventListener("mousedown", stopProp);
-    select.addEventListener("mouseup", stopProp);
-    select.addEventListener("focus", stopProp);
-    select.addEventListener("change", () => {
-      var _a2;
-      WidgetSyncManager.syncWidgetValue(config.nodeId, config.widgetName, select.value);
-      (_a2 = config.onChange) == null ? void 0 : _a2.call(config, select.value);
-      Logger.debug(`[InlineControl] Dropdown ${config.widgetName}: ${select.value}`);
+    trigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (activeDropdown) {
+        activeDropdown.hide();
+        activeDropdown = null;
+        return;
+      }
+      activeDropdown = new CustomDropdown({
+        options: options.map(String),
+        currentValue,
+        anchor: trigger,
+        onChange: (value) => {
+          var _a2;
+          currentValue = value;
+          updateDropdownTriggerValue(trigger, value);
+          WidgetSyncManager.syncWidgetValue(config.nodeId, config.widgetName, value);
+          (_a2 = config.onChange) == null ? void 0 : _a2.call(config, value);
+          Logger.debug(`[InlineControl] Dropdown ${config.widgetName}: ${value}`);
+        },
+        onClose: () => {
+          activeDropdown = null;
+        }
+      });
+      activeDropdown.show();
     });
-    container.appendChild(select);
+    trigger.addEventListener("mouseenter", () => {
+      trigger.style.background = "rgba(160, 212, 104, 0.18)";
+      trigger.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.15)";
+    });
+    trigger.addEventListener("mouseleave", () => {
+      trigger.style.background = "rgba(160, 212, 104, 0.12)";
+      trigger.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.1)";
+    });
+    trigger.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        trigger.click();
+      }
+    });
+    container.appendChild(trigger);
     return {
       element: container,
-      getValue: () => select.value,
+      getValue: () => currentValue,
       setValue: (v) => {
-        select.value = String(v);
+        currentValue = String(v);
+        updateDropdownTriggerValue(trigger, currentValue);
       },
       destroy: () => {
+        activeDropdown == null ? void 0 : activeDropdown.hide();
         container.remove();
       }
     };

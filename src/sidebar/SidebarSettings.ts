@@ -789,7 +789,10 @@ export function renderSettingsPanel(container: HTMLElement): void {
 
     const fontFamilyOptions = [
         'System Default', 'Inter', 'Roboto', 'JetBrains Mono', 'Fira Code',
-        'IBM Plex Sans', 'Space Grotesk', 'Lexend', 'Outfit', 'monospace'
+        'IBM Plex Sans', 'Space Grotesk', 'Lexend', 'Outfit',
+        'Cinzel', 'Playfair Display', 'Orbitron', 'Dancing Script', 'Amatic SC',
+        'Comfortaa', 'Righteous', 'Bangers', 'Press Start 2P', 'Audiowide',
+        'monospace'
     ];
     panelSection.body.appendChild(createSelect('Font Family',
         getSettingValue('🔍MagnifyGlass.InfoPanelFontFamily', 'System Default'), fontFamilyOptions,
@@ -828,6 +831,19 @@ export function renderSettingsPanel(container: HTMLElement): void {
                 infoPanel.uiManager.applyStyles();
             }
         }
+    ));
+
+    panelSection.body.appendChild(createToggle('High Contrast Text',
+        getSettingValue('🔍MagnifyGlass.HighContrastText', false),
+        (checked) => {
+            setSettingValue('🔍MagnifyGlass.HighContrastText', checked);
+            const infoPanel = (window as any).infoPanelManager;
+            if (infoPanel?.stateManager?.state?.settings) {
+                infoPanel.stateManager.state.settings['🔍MagnifyGlass.HighContrastText'] = checked;
+                infoPanel.uiManager.applyStyles();
+            }
+        },
+        'Increase text contrast for easier reading'
     ));
 
     panelSection.body.appendChild(createToggle('Hover Controls',

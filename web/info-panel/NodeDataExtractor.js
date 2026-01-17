@@ -175,6 +175,18 @@ function getImportantNodeParameters(nodeInfo) {
   const nodeType = nodeInfo.type || "";
   const typeLower = nodeType.toLowerCase();
   const isSaveNode = typeLower.includes("save") && !typeLower.includes("checkpoint") && !typeLower.includes("model") && !typeLower.includes("preview");
+  const seenValues = /* @__PURE__ */ new Set();
+  const normalizeValue = (value) => {
+    if (value === null || value === void 0) return "";
+    if (typeof value === "string") return value.trim();
+    if (typeof value === "number" || typeof value === "boolean") return String(value);
+    return JSON.stringify(value);
+  };
+  const isMeaningfulValue = (value) => {
+    if (value === null || value === void 0) return false;
+    if (typeof value === "string") return value.trim().length > 0;
+    return true;
+  };
   const createParameterItem = (widget) => {
     const widgetType = WidgetSyncManager.getWidgetType(widget);
     const constraints = WidgetSyncManager.extractConstraints(widget);
@@ -191,12 +203,23 @@ function getImportantNodeParameters(nodeInfo) {
       nodeId: nodeInfo.id
     };
   };
+  const addIfNotDuplicate = (widget) => {
+    const normalizedValue = normalizeValue(widget.value);
+    if (typeof widget.value === "string" && isMeaningfulValue(widget.value)) {
+      if (seenValues.has(normalizedValue)) {
+        return false;
+      }
+      seenValues.add(normalizedValue);
+    }
+    parameters.push(createParameterItem(widget));
+    return true;
+  };
   if (nodeType && shouldShowAllWidgets(nodeType)) {
     for (const widget of nodeInfo.widgets) {
       if (widget.name && widget.name !== "") {
         const widgetName = widget.name.toLowerCase();
         if (!SKIP_WIDGET_NAMES.some((skip) => widgetName.includes(skip))) {
-          parameters.push(createParameterItem(widget));
+          addIfNotDuplicate(widget);
         }
       }
     }
@@ -206,7 +229,7 @@ function getImportantNodeParameters(nodeInfo) {
   for (const widget of nodeInfo.widgets) {
     const paramName = widget.name.toLowerCase();
     if (importantParams.some((param) => paramName.includes(param))) {
-      parameters.push(createParameterItem(widget));
+      addIfNotDuplicate(widget);
     }
   }
   return parameters;

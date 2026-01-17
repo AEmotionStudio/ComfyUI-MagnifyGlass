@@ -649,6 +649,16 @@ function renderSettingsPanel(container) {
     "Space Grotesk",
     "Lexend",
     "Outfit",
+    "Cinzel",
+    "Playfair Display",
+    "Orbitron",
+    "Dancing Script",
+    "Amatic SC",
+    "Comfortaa",
+    "Righteous",
+    "Bangers",
+    "Press Start 2P",
+    "Audiowide",
     "monospace"
   ];
   panelSection.body.appendChild(createSelect(
@@ -693,6 +703,20 @@ function renderSettingsPanel(container) {
         infoPanel.uiManager.applyStyles();
       }
     }
+  ));
+  panelSection.body.appendChild(createToggle(
+    "High Contrast Text",
+    getSettingValue("🔍MagnifyGlass.HighContrastText", false),
+    (checked) => {
+      var _a, _b;
+      setSettingValue("🔍MagnifyGlass.HighContrastText", checked);
+      const infoPanel = window.infoPanelManager;
+      if ((_b = (_a = infoPanel == null ? void 0 : infoPanel.stateManager) == null ? void 0 : _a.state) == null ? void 0 : _b.settings) {
+        infoPanel.stateManager.state.settings["🔍MagnifyGlass.HighContrastText"] = checked;
+        infoPanel.uiManager.applyStyles();
+      }
+    },
+    "Increase text contrast for easier reading"
   ));
   panelSection.body.appendChild(createToggle(
     "Hover Controls",

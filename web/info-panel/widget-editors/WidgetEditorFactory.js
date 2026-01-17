@@ -1,4 +1,5 @@
 import { WidgetSyncManager } from "./WidgetSyncManager.js";
+import { createDropdownTrigger, updateDropdownTriggerValue, CustomDropdown } from "../../shared/CustomDropdown.js";
 class WidgetEditorFactory {
   /**
    * Create an editor element for the given configuration
@@ -199,53 +200,87 @@ class WidgetEditorFactory {
   }
   /**
    * Create a combo/dropdown editor
+   * Uses custom dropdown for viewport-aware positioning
    */
   static createComboEditor(config) {
     var _a;
     const container = document.createElement("div");
     container.className = "widget-editor widget-editor-combo";
-    const select = document.createElement("select");
-    select.className = "widget-editor-select";
     const options = ((_a = config.constraints) == null ? void 0 : _a.options) ?? [];
-    const currentValueStr = String(config.currentValue);
-    for (const opt of options) {
-      const option = document.createElement("option");
-      const optStr = String(opt);
-      option.value = optStr;
-      option.textContent = optStr;
-      if (optStr === currentValueStr) {
-        option.selected = true;
+    let currentValue = String(config.currentValue);
+    const trigger = createDropdownTrigger(currentValue, "widget-editor-dropdown-trigger");
+    trigger.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            width: 100%;
+            padding: 4px 28px 4px 10px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 14px;
+            color: var(--info-panel-accent-color, #a0d468);
+            background: rgba(160, 212, 104, 0.12);
+            border: 1px solid transparent;
+            border-radius: 6px;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: all 0.2s ease;
+        `;
+    let activeDropdown = null;
+    const showDropdown = () => {
+      var _a2;
+      if (activeDropdown) {
+        activeDropdown.hide();
+        activeDropdown = null;
+        return;
       }
-      select.appendChild(option);
-    }
-    select.addEventListener("change", () => {
-      var _a2;
-      WidgetSyncManager.syncWidgetValue(config.nodeId, config.widgetName, select.value);
-      (_a2 = config.onChange) == null ? void 0 : _a2.call(config, select.value);
+      (_a2 = config.onFocus) == null ? void 0 : _a2.call(config);
+      activeDropdown = new CustomDropdown({
+        options: options.map(String),
+        currentValue,
+        anchor: trigger,
+        onChange: (value) => {
+          var _a3;
+          currentValue = value;
+          updateDropdownTriggerValue(trigger, value);
+          WidgetSyncManager.syncWidgetValue(config.nodeId, config.widgetName, value);
+          (_a3 = config.onChange) == null ? void 0 : _a3.call(config, value);
+        },
+        onClose: () => {
+          var _a3;
+          activeDropdown = null;
+          (_a3 = config.onBlur) == null ? void 0 : _a3.call(config);
+        }
+      });
+      activeDropdown.show();
+    };
+    trigger.addEventListener("click", showDropdown);
+    trigger.addEventListener("mouseenter", () => {
+      trigger.style.background = "rgba(160, 212, 104, 0.18)";
+      trigger.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.15)";
     });
-    select.addEventListener("focus", () => {
-      var _a2;
-      return (_a2 = config.onFocus) == null ? void 0 : _a2.call(config);
+    trigger.addEventListener("mouseleave", () => {
+      trigger.style.background = "rgba(160, 212, 104, 0.12)";
+      trigger.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.1)";
     });
-    select.addEventListener("blur", () => {
-      var _a2;
-      return (_a2 = config.onBlur) == null ? void 0 : _a2.call(config);
-    });
-    select.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" || e.key === "Enter") {
+    trigger.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
-        select.blur();
+        showDropdown();
+      } else if (e.key === "Escape" && activeDropdown) {
+        activeDropdown.hide();
       }
     });
-    container.appendChild(select);
+    container.appendChild(trigger);
     return {
       element: container,
-      getValue: () => select.value,
+      getValue: () => currentValue,
       setValue: (v) => {
-        select.value = String(v);
+        currentValue = String(v);
+        updateDropdownTriggerValue(trigger, currentValue);
       },
-      focus: () => select.focus(),
+      focus: () => trigger.focus(),
       destroy: () => {
+        activeDropdown == null ? void 0 : activeDropdown.hide();
         container.remove();
       }
     };

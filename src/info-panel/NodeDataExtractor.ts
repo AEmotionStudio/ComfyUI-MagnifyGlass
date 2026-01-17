@@ -246,6 +246,24 @@ export function getImportantNodeParameters(nodeInfo: NodeInfo): ParameterItem[] 
         !typeLower.includes('model') &&
         !typeLower.includes('preview');
 
+    // Track seen values to deduplicate widgets with identical values
+    const seenValues = new Set<string>();
+
+    // Helper to normalize value for comparison (handles different types)
+    const normalizeValue = (value: unknown): string => {
+        if (value === null || value === undefined) return '';
+        if (typeof value === 'string') return value.trim();
+        if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+        return JSON.stringify(value);
+    };
+
+    // Helper to check if value is meaningful (not empty/default)
+    const isMeaningfulValue = (value: unknown): boolean => {
+        if (value === null || value === undefined) return false;
+        if (typeof value === 'string') return value.trim().length > 0;
+        return true;
+    };
+
     // Helper to create parameter item with full metadata
     const createParameterItem = (widget: any): ParameterItem => {
         const widgetType = WidgetSyncManager.getWidgetType(widget);
@@ -265,26 +283,43 @@ export function getImportantNodeParameters(nodeInfo: NodeInfo): ParameterItem[] 
         };
     };
 
-    // For complex nodes, show ALL widgets
+    // Helper to add widget if not a duplicate value
+    const addIfNotDuplicate = (widget: any): boolean => {
+        const normalizedValue = normalizeValue(widget.value);
+
+        // Only deduplicate meaningful string values (not numbers, booleans, or empty)
+        // This prevents hiding unique widgets that happen to share common values like 0 or true
+        if (typeof widget.value === 'string' && isMeaningfulValue(widget.value)) {
+            if (seenValues.has(normalizedValue)) {
+                return false; // Skip duplicate
+            }
+            seenValues.add(normalizedValue);
+        }
+
+        parameters.push(createParameterItem(widget));
+        return true;
+    };
+
+    // For complex nodes, show ALL widgets (with deduplication)
     if (nodeType && shouldShowAllWidgets(nodeType)) {
         for (const widget of nodeInfo.widgets) {
             if (widget.name && widget.name !== '') {
                 const widgetName = widget.name.toLowerCase();
                 if (!SKIP_WIDGET_NAMES.some(skip => widgetName.includes(skip))) {
-                    parameters.push(createParameterItem(widget));
+                    addIfNotDuplicate(widget);
                 }
             }
         }
         return parameters;
     }
 
-    // For other nodes, use filtered parameter lists
+    // For other nodes, use filtered parameter lists (with deduplication)
     const importantParams = isSaveNode ? SAVE_NODE_PARAMS : COMPLEX_NODE_PARAMS;
 
     for (const widget of nodeInfo.widgets) {
         const paramName = widget.name.toLowerCase();
         if (importantParams.some(param => paramName.includes(param))) {
-            parameters.push(createParameterItem(widget));
+            addIfNotDuplicate(widget);
         }
     }
 

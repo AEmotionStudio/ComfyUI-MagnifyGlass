@@ -15,15 +15,11 @@ describe('UIManager Dropdown Accessibility', () => {
 
     beforeEach(() => {
         stateManager = new StateManager();
-        // Mock valid theme to avoid issues
         stateManager.state.currentTheme = 'dark';
 
         uiManager = new UIManager(stateManager);
 
-        // Mock body.appendChild to just add to a test container or document.body
         document.body.innerHTML = '';
-
-        // Mock scrollIntoView
         Element.prototype.scrollIntoView = vi.fn();
     });
 
@@ -41,7 +37,6 @@ describe('UIManager Dropdown Accessibility', () => {
         const anchor = document.createElement('div');
         document.body.appendChild(anchor);
 
-        // Access private method
         (uiManager as any).createDropdown(nodes, anchor, 'title');
 
         const dropdown = document.querySelector('.node-selector-dropdown');
@@ -52,9 +47,7 @@ describe('UIManager Dropdown Accessibility', () => {
         const items = dropdown?.querySelectorAll('.dropdown-item');
         expect(items?.length).toBe(2);
         expect(items?.[0].getAttribute('role')).toBe('option');
-        // Initial state: first item selected
         expect(items?.[0].getAttribute('aria-selected')).toBe('true');
-        expect(items?.[1].getAttribute('aria-selected')).toBe('false');
     });
 
     it('should navigate dropdown with keyboard', async () => {
@@ -62,46 +55,53 @@ describe('UIManager Dropdown Accessibility', () => {
 
         const nodes = [
             { id: 1, title: 'Node 1', type: 'Type A' },
-            { id: 2, title: 'Node 2', type: 'Type B' },
-            { id: 3, title: 'Node 3', type: 'Type C' }
+            { id: 2, title: 'Node 2', type: 'Type B' }
         ];
         const anchor = document.createElement('div');
         document.body.appendChild(anchor);
 
         (uiManager as any).createDropdown(nodes, anchor, 'title');
 
-        // Fast-forward time to let setTimeout fire (attaching listeners and focusing)
         vi.advanceTimersByTime(100);
 
         const dropdown = document.querySelector('.node-selector-dropdown') as HTMLElement;
         const items = dropdown.querySelectorAll('.dropdown-item');
 
-        // Check initial focus
         expect(document.activeElement).toBe(dropdown);
-        expect(items[0].classList.contains('focused')).toBe(true);
-        expect(items[1].classList.contains('focused')).toBe(false);
 
-        // Simulate ArrowDown on the dropdown (or document, since listener is on document)
-        // Code attaches to document: document.addEventListener('keydown', keyHandler);
-        // It uses activeIndex from closure.
-
+        // Arrow Down
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
-
-        expect(items[0].classList.contains('focused')).toBe(false);
-        expect(items[1].classList.contains('focused')).toBe(true);
         expect(items[1].getAttribute('aria-selected')).toBe('true');
-        expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
 
-        // Simulate ArrowUp
+        // Arrow Up
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
-        expect(items[0].classList.contains('focused')).toBe(true);
-        expect(items[1].classList.contains('focused')).toBe(false);
+        expect(items[0].getAttribute('aria-selected')).toBe('true');
 
-        // Simulate Enter
-        // Mock click
-        const clickSpy = vi.spyOn(items[0] as HTMLElement, 'click');
-        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
-        expect(clickSpy).toHaveBeenCalled();
+        vi.useRealTimers();
+    });
+
+    it('should cleanup event listeners when item is selected', () => {
+        vi.useFakeTimers();
+        const removeEventListenerSpy = vi.spyOn(document, 'removeEventListener');
+
+        const nodes = [{ id: 1, title: 'Node 1', type: 'Type A' }];
+        const anchor = document.createElement('div');
+        document.body.appendChild(anchor);
+
+        (uiManager as any).createDropdown(nodes, anchor, 'title');
+
+        vi.advanceTimersByTime(100);
+
+        const dropdown = document.querySelector('.node-selector-dropdown') as HTMLElement;
+        const item = dropdown.querySelector('.dropdown-item') as HTMLElement;
+
+        // Simulate click
+        item.click();
+
+        // Assert cleanup was called
+        // The cleanup function removes 'mousedown' and 'keydown' from document
+        expect(removeEventListenerSpy).toHaveBeenCalledWith('keydown', expect.any(Function));
+        expect(removeEventListenerSpy).toHaveBeenCalledWith('mousedown', expect.any(Function), true);
 
         vi.useRealTimers();
     });

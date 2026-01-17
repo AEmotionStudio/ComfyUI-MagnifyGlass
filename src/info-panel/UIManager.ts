@@ -1464,6 +1464,7 @@ export class UIManager {
             item.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.hideDropdown();
+                cleanup();
 
                 // Set selected node in state
                 this.stateManager.setSelectedNode(node.id);

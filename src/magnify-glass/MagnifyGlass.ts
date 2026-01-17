@@ -396,11 +396,19 @@ export class MagnifyGlass {
         };
 
         const nodes: ComfyNode[] = graph._nodes;
-        if (!nodes) return;
+        if (!nodes) {
+             // Ensure any previous overlays are cleared if we exit early
+             this.ui.htmlOverlayContainer.innerHTML = '';
+             return;
+        }
 
         // Calculate source region in graph coordinates for culling
         // This mirrors calculateSourceRegion() but stops at graph coords
-        if (this.state.canvasScale === 0) return;
+        if (this.state.canvasScale === 0) {
+            // Ensure any previous overlays are cleared if we exit early
+            this.ui.htmlOverlayContainer.innerHTML = '';
+            return;
+        }
 
         const rect = this.litegraphCanvas.getBoundingClientRect();
         const dpr = rect.width > 0 ? this.litegraphCanvas.width / rect.width : 1;

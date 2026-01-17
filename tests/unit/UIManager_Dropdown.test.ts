@@ -126,16 +126,40 @@ describe('UIManager Dropdown Accessibility', () => {
         expect(document.activeElement).toBe(otherInput);
 
         // Arrow Down - should NOT change selection if focus is elsewhere
-        // We need to spy on preventDefault to verify it wasn't called, ensuring event propagates
         const event = new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true });
         const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
 
         document.dispatchEvent(event);
 
-        // If the fix is implemented, preventDefault should NOT be called
-        // And the selection should NOT change
         expect(preventDefaultSpy).not.toHaveBeenCalled();
         expect(items[1].getAttribute('aria-selected')).toBe('false'); // Should stay on first item
+
+        vi.useRealTimers();
+    });
+
+    it('should cleanup previous event listeners when opening a new dropdown via anchor click', () => {
+        vi.useFakeTimers();
+        const removeEventListenerSpy = vi.spyOn(document, 'removeEventListener');
+
+        const nodes = [{ id: 1, title: 'Node 1', type: 'Type A' }];
+        const anchor = document.createElement('div');
+        document.body.appendChild(anchor);
+
+        // Open first time
+        (uiManager as any).createDropdown(nodes, anchor, 'title');
+        vi.advanceTimersByTime(100);
+
+        // Reset spy to track calls for the next action
+        removeEventListenerSpy.mockClear();
+
+        // Simulate re-opening (which calls hideDropdown then createDropdown)
+        // This simulates clicking the anchor again, or clicking another anchor which triggers hideDropdown first
+        (uiManager as any).showTitleDropdown(anchor);
+
+        // Verify that cleanup for the FIRST dropdown occurred
+        // We expect removeEventListener to be called for the listeners attached by the first call
+        expect(removeEventListenerSpy).toHaveBeenCalledWith('keydown', expect.any(Function));
+        expect(removeEventListenerSpy).toHaveBeenCalledWith('mousedown', expect.any(Function), true);
 
         vi.useRealTimers();
     });

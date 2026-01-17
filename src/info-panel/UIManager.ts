@@ -45,6 +45,7 @@ export class UIManager {
     elements: InfoPanelElements;
     nodeSelector: NodeSelector;
     currentDropdown: HTMLDivElement | null = null;
+    private currentDropdownCleanup: (() => void) | null = null;
     onNodeSelected: ((nodeId: number) => void) | null = null;
     // Track active widget editors for cleanup
     private activeEditors: Map<string, WidgetEditorInstance> = new Map();
@@ -1464,7 +1465,7 @@ export class UIManager {
             item.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.hideDropdown();
-                cleanup();
+                // cleanup() is called by hideDropdown
 
                 // Set selected node in state
                 this.stateManager.setSelectedNode(node.id);
@@ -1491,13 +1492,20 @@ export class UIManager {
             if (this.elements.panel) {
                 this.elements.panel.removeEventListener('mousedown', panelCloseHandler, true);
             }
+            // Clear the global reference
+            if (this.currentDropdownCleanup === cleanup) {
+                this.currentDropdownCleanup = null;
+            }
         };
+
+        // Store cleanup globally so hideDropdown can call it
+        this.currentDropdownCleanup = cleanup;
 
         // Close on click outside - use mousedown with capture to ensure it fires before other handlers
         const closeHandler = (e: MouseEvent) => {
             if (!dropdown.contains(e.target as Node) && !anchorElement.contains(e.target as Node)) {
                 this.hideDropdown();
-                cleanup();
+                // Cleanup is now handled by hideDropdown calling this.currentDropdownCleanup
             }
         };
 
@@ -1505,7 +1513,7 @@ export class UIManager {
         const panelCloseHandler = (e: MouseEvent) => {
             if (!dropdown.contains(e.target as Node) && !anchorElement.contains(e.target as Node)) {
                 this.hideDropdown();
-                cleanup();
+                // Cleanup is now handled by hideDropdown calling this.currentDropdownCleanup
             }
         };
 
@@ -1544,7 +1552,7 @@ export class UIManager {
                 e.preventDefault();
                 e.stopPropagation();
                 this.hideDropdown();
-                cleanup();
+                // Cleanup is now handled by hideDropdown
                 return;
             }
 
@@ -1591,6 +1599,12 @@ export class UIManager {
      * Hide the current dropdown.
      */
     hideDropdown(): void {
+        // Run cleanup if it exists
+        if (this.currentDropdownCleanup) {
+            this.currentDropdownCleanup();
+            this.currentDropdownCleanup = null;
+        }
+
         if (this.currentDropdown && this.currentDropdown.parentNode) {
             this.currentDropdown.parentNode.removeChild(this.currentDropdown);
             this.currentDropdown = null;

@@ -99,9 +99,43 @@ describe('UIManager Dropdown Accessibility', () => {
         item.click();
 
         // Assert cleanup was called
-        // The cleanup function removes 'mousedown' and 'keydown' from document
         expect(removeEventListenerSpy).toHaveBeenCalledWith('keydown', expect.any(Function));
         expect(removeEventListenerSpy).toHaveBeenCalledWith('mousedown', expect.any(Function), true);
+
+        vi.useRealTimers();
+    });
+
+    it('should ignore keyboard events when dropdown is not focused', () => {
+        vi.useFakeTimers();
+
+        const nodes = [{ id: 1, title: 'Node 1', type: 'Type A' }, { id: 2, title: 'Node 2', type: 'Type B' }];
+        const anchor = document.createElement('div');
+        document.body.appendChild(anchor);
+
+        (uiManager as any).createDropdown(nodes, anchor, 'title');
+
+        vi.advanceTimersByTime(100);
+
+        const dropdown = document.querySelector('.node-selector-dropdown') as HTMLElement;
+        const items = dropdown.querySelectorAll('.dropdown-item');
+
+        // Simulate focus moving elsewhere (e.g., user tabs away)
+        const otherInput = document.createElement('input');
+        document.body.appendChild(otherInput);
+        otherInput.focus();
+        expect(document.activeElement).toBe(otherInput);
+
+        // Arrow Down - should NOT change selection if focus is elsewhere
+        // We need to spy on preventDefault to verify it wasn't called, ensuring event propagates
+        const event = new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true });
+        const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
+
+        document.dispatchEvent(event);
+
+        // If the fix is implemented, preventDefault should NOT be called
+        // And the selection should NOT change
+        expect(preventDefaultSpy).not.toHaveBeenCalled();
+        expect(items[1].getAttribute('aria-selected')).toBe('false'); // Should stay on first item
 
         vi.useRealTimers();
     });

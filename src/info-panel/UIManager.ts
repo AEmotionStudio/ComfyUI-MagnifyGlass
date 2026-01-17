@@ -1548,6 +1548,12 @@ export class UIManager {
                 return;
             }
 
+            // Only handle navigation keys if the dropdown or its children have focus
+            // This prevents intercepting keys when user tabs away to another element
+            if (document.activeElement !== dropdown && !dropdown.contains(document.activeElement)) {
+                return;
+            }
+
             if (e.key === 'ArrowDown') {
                 e.preventDefault();
                 e.stopPropagation();

@@ -301,7 +301,13 @@ function createSection(title: string, defaultCollapsed: boolean = false): { sect
 
     const header = document.createElement('div');
     header.className = `magnify-sidebar-section-header${collapsed ? ' collapsed' : ''}`;
-    header.innerHTML = `${Icons.chevronDown}<span>${title}</span>`;
+
+    // Securely construct header: Icon (HTML) + Title (Text)
+    // Use innerHTML only for the trusted icon SVG
+    header.innerHTML = Icons.chevronDown;
+    const titleSpan = document.createElement('span');
+    titleSpan.textContent = title;
+    header.appendChild(titleSpan);
 
     const body = document.createElement('div');
     body.className = `magnify-sidebar-section-body${collapsed ? ' collapsed' : ''}`;

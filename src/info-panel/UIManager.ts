@@ -45,6 +45,7 @@ export class UIManager {
     elements: InfoPanelElements;
     nodeSelector: NodeSelector;
     currentDropdown: HTMLDivElement | null = null;
+    private currentDropdownCleanup: (() => void) | null = null;
     onNodeSelected: ((nodeId: number) => void) | null = null;
     // Track active widget editors for cleanup
     private activeEditors: Map<string, WidgetEditorInstance> = new Map();
@@ -1379,6 +1380,11 @@ export class UIManager {
     ): void {
         const dropdown = document.createElement('div');
         dropdown.className = `node-selector-dropdown theme-${this.stateManager.state.currentTheme}`;
+        // Accessibility attributes
+        dropdown.setAttribute('role', 'listbox');
+        dropdown.setAttribute('tabindex', '-1');
+        dropdown.setAttribute('aria-label', type === 'title' ? 'Select Node by Title' : (type === 'execOrder' ? 'Select Node by Execution Order' : 'Select Node by ID'));
+
         dropdown.style.cssText = `
             position: fixed;
             z-index: 100000;
@@ -1388,12 +1394,21 @@ export class UIManager {
             border-radius: 6px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
             min-width: 200px;
+            outline: none;
         `;
 
+        let activeIndex = 0; // Default to first item
+
         // Build dropdown items
-        nodes.forEach((node) => {
+        nodes.forEach((node, index) => {
             const item = document.createElement('div');
             item.className = 'dropdown-item';
+            item.setAttribute('role', 'option');
+            item.setAttribute('aria-selected', index === activeIndex ? 'true' : 'false');
+            if (index === activeIndex) {
+                item.classList.add('focused');
+            }
+
             item.style.cssText = `
                 padding: 8px 12px;
                 cursor: pointer;
@@ -1402,6 +1417,7 @@ export class UIManager {
                 align-items: center;
                 gap: 8px;
                 font-size: 13px;
+                background: ${index === activeIndex ? 'var(--comfy-input-bg, #3a3a3a)' : ''};
             `;
 
             // Check if this is an exec order entry
@@ -1421,18 +1437,35 @@ export class UIManager {
                 `;
             }
 
-            // Hover effect
+            // Hover effect - also update active state for keyboard compatibility
             item.addEventListener('mouseenter', () => {
+                // Update visual state of previously active item
+                if (activeIndex !== index) {
+                    const items = dropdown.querySelectorAll('.dropdown-item');
+                    if (items[activeIndex]) {
+                        const prev = items[activeIndex] as HTMLElement;
+                        prev.style.background = '';
+                        prev.classList.remove('focused');
+                        prev.setAttribute('aria-selected', 'false');
+                    }
+                    activeIndex = index;
+                    item.classList.add('focused');
+                    item.setAttribute('aria-selected', 'true');
+                }
                 item.style.background = 'var(--comfy-input-bg, #3a3a3a)';
             });
             item.addEventListener('mouseleave', () => {
-                item.style.background = '';
+                // Don't clear background if it's the active item (keep it focused)
+                if (index !== activeIndex) {
+                    item.style.background = '';
+                }
             });
 
             // Selection handler
             item.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.hideDropdown();
+                // cleanup() is called by hideDropdown
 
                 // Set selected node in state
                 this.stateManager.setSelectedNode(node.id);
@@ -1459,13 +1492,20 @@ export class UIManager {
             if (this.elements.panel) {
                 this.elements.panel.removeEventListener('mousedown', panelCloseHandler, true);
             }
+            // Clear the global reference
+            if (this.currentDropdownCleanup === cleanup) {
+                this.currentDropdownCleanup = null;
+            }
         };
+
+        // Store cleanup globally so hideDropdown can call it
+        this.currentDropdownCleanup = cleanup;
 
         // Close on click outside - use mousedown with capture to ensure it fires before other handlers
         const closeHandler = (e: MouseEvent) => {
             if (!dropdown.contains(e.target as Node) && !anchorElement.contains(e.target as Node)) {
                 this.hideDropdown();
-                cleanup();
+                // Cleanup is now handled by hideDropdown calling this.currentDropdownCleanup
             }
         };
 
@@ -1473,24 +1513,87 @@ export class UIManager {
         const panelCloseHandler = (e: MouseEvent) => {
             if (!dropdown.contains(e.target as Node) && !anchorElement.contains(e.target as Node)) {
                 this.hideDropdown();
-                cleanup();
+                // Cleanup is now handled by hideDropdown calling this.currentDropdownCleanup
             }
         };
 
-        // Close on ESC key
+        // Helper to update active item
+        const updateActiveItem = (newIndex: number) => {
+            const items = dropdown.querySelectorAll('.dropdown-item');
+            if (items.length === 0) return;
+
+            // Clamp index
+            if (newIndex < 0) newIndex = 0;
+            if (newIndex >= items.length) newIndex = items.length - 1;
+
+            // Remove focus from old
+            if (activeIndex >= 0 && activeIndex < items.length) {
+                const oldItem = items[activeIndex] as HTMLElement;
+                oldItem.classList.remove('focused');
+                oldItem.setAttribute('aria-selected', 'false');
+                oldItem.style.background = '';
+            }
+
+            activeIndex = newIndex;
+
+            // Add focus to new
+            const newItem = items[activeIndex] as HTMLElement;
+            newItem.classList.add('focused');
+            newItem.setAttribute('aria-selected', 'true');
+            newItem.style.background = 'var(--comfy-input-bg, #3a3a3a)';
+
+            // Scroll into view
+            newItem.scrollIntoView({ block: 'nearest' });
+        };
+
+        // Keyboard handler
         const keyHandler = (e: KeyboardEvent) => {
+            // Only handle keys if the dropdown or its children have focus
+            // This prevents intercepting keys (including Escape) when user tabs away
+            if (document.activeElement !== dropdown && !dropdown.contains(document.activeElement)) {
+                return;
+            }
+
             if (e.key === 'Escape') {
                 e.preventDefault();
                 e.stopPropagation();
                 this.hideDropdown();
-                cleanup();
+                // Cleanup is now handled by hideDropdown
+                return;
+            }
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                e.stopPropagation();
+                updateActiveItem(activeIndex + 1);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                e.stopPropagation();
+                updateActiveItem(activeIndex - 1);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                const items = dropdown.querySelectorAll('.dropdown-item');
+                if (activeIndex >= 0 && activeIndex < items.length) {
+                    (items[activeIndex] as HTMLElement).click();
+                }
             }
         };
 
         // Delay adding the listener to avoid immediate closure
         setTimeout(() => {
+            // Check if dropdown was already closed (cleanup reference changed or nulled)
+            // or if it was removed from DOM
+            if (this.currentDropdownCleanup !== cleanup || !dropdown.parentNode) {
+                return;
+            }
+
             document.addEventListener('mousedown', closeHandler, true);  // true = capture phase
             document.addEventListener('keydown', keyHandler);
+
+            // Also focus the dropdown
+            dropdown.focus();
+
             // Also listen on the panel itself with capture phase
             if (this.elements.panel) {
                 this.elements.panel.addEventListener('mousedown', panelCloseHandler, true);
@@ -1502,6 +1605,12 @@ export class UIManager {
      * Hide the current dropdown.
      */
     hideDropdown(): void {
+        // Run cleanup if it exists
+        if (this.currentDropdownCleanup) {
+            this.currentDropdownCleanup();
+            this.currentDropdownCleanup = null;
+        }
+
         if (this.currentDropdown && this.currentDropdown.parentNode) {
             this.currentDropdown.parentNode.removeChild(this.currentDropdown);
             this.currentDropdown = null;

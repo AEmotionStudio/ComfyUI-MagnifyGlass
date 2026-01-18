@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Batch Image Grid**: Added grid layout support for batch images in the glass view, enabling proper visualization of image batches.
+- **Inline Action Buttons**: Introduced inline action buttons in the inspector for quicker access to widget functions.
+- **Popout Enhancements**:
+  - **Widget Sync**: Edits made in the popout inspector now sync back to the main graph.
+  - **New Themes**: Added support for additional themes in the popout viewer.
+  - **Parameter Visibility**: Improved how parameters are displayed in the inspector.
+
+### Documentation
+- **README**: Added "Click to watch on YouTube" hints to video links for better clarity.
+
 ## [1.11.0] - 2026-01-17
 
 ### Added

@@ -787,6 +787,7 @@ export class OffscreenRenderer {
 
     /**
      * Draw images from node.imgs[] array onto the offscreen canvas.
+     * Supports batch images by drawing them in a grid layout.
      */
     private drawNodeImages(
         ctx: CanvasRenderingContext2D,
@@ -804,62 +805,83 @@ export class OffscreenRenderer {
     ): void {
         const TITLE_HEIGHT = 30;
         const PADDING = 10;
+        const GAP = 4; // Gap between images in grid
 
         // Calculate image area (below title, with padding)
+        const imageAreaX = nodeCssX + (PADDING * scale);
         const imageAreaY = nodeCssY + (TITLE_HEIGHT * scale);
         const imageAreaWidth = nodeCssWidth - (PADDING * 2 * scale);
         const imageAreaHeight = nodeCssHeight - (TITLE_HEIGHT * scale) - (PADDING * scale);
 
         if (imageAreaWidth <= 0 || imageAreaHeight <= 0) return;
 
-        // For simplicity, draw the first image that fits
-        // ComfyUI typically shows images in a grid, but for the magnifier we'll show the first/selected one
-        const imgs = node.imgs;
-        const imageIndex = node.imageIndex ?? 0;
-        const img = imgs[Math.min(imageIndex, imgs.length - 1)];
+        const imgs = node.imgs.filter((img: any) =>
+            img && img instanceof HTMLImageElement && img.complete && img.naturalWidth > 0
+        );
+        const imgCount = imgs.length;
 
-        if (!img || !(img instanceof HTMLImageElement) || !img.complete || img.naturalWidth === 0) {
-            return;
-        }
+        if (imgCount === 0) return;
 
-        try {
-            // Calculate aspect-ratio-preserving dimensions
-            const imgAspect = img.naturalWidth / img.naturalHeight;
-            const areaAspect = imageAreaWidth / imageAreaHeight;
+        // Calculate grid dimensions (match ComfyUI's layout)
+        // ComfyUI typically uses a square-ish grid
+        const cols = Math.ceil(Math.sqrt(imgCount));
+        const rows = Math.ceil(imgCount / cols);
 
-            let drawWidth = imageAreaWidth;
-            let drawHeight = imageAreaHeight;
+        // Calculate cell size with gap
+        const cellWidth = (imageAreaWidth - (GAP * scale * (cols - 1))) / cols;
+        const cellHeight = (imageAreaHeight - (GAP * scale * (rows - 1))) / rows;
 
-            if (imgAspect > areaAspect) {
-                // Image is wider - fit to width
-                drawHeight = drawWidth / imgAspect;
-            } else {
-                // Image is taller - fit to height
-                drawWidth = drawHeight * imgAspect;
+        if (cellWidth <= 0 || cellHeight <= 0) return;
+
+        // Draw each image in grid position
+        for (let i = 0; i < imgCount; i++) {
+            const img = imgs[i];
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+
+            // Calculate cell position
+            const cellX = imageAreaX + col * (cellWidth + GAP * scale);
+            const cellY = imageAreaY + row * (cellHeight + GAP * scale);
+
+            try {
+                // Calculate aspect-ratio-preserving dimensions within cell
+                const imgAspect = img.naturalWidth / img.naturalHeight;
+                const cellAspect = cellWidth / cellHeight;
+
+                let drawWidth = cellWidth;
+                let drawHeight = cellHeight;
+
+                if (imgAspect > cellAspect) {
+                    // Image is wider - fit to width
+                    drawHeight = drawWidth / imgAspect;
+                } else {
+                    // Image is taller - fit to height
+                    drawWidth = drawHeight * imgAspect;
+                }
+
+                // Center the image in the cell
+                const drawX = cellX + (cellWidth - drawWidth) / 2;
+                const drawY = cellY + (cellHeight - drawHeight) / 2;
+
+                // Convert to offscreen canvas coordinates
+                const canvasX = (drawX - sourceCssX) * actualDpr * captureScale;
+                const canvasY = (drawY - sourceCssY) * actualDpr * captureScale;
+                const canvasWidth = drawWidth * actualDpr * captureScale;
+                const canvasHeight = drawHeight * actualDpr * captureScale;
+
+                // Check if at least partially visible
+                if (canvasX + canvasWidth > 0 && canvasX < renderSize &&
+                    canvasY + canvasHeight > 0 && canvasY < renderSize) {
+
+                    ctx.save();
+                    ctx.imageSmoothingEnabled = true;
+                    ctx.imageSmoothingQuality = 'high';
+                    ctx.drawImage(img, canvasX, canvasY, canvasWidth, canvasHeight);
+                    ctx.restore();
+                }
+            } catch (e) {
+                // Silently fail for individual images
             }
-
-            // Center the image in the area
-            const drawX = nodeCssX + (PADDING * scale) + (imageAreaWidth - drawWidth) / 2;
-            const drawY = imageAreaY + (imageAreaHeight - drawHeight) / 2;
-
-            // Convert to offscreen canvas coordinates
-            const canvasX = (drawX - sourceCssX) * actualDpr * captureScale;
-            const canvasY = (drawY - sourceCssY) * actualDpr * captureScale;
-            const canvasWidth = drawWidth * actualDpr * captureScale;
-            const canvasHeight = drawHeight * actualDpr * captureScale;
-
-            // Check if at least partially visible
-            if (canvasX + canvasWidth > 0 && canvasX < renderSize &&
-                canvasY + canvasHeight > 0 && canvasY < renderSize) {
-
-                ctx.save();
-                ctx.imageSmoothingEnabled = true;
-                ctx.imageSmoothingQuality = 'high';
-                ctx.drawImage(img, canvasX, canvasY, canvasWidth, canvasHeight);
-                ctx.restore();
-            }
-        } catch (e) {
-            // Silently fail for individual images
         }
     }
 

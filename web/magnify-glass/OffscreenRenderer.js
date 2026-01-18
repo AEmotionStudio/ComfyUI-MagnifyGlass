@@ -540,44 +540,58 @@ const _OffscreenRenderer = class _OffscreenRenderer {
   }
   /**
    * Draw images from node.imgs[] array onto the offscreen canvas.
+   * Supports batch images by drawing them in a grid layout.
    */
   drawNodeImages(ctx, node, nodeCssX, nodeCssY, nodeCssWidth, nodeCssHeight, sourceCssX, sourceCssY, actualDpr, captureScale, renderSize, scale) {
     const TITLE_HEIGHT = 30;
     const PADDING = 10;
+    const GAP = 4;
+    const imageAreaX = nodeCssX + PADDING * scale;
     const imageAreaY = nodeCssY + TITLE_HEIGHT * scale;
     const imageAreaWidth = nodeCssWidth - PADDING * 2 * scale;
     const imageAreaHeight = nodeCssHeight - TITLE_HEIGHT * scale - PADDING * scale;
     if (imageAreaWidth <= 0 || imageAreaHeight <= 0) return;
-    const imgs = node.imgs;
-    const imageIndex = node.imageIndex ?? 0;
-    const img = imgs[Math.min(imageIndex, imgs.length - 1)];
-    if (!img || !(img instanceof HTMLImageElement) || !img.complete || img.naturalWidth === 0) {
-      return;
-    }
-    try {
-      const imgAspect = img.naturalWidth / img.naturalHeight;
-      const areaAspect = imageAreaWidth / imageAreaHeight;
-      let drawWidth = imageAreaWidth;
-      let drawHeight = imageAreaHeight;
-      if (imgAspect > areaAspect) {
-        drawHeight = drawWidth / imgAspect;
-      } else {
-        drawWidth = drawHeight * imgAspect;
+    const imgs = node.imgs.filter(
+      (img) => img && img instanceof HTMLImageElement && img.complete && img.naturalWidth > 0
+    );
+    const imgCount = imgs.length;
+    if (imgCount === 0) return;
+    const cols = Math.ceil(Math.sqrt(imgCount));
+    const rows = Math.ceil(imgCount / cols);
+    const cellWidth = (imageAreaWidth - GAP * scale * (cols - 1)) / cols;
+    const cellHeight = (imageAreaHeight - GAP * scale * (rows - 1)) / rows;
+    if (cellWidth <= 0 || cellHeight <= 0) return;
+    for (let i = 0; i < imgCount; i++) {
+      const img = imgs[i];
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const cellX = imageAreaX + col * (cellWidth + GAP * scale);
+      const cellY = imageAreaY + row * (cellHeight + GAP * scale);
+      try {
+        const imgAspect = img.naturalWidth / img.naturalHeight;
+        const cellAspect = cellWidth / cellHeight;
+        let drawWidth = cellWidth;
+        let drawHeight = cellHeight;
+        if (imgAspect > cellAspect) {
+          drawHeight = drawWidth / imgAspect;
+        } else {
+          drawWidth = drawHeight * imgAspect;
+        }
+        const drawX = cellX + (cellWidth - drawWidth) / 2;
+        const drawY = cellY + (cellHeight - drawHeight) / 2;
+        const canvasX = (drawX - sourceCssX) * actualDpr * captureScale;
+        const canvasY = (drawY - sourceCssY) * actualDpr * captureScale;
+        const canvasWidth = drawWidth * actualDpr * captureScale;
+        const canvasHeight = drawHeight * actualDpr * captureScale;
+        if (canvasX + canvasWidth > 0 && canvasX < renderSize && canvasY + canvasHeight > 0 && canvasY < renderSize) {
+          ctx.save();
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = "high";
+          ctx.drawImage(img, canvasX, canvasY, canvasWidth, canvasHeight);
+          ctx.restore();
+        }
+      } catch (e) {
       }
-      const drawX = nodeCssX + PADDING * scale + (imageAreaWidth - drawWidth) / 2;
-      const drawY = imageAreaY + (imageAreaHeight - drawHeight) / 2;
-      const canvasX = (drawX - sourceCssX) * actualDpr * captureScale;
-      const canvasY = (drawY - sourceCssY) * actualDpr * captureScale;
-      const canvasWidth = drawWidth * actualDpr * captureScale;
-      const canvasHeight = drawHeight * actualDpr * captureScale;
-      if (canvasX + canvasWidth > 0 && canvasX < renderSize && canvasY + canvasHeight > 0 && canvasY < renderSize) {
-        ctx.save();
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = "high";
-        ctx.drawImage(img, canvasX, canvasY, canvasWidth, canvasHeight);
-        ctx.restore();
-      }
-    } catch (e) {
     }
   }
   /**

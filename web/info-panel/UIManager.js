@@ -1255,14 +1255,33 @@ class UIManager {
    */
   setupHotkeys() {
     this.hotkeyHandler = (e) => {
+      const activeElement = document.activeElement;
+      if (activeElement && (activeElement.tagName === "INPUT" || activeElement.tagName === "TEXTAREA" || activeElement.isContentEditable)) {
+        return;
+      }
       if (e.key === "*") {
-        const activeElement = document.activeElement;
-        if (activeElement && (activeElement.tagName === "INPUT" || activeElement.tagName === "TEXTAREA" || activeElement.isContentEditable)) {
+        e.preventDefault();
+        e.stopPropagation();
+        this.focusCurrentNode();
+        return;
+      }
+      if (e.key === "ArrowLeft") {
+        if (!this.elements.panel || this.elements.panel.style.display === "none") {
           return;
         }
         e.preventDefault();
         e.stopPropagation();
-        this.focusCurrentNode();
+        this.navigateExecOrder(-1);
+        return;
+      }
+      if (e.key === "ArrowRight") {
+        if (!this.elements.panel || this.elements.panel.style.display === "none") {
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        this.navigateExecOrder(1);
+        return;
       }
     };
     window.addEventListener("keydown", this.hotkeyHandler, true);
@@ -1290,6 +1309,37 @@ class UIManager {
     const node = app.graph.getNodeById(parseInt(nodeId));
     if (node && app.canvas) {
       app.canvas.centerOnNode(node);
+    }
+  }
+  /**
+   * Navigate to previous/next node by execution order
+   * @param direction -1 for previous, +1 for next
+   */
+  navigateExecOrder(direction) {
+    var _a;
+    const nodeRow = (_a = this.elements.content) == null ? void 0 : _a.querySelector("[data-node-id]");
+    if (!nodeRow) return;
+    const currentNodeId = parseInt(nodeRow.dataset.nodeId || "0");
+    if (!currentNodeId && currentNodeId !== 0) return;
+    const nodes = this.nodeSelector.getNodesSortedByExecOrder();
+    if (nodes.length === 0) return;
+    const currentIndex = nodes.findIndex((n) => n.id === currentNodeId);
+    if (currentIndex === -1) {
+      this.selectNodeById(nodes[0].id);
+      return;
+    }
+    let newIndex = currentIndex + direction;
+    if (newIndex < 0) newIndex = nodes.length - 1;
+    if (newIndex >= nodes.length) newIndex = 0;
+    this.selectNodeById(nodes[newIndex].id);
+  }
+  /**
+   * Select a node by ID and update the inspector panel
+   */
+  selectNodeById(nodeId) {
+    this.stateManager.setSelectedNode(nodeId);
+    if (this.onNodeSelected) {
+      this.onNodeSelected(nodeId);
     }
   }
   cleanup() {

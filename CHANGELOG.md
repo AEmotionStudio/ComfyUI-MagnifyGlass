@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Bi-directional Sync**: Changes in the inspector instantly update the node graph, and vice versa.
   - **Widget Support**: Full editing support for text inputs, number fields (with drag-to-adjust), booleans/toggles, and dropdowns/combos.
   - **Precision Control**: Fine-grained value adjustment without automatic step rounding constraints.
+- **Hotkeys & Navigation**:
+    - **`*`**: New global hotkey to instantly center the canvas on the currently inspected node.
+    - **`ArrowLeft` / `ArrowRight`**: Navigate between nodes based on execution order directly from the inspector.
 - **Keyboard Accessibility**: Full keyboard navigation (Arrows, Enter, Esc) and ARIA support for node selector dropdowns.
 
 ### Improved

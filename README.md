@@ -136,8 +136,10 @@ git clone https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass.git
 | **`Shift+P`** | Open Pop-Out Viewer in New Tab |
 | **`U`** | Pin/Unpin Inspector Panel |
 | **`O`** | Reset Offsets |
-| **`D`** | Force Direct Capture (accurate cursor at low zoom) |
-| **Arrows** | Nudge Glass Position |
+| **`*`** | **Focus Current Node** (Center canvas on inspected node) |
+| **`Left/Right`** | Navigate Previous/Next node in execution order |
+| **`D`** | Force Direct Capture (Optional after v1.11.0 improvements) |
+| **Arrows** | Nudge Glass Position (When not navigating nodes) |
 
 > **Pro Tip:** Toggle the **Glass Preview (`G`)** off to keep the Inspector Panel active but hide the magnifying preview.
 

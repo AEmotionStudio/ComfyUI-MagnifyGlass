@@ -1720,21 +1720,46 @@ export class UIManager {
      */
     private setupHotkeys(): void {
         this.hotkeyHandler = (e: KeyboardEvent) => {
-            // Check for * key (Shift+8 on US keyboard or NumPad *)
-            if (e.key === '*') {
-                // Don't trigger if user is typing in an input field
-                const activeElement = document.activeElement;
-                if (activeElement && (
-                    activeElement.tagName === 'INPUT' ||
-                    activeElement.tagName === 'TEXTAREA' ||
-                    (activeElement as HTMLElement).isContentEditable
-                )) {
-                    return;
-                }
+            // Don't trigger if user is typing in an input field
+            const activeElement = document.activeElement;
+            if (activeElement && (
+                activeElement.tagName === 'INPUT' ||
+                activeElement.tagName === 'TEXTAREA' ||
+                (activeElement as HTMLElement).isContentEditable
+            )) {
+                return;
+            }
 
+            // Check for * key (Shift+8 on US keyboard or NumPad *) - Focus Node
+            if (e.key === '*') {
                 e.preventDefault();
                 e.stopPropagation();
                 this.focusCurrentNode();
+                return;
+            }
+
+            // Left arrow - Previous node in execution order
+            if (e.key === 'ArrowLeft') {
+                // Only if panel is visible
+                if (!this.elements.panel || this.elements.panel.style.display === 'none') {
+                    return;
+                }
+                e.preventDefault();
+                e.stopPropagation();
+                this.navigateExecOrder(-1);
+                return;
+            }
+
+            // Right arrow - Next node in execution order
+            if (e.key === 'ArrowRight') {
+                // Only if panel is visible
+                if (!this.elements.panel || this.elements.panel.style.display === 'none') {
+                    return;
+                }
+                e.preventDefault();
+                e.stopPropagation();
+                this.navigateExecOrder(1);
+                return;
             }
         };
 
@@ -1769,6 +1794,52 @@ export class UIManager {
         const node = app.graph.getNodeById(parseInt(nodeId));
         if (node && app.canvas) {
             app.canvas.centerOnNode(node);
+        }
+    }
+
+    /**
+     * Navigate to previous/next node by execution order
+     * @param direction -1 for previous, +1 for next
+     */
+    navigateExecOrder(direction: number): void {
+        // Get current node ID from content
+        const nodeRow = this.elements.content?.querySelector('[data-node-id]') as HTMLElement;
+        if (!nodeRow) return;
+
+        const currentNodeId = parseInt(nodeRow.dataset.nodeId || '0');
+        if (!currentNodeId && currentNodeId !== 0) return;
+
+        // Get nodes sorted by execution order
+        const nodes = this.nodeSelector.getNodesSortedByExecOrder();
+        if (nodes.length === 0) return;
+
+        // Find current node's position in the list
+        const currentIndex = nodes.findIndex(n => n.id === currentNodeId);
+        if (currentIndex === -1) {
+            // Current node not in exec order list, select first node
+            this.selectNodeById(nodes[0].id);
+            return;
+        }
+
+        // Calculate new index with wrapping
+        let newIndex = currentIndex + direction;
+        if (newIndex < 0) newIndex = nodes.length - 1;
+        if (newIndex >= nodes.length) newIndex = 0;
+
+        // Select the new node
+        this.selectNodeById(nodes[newIndex].id);
+    }
+
+    /**
+     * Select a node by ID and update the inspector panel
+     */
+    private selectNodeById(nodeId: number): void {
+        // Set selected node in state
+        this.stateManager.setSelectedNode(nodeId);
+
+        // Notify callback if set
+        if (this.onNodeSelected) {
+            this.onNodeSelected(nodeId);
         }
     }
 

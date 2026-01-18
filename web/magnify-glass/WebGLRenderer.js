@@ -290,21 +290,30 @@ class WebGLRenderer {
             z-index: 100000;
             animation: slideIn 0.3s ease-out;
         `;
-    toast.innerHTML = `
-            <div style="display: flex; align-items: flex-start; gap: 12px;">
-                <span style="font-size: 24px;">⚠️</span>
-                <div>
-                    <strong style="display: block; margin-bottom: 6px;">MagnifyGlass: WebGL Disabled</strong>
-                    <span style="opacity: 0.9;">${instructions}</span>
-                    <button onclick="this.parentElement.parentElement.parentElement.remove()" 
-                            style="display: block; margin-top: 10px; padding: 6px 12px; background: rgba(255,255,255,0.2); 
+    const container = document.createElement("div");
+    container.style.cssText = "display: flex; align-items: flex-start; gap: 12px;";
+    const icon = document.createElement("span");
+    icon.style.fontSize = "24px";
+    icon.textContent = "⚠️";
+    container.appendChild(icon);
+    const content = document.createElement("div");
+    const title = document.createElement("strong");
+    title.style.cssText = "display: block; margin-bottom: 6px;";
+    title.textContent = "MagnifyGlass: WebGL Disabled";
+    content.appendChild(title);
+    const message = document.createElement("span");
+    message.style.opacity = "0.9";
+    message.textContent = instructions;
+    content.appendChild(message);
+    const btn = document.createElement("button");
+    btn.textContent = "Dismiss";
+    btn.style.cssText = `display: block; margin-top: 10px; padding: 6px 12px; background: rgba(255,255,255,0.2);
                                    border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; color: white; 
-                                   cursor: pointer; font-size: 12px;">
-                        Dismiss
-                    </button>
-                </div>
-            </div>
-        `;
+                                   cursor: pointer; font-size: 12px;`;
+    btn.addEventListener("click", () => toast.remove());
+    content.appendChild(btn);
+    container.appendChild(content);
+    toast.appendChild(container);
     if (!document.getElementById("magnifyglass-toast-style")) {
       const style = document.createElement("style");
       style.id = "magnifyglass-toast-style";

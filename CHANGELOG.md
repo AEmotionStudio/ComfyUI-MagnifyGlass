@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+## [1.12.0] - 2026-01-18
+
+### Added
 - **Batch Image Grid**: Added grid layout support for batch images in the glass view, enabling proper visualization of image batches.
 - **Inline Action Buttons**: Introduced inline action buttons in the inspector for quicker access to widget functions.
 - **Popout Enhancements**:

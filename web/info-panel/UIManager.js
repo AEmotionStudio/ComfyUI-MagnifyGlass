@@ -18,6 +18,7 @@ class UIManager {
     __publicField(this, "elements");
     __publicField(this, "nodeSelector");
     __publicField(this, "currentDropdown", null);
+    __publicField(this, "currentDropdownCleanup", null);
     __publicField(this, "onNodeSelected", null);
     // Track active widget editors for cleanup
     __publicField(this, "activeEditors", /* @__PURE__ */ new Map());
@@ -1013,6 +1014,9 @@ class UIManager {
   createDropdown(nodes, anchorElement, type) {
     const dropdown = document.createElement("div");
     dropdown.className = `node-selector-dropdown theme-${this.stateManager.state.currentTheme}`;
+    dropdown.setAttribute("role", "listbox");
+    dropdown.setAttribute("tabindex", "-1");
+    dropdown.setAttribute("aria-label", type === "title" ? "Select Node by Title" : type === "execOrder" ? "Select Node by Execution Order" : "Select Node by ID");
     dropdown.style.cssText = `
             position: fixed;
             z-index: 100000;
@@ -1022,10 +1026,17 @@ class UIManager {
             border-radius: 6px;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
             min-width: 200px;
+            outline: none;
         `;
-    nodes.forEach((node) => {
+    let activeIndex = 0;
+    nodes.forEach((node, index) => {
       const item = document.createElement("div");
       item.className = "dropdown-item";
+      item.setAttribute("role", "option");
+      item.setAttribute("aria-selected", index === activeIndex ? "true" : "false");
+      if (index === activeIndex) {
+        item.classList.add("focused");
+      }
       item.style.cssText = `
                 padding: 8px 12px;
                 cursor: pointer;
@@ -1034,6 +1045,7 @@ class UIManager {
                 align-items: center;
                 gap: 8px;
                 font-size: 13px;
+                background: ${index === activeIndex ? "var(--comfy-input-bg, #3a3a3a)" : ""};
             `;
       const isExecOrder = "order" in node;
       if (isExecOrder) {
@@ -1050,10 +1062,24 @@ class UIManager {
                 `;
       }
       item.addEventListener("mouseenter", () => {
+        if (activeIndex !== index) {
+          const items = dropdown.querySelectorAll(".dropdown-item");
+          if (items[activeIndex]) {
+            const prev = items[activeIndex];
+            prev.style.background = "";
+            prev.classList.remove("focused");
+            prev.setAttribute("aria-selected", "false");
+          }
+          activeIndex = index;
+          item.classList.add("focused");
+          item.setAttribute("aria-selected", "true");
+        }
         item.style.background = "var(--comfy-input-bg, #3a3a3a)";
       });
       item.addEventListener("mouseleave", () => {
-        item.style.background = "";
+        if (index !== activeIndex) {
+          item.style.background = "";
+        }
       });
       item.addEventListener("click", (e) => {
         e.stopPropagation();
@@ -1074,30 +1100,73 @@ class UIManager {
       if (this.elements.panel) {
         this.elements.panel.removeEventListener("mousedown", panelCloseHandler, true);
       }
+      if (this.currentDropdownCleanup === cleanup) {
+        this.currentDropdownCleanup = null;
+      }
     };
+    this.currentDropdownCleanup = cleanup;
     const closeHandler = (e) => {
       if (!dropdown.contains(e.target) && !anchorElement.contains(e.target)) {
         this.hideDropdown();
-        cleanup();
       }
     };
     const panelCloseHandler = (e) => {
       if (!dropdown.contains(e.target) && !anchorElement.contains(e.target)) {
         this.hideDropdown();
-        cleanup();
       }
     };
+    const updateActiveItem = (newIndex) => {
+      const items = dropdown.querySelectorAll(".dropdown-item");
+      if (items.length === 0) return;
+      if (newIndex < 0) newIndex = 0;
+      if (newIndex >= items.length) newIndex = items.length - 1;
+      if (activeIndex >= 0 && activeIndex < items.length) {
+        const oldItem = items[activeIndex];
+        oldItem.classList.remove("focused");
+        oldItem.setAttribute("aria-selected", "false");
+        oldItem.style.background = "";
+      }
+      activeIndex = newIndex;
+      const newItem = items[activeIndex];
+      newItem.classList.add("focused");
+      newItem.setAttribute("aria-selected", "true");
+      newItem.style.background = "var(--comfy-input-bg, #3a3a3a)";
+      newItem.scrollIntoView({ block: "nearest" });
+    };
     const keyHandler = (e) => {
+      if (document.activeElement !== dropdown && !dropdown.contains(document.activeElement)) {
+        return;
+      }
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
         this.hideDropdown();
-        cleanup();
+        return;
+      }
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        e.stopPropagation();
+        updateActiveItem(activeIndex + 1);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        e.stopPropagation();
+        updateActiveItem(activeIndex - 1);
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        e.stopPropagation();
+        const items = dropdown.querySelectorAll(".dropdown-item");
+        if (activeIndex >= 0 && activeIndex < items.length) {
+          items[activeIndex].click();
+        }
       }
     };
     setTimeout(() => {
+      if (this.currentDropdownCleanup !== cleanup || !dropdown.parentNode) {
+        return;
+      }
       document.addEventListener("mousedown", closeHandler, true);
       document.addEventListener("keydown", keyHandler);
+      dropdown.focus();
       if (this.elements.panel) {
         this.elements.panel.addEventListener("mousedown", panelCloseHandler, true);
       }
@@ -1107,6 +1176,10 @@ class UIManager {
    * Hide the current dropdown.
    */
   hideDropdown() {
+    if (this.currentDropdownCleanup) {
+      this.currentDropdownCleanup();
+      this.currentDropdownCleanup = null;
+    }
     if (this.currentDropdown && this.currentDropdown.parentNode) {
       this.currentDropdown.parentNode.removeChild(this.currentDropdown);
       this.currentDropdown = null;

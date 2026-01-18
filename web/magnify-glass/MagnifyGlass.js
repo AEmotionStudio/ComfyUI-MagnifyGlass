@@ -255,7 +255,6 @@ class MagnifyGlass {
       if (this.ui.htmlOverlayContainer) this.ui.htmlOverlayContainer.innerHTML = "";
       return;
     }
-    this.ui.htmlOverlayContainer.innerHTML = "";
     let foundVideos = false;
     const magnifyRect = {
       x: this.state.sourceX,
@@ -264,8 +263,14 @@ class MagnifyGlass {
       height: this.state.sourceHeight
     };
     const nodes = graph._nodes;
-    if (!nodes) return;
-    if (this.state.canvasScale === 0) return;
+    if (!nodes) {
+      this.ui.htmlOverlayContainer.innerHTML = "";
+      return;
+    }
+    if (this.state.canvasScale === 0) {
+      this.ui.htmlOverlayContainer.innerHTML = "";
+      return;
+    }
     const rect = this.litegraphCanvas.getBoundingClientRect();
     const dpr = rect.width > 0 ? this.litegraphCanvas.width / rect.width : 1;
     const cursorCssX = this.state.x / dpr;
@@ -282,6 +287,7 @@ class MagnifyGlass {
       width: sourceGraphWidth,
       height: sourceGraphHeight
     };
+    const renderTasks = [];
     for (const node of nodes) {
       if (node.pos && node.size) {
         const nodeRect = {
@@ -337,14 +343,15 @@ class MagnifyGlass {
         if (elementToProcess && (isVideoElement || isImageElement)) {
           const widgetRect = elementToProcess.getBoundingClientRect();
           const canvasRect = rect;
+          const dpr2 = rect.width > 0 ? this.litegraphCanvas.width / rect.width : 1;
           const currentScale = this.state.canvasScale;
           const isVirtualZoomMode = currentScale < 0.7;
           const widgetCssX = widgetRect.left - canvasRect.left;
           const widgetCssY = widgetRect.top - canvasRect.top;
           const widgetCssWidth = widgetRect.width;
           const widgetCssHeight = widgetRect.height;
-          const pivotCssX = this.state.x / dpr;
-          const pivotCssY = this.state.y / dpr;
+          const pivotCssX = this.state.x / dpr2;
+          const pivotCssY = this.state.y / dpr2;
           let finalWidgetCssX;
           let finalWidgetCssY;
           let finalWidgetCssWidth;
@@ -360,10 +367,10 @@ class MagnifyGlass {
             finalWidgetCssWidth = widgetCssWidth;
             finalWidgetCssHeight = widgetCssHeight;
           }
-          const widgetCanvasX = finalWidgetCssX * dpr;
-          const widgetCanvasY = finalWidgetCssY * dpr;
-          const widgetCanvasWidth = finalWidgetCssWidth * dpr;
-          const widgetCanvasHeight = finalWidgetCssHeight * dpr;
+          const widgetCanvasX = finalWidgetCssX * dpr2;
+          const widgetCanvasY = finalWidgetCssY * dpr2;
+          const widgetCanvasWidth = finalWidgetCssWidth * dpr2;
+          const widgetCanvasHeight = finalWidgetCssHeight * dpr2;
           const widgetSourceRect = {
             x: widgetCanvasX,
             y: widgetCanvasY,
@@ -371,47 +378,87 @@ class MagnifyGlass {
             height: widgetCanvasHeight
           };
           if (rectsOverlap(magnifyRect, widgetSourceRect)) {
-            const clonedElement = elementToProcess.cloneNode(true);
-            clonedElement.style.position = "absolute";
-            clonedElement.style.pointerEvents = "none";
+            const task = {
+              element: elementToProcess,
+              type: isVideoElement ? "video" : "image",
+              overlayRect: widgetSourceRect,
+              // Store calculated rect
+              fontSize: void 0
+            };
             if (isVideoElement) {
-              const video = clonedElement;
-              const originalVideo = elementToProcess;
-              video.src = originalVideo.src;
-              video.autoplay = originalVideo.autoplay;
-              video.loop = originalVideo.loop;
-              video.preload = originalVideo.preload;
-              video.crossOrigin = originalVideo.crossOrigin;
-              video.muted = true;
-              if (!originalVideo.paused) {
-                video.play().catch((e) => {
-                  if (e.name !== "AbortError") {
-                    console.warn("Magnify Glass: Cloned video play failed", e);
-                  }
-                });
-              }
-              video.currentTime = originalVideo.currentTime;
-            } else if (isImageElement) {
-              const img = clonedElement;
-              const originalImg = elementToProcess;
-              img.src = originalImg.src;
-              img.alt = originalImg.alt;
+              foundVideos = true;
             }
-            const relativeX = widgetSourceRect.x - magnifyRect.x;
-            const relativeY = widgetSourceRect.y - magnifyRect.y;
-            const magnifiedX = relativeX * this.config.zoomFactor;
-            const magnifiedY = relativeY * this.config.zoomFactor;
-            clonedElement.style.left = `${magnifiedX}px`;
-            clonedElement.style.top = `${magnifiedY}px`;
-            clonedElement.style.width = `${widgetSourceRect.width}px`;
-            clonedElement.style.height = `${widgetSourceRect.height}px`;
-            clonedElement.style.transformOrigin = "top left";
-            clonedElement.style.transform = `scale(${this.config.zoomFactor})`;
-            this.ui.htmlOverlayContainer.appendChild(clonedElement);
+            renderTasks.push(task);
           }
         }
       }
     }
+    this.ui.htmlOverlayContainer.innerHTML = "";
+    const fragment = document.createDocumentFragment();
+    for (const task of renderTasks) {
+      const elementToProcess = task.element;
+      const widgetSourceRect = task.overlayRect;
+      const isTextElement = task.type === "text";
+      const isVideoElement = task.type === "video";
+      const isImageElement = task.type === "image";
+      const clonedElement = elementToProcess.cloneNode(true);
+      clonedElement.style.position = "absolute";
+      clonedElement.style.pointerEvents = "none";
+      if (isTextElement) {
+        clonedElement.style.backgroundColor = elementToProcess.style.backgroundColor || "#222";
+        clonedElement.style.color = elementToProcess.style.color || "#DDD";
+        clonedElement.style.border = elementToProcess.style.border || "1px solid #555";
+        clonedElement.style.overflow = "hidden";
+        clonedElement.disabled = true;
+        const canvasScale = this.state.canvasScale;
+        const originalFontSize = task.fontSize || 12;
+        const threshold = 0.5;
+        let adaptedFontSize;
+        if (canvasScale < threshold) {
+          const shrinkFactor = canvasScale / threshold;
+          adaptedFontSize = Math.max(6, originalFontSize * shrinkFactor * 0.8);
+        } else {
+          const growFactor = 1 + (canvasScale - threshold) / (1 - threshold) * 0.5;
+          adaptedFontSize = originalFontSize * Math.min(1.5, growFactor);
+        }
+        clonedElement.style.fontSize = `${adaptedFontSize}px`;
+        clonedElement.style.lineHeight = canvasScale < threshold ? "1.2" : "1.4";
+      } else if (isVideoElement) {
+        const video = clonedElement;
+        const originalVideo = elementToProcess;
+        video.src = originalVideo.src;
+        video.autoplay = originalVideo.autoplay;
+        video.loop = originalVideo.loop;
+        video.preload = originalVideo.preload;
+        video.crossOrigin = originalVideo.crossOrigin;
+        video.muted = true;
+        if (!originalVideo.paused) {
+          video.play().catch((e) => {
+            if (e.name !== "AbortError") {
+              console.warn("Magnify Glass: Cloned video play failed", e);
+            }
+          });
+        }
+        video.currentTime = originalVideo.currentTime;
+      } else if (isImageElement) {
+        const img = clonedElement;
+        const originalImg = elementToProcess;
+        img.src = originalImg.src;
+        img.alt = originalImg.alt;
+      }
+      const relativeX = widgetSourceRect.x - magnifyRect.x;
+      const relativeY = widgetSourceRect.y - magnifyRect.y;
+      const magnifiedX = relativeX * this.config.zoomFactor;
+      const magnifiedY = relativeY * this.config.zoomFactor;
+      clonedElement.style.left = `${magnifiedX}px`;
+      clonedElement.style.top = `${magnifiedY}px`;
+      clonedElement.style.width = `${widgetSourceRect.width}px`;
+      clonedElement.style.height = `${widgetSourceRect.height}px`;
+      clonedElement.style.transformOrigin = "top left";
+      clonedElement.style.transform = `scale(${this.config.zoomFactor})`;
+      fragment.appendChild(clonedElement);
+    }
+    this.ui.htmlOverlayContainer.appendChild(fragment);
     if (foundVideos && !this.hasVisibleVideos) {
       this.hasVisibleVideos = true;
       this.startAnimationLoop();

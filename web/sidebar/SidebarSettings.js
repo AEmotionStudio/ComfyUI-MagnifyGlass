@@ -147,19 +147,38 @@ function createSection(title, defaultCollapsed = false) {
   const collapsed = defaultCollapsed;
   const header = document.createElement("div");
   header.className = `magnify-sidebar-section-header${collapsed ? " collapsed" : ""}`;
+  const sectionId = `magnify-section-${Math.random().toString(36).substr(2, 9)}`;
+  const headerId = `${sectionId}-header`;
+  const bodyId = `${sectionId}-body`;
+  header.setAttribute("role", "button");
+  header.setAttribute("tabindex", "0");
+  header.setAttribute("aria-expanded", String(!collapsed));
+  header.setAttribute("aria-controls", bodyId);
+  header.id = headerId;
   header.innerHTML = Icons.chevronDown;
   const titleSpan = document.createElement("span");
   titleSpan.textContent = title;
   header.appendChild(titleSpan);
   const body = document.createElement("div");
   body.className = `magnify-sidebar-section-body${collapsed ? " collapsed" : ""}`;
+  body.id = bodyId;
+  body.setAttribute("role", "region");
+  body.setAttribute("aria-labelledby", headerId);
   if (collapsed) {
     body.style.display = "none";
   }
-  header.addEventListener("click", () => {
+  const toggleSection = () => {
     const isCollapsed = header.classList.toggle("collapsed");
     body.classList.toggle("collapsed");
     body.style.display = isCollapsed ? "none" : "";
+    header.setAttribute("aria-expanded", String(!isCollapsed));
+  };
+  header.addEventListener("click", toggleSection);
+  header.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      toggleSection();
+    }
   });
   section.appendChild(header);
   section.appendChild(body);

@@ -222,17 +222,42 @@ export function renderInspectorPanel(container: HTMLElement): void {
     // Section header
     const header = document.createElement('div');
     header.className = 'magnify-sidebar-section-header';
+
+    // Accessibility attributes
+    const headerId = `inspector-header-${Math.random().toString(36).substr(2, 9)}`;
+    const bodyId = `inspector-body-${Math.random().toString(36).substr(2, 9)}`;
+
+    header.setAttribute('role', 'button');
+    header.setAttribute('tabindex', '0');
+    header.setAttribute('aria-expanded', 'true');
+    header.setAttribute('aria-controls', bodyId);
+    header.id = headerId;
+
     header.innerHTML = `${Icons.chevronDown}<span>Inspector</span>`;
 
     // Section body
     const body = document.createElement('div');
     body.className = 'magnify-sidebar-section-body magnify-inspector-section';
+    body.id = bodyId;
+    body.setAttribute('role', 'region');
+    body.setAttribute('aria-labelledby', headerId);
     inspectorBody = body;
 
-    // Toggle collapse
-    header.addEventListener('click', () => {
-        header.classList.toggle('collapsed');
+    const toggleSection = () => {
+        const isCollapsed = header.classList.toggle('collapsed');
         body.classList.toggle('collapsed');
+        header.setAttribute('aria-expanded', String(!isCollapsed));
+    };
+
+    // Toggle collapse
+    header.addEventListener('click', toggleSection);
+
+    // Keyboard support
+    header.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleSection();
+        }
     });
 
     section.appendChild(header);

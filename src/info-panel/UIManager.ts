@@ -1492,6 +1492,11 @@ export class UIManager {
             if (this.elements.panel) {
                 this.elements.panel.removeEventListener('mousedown', panelCloseHandler, true);
             }
+            // Remove canvas listener
+            const canvas = document.querySelector('canvas.main-canvas, canvas') as HTMLCanvasElement;
+            if (canvas) {
+                canvas.removeEventListener('pointerdown', canvasCloseHandler, true);
+            }
             // Clear the global reference
             if (this.currentDropdownCleanup === cleanup) {
                 this.currentDropdownCleanup = null;
@@ -1515,6 +1520,11 @@ export class UIManager {
                 this.hideDropdown();
                 // Cleanup is now handled by hideDropdown calling this.currentDropdownCleanup
             }
+        };
+
+        // Close when clicking on the canvas (canvas intercepts events before document receives them)
+        const canvasCloseHandler = (_e: PointerEvent) => {
+            this.hideDropdown();
         };
 
         // Helper to update active item
@@ -1597,6 +1607,12 @@ export class UIManager {
             // Also listen on the panel itself with capture phase
             if (this.elements.panel) {
                 this.elements.panel.addEventListener('mousedown', panelCloseHandler, true);
+            }
+
+            // Listen on canvas for clicks (canvas intercepts pointer events)
+            const canvas = document.querySelector('canvas.main-canvas, canvas') as HTMLCanvasElement;
+            if (canvas) {
+                canvas.addEventListener('pointerdown', canvasCloseHandler, true);
             }
         }, 10);
     }

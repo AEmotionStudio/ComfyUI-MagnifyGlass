@@ -1100,6 +1100,10 @@ class UIManager {
       if (this.elements.panel) {
         this.elements.panel.removeEventListener("mousedown", panelCloseHandler, true);
       }
+      const canvas = document.querySelector("canvas.main-canvas, canvas");
+      if (canvas) {
+        canvas.removeEventListener("pointerdown", canvasCloseHandler, true);
+      }
       if (this.currentDropdownCleanup === cleanup) {
         this.currentDropdownCleanup = null;
       }
@@ -1114,6 +1118,9 @@ class UIManager {
       if (!dropdown.contains(e.target) && !anchorElement.contains(e.target)) {
         this.hideDropdown();
       }
+    };
+    const canvasCloseHandler = (_e) => {
+      this.hideDropdown();
     };
     const updateActiveItem = (newIndex) => {
       const items = dropdown.querySelectorAll(".dropdown-item");
@@ -1169,6 +1176,10 @@ class UIManager {
       dropdown.focus();
       if (this.elements.panel) {
         this.elements.panel.addEventListener("mousedown", panelCloseHandler, true);
+      }
+      const canvas = document.querySelector("canvas.main-canvas, canvas");
+      if (canvas) {
+        canvas.addEventListener("pointerdown", canvasCloseHandler, true);
       }
     }, 10);
   }

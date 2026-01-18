@@ -129,10 +129,6 @@ class WidgetSyncManager {
       if (typeof constraints.max === "number") {
         numValue = Math.min(constraints.max, numValue);
       }
-      if (typeof constraints.step === "number" && constraints.step > 0) {
-        const min = constraints.min ?? 0;
-        numValue = min + Math.round((numValue - min) / constraints.step) * constraints.step;
-      }
       if (typeof constraints.precision === "number") {
         numValue = parseFloat(numValue.toFixed(constraints.precision));
       }

@@ -211,11 +211,8 @@ export class WidgetSyncManager {
                 numValue = Math.min(constraints.max, numValue);
             }
 
-            // Apply step (round to nearest step)
-            if (typeof constraints.step === 'number' && constraints.step > 0) {
-                const min = constraints.min ?? 0;
-                numValue = min + Math.round((numValue - min) / constraints.step) * constraints.step;
-            }
+            // Note: Skip step rounding to preserve user's exact input value
+            // The widget callback or ComfyUI pipeline will handle step constraints if needed
 
             // Apply precision
             if (typeof constraints.precision === 'number') {

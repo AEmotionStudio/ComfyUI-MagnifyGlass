@@ -73,28 +73,28 @@ class WidgetEditorFactory {
       return (_a = config.onBlur) == null ? void 0 : _a.call(config);
     });
     decrementBtn.addEventListener("click", (e) => {
-      var _a, _b, _c;
+      var _a, _b;
       e.preventDefault();
       e.stopPropagation();
-      const step = ((_a = config.constraints) == null ? void 0 : _a.step) ?? 1;
+      const step = 1;
       const currentVal = parseFloat(input.value);
-      const baseValue = isNaN(currentVal) ? ((_b = config.constraints) == null ? void 0 : _b.min) ?? Number(config.currentValue) ?? 0 : currentVal;
+      const baseValue = isNaN(currentVal) ? ((_a = config.constraints) == null ? void 0 : _a.min) ?? Number(config.currentValue) ?? 0 : currentVal;
       let newValue = baseValue - step;
-      if (((_c = config.constraints) == null ? void 0 : _c.min) !== void 0) {
+      if (((_b = config.constraints) == null ? void 0 : _b.min) !== void 0) {
         newValue = Math.max(config.constraints.min, newValue);
       }
       input.value = String(newValue);
       syncValue();
     });
     incrementBtn.addEventListener("click", (e) => {
-      var _a, _b, _c;
+      var _a, _b;
       e.preventDefault();
       e.stopPropagation();
-      const step = ((_a = config.constraints) == null ? void 0 : _a.step) ?? 1;
+      const step = 1;
       const currentVal = parseFloat(input.value);
-      const baseValue = isNaN(currentVal) ? ((_b = config.constraints) == null ? void 0 : _b.min) ?? Number(config.currentValue) ?? 0 : currentVal;
+      const baseValue = isNaN(currentVal) ? ((_a = config.constraints) == null ? void 0 : _a.min) ?? Number(config.currentValue) ?? 0 : currentVal;
       let newValue = baseValue + step;
-      if (((_c = config.constraints) == null ? void 0 : _c.max) !== void 0) {
+      if (((_b = config.constraints) == null ? void 0 : _b.max) !== void 0) {
         newValue = Math.min(config.constraints.max, newValue);
       }
       input.value = String(newValue);

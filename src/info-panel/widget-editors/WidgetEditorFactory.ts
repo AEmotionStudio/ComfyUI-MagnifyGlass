@@ -122,7 +122,8 @@ export class WidgetEditorFactory {
         decrementBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            const step = config.constraints?.step ?? 1;
+            // Always use step=1 for fine-grained control via stepper buttons
+            const step = 1;
             const currentVal = parseFloat(input.value);
             // Handle NaN (empty input) - fall back to current value or min or 0
             const baseValue = isNaN(currentVal) ? (config.constraints?.min ?? Number(config.currentValue) ?? 0) : currentVal;
@@ -138,7 +139,8 @@ export class WidgetEditorFactory {
         incrementBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            const step = config.constraints?.step ?? 1;
+            // Always use step=1 for fine-grained control via stepper buttons
+            const step = 1;
             const currentVal = parseFloat(input.value);
             // Handle NaN (empty input) - fall back to current value or min or 0
             const baseValue = isNaN(currentVal) ? (config.constraints?.min ?? Number(config.currentValue) ?? 0) : currentVal;

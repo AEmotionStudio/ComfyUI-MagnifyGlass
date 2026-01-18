@@ -412,8 +412,17 @@ export class MagnifyGlass {
 
         const rect = this.litegraphCanvas.getBoundingClientRect();
         const dpr = rect.width > 0 ? this.litegraphCanvas.width / rect.width : 1;
-        const cursorCssX = this.state.x / dpr;
-        const cursorCssY = this.state.y / dpr;
+
+        // Pre-calculate invariant values for the frame
+        const currentScale = this.state.canvasScale;
+        const isVirtualZoomMode = currentScale < 0.7;
+        const canvasRect = rect;
+        // Pivot point (mouse position) in CSS coordinates
+        const pivotCssX = this.state.x / dpr;
+        const pivotCssY = this.state.y / dpr;
+
+        const cursorCssX = pivotCssX;
+        const cursorCssY = pivotCssY;
         const cursorGraphX = (cursorCssX - this.state.canvasOffsetX) / this.state.canvasScale;
         const cursorGraphY = (cursorCssY - this.state.canvasOffsetY) / this.state.canvasScale;
         const targetGraphCenterX = cursorGraphX + this.config.offsetX;
@@ -506,22 +515,11 @@ export class MagnifyGlass {
                     // READ: Force layout calculation here, batched together
                     const widgetRect = elementToProcess.getBoundingClientRect();
 
-                    // Optimization: Use the widgetRect to check overlap immediately before potentially expensive computations
-                    // Reuse canvasRect and dpr from top level scope
-                    const canvasRect = rect;
-                    const dpr = rect.width > 0 ? this.litegraphCanvas.width / rect.width : 1;
-                    const currentScale = this.state.canvasScale;
-                    const isVirtualZoomMode = currentScale < 0.7;
-
                     // Widget position in CSS coordinates relative to canvas
                     const widgetCssX = widgetRect.left - canvasRect.left;
                     const widgetCssY = widgetRect.top - canvasRect.top;
                     const widgetCssWidth = widgetRect.width;
                     const widgetCssHeight = widgetRect.height;
-
-                    // Pivot point (mouse position) in CSS coordinates
-                    const pivotCssX = this.state.x / dpr;
-                    const pivotCssY = this.state.y / dpr;
 
                     let finalWidgetCssX: number;
                     let finalWidgetCssY: number;

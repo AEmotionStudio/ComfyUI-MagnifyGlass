@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0] - 2026-01-17
+
+### Added
+- **Direct Node Editing**: Major feature allowing users to modify node values directly from the Inspector Panel.
+  - **Bi-directional Sync**: Changes in the inspector instantly update the node graph, and vice versa.
+  - **Widget Support**: Full editing support for text inputs, number fields (with drag-to-adjust), booleans/toggles, and dropdowns/combos.
+  - **Precision Control**: Fine-grained value adjustment without automatic step rounding constraints.
+- **Keyboard Accessibility**: Full keyboard navigation (Arrows, Enter, Esc) and ARIA support for node selector dropdowns.
+
+### Improved
+- **Dropdown UX**:
+  - Dropdowns now close automatically when clicking the canvas.
+  - Prevented focus hijacking and race conditions for smoother interaction.
+- **Performance**: Implemented DOM batching for HTML overlays, reducing layout thrashing and improving rendering speed.
+- **Security**: Enforced `textContent` for sidebar titles to prevent XSS.
+
+### Fixed
+- **Event Leaks**: Fixed memory leaks caused by lingering event listeners on dropdowns.
+- **Stale Overlays**: Fixed visual artifacts where stale overlays persisted during early rendering returns.
+- **Drag Values**: Corrected logic in `DragValueController` for more reliable value updates.
+
+---
+
 ## [1.10.1] - 2026-01-13
 
 ### Improved

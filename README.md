@@ -3,7 +3,7 @@
 # ComfyUI-MagnifyGlass
 
 [![ComfyUI](https://img.shields.io/badge/ComfyUI-Extension-green?style=for-the-badge)](https://github.com/comfyanonymous/ComfyUI)
-[![Version](https://img.shields.io/badge/Version-1.10.1-orange?style=for-the-badge)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases)
+[![Version](https://img.shields.io/badge/Version-1.11.0-orange?style=for-the-badge)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases)
 [![License](https://img.shields.io/badge/License-GPLv3-red?style=for-the-badge)](LICENSE)
 [![Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen?style=for-the-badge&color=blue)](package.json)
 
@@ -23,18 +23,16 @@
 
 ---
 
-## 🚀 What's New in v1.10.1 (January 13, 2026)
+## 🚀 What's New in v1.11.0 (January 17, 2026)
 
-**Inspector Power-Ups & Settings Overhaul**
+**Direct Node Editing & Performance Optimization**
 
-*   **📊 Popout Viewer Pro**: 
-    *   **Visual Charts**: Render images/charts directly in the popout.
-    *   **Window Controls**: Fullscreen, Fit-to-Window, and "Keep Alive" modes.
-    *   **Remote Control**: Select and focus nodes on the main canvas from the popout window.
-*   **🧭 Advanced Navigation**:
-    *   **Sortable Lists**: Find nodes by Execution Order or ID.
-    *   **Focus Target**: One-click zoom to any inspected node.
-*   **📋 Copy Everything**: Added one-click copy buttons to all text fields.
+*   **✏️ Direct Node Editing**: Modify node values (text, numbers, toggles, combos) directly from the Inspector Panel without leaving your spot.
+*   **⚡ Performance Boost**: Batched DOM operations for HTML overlays significantly reduce layout thrashing.
+*   **⌨️ Accessibility & UX**: 
+    *   Full keyboard navigation (Arrows/Enter/Esc) for node selector dropdowns.
+    *   Dropdowns now intelligently close when clicking the canvas.
+*   **🛡️ Security Hardening**: Improved XSS protection in sidebar rendering.
 
 > 📄 **See [CHANGELOG.md](CHANGELOG.md) for the complete version history.**
 

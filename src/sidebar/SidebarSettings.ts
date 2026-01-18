@@ -302,6 +302,18 @@ function createSection(title: string, defaultCollapsed: boolean = false): { sect
     const header = document.createElement('div');
     header.className = `magnify-sidebar-section-header${collapsed ? ' collapsed' : ''}`;
 
+    // Generate unique ID for accessibility
+    const sectionId = `magnify-section-${Math.random().toString(36).substr(2, 9)}`;
+    const headerId = `${sectionId}-header`;
+    const bodyId = `${sectionId}-body`;
+
+    // Accessibility attributes
+    header.setAttribute('role', 'button');
+    header.setAttribute('tabindex', '0');
+    header.setAttribute('aria-expanded', String(!collapsed));
+    header.setAttribute('aria-controls', bodyId);
+    header.id = headerId;
+
     // Securely construct header: Icon (HTML) + Title (Text)
     // Use innerHTML only for the trusted icon SVG
     header.innerHTML = Icons.chevronDown;
@@ -311,19 +323,37 @@ function createSection(title: string, defaultCollapsed: boolean = false): { sect
 
     const body = document.createElement('div');
     body.className = `magnify-sidebar-section-body${collapsed ? ' collapsed' : ''}`;
+    body.id = bodyId;
+    body.setAttribute('role', 'region');
+    body.setAttribute('aria-labelledby', headerId);
+
     // Apply inline style to prevent flash before CSS loads
     if (collapsed) {
         body.style.display = 'none';
     }
 
-    header.addEventListener('click', () => {
+    const toggleSection = () => {
         const isCollapsed = header.classList.toggle('collapsed');
         body.classList.toggle('collapsed');
         // Also toggle inline style for immediate effect
         body.style.display = isCollapsed ? 'none' : '';
+
+        // Update ARIA state
+        header.setAttribute('aria-expanded', String(!isCollapsed));
+
         // Save the new state
         // User requested to disable persistence
         // saveSectionState(title, isCollapsed);
+    };
+
+    header.addEventListener('click', toggleSection);
+
+    // Keyboard support
+    header.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            toggleSection();
+        }
     });
 
     section.appendChild(header);

@@ -11,6 +11,7 @@ class PopOutManager {
     __publicField(this, "popOutWindow", null);
     __publicField(this, "onStateChange", null);
     __publicField(this, "onNodeSelect", null);
+    __publicField(this, "onWidgetEdit", null);
     __publicField(this, "lastPongTime", 0);
     __publicField(this, "pingInterval", null);
     __publicField(this, "viewerUrl");
@@ -131,6 +132,9 @@ class PopOutManager {
     );
     if (result.success) {
       Logger.debug(`[PopOut] Widget edit synced: ${editData.widgetName} = ${editData.value}`);
+      if (this.onWidgetEdit) {
+        this.onWidgetEdit();
+      }
     } else {
       Logger.warn(`[PopOut] Widget edit failed: ${result.error}`);
     }

@@ -287,43 +287,21 @@ export function getImportantNodeParameters(nodeInfo: NodeInfo): ParameterItem[] 
         };
     };
 
-    // Helper to add widget if not a duplicate value
-    const addIfNotDuplicate = (widget: any): boolean => {
-        const normalizedValue = normalizeValue(widget.value);
-
-        // Only deduplicate meaningful string values (not numbers, booleans, or empty)
-        // This prevents hiding unique widgets that happen to share common values like 0 or true
-        if (typeof widget.value === 'string' && isMeaningfulValue(widget.value)) {
-            if (seenValues.has(normalizedValue)) {
-                return false; // Skip duplicate
-            }
-            seenValues.add(normalizedValue);
-        }
-
+    // Helper to add widget (no longer deduplicating - each widget is unique by name)
+    const addWidget = (widget: any): boolean => {
         parameters.push(createParameterItem(widget));
         return true;
     };
 
-    // For complex nodes, show ALL widgets (with deduplication)
-    if (nodeType && shouldShowAllWidgets(nodeType)) {
-        for (const widget of nodeInfo.widgets) {
-            if (widget.name && widget.name !== '') {
-                const widgetName = widget.name.toLowerCase();
-                if (!SKIP_WIDGET_NAMES.some(skip => widgetName.includes(skip))) {
-                    addIfNotDuplicate(widget);
-                }
-            }
-        }
-        return parameters;
-    }
-
-    // For other nodes, use filtered parameter lists (with deduplication)
-    const importantParams = isSaveNode ? SAVE_NODE_PARAMS : COMPLEX_NODE_PARAMS;
-
+    // Show ALL widgets for all nodes (with skip list only)
+    // This matches the popout viewer's behavior
     for (const widget of nodeInfo.widgets) {
-        const paramName = widget.name.toLowerCase();
-        if (importantParams.some(param => paramName.includes(param))) {
-            addIfNotDuplicate(widget);
+        if (widget.name && widget.name !== '') {
+            const widgetName = widget.name.toLowerCase();
+            // Use exact matching for skip list to avoid false positives
+            if (!SKIP_WIDGET_NAMES.includes(widgetName)) {
+                addWidget(widget);
+            }
         }
     }
 

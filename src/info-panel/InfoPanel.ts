@@ -70,6 +70,11 @@ export class InfoPanel {
             this.magnifyGlass.popOutManager.onNodeSelect = (nodeId: number) => {
                 this.onNodeSelected(nodeId);
             };
+            // Listen for widget edits from popout to force refresh
+            this.magnifyGlass.popOutManager.onWidgetEdit = () => {
+                // Force update to reflect changes (e.g. unhidden widgets)
+                this.updateInfo(true);
+            };
         }
 
         // Set up node selection callback

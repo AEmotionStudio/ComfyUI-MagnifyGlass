@@ -50,6 +50,9 @@ class InfoPanel {
       this.magnifyGlass.popOutManager.onNodeSelect = (nodeId) => {
         this.onNodeSelected(nodeId);
       };
+      this.magnifyGlass.popOutManager.onWidgetEdit = () => {
+        this.updateInfo(true);
+      };
     }
     this.uiManager.onNodeSelected = (nodeId) => {
       this.onNodeSelected(nodeId);

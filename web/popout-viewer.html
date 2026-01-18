@@ -1170,10 +1170,24 @@
             let editorHtml;
 
             if (isCombo) {
+                // Add a hidden placeholder to ensure 'onchange' fires even if the user selects the same value again.
+                // If we pre-selected the current value, clicking it again wouldn't trigger 'change'.
+                const placeholder = `<option value="" disabled selected style="display:none">Select...</option>`;
+
                 const optionsHtml = options.map(opt =>
-                    `<option value="${escapeHtml(String(opt))}" ${opt == currentValue ? 'selected' : ''}>${escapeHtml(String(opt))}</option>`
+                    `<option value="${escapeHtml(String(opt))}">${escapeHtml(String(opt))}</option>`
                 ).join('');
-                editorHtml = `<select class="widget-editor-select" onchange="commitWidgetEdit(this, ${nodeId}, '${widgetName}')">${optionsHtml}</select>`;
+
+                // Escape original HTML for the cancel function
+                const safeOriginalHtml = originalHtml.replace(/'/g, "\\\\'");
+
+                // onchange: Commit value immediately
+                // onblur: If we have a value (user selected something but browser weirdness), commit. 
+                //         If value is empty (user clicked away without selecting), CANCEL edit and restore original display.
+                editorHtml = `<select class="widget-editor-select" 
+                    onchange="if(this.value) commitWidgetEdit(this, ${nodeId}, '${widgetName}')" 
+                    onblur="if(this.value) commitWidgetEdit(this, ${nodeId}, '${widgetName}') else cancelWidgetEdit(this, '${safeOriginalHtml}')"
+                    >${placeholder}${optionsHtml}</select>`;
             } else if (isBoolean) {
                 // Read the CURRENT displayed value from the element text, not the stale parameter
                 const displayedText = element.textContent?.trim().toLowerCase();

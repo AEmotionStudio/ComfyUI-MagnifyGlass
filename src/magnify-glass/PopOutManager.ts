@@ -87,6 +87,7 @@ export class PopOutManager {
     private popOutWindow: Window | null = null;
     public onStateChange: ((isOpen: boolean) => void) | null = null;
     public onNodeSelect: ((nodeId: number) => void) | null = null;
+    public onWidgetEdit: (() => void) | null = null;
     private lastPongTime: number = 0;
     private pingInterval: number | null = null;
     private viewerUrl: string;
@@ -237,6 +238,10 @@ export class PopOutManager {
 
         if (result.success) {
             Logger.debug(`[PopOut] Widget edit synced: ${editData.widgetName} = ${editData.value}`);
+            // Notify listeners (InfoPanel) that a widget was edited, to force an immediate refresh
+            if (this.onWidgetEdit) {
+                this.onWidgetEdit();
+            }
         } else {
             Logger.warn(`[PopOut] Widget edit failed: ${result.error}`);
         }

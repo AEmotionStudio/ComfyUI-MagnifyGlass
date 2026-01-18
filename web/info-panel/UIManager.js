@@ -524,10 +524,12 @@ class UIManager {
    */
   updateTheme(newTheme) {
     if (this.elements.panel) {
-      this.elements.panel.className = this.elements.panel.className.replace(/theme-\w+/, `theme-${newTheme.toLowerCase()}`);
+      this.elements.panel.className = this.elements.panel.className.replace(/theme-[\w-]+/, `theme-${newTheme.toLowerCase()}`);
+      const opacityPercent = Number(this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelOpacity"]) || 100;
+      this.elements.panel.style.opacity = (opacityPercent / 100).toString();
     }
     if (this.elements.controls) {
-      this.elements.controls.className = this.elements.controls.className.replace(/theme-\w+/, `theme-${newTheme.toLowerCase()}`);
+      this.elements.controls.className = this.elements.controls.className.replace(/theme-[\w-]+/, `theme-${newTheme.toLowerCase()}`);
     }
   }
   /**

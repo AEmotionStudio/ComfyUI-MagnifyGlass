@@ -64,109 +64,7 @@ function getTextBoxContent(nodeInfo) {
   }
   return null;
 }
-const COMPLEX_NODE_PARAMS = [
-  "seed",
-  "steps",
-  "cfg",
-  "scale",
-  "sampler",
-  "scheduler",
-  "positive",
-  "negative",
-  "width",
-  "height",
-  "denoise",
-  "strength",
-  "noise",
-  "count",
-  "batch",
-  "size",
-  "phase",
-  "color",
-  "intensity",
-  "control_after_generate",
-  "control",
-  "after",
-  "generate",
-  "start_at_step",
-  "end_at_step",
-  "start",
-  "end",
-  "return_with_leftover_noise",
-  "leftover",
-  "noise_return",
-  "model",
-  "vae",
-  "clip",
-  "lora",
-  "checkpoint",
-  "latent",
-  "image",
-  "mask",
-  "filename",
-  "directory",
-  "prompt",
-  "conditioning",
-  "filename_prefix",
-  "resolution",
-  "num_chunks",
-  "seconds",
-  "aspect_ratio",
-  "style_type",
-  "background",
-  "n",
-  "human",
-  "raw",
-  "guidance",
-  "skip_preprocessing",
-  "movement_amplitude",
-  "animation",
-  "material_type",
-  "b1",
-  "b2",
-  "s1",
-  "s2",
-  "type",
-  "channel",
-  "sigma",
-  "rho",
-  "alpha",
-  "base_shift",
-  "shift",
-  "stretch",
-  "terminal",
-  "spacing",
-  "style",
-  "eta",
-  "norm_threshold",
-  "momentum",
-  "hypernetwork_name",
-  "reuse_threshold",
-  "verbose",
-  "layers",
-  "set_cond_area",
-  "audioui",
-  "camera_pose",
-  "fx",
-  "cx",
-  "fy",
-  "cy"
-];
-const SAVE_NODE_PARAMS = [
-  "filename_prefix",
-  "filename",
-  "directory",
-  "path",
-  "format",
-  "quality",
-  "extension"
-];
 const SKIP_WIDGET_NAMES = ["title", "node", "id", "type", "mode"];
-function shouldShowAllWidgets(nodeType) {
-  const type = nodeType.toLowerCase();
-  const isSaveNode = type.includes("save") && !type.includes("checkpoint") && !type.includes("model") && !type.includes("preview");
-  return (type.includes("ksampler") || type.includes("sampler") || type.includes("k_samplers") || type.includes("checkpoint") || type.includes("model") || type.includes("lora") || type.includes("controlnet") || type.includes("advanced") || type.includes("detailer") || type.includes("inpaint") || type.includes("upscale") || type.includes("clip") || type.includes("text") || type.includes("encode")) && !isSaveNode;
-}
 function getImportantNodeParameters(nodeInfo) {
   const parameters = [];
   if (!nodeInfo.widgets || nodeInfo.widgets.length === 0) {
@@ -174,19 +72,7 @@ function getImportantNodeParameters(nodeInfo) {
   }
   const nodeType = nodeInfo.type || "";
   const typeLower = nodeType.toLowerCase();
-  const isSaveNode = typeLower.includes("save") && !typeLower.includes("checkpoint") && !typeLower.includes("model") && !typeLower.includes("preview");
-  const seenValues = /* @__PURE__ */ new Set();
-  const normalizeValue = (value) => {
-    if (value === null || value === void 0) return "";
-    if (typeof value === "string") return value.trim();
-    if (typeof value === "number" || typeof value === "boolean") return String(value);
-    return JSON.stringify(value);
-  };
-  const isMeaningfulValue = (value) => {
-    if (value === null || value === void 0) return false;
-    if (typeof value === "string") return value.trim().length > 0;
-    return true;
-  };
+  typeLower.includes("save") && !typeLower.includes("checkpoint") && !typeLower.includes("model") && !typeLower.includes("preview");
   const createParameterItem = (widget) => {
     const widgetType = WidgetSyncManager.getWidgetType(widget);
     const constraints = WidgetSyncManager.extractConstraints(widget);
@@ -205,33 +91,16 @@ function getImportantNodeParameters(nodeInfo) {
       nodeId: nodeInfo.id
     };
   };
-  const addIfNotDuplicate = (widget) => {
-    const normalizedValue = normalizeValue(widget.value);
-    if (typeof widget.value === "string" && isMeaningfulValue(widget.value)) {
-      if (seenValues.has(normalizedValue)) {
-        return false;
-      }
-      seenValues.add(normalizedValue);
-    }
+  const addWidget = (widget) => {
     parameters.push(createParameterItem(widget));
     return true;
   };
-  if (nodeType && shouldShowAllWidgets(nodeType)) {
-    for (const widget of nodeInfo.widgets) {
-      if (widget.name && widget.name !== "") {
-        const widgetName = widget.name.toLowerCase();
-        if (!SKIP_WIDGET_NAMES.some((skip) => widgetName.includes(skip))) {
-          addIfNotDuplicate(widget);
-        }
-      }
-    }
-    return parameters;
-  }
-  const importantParams = isSaveNode ? SAVE_NODE_PARAMS : COMPLEX_NODE_PARAMS;
   for (const widget of nodeInfo.widgets) {
-    const paramName = widget.name.toLowerCase();
-    if (importantParams.some((param) => paramName.includes(param))) {
-      addIfNotDuplicate(widget);
+    if (widget.name && widget.name !== "") {
+      const widgetName = widget.name.toLowerCase();
+      if (!SKIP_WIDGET_NAMES.includes(widgetName)) {
+        addWidget(widget);
+      }
     }
   }
   return parameters;

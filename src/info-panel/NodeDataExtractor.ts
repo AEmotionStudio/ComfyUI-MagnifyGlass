@@ -29,8 +29,9 @@ export interface ParameterItem {
     value: string;
     // Editing metadata
     widgetName?: string;       // Original widget name for syncing
-    widgetType?: string;       // Widget type (number, combo, text, etc.)
-    isEditable?: boolean;      // Whether this can be edited
+    widgetType?: string;       // Widget type (number, combo, text, button, etc.)
+    isEditable?: boolean;      // Whether this can be edited (value-based)
+    isActionable?: boolean;    // Whether this is an action button (callback-based)
     rawValue?: unknown;        // Original unformatted value
     constraints?: WidgetConstraintsInfo;  // Widget constraints for validation
     nodeId?: number;           // Node ID for sync operations
@@ -269,6 +270,8 @@ export function getImportantNodeParameters(nodeInfo: NodeInfo): ParameterItem[] 
         const widgetType = WidgetSyncManager.getWidgetType(widget);
         const constraints = WidgetSyncManager.extractConstraints(widget);
         const isEditable = WidgetSyncManager.isWidgetEditable(widget);
+        // Button widgets are actionable (can be clicked to trigger callbacks)
+        const isActionable = widgetType === 'button';
 
         return {
             label: widget.name,
@@ -277,6 +280,7 @@ export function getImportantNodeParameters(nodeInfo: NodeInfo): ParameterItem[] 
             widgetName: widget.name,
             widgetType: widgetType,
             isEditable: isEditable,
+            isActionable: isActionable,
             rawValue: widget.value,
             constraints: constraints,
             nodeId: nodeInfo.id

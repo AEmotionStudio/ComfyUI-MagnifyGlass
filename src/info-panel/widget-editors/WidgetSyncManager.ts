@@ -255,6 +255,9 @@ export class WidgetSyncManager {
 
         const type = (widget.type || '').toLowerCase();
 
+        // Button widgets - explicit type check
+        if (type === 'button') return 'button';
+
         // Map ComfyUI widget types to our categories
         if (type === 'number' || type === 'int' || type === 'float') return 'number';
         if (type === 'combo' || type === 'string' && Array.isArray(widget.options)) return 'combo';
@@ -265,6 +268,25 @@ export class WidgetSyncManager {
         // Check for array options (combo indicator)
         if (Array.isArray(widget.options) && widget.options.length > 0) {
             return 'combo';
+        }
+
+        // Heuristic: detect button widgets by name patterns and callback presence
+        if (typeof widget.callback === 'function' && widget.name) {
+            const name = widget.name.toLowerCase();
+            // Button-like name patterns
+            const buttonPatterns = ['show', 'save', 'open', 'load', 'export', 'import', 'reset', 'clear', 'apply', 'run', 'execute', 'preview', 'refresh', 'update'];
+            const hasButtonName = buttonPatterns.some(pattern => name.includes(pattern));
+            // Non-meaningful values suggest it's an action button, not an editable field
+            const hasNonEditableValue = widget.value === undefined || widget.value === null || typeof widget.value === 'boolean';
+
+            if (hasButtonName && hasNonEditableValue) {
+                return 'button';
+            }
+        }
+
+        // Fallback: widgets with callback but no value and no options are likely buttons
+        if (typeof widget.callback === 'function' && widget.value === undefined && !Array.isArray(widget.options)) {
+            return 'button';
         }
 
         // Default to text for unknown types
@@ -285,6 +307,10 @@ export class WidgetSyncManager {
 
         // Check type
         const type = this.getWidgetType(widget);
+
+        // Button widgets are actionable, not editable
+        if (type === 'button') return false;
+
         const editableTypes = ['number', 'text', 'combo', 'boolean', 'slider', 'INT', 'FLOAT'];
 
         return editableTypes.includes(type) || editableTypes.includes(type.toUpperCase());

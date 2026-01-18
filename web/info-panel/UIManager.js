@@ -681,10 +681,13 @@ class UIManager {
       const constraintsJson = isEditable && item.constraints ? escapeHtml(JSON.stringify(item.constraints)) : "";
       const rawValueStr = isEditable ? typeof item.rawValue === "boolean" ? item.rawValue ? "true" : "false" : escapeHtml(String(item.rawValue ?? "")) : "";
       const editableAttrs = isEditable ? `data-editable="true" data-widget-name="${escapeHtml(item.widgetName)}" data-widget-type="${escapeHtml(item.widgetType || "text")}" data-raw-value="${rawValueStr}" data-constraints="${constraintsJson}"` : "";
+      const isActionable = item.isActionable && item.widgetName && item.nodeId !== void 0;
+      const actionableClass = isActionable ? "actionable" : "";
+      const actionableAttrs = isActionable ? `data-actionable="true" data-widget-name="${escapeHtml(item.widgetName)}" data-widget-type="button"` : "";
       const dropdownIcon = item.clickable && item.clickable !== "zoom" ? '<span class="dropdown-indicator" style="margin-left: 4px; opacity: 0.6; font-size: 10px;">▼</span>' : "";
       const copyButton = item.copyable ? `<button class="copy-btn" data-copy-value="${escapeHtml(String(item.value))}" title="Copy to clipboard">${Icons.copy}</button>` : "";
       return `
-                            <div class="info-row ${clickableClass} ${editableClass}${item.copyable ? " copyable-row" : ""}" ${clickableAttr} ${nodeIdAttr} ${editableAttrs} style="${item.clickable ? "cursor: pointer;" : ""}">
+                            <div class="info-row ${clickableClass} ${editableClass} ${actionableClass}${item.copyable ? " copyable-row" : ""}" ${clickableAttr} ${nodeIdAttr} ${editableAttrs} ${actionableAttrs} style="${item.clickable ? "cursor: pointer;" : ""}">
                                 ${copyButton}
                                 <span class="info-label">${escapeHtml(item.label)}</span>
                                 <span class="info-value ${valueClass} original" ${valueAttributes}>${value}${dropdownIcon}</span>
@@ -700,6 +703,41 @@ class UIManager {
     if (isStickyEnabled) {
       this.attachEditableRowHandlers();
     }
+    this.attachActionableRowHandlers();
+  }
+  /**
+   * Attach handlers for actionable (button) widget rows.
+   * Creates inline button controls that invoke widget callbacks.
+   */
+  attachActionableRowHandlers() {
+    if (!this.elements.content) return;
+    const actionableRows = this.elements.content.querySelectorAll('[data-actionable="true"]');
+    actionableRows.forEach((row) => {
+      const rowEl = row;
+      const valueEl = rowEl.querySelector(".info-value.original");
+      const inlineContainer = rowEl.querySelector(".inline-control-container");
+      if (!valueEl || !inlineContainer) return;
+      const nodeId = parseInt(rowEl.dataset.nodeId || "0", 10);
+      const widgetName = rowEl.dataset.widgetName || "";
+      if (isNaN(nodeId) || !widgetName) return;
+      const controlKey = `action:${nodeId}:${widgetName}`;
+      const control = InlineControlFactory.createControl({
+        nodeId,
+        widgetName,
+        widgetType: "button",
+        currentValue: widgetName,
+        // Use widget name as button context
+        onChange: () => {
+        }
+        // Buttons don't change values
+      });
+      if (control) {
+        this.activeInlineControls.set(controlKey, control);
+        inlineContainer.appendChild(control.element);
+        inlineContainer.style.display = "flex";
+        valueEl.style.display = "none";
+      }
+    });
   }
   /**
    * Cleanup active widget editors, inline controls, and drag controllers.

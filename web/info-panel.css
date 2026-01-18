@@ -1485,3 +1485,50 @@
     background: #ffffff;
     color: var(--info-panel-accent-color, #0366d6);
 }
+
+/* ==========================================================================
+   Inline Button Control
+   ========================================================================== */
+
+.inline-control.inline-button {
+    display: flex;
+    align-items: center;
+}
+
+.inline-action-button {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 13px;
+    background: var(--info-panel-accent-color, #a0d468);
+    color: var(--comfy-menu-bg, #1a1a1a);
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.inline-action-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+}
+
+.inline-action-button:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+/* Light theme adjustments */
+.magnify-info-panel.theme-light .inline-action-button {
+    background: var(--info-panel-accent-color, #0066cc);
+    color: #ffffff;
+}
+
+.magnify-info-panel.theme-github .inline-action-button {
+    background: var(--info-panel-accent-color, #0366d6);
+    color: #ffffff;
+}

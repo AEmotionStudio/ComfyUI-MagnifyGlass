@@ -7,7 +7,7 @@ class InlineControlFactory {
    */
   static shouldUseInlineControl(widgetType) {
     const type = widgetType.toLowerCase();
-    return type === "toggle" || type === "boolean" || type === "combo";
+    return type === "toggle" || type === "boolean" || type === "combo" || type === "button";
   }
   /**
    * Create an inline control for the given configuration
@@ -20,6 +20,8 @@ class InlineControlFactory {
         return this.createInlineToggle(config);
       case "combo":
         return this.createInlineDropdown(config);
+      case "button":
+        return this.createInlineButton(config);
       default:
         return null;
     }
@@ -142,6 +144,89 @@ class InlineControlFactory {
       },
       destroy: () => {
         activeDropdown == null ? void 0 : activeDropdown.hide();
+        container.remove();
+      }
+    };
+  }
+  /**
+   * Create inline button for action widgets
+   * Invokes the widget's callback when clicked
+   */
+  static createInlineButton(config) {
+    const container = document.createElement("div");
+    container.className = "inline-control inline-button";
+    const button = document.createElement("button");
+    button.className = "inline-action-button";
+    let buttonLabel = "Click";
+    const val = config.currentValue;
+    if (typeof val === "string" && val.length > 0 && val !== "null" && val !== "true" && val !== "false") {
+      buttonLabel = val;
+    }
+    button.textContent = buttonLabel;
+    button.type = "button";
+    button.style.cssText = `
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            background: var(--info-panel-accent-color, #a0d468);
+            color: var(--comfy-menu-bg, #1a1a1a);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        `;
+    container.addEventListener("click", (e) => e.stopPropagation());
+    container.addEventListener("mousedown", (e) => e.stopPropagation());
+    container.addEventListener("mouseup", (e) => e.stopPropagation());
+    button.addEventListener("click", (e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      button.style.transform = "scale(0.95)";
+      setTimeout(() => {
+        button.style.transform = "";
+      }, 100);
+      const app = window.app;
+      if (!(app == null ? void 0 : app.graph)) {
+        Logger.warn(`[InlineControl] No app.graph available`);
+        return;
+      }
+      const node = app.graph.getNodeById(config.nodeId);
+      if (!(node == null ? void 0 : node.widgets)) {
+        Logger.warn(`[InlineControl] Node ${config.nodeId} not found or has no widgets`);
+        return;
+      }
+      const widget = node.widgets.find((w) => w.name === config.widgetName);
+      if (widget && typeof widget.callback === "function") {
+        try {
+          widget.callback(widget.value, app.canvas, node, [0, 0], null);
+          Logger.debug(`[InlineControl] Button ${config.widgetName} clicked successfully`);
+        } catch (error) {
+          Logger.warn(`[InlineControl] Button callback failed:`, error);
+        }
+      } else {
+        Logger.warn(`[InlineControl] Widget ${config.widgetName} not found or has no callback`);
+      }
+    });
+    button.addEventListener("mouseenter", () => {
+      button.style.transform = "translateY(-1px)";
+      button.style.boxShadow = "0 3px 8px rgba(0, 0, 0, 0.25)";
+    });
+    button.addEventListener("mouseleave", () => {
+      button.style.transform = "";
+      button.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.2)";
+    });
+    container.appendChild(button);
+    return {
+      element: container,
+      getValue: () => config.currentValue,
+      setValue: () => {
+      },
+      destroy: () => {
         container.remove();
       }
     };

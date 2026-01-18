@@ -273,8 +273,13 @@ class MagnifyGlass {
     }
     const rect = this.litegraphCanvas.getBoundingClientRect();
     const dpr = rect.width > 0 ? this.litegraphCanvas.width / rect.width : 1;
-    const cursorCssX = this.state.x / dpr;
-    const cursorCssY = this.state.y / dpr;
+    const currentScale = this.state.canvasScale;
+    const isVirtualZoomMode = currentScale < 0.7;
+    const canvasRect = rect;
+    const pivotCssX = this.state.x / dpr;
+    const pivotCssY = this.state.y / dpr;
+    const cursorCssX = pivotCssX;
+    const cursorCssY = pivotCssY;
     const cursorGraphX = (cursorCssX - this.state.canvasOffsetX) / this.state.canvasScale;
     const cursorGraphY = (cursorCssY - this.state.canvasOffsetY) / this.state.canvasScale;
     const targetGraphCenterX = cursorGraphX + this.config.offsetX;
@@ -342,16 +347,10 @@ class MagnifyGlass {
         }
         if (elementToProcess && (isVideoElement || isImageElement)) {
           const widgetRect = elementToProcess.getBoundingClientRect();
-          const canvasRect = rect;
-          const dpr2 = rect.width > 0 ? this.litegraphCanvas.width / rect.width : 1;
-          const currentScale = this.state.canvasScale;
-          const isVirtualZoomMode = currentScale < 0.7;
           const widgetCssX = widgetRect.left - canvasRect.left;
           const widgetCssY = widgetRect.top - canvasRect.top;
           const widgetCssWidth = widgetRect.width;
           const widgetCssHeight = widgetRect.height;
-          const pivotCssX = this.state.x / dpr2;
-          const pivotCssY = this.state.y / dpr2;
           let finalWidgetCssX;
           let finalWidgetCssY;
           let finalWidgetCssWidth;
@@ -367,10 +366,10 @@ class MagnifyGlass {
             finalWidgetCssWidth = widgetCssWidth;
             finalWidgetCssHeight = widgetCssHeight;
           }
-          const widgetCanvasX = finalWidgetCssX * dpr2;
-          const widgetCanvasY = finalWidgetCssY * dpr2;
-          const widgetCanvasWidth = finalWidgetCssWidth * dpr2;
-          const widgetCanvasHeight = finalWidgetCssHeight * dpr2;
+          const widgetCanvasX = finalWidgetCssX * dpr;
+          const widgetCanvasY = finalWidgetCssY * dpr;
+          const widgetCanvasWidth = finalWidgetCssWidth * dpr;
+          const widgetCanvasHeight = finalWidgetCssHeight * dpr;
           const widgetSourceRect = {
             x: widgetCanvasX,
             y: widgetCanvasY,

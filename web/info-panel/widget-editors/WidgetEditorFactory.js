@@ -362,6 +362,14 @@ class WidgetEditorFactory {
       var _a;
       return (_a = config.onBlur) == null ? void 0 : _a.call(config);
     });
+    slider.addEventListener("keydown", (e) => {
+      var _a;
+      if (e.key === "Escape") {
+        e.preventDefault();
+        slider.blur();
+        (_a = config.onBlur) == null ? void 0 : _a.call(config);
+      }
+    });
     container.appendChild(slider);
     container.appendChild(valueDisplay);
     return {

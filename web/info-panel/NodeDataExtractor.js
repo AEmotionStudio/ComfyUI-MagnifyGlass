@@ -191,6 +191,7 @@ function getImportantNodeParameters(nodeInfo) {
     const widgetType = WidgetSyncManager.getWidgetType(widget);
     const constraints = WidgetSyncManager.extractConstraints(widget);
     const isEditable = WidgetSyncManager.isWidgetEditable(widget);
+    const isActionable = widgetType === "button";
     return {
       label: widget.name,
       value: formatWidgetValue(widget.value),
@@ -198,6 +199,7 @@ function getImportantNodeParameters(nodeInfo) {
       widgetName: widget.name,
       widgetType,
       isEditable,
+      isActionable,
       rawValue: widget.value,
       constraints,
       nodeId: nodeInfo.id

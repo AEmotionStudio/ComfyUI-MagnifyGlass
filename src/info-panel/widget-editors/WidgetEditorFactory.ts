@@ -428,6 +428,15 @@ export class WidgetEditorFactory {
         slider.addEventListener('focus', () => config.onFocus?.());
         slider.addEventListener('blur', () => config.onBlur?.());
 
+        // Handle Escape to close the editor
+        slider.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                slider.blur();
+                config.onBlur?.();
+            }
+        });
+
         container.appendChild(slider);
         container.appendChild(valueDisplay);
 

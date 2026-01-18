@@ -157,6 +157,7 @@ class WidgetSyncManager {
   static getWidgetType(widget) {
     if (!widget) return "unknown";
     const type = (widget.type || "").toLowerCase();
+    if (type === "button") return "button";
     if (type === "number" || type === "int" || type === "float") return "number";
     if (type === "combo" || type === "string" && Array.isArray(widget.options)) return "combo";
     if (type === "toggle" || type === "boolean") return "boolean";
@@ -164,6 +165,18 @@ class WidgetSyncManager {
     if (type === "text" || type === "string" || type === "customtext") return "text";
     if (Array.isArray(widget.options) && widget.options.length > 0) {
       return "combo";
+    }
+    if (typeof widget.callback === "function" && widget.name) {
+      const name = widget.name.toLowerCase();
+      const buttonPatterns = ["show", "save", "open", "load", "export", "import", "reset", "clear", "apply", "run", "execute", "preview", "refresh", "update"];
+      const hasButtonName = buttonPatterns.some((pattern) => name.includes(pattern));
+      const hasNonEditableValue = widget.value === void 0 || widget.value === null || typeof widget.value === "boolean";
+      if (hasButtonName && hasNonEditableValue) {
+        return "button";
+      }
+    }
+    if (typeof widget.callback === "function" && widget.value === void 0 && !Array.isArray(widget.options)) {
+      return "button";
     }
     return "text";
   }
@@ -175,6 +188,7 @@ class WidgetSyncManager {
     if (widget.hidden) return false;
     if (widget.readonly) return false;
     const type = this.getWidgetType(widget);
+    if (type === "button") return false;
     const editableTypes = ["number", "text", "combo", "boolean", "slider", "INT", "FLOAT"];
     return editableTypes.includes(type) || editableTypes.includes(type.toUpperCase());
   }

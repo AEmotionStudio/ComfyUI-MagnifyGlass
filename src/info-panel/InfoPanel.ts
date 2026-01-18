@@ -202,10 +202,18 @@ export class InfoPanel {
 
         let info = this.informationGatherer.gatherInformation();
 
-        // NODE SELECTION OVERRIDE - check if user has selected a specific node
+        // AUTO-CLEAR SELECTION: If user hovers a different node, clear the manual selection
+        // This allows the dropdown selection to be a "jump to" action, then resume normal hover
         const selectedNodeId = this.stateManager.state.selectedNodeId;
-        if (selectedNodeId !== null) {
-            const selectedNode = this.uiManager.nodeSelector.getNodeById(selectedNodeId);
+        if (selectedNodeId !== null && info.hoveredNode && info.hoveredNode.id !== selectedNodeId) {
+            // User is hovering a different node than the selected one - clear selection
+            this.stateManager.clearSelectedNode();
+        }
+
+        // NODE SELECTION OVERRIDE - check if user has selected a specific node (after auto-clear check)
+        const currentSelectedId = this.stateManager.state.selectedNodeId;
+        if (currentSelectedId !== null) {
+            const selectedNode = this.uiManager.nodeSelector.getNodeById(currentSelectedId);
             if (selectedNode) {
                 // Override with selected node info
                 const detailedInfo = this.informationGatherer.getDetailedNodeInfo(

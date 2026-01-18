@@ -557,11 +557,30 @@
     align-items: flex-start;
     padding: 10px 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    transition: all 0.2s ease;
+    transition: border-bottom-color 0.2s ease;
     border-radius: 4px;
     margin: 0 -8px;
     padding-left: 8px;
     padding-right: 8px;
+    /* Create stacking context so ::before stays behind interactive controls */
+    position: relative;
+    isolation: isolate;
+}
+
+/* Hover background via pseudo-element - placed behind all interactive controls */
+.info-row::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 4px;
+    background: transparent;
+    z-index: -1;
+    transition: background 0.2s ease;
+    pointer-events: none;
+}
+
+.info-row:hover::before {
+    background: rgba(255, 255, 255, 0.03);
 }
 
 .info-row:last-child {
@@ -569,7 +588,7 @@
 }
 
 .info-row:hover {
-    background: rgba(255, 255, 255, 0.03);
+    /* Background now handled by ::before pseudo-element */
     border-bottom-color: rgba(255, 255, 255, 0.08);
 }
 
@@ -1368,6 +1387,7 @@
     position: relative;
     cursor: ew-resize;
     user-select: none;
+    transition: none;
 }
 
 /* Value container in draggable rows should show text cursor for click-to-edit */
@@ -1395,7 +1415,6 @@
             rgba(116, 185, 255, 0.3) 80%,
             transparent 100%);
     opacity: 0;
-    transition: opacity 0.2s ease;
 }
 
 .info-row.draggable:hover::after {
@@ -1420,7 +1439,6 @@
     opacity: 0;
     color: rgba(255, 255, 255, 0.4);
     pointer-events: none;
-    transition: opacity 0.2s ease;
 }
 
 .info-row.draggable:hover .drag-indicator {

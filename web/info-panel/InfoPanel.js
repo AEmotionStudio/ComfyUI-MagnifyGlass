@@ -133,8 +133,12 @@ class InfoPanel {
     }
     let info = this.informationGatherer.gatherInformation();
     const selectedNodeId = this.stateManager.state.selectedNodeId;
-    if (selectedNodeId !== null) {
-      const selectedNode = this.uiManager.nodeSelector.getNodeById(selectedNodeId);
+    if (selectedNodeId !== null && info.hoveredNode && info.hoveredNode.id !== selectedNodeId) {
+      this.stateManager.clearSelectedNode();
+    }
+    const currentSelectedId = this.stateManager.state.selectedNodeId;
+    if (currentSelectedId !== null) {
+      const selectedNode = this.uiManager.nodeSelector.getNodeById(currentSelectedId);
       if (selectedNode) {
         const detailedInfo = this.informationGatherer.getDetailedNodeInfo(
           selectedNode,

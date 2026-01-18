@@ -24,10 +24,8 @@ export interface DragConfig {
  * Default sensitivity settings
  */
 const DRAG_SENSITIVITY = {
-    // Pixels per unit change for integers
-    intPixelsPerUnit: 8,
-    // Pixels per 0.1 change for floats
-    floatPixelsPerTenth: 10,
+    // Pixels to drag for one step change (applies to all numeric types)
+    pixelsPerStep: 10,
     // Minimum pixels to trigger option cycle for combos
     comboThreshold: 40,
 };
@@ -48,6 +46,8 @@ export class DragValueController {
     // Bound event handlers for cleanup
     private boundPointerMove: (e: PointerEvent) => void;
     private boundPointerUp: (e: PointerEvent) => void;
+    private boundPointerCancel: (e: PointerEvent) => void;
+    private boundLostCapture: (e: PointerEvent) => void;
 
     constructor(element: HTMLElement, config: DragConfig) {
         this.element = element;
@@ -55,6 +55,8 @@ export class DragValueController {
 
         this.boundPointerMove = this.onPointerMove.bind(this);
         this.boundPointerUp = this.onPointerUp.bind(this);
+        this.boundPointerCancel = this.onPointerCancel.bind(this);
+        this.boundLostCapture = this.onLostCapture.bind(this);
 
         this.init();
     }
@@ -130,11 +132,14 @@ export class DragValueController {
         // Capture pointer for reliable tracking
         this.element.setPointerCapture(e.pointerId);
 
-        // Add document-level listeners
-        document.addEventListener('pointermove', this.boundPointerMove);
-        document.addEventListener('pointerup', this.boundPointerUp);
+        // Add document-level listeners with capture phase for reliability
+        document.addEventListener('pointermove', this.boundPointerMove, true);
+        document.addEventListener('pointerup', this.boundPointerUp, true);
+        document.addEventListener('pointercancel', this.boundPointerCancel, true);
+        this.element.addEventListener('lostpointercapture', this.boundLostCapture);
 
         e.preventDefault();
+        e.stopPropagation();
         Logger.debug(`[DragValue] Started drag on ${this.config.widgetName}`);
     }
 
@@ -143,6 +148,10 @@ export class DragValueController {
      */
     private onPointerMove(e: PointerEvent): void {
         if (!this.isDragging) return;
+
+        // Prevent browser from interpreting as text selection or native drag
+        e.preventDefault();
+        e.stopPropagation();
 
         const deltaX = e.clientX - this.startX;
         const type = this.config.widgetType.toLowerCase();
@@ -156,25 +165,20 @@ export class DragValueController {
 
     /**
      * Handle number value drag
+     * Uses discrete stepping: every N pixels = exactly 1 step change
      */
     private handleNumberDrag(deltaX: number): void {
         const constraints = this.config.constraints;
         const isInt = this.config.widgetType.toLowerCase() === 'int';
 
-        // Calculate sensitivity based on type and constraints
-        let sensitivity: number;
-        if (isInt) {
-            sensitivity = DRAG_SENSITIVITY.intPixelsPerUnit;
-        } else {
-            // For floats, adjust based on step
-            const step = constraints?.step ?? 0.1;
-            sensitivity = DRAG_SENSITIVITY.floatPixelsPerTenth / (step / 0.1);
-        }
+        // Determine the step size (1 for integers, 0.1 or widget step for floats)
+        const step = constraints?.step ?? (isInt ? 1 : 0.1);
+
+        // Calculate discrete number of steps (truncate, don't round)
+        const steps = Math.trunc(deltaX / DRAG_SENSITIVITY.pixelsPerStep);
 
         // Calculate new value
-        const units = deltaX / sensitivity;
-        const step = constraints?.step ?? (isInt ? 1 : 0.1);
-        let newValue = this.startValue + (units * step);
+        let newValue = this.startValue + (steps * step);
 
         // Apply constraints
         if (constraints?.min !== undefined) {
@@ -184,12 +188,7 @@ export class DragValueController {
             newValue = Math.min(constraints.max, newValue);
         }
 
-        // Round to step precision
-        if (step) {
-            newValue = Math.round(newValue / step) * step;
-        }
-
-        // Round for display
+        // Round for display precision
         if (isInt) {
             newValue = Math.round(newValue);
         } else {
@@ -234,22 +233,49 @@ export class DragValueController {
      */
     private onPointerUp(e: PointerEvent): void {
         if (!this.isDragging) return;
+        this.endDrag(e.pointerId);
+        Logger.debug(`[DragValue] Ended drag on ${this.config.widgetName}`);
+    }
 
+    /**
+     * Handle pointer cancel - browser cancelled the pointer (e.g., touch scroll)
+     */
+    private onPointerCancel(e: PointerEvent): void {
+        if (!this.isDragging) return;
+        this.endDrag(e.pointerId);
+        Logger.debug(`[DragValue] Drag cancelled on ${this.config.widgetName}`);
+    }
+
+    /**
+     * Handle lost pointer capture - capture was taken by another element
+     */
+    private onLostCapture(_e: PointerEvent): void {
+        if (!this.isDragging) return;
+        this.endDrag();
+        Logger.debug(`[DragValue] Lost capture on ${this.config.widgetName}`);
+    }
+
+    /**
+     * Common cleanup for ending drag
+     */
+    private endDrag(pointerId?: number): void {
         this.isDragging = false;
         this.element.classList.remove('dragging');
 
-        // Release pointer capture
-        try {
-            this.element.releasePointerCapture(e.pointerId);
-        } catch {
-            // Ignore if already released
+        // Release pointer capture if we have a pointer ID
+        if (pointerId !== undefined) {
+            try {
+                this.element.releasePointerCapture(pointerId);
+            } catch {
+                // Ignore if already released
+            }
         }
 
-        // Remove document-level listeners
-        document.removeEventListener('pointermove', this.boundPointerMove);
-        document.removeEventListener('pointerup', this.boundPointerUp);
-
-        Logger.debug(`[DragValue] Ended drag on ${this.config.widgetName}`);
+        // Remove all listeners
+        document.removeEventListener('pointermove', this.boundPointerMove, true);
+        document.removeEventListener('pointerup', this.boundPointerUp, true);
+        document.removeEventListener('pointercancel', this.boundPointerCancel, true);
+        this.element.removeEventListener('lostpointercapture', this.boundLostCapture);
     }
 
     /**
@@ -271,9 +297,11 @@ export class DragValueController {
             indicator.remove();
         }
 
-        // Remove document listeners if still attached
-        document.removeEventListener('pointermove', this.boundPointerMove);
-        document.removeEventListener('pointerup', this.boundPointerUp);
+        // Remove document listeners if still attached (with capture flag)
+        document.removeEventListener('pointermove', this.boundPointerMove, true);
+        document.removeEventListener('pointerup', this.boundPointerUp, true);
+        document.removeEventListener('pointercancel', this.boundPointerCancel, true);
+        this.element.removeEventListener('lostpointercapture', this.boundLostCapture);
     }
 
     /**

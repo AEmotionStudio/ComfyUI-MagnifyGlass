@@ -53,6 +53,8 @@ export class UIManager {
     private activeInlineControls: Map<string, InlineControlInstance> = new Map();
     // Track active drag controllers for cleanup
     private activeDragControllers: Map<string, DragValueController> = new Map();
+    // Hotkey handler for Focus Node
+    private hotkeyHandler: ((e: KeyboardEvent) => void) | null = null;
 
     constructor(stateManager: StateManager) {
         this.stateManager = stateManager;
@@ -66,6 +68,7 @@ export class UIManager {
 
         this.createPanel();
         this.injectStyles();
+        this.setupHotkeys();
     }
 
     /**
@@ -1488,7 +1491,7 @@ export class UIManager {
         // Cleanup function to remove all listeners
         const cleanup = () => {
             document.removeEventListener('mousedown', closeHandler, true);
-            document.removeEventListener('keydown', keyHandler);
+            window.removeEventListener('keydown', keyHandler, true);  // Match window listener
             if (this.elements.panel) {
                 this.elements.panel.removeEventListener('mousedown', panelCloseHandler, true);
             }
@@ -1556,33 +1559,45 @@ export class UIManager {
             newItem.scrollIntoView({ block: 'nearest' });
         };
 
-        // Keyboard handler
+        // Keyboard handler - works while dropdown is open regardless of focus
+        // Uses window-level listener with stopImmediatePropagation to intercept before ComfyUI/LiteGraph
         const keyHandler = (e: KeyboardEvent) => {
-            // Only handle keys if the dropdown or its children have focus
-            // This prevents intercepting keys (including Escape) when user tabs away
-            if (document.activeElement !== dropdown && !dropdown.contains(document.activeElement)) {
-                return;
-            }
+            // DEBUG: Log all key events while dropdown is open
+            console.debug('[DropdownKeyHandler] Key pressed:', e.key, 'activeIndex:', activeIndex);
+
+            // Handle arrow keys and Enter for navigation regardless of focus
+            // Only Escape should check focus to avoid intercepting when user tabs away
 
             if (e.key === 'Escape') {
+                // For Escape, require focus to avoid breaking other components
+                if (document.activeElement !== dropdown && !dropdown.contains(document.activeElement)) {
+                    return;
+                }
                 e.preventDefault();
                 e.stopPropagation();
+                e.stopImmediatePropagation();
                 this.hideDropdown();
-                // Cleanup is now handled by hideDropdown
                 return;
             }
 
+            // Arrow keys and Enter work while dropdown is visible
             if (e.key === 'ArrowDown') {
+                console.debug('[DropdownKeyHandler] ArrowDown - moving to', activeIndex + 1);
                 e.preventDefault();
                 e.stopPropagation();
+                e.stopImmediatePropagation();
                 updateActiveItem(activeIndex + 1);
             } else if (e.key === 'ArrowUp') {
+                console.debug('[DropdownKeyHandler] ArrowUp - moving to', activeIndex - 1);
                 e.preventDefault();
                 e.stopPropagation();
+                e.stopImmediatePropagation();
                 updateActiveItem(activeIndex - 1);
             } else if (e.key === 'Enter') {
+                console.debug('[DropdownKeyHandler] Enter - selecting', activeIndex);
                 e.preventDefault();
                 e.stopPropagation();
+                e.stopImmediatePropagation();
                 const items = dropdown.querySelectorAll('.dropdown-item');
                 if (activeIndex >= 0 && activeIndex < items.length) {
                     (items[activeIndex] as HTMLElement).click();
@@ -1599,9 +1614,10 @@ export class UIManager {
             }
 
             document.addEventListener('mousedown', closeHandler, true);  // true = capture phase
-            document.addEventListener('keydown', keyHandler);
+            // Use window-level listener with capture phase to intercept before ComfyUI canvas handlers
+            window.addEventListener('keydown', keyHandler, true);
 
-            // Also focus the dropdown
+            // Also focus the dropdown for accessibility
             dropdown.focus();
 
             // Also listen on the panel itself with capture phase
@@ -1699,9 +1715,69 @@ export class UIManager {
         dropdown.style.maxHeight = `${maxHeight}px`;
     }
 
+    /**
+     * Setup global hotkeys for the info panel
+     */
+    private setupHotkeys(): void {
+        this.hotkeyHandler = (e: KeyboardEvent) => {
+            // Check for * key (Shift+8 on US keyboard or NumPad *)
+            if (e.key === '*') {
+                // Don't trigger if user is typing in an input field
+                const activeElement = document.activeElement;
+                if (activeElement && (
+                    activeElement.tagName === 'INPUT' ||
+                    activeElement.tagName === 'TEXTAREA' ||
+                    (activeElement as HTMLElement).isContentEditable
+                )) {
+                    return;
+                }
+
+                e.preventDefault();
+                e.stopPropagation();
+                this.focusCurrentNode();
+            }
+        };
+
+        // Use capture phase to get the event before other handlers
+        window.addEventListener('keydown', this.hotkeyHandler, true);
+    }
+
+    /**
+     * Remove hotkey listeners
+     */
+    private cleanupHotkeys(): void {
+        if (this.hotkeyHandler) {
+            window.removeEventListener('keydown', this.hotkeyHandler, true);
+            this.hotkeyHandler = null;
+        }
+    }
+
+    /**
+     * Focus/center the canvas on the currently displayed node
+     */
+    focusCurrentNode(): void {
+        // Get current node from state or content
+        const nodeRow = this.elements.content?.querySelector('[data-node-id]') as HTMLElement;
+        if (!nodeRow) return;
+
+        const nodeId = nodeRow.dataset.nodeId;
+        if (!nodeId) return;
+
+        const app = (window as any).app;
+        if (!app?.graph) return;
+
+        const node = app.graph.getNodeById(parseInt(nodeId));
+        if (node && app.canvas) {
+            app.canvas.centerOnNode(node);
+        }
+    }
+
     cleanup(): void {
         // Clean up active editors to prevent memory leaks
         this.cleanupEditors();
+
+        // Clean up hotkey listeners
+        this.cleanupHotkeys();
 
         if (this.elements.panel && this.elements.panel.parentNode) {
             this.elements.panel.parentNode.removeChild(this.elements.panel);

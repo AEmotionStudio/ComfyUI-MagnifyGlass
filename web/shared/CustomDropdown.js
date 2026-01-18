@@ -2,12 +2,14 @@ var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 class CustomDropdown {
+  // Track active item for keyboard navigation
   constructor(config) {
     __publicField(this, "dropdown", null);
     __publicField(this, "config");
     __publicField(this, "closeHandler", null);
     __publicField(this, "keyHandler", null);
     __publicField(this, "scrollHandler", null);
+    __publicField(this, "currentIndex", 0);
     this.config = config;
   }
   /**
@@ -64,9 +66,13 @@ class CustomDropdown {
     }
     document.body.appendChild(dropdown);
     this.dropdown = dropdown;
+    this.currentIndex = this.config.options.indexOf(this.config.currentValue);
+    if (this.currentIndex < 0) this.currentIndex = 0;
+    dropdown.setAttribute("tabindex", "-1");
     this.positionWithinViewport();
     this.scrollToSelected();
     this.setupCloseHandlers();
+    dropdown.focus();
   }
   /**
    * Hide the dropdown
@@ -141,11 +147,48 @@ class CustomDropdown {
         this.hide();
       }
     };
+    const updateActiveItem = (newIndex) => {
+      if (!this.dropdown) return;
+      const items = this.dropdown.querySelectorAll(".custom-dropdown-item");
+      if (items.length === 0) return;
+      if (newIndex < 0) newIndex = 0;
+      if (newIndex >= items.length) newIndex = items.length - 1;
+      if (this.currentIndex >= 0 && this.currentIndex < items.length) {
+        const oldItem = items[this.currentIndex];
+        const isOldSelected = this.config.options[this.currentIndex] === this.config.currentValue;
+        oldItem.style.background = isOldSelected ? "rgba(78, 205, 196, 0.1)" : "transparent";
+      }
+      this.currentIndex = newIndex;
+      const newItem = items[this.currentIndex];
+      newItem.style.background = "var(--comfy-input-bg, #3a3a3a)";
+      newItem.scrollIntoView({ block: "nearest" });
+    };
     this.keyHandler = (e) => {
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
+        e.stopImmediatePropagation();
         this.hide();
+        return;
+      }
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        updateActiveItem(this.currentIndex + 1);
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        updateActiveItem(this.currentIndex - 1);
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+        if (this.currentIndex >= 0 && this.currentIndex < this.config.options.length) {
+          this.config.onChange(this.config.options[this.currentIndex]);
+          this.hide();
+        }
       }
     };
     this.scrollHandler = (e) => {
@@ -155,9 +198,9 @@ class CustomDropdown {
       this.hide();
     };
     setTimeout(() => {
+      window.addEventListener("keydown", this.keyHandler, true);
       document.addEventListener("mousedown", this.closeHandler, true);
       document.addEventListener("click", this.closeHandler, true);
-      document.addEventListener("keydown", this.keyHandler, true);
       window.addEventListener("scroll", this.scrollHandler, true);
     }, 50);
   }
@@ -171,7 +214,7 @@ class CustomDropdown {
       this.closeHandler = null;
     }
     if (this.keyHandler) {
-      document.removeEventListener("keydown", this.keyHandler, true);
+      window.removeEventListener("keydown", this.keyHandler, true);
       this.keyHandler = null;
     }
     if (this.scrollHandler) {

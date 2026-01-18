@@ -24,6 +24,7 @@ export class CustomDropdown {
     private closeHandler: ((e: MouseEvent) => void) | null = null;
     private keyHandler: ((e: KeyboardEvent) => void) | null = null;
     private scrollHandler: ((e: Event) => void) | null = null;
+    private currentIndex: number = 0;  // Track active item for keyboard navigation
 
     constructor(config: CustomDropdownConfig) {
         this.config = config;
@@ -96,6 +97,13 @@ export class CustomDropdown {
         document.body.appendChild(dropdown);
         this.dropdown = dropdown;
 
+        // Initialize currentIndex based on currently selected value
+        this.currentIndex = this.config.options.indexOf(this.config.currentValue);
+        if (this.currentIndex < 0) this.currentIndex = 0;
+
+        // Make dropdown focusable for keyboard events
+        dropdown.setAttribute('tabindex', '-1');
+
         // Position within viewport
         this.positionWithinViewport();
 
@@ -104,6 +112,9 @@ export class CustomDropdown {
 
         // Setup close handlers
         this.setupCloseHandlers();
+
+        // Focus dropdown for keyboard navigation
+        dropdown.focus();
     }
 
     /**
@@ -207,12 +218,59 @@ export class CustomDropdown {
             }
         };
 
-        // Close on ESC key - use capture phase to ensure we get the event
+        // Helper to update active item visually
+        const updateActiveItem = (newIndex: number) => {
+            if (!this.dropdown) return;
+            const items = this.dropdown.querySelectorAll('.custom-dropdown-item');
+            if (items.length === 0) return;
+
+            // Clamp index
+            if (newIndex < 0) newIndex = 0;
+            if (newIndex >= items.length) newIndex = items.length - 1;
+
+            // Remove highlight from old item
+            if (this.currentIndex >= 0 && this.currentIndex < items.length) {
+                const oldItem = items[this.currentIndex] as HTMLElement;
+                const isOldSelected = this.config.options[this.currentIndex] === this.config.currentValue;
+                oldItem.style.background = isOldSelected ? 'rgba(78, 205, 196, 0.1)' : 'transparent';
+            }
+
+            this.currentIndex = newIndex;
+
+            // Highlight new item
+            const newItem = items[this.currentIndex] as HTMLElement;
+            newItem.style.background = 'var(--comfy-input-bg, #3a3a3a)';
+            newItem.scrollIntoView({ block: 'nearest' });
+        };
+
+        // Key handler for navigation and closing
         this.keyHandler = (e: KeyboardEvent) => {
             if (e.key === 'Escape') {
                 e.preventDefault();
                 e.stopPropagation();
+                e.stopImmediatePropagation();
                 this.hide();
+                return;
+            }
+
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                updateActiveItem(this.currentIndex + 1);
+            } else if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                updateActiveItem(this.currentIndex - 1);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                if (this.currentIndex >= 0 && this.currentIndex < this.config.options.length) {
+                    this.config.onChange(this.config.options[this.currentIndex]);
+                    this.hide();
+                }
             }
         };
 
@@ -227,10 +285,11 @@ export class CustomDropdown {
 
         // Delay adding listeners to avoid immediate closure from the opening click
         setTimeout(() => {
+            // Use window and capture phase for key events to intercept before ComfyUI
+            window.addEventListener('keydown', this.keyHandler!, true);
             // Use capture phase (true) to get events before they can be stopped
             document.addEventListener('mousedown', this.closeHandler!, true);
             document.addEventListener('click', this.closeHandler!, true);
-            document.addEventListener('keydown', this.keyHandler!, true);
             window.addEventListener('scroll', this.scrollHandler!, true);
         }, 50);
     }
@@ -245,7 +304,7 @@ export class CustomDropdown {
             this.closeHandler = null;
         }
         if (this.keyHandler) {
-            document.removeEventListener('keydown', this.keyHandler, true);
+            window.removeEventListener('keydown', this.keyHandler, true);  // Match window listener
             this.keyHandler = null;
         }
         if (this.scrollHandler) {

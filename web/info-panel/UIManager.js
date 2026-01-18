@@ -26,6 +26,8 @@ class UIManager {
     __publicField(this, "activeInlineControls", /* @__PURE__ */ new Map());
     // Track active drag controllers for cleanup
     __publicField(this, "activeDragControllers", /* @__PURE__ */ new Map());
+    // Hotkey handler for Focus Node
+    __publicField(this, "hotkeyHandler", null);
     this.stateManager = stateManager;
     this.elements = {
       panel: null,
@@ -36,6 +38,7 @@ class UIManager {
     this.nodeSelector = new NodeSelector();
     this.createPanel();
     this.injectStyles();
+    this.setupHotkeys();
   }
   /**
    * Create the main panel and its components.
@@ -1096,7 +1099,7 @@ class UIManager {
     this.currentDropdown = dropdown;
     const cleanup = () => {
       document.removeEventListener("mousedown", closeHandler, true);
-      document.removeEventListener("keydown", keyHandler);
+      window.removeEventListener("keydown", keyHandler, true);
       if (this.elements.panel) {
         this.elements.panel.removeEventListener("mousedown", panelCloseHandler, true);
       }
@@ -1141,26 +1144,34 @@ class UIManager {
       newItem.scrollIntoView({ block: "nearest" });
     };
     const keyHandler = (e) => {
-      if (document.activeElement !== dropdown && !dropdown.contains(document.activeElement)) {
-        return;
-      }
+      console.debug("[DropdownKeyHandler] Key pressed:", e.key, "activeIndex:", activeIndex);
       if (e.key === "Escape") {
+        if (document.activeElement !== dropdown && !dropdown.contains(document.activeElement)) {
+          return;
+        }
         e.preventDefault();
         e.stopPropagation();
+        e.stopImmediatePropagation();
         this.hideDropdown();
         return;
       }
       if (e.key === "ArrowDown") {
+        console.debug("[DropdownKeyHandler] ArrowDown - moving to", activeIndex + 1);
         e.preventDefault();
         e.stopPropagation();
+        e.stopImmediatePropagation();
         updateActiveItem(activeIndex + 1);
       } else if (e.key === "ArrowUp") {
+        console.debug("[DropdownKeyHandler] ArrowUp - moving to", activeIndex - 1);
         e.preventDefault();
         e.stopPropagation();
+        e.stopImmediatePropagation();
         updateActiveItem(activeIndex - 1);
       } else if (e.key === "Enter") {
+        console.debug("[DropdownKeyHandler] Enter - selecting", activeIndex);
         e.preventDefault();
         e.stopPropagation();
+        e.stopImmediatePropagation();
         const items = dropdown.querySelectorAll(".dropdown-item");
         if (activeIndex >= 0 && activeIndex < items.length) {
           items[activeIndex].click();
@@ -1172,7 +1183,7 @@ class UIManager {
         return;
       }
       document.addEventListener("mousedown", closeHandler, true);
-      document.addEventListener("keydown", keyHandler);
+      window.addEventListener("keydown", keyHandler, true);
       dropdown.focus();
       if (this.elements.panel) {
         this.elements.panel.addEventListener("mousedown", panelCloseHandler, true);
@@ -1239,8 +1250,51 @@ class UIManager {
     dropdown.style.maxWidth = `${maxWidth}px`;
     dropdown.style.maxHeight = `${maxHeight}px`;
   }
+  /**
+   * Setup global hotkeys for the info panel
+   */
+  setupHotkeys() {
+    this.hotkeyHandler = (e) => {
+      if (e.key === "*") {
+        const activeElement = document.activeElement;
+        if (activeElement && (activeElement.tagName === "INPUT" || activeElement.tagName === "TEXTAREA" || activeElement.isContentEditable)) {
+          return;
+        }
+        e.preventDefault();
+        e.stopPropagation();
+        this.focusCurrentNode();
+      }
+    };
+    window.addEventListener("keydown", this.hotkeyHandler, true);
+  }
+  /**
+   * Remove hotkey listeners
+   */
+  cleanupHotkeys() {
+    if (this.hotkeyHandler) {
+      window.removeEventListener("keydown", this.hotkeyHandler, true);
+      this.hotkeyHandler = null;
+    }
+  }
+  /**
+   * Focus/center the canvas on the currently displayed node
+   */
+  focusCurrentNode() {
+    var _a;
+    const nodeRow = (_a = this.elements.content) == null ? void 0 : _a.querySelector("[data-node-id]");
+    if (!nodeRow) return;
+    const nodeId = nodeRow.dataset.nodeId;
+    if (!nodeId) return;
+    const app = window.app;
+    if (!(app == null ? void 0 : app.graph)) return;
+    const node = app.graph.getNodeById(parseInt(nodeId));
+    if (node && app.canvas) {
+      app.canvas.centerOnNode(node);
+    }
+  }
   cleanup() {
     this.cleanupEditors();
+    this.cleanupHotkeys();
     if (this.elements.panel && this.elements.panel.parentNode) {
       this.elements.panel.parentNode.removeChild(this.elements.panel);
     }

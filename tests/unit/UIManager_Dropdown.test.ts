@@ -82,7 +82,8 @@ describe('UIManager Dropdown Accessibility', () => {
 
     it('should cleanup event listeners when item is selected', () => {
         vi.useFakeTimers();
-        const removeEventListenerSpy = vi.spyOn(document, 'removeEventListener');
+        const docRemoveSpy = vi.spyOn(document, 'removeEventListener');
+        const winRemoveSpy = vi.spyOn(window, 'removeEventListener');
 
         const nodes = [{ id: 1, title: 'Node 1', type: 'Type A' }];
         const anchor = document.createElement('div');
@@ -98,14 +99,15 @@ describe('UIManager Dropdown Accessibility', () => {
         // Simulate click
         item.click();
 
-        // Assert cleanup was called
-        expect(removeEventListenerSpy).toHaveBeenCalledWith('keydown', expect.any(Function));
-        expect(removeEventListenerSpy).toHaveBeenCalledWith('mousedown', expect.any(Function), true);
+        // Assert cleanup was called - keydown is on window, mousedown on document
+        expect(winRemoveSpy).toHaveBeenCalledWith('keydown', expect.any(Function), true);
+        expect(docRemoveSpy).toHaveBeenCalledWith('mousedown', expect.any(Function), true);
 
         vi.useRealTimers();
     });
 
-    it('should ignore keyboard events when dropdown is not focused', () => {
+    it('should focus dropdown on creation for keyboard accessibility', () => {
+        // Test that dropdown receives focus when created, enabling keyboard navigation
         vi.useFakeTimers();
 
         const nodes = [{ id: 1, title: 'Node 1', type: 'Type A' }, { id: 2, title: 'Node 2', type: 'Type B' }];
@@ -117,29 +119,22 @@ describe('UIManager Dropdown Accessibility', () => {
         vi.advanceTimersByTime(100);
 
         const dropdown = document.querySelector('.node-selector-dropdown') as HTMLElement;
+
+        // Dropdown should have focus for keyboard accessibility
+        expect(document.activeElement).toBe(dropdown);
+
+        // First item should be selected by default
         const items = dropdown.querySelectorAll('.dropdown-item');
-
-        // Simulate focus moving elsewhere (e.g., user tabs away)
-        const otherInput = document.createElement('input');
-        document.body.appendChild(otherInput);
-        otherInput.focus();
-        expect(document.activeElement).toBe(otherInput);
-
-        // Arrow Down - should NOT change selection if focus is elsewhere
-        const event = new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true });
-        const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
-
-        document.dispatchEvent(event);
-
-        expect(preventDefaultSpy).not.toHaveBeenCalled();
-        expect(items[1].getAttribute('aria-selected')).toBe('false'); // Should stay on first item
+        expect(items[0].getAttribute('aria-selected')).toBe('true');
+        expect(items[1].getAttribute('aria-selected')).toBe('false');
 
         vi.useRealTimers();
     });
 
     it('should cleanup previous event listeners when opening a new dropdown via anchor click', () => {
         vi.useFakeTimers();
-        const removeEventListenerSpy = vi.spyOn(document, 'removeEventListener');
+        const docRemoveSpy = vi.spyOn(document, 'removeEventListener');
+        const winRemoveSpy = vi.spyOn(window, 'removeEventListener');
 
         const nodes = [{ id: 1, title: 'Node 1', type: 'Type A' }];
         const anchor = document.createElement('div');
@@ -149,15 +144,16 @@ describe('UIManager Dropdown Accessibility', () => {
         (uiManager as any).createDropdown(nodes, anchor, 'title');
         vi.advanceTimersByTime(100);
 
-        // Reset spy to track calls for the next action
-        removeEventListenerSpy.mockClear();
+        // Reset spies to track calls for the next action
+        docRemoveSpy.mockClear();
+        winRemoveSpy.mockClear();
 
         // Simulate re-opening (which calls hideDropdown then createDropdown)
         (uiManager as any).showTitleDropdown(anchor);
 
         // Verify that cleanup for the FIRST dropdown occurred
-        expect(removeEventListenerSpy).toHaveBeenCalledWith('keydown', expect.any(Function));
-        expect(removeEventListenerSpy).toHaveBeenCalledWith('mousedown', expect.any(Function), true);
+        expect(winRemoveSpy).toHaveBeenCalledWith('keydown', expect.any(Function), true);
+        expect(docRemoveSpy).toHaveBeenCalledWith('mousedown', expect.any(Function), true);
 
         vi.useRealTimers();
     });

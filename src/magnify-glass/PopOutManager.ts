@@ -13,7 +13,7 @@ import { WidgetSyncManager } from '../info-panel/widget-editors/WidgetSyncManage
  * Message types for BroadcastChannel communication
  */
 interface PopOutMessage {
-    type: 'frame' | 'config' | 'info' | 'close' | 'ping' | 'pong' | 'node-select' | 'nodes-list' | 'request-nodes' | 'zoom-node' | 'widget-edit';
+    type: 'frame' | 'config' | 'info' | 'close' | 'ping' | 'pong' | 'node-select' | 'nodes-list' | 'request-nodes' | 'zoom-node' | 'widget-edit' | 'button-click';
     data?: string | Partial<PopOutConfig> | PopOutInfo | NodeListData | number | WidgetEditData;
     timestamp?: number;
 }
@@ -212,6 +212,10 @@ export class PopOutManager {
                 // Popout is sending a widget value edit
                 this.handleWidgetEdit(message.data as WidgetEditData);
                 break;
+            case 'button-click':
+                // Popout is requesting a button widget callback invocation
+                this.handleButtonClick(message.data as { nodeId: number; widgetName: string });
+                break;
         }
     }
 
@@ -235,6 +239,41 @@ export class PopOutManager {
             Logger.debug(`[PopOut] Widget edit synced: ${editData.widgetName} = ${editData.value}`);
         } else {
             Logger.warn(`[PopOut] Widget edit failed: ${result.error}`);
+        }
+    }
+
+    /**
+     * Handle button click command from pop-out viewer.
+     * Invokes the widget's callback function.
+     */
+    private handleButtonClick(buttonData: { nodeId: number; widgetName: string }): void {
+        if (!buttonData || typeof buttonData.nodeId !== 'number' || !buttonData.widgetName) {
+            Logger.warn('[PopOut] Invalid button click data:', buttonData);
+            return;
+        }
+
+        const app = (window as any).app;
+        if (!app?.graph) {
+            Logger.warn('[PopOut] No app.graph available for button click');
+            return;
+        }
+
+        const node = app.graph.getNodeById(buttonData.nodeId);
+        if (!node?.widgets) {
+            Logger.warn(`[PopOut] Node ${buttonData.nodeId} not found or has no widgets`);
+            return;
+        }
+
+        const widget = node.widgets.find((w: any) => w.name === buttonData.widgetName);
+        if (widget && typeof widget.callback === 'function') {
+            try {
+                widget.callback(widget.value, app.canvas, node, [0, 0], null);
+                Logger.debug(`[PopOut] Button ${buttonData.widgetName} clicked successfully`);
+            } catch (error) {
+                Logger.warn(`[PopOut] Button callback failed:`, error);
+            }
+        } else {
+            Logger.warn(`[PopOut] Widget ${buttonData.widgetName} not found or has no callback`);
         }
     }
 
@@ -536,9 +575,24 @@ export class PopOutManager {
                 safeItem.value = item.value;
             }
 
-            // Sanitized options for widgets
-            if (item.options) {
-                safeItem.options = this.sanitizeOptions(item.options);
+            // Handle widget options - preserve arrays for combo dropdowns
+            if (item.options !== undefined) {
+                if (Array.isArray(item.options)) {
+                    // For combo widgets, options is an array of values - keep it as is
+                    safeItem.options = item.options.filter(
+                        (opt: any) => typeof opt !== 'function'
+                    );
+                } else if (typeof item.options === 'object' && item.options !== null) {
+                    // Check for options.values (ComfyUI nested format for combo widgets)
+                    if (Array.isArray(item.options.values)) {
+                        safeItem.options = item.options.values.filter(
+                            (opt: any) => typeof opt !== 'function'
+                        );
+                    } else {
+                        // For other widgets, options is an object with config (min, max, step, etc)
+                        safeItem.options = this.sanitizeOptions(item.options);
+                    }
+                }
             }
 
             return safeItem;

@@ -110,6 +110,9 @@ class PopOutManager {
       case "widget-edit":
         this.handleWidgetEdit(message.data);
         break;
+      case "button-click":
+        this.handleButtonClick(message.data);
+        break;
     }
   }
   /**
@@ -130,6 +133,37 @@ class PopOutManager {
       Logger.debug(`[PopOut] Widget edit synced: ${editData.widgetName} = ${editData.value}`);
     } else {
       Logger.warn(`[PopOut] Widget edit failed: ${result.error}`);
+    }
+  }
+  /**
+   * Handle button click command from pop-out viewer.
+   * Invokes the widget's callback function.
+   */
+  handleButtonClick(buttonData) {
+    if (!buttonData || typeof buttonData.nodeId !== "number" || !buttonData.widgetName) {
+      Logger.warn("[PopOut] Invalid button click data:", buttonData);
+      return;
+    }
+    const app = window.app;
+    if (!(app == null ? void 0 : app.graph)) {
+      Logger.warn("[PopOut] No app.graph available for button click");
+      return;
+    }
+    const node = app.graph.getNodeById(buttonData.nodeId);
+    if (!(node == null ? void 0 : node.widgets)) {
+      Logger.warn(`[PopOut] Node ${buttonData.nodeId} not found or has no widgets`);
+      return;
+    }
+    const widget = node.widgets.find((w) => w.name === buttonData.widgetName);
+    if (widget && typeof widget.callback === "function") {
+      try {
+        widget.callback(widget.value, app.canvas, node, [0, 0], null);
+        Logger.debug(`[PopOut] Button ${buttonData.widgetName} clicked successfully`);
+      } catch (error) {
+        Logger.warn(`[PopOut] Button callback failed:`, error);
+      }
+    } else {
+      Logger.warn(`[PopOut] Widget ${buttonData.widgetName} not found or has no callback`);
     }
   }
   /**
@@ -360,8 +394,20 @@ class PopOutManager {
       if (item.value !== void 0 && typeof item.value !== "function") {
         safeItem.value = item.value;
       }
-      if (item.options) {
-        safeItem.options = this.sanitizeOptions(item.options);
+      if (item.options !== void 0) {
+        if (Array.isArray(item.options)) {
+          safeItem.options = item.options.filter(
+            (opt) => typeof opt !== "function"
+          );
+        } else if (typeof item.options === "object" && item.options !== null) {
+          if (Array.isArray(item.options.values)) {
+            safeItem.options = item.options.values.filter(
+              (opt) => typeof opt !== "function"
+            );
+          } else {
+            safeItem.options = this.sanitizeOptions(item.options);
+          }
+        }
       }
       return safeItem;
     });

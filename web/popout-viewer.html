@@ -157,6 +157,54 @@
             --accent-green: #a6e22e;
         }
 
+        /* Obsidian Theme - deep purple/charcoal */
+        [data-theme="obsidian"] {
+            --bg-primary: rgb(30, 30, 40);
+            --bg-secondary: rgb(40, 40, 55);
+            --bg-tertiary: rgb(50, 50, 65);
+            --bg-elevated: rgb(45, 45, 60);
+            --border-subtle: rgba(80, 80, 100, 0.3);
+            --border-default: rgba(80, 80, 100, 0.5);
+            --text-primary: #d4d4d8;
+            --text-secondary: #a1a1aa;
+            --text-tertiary: #71717a;
+            --accent-blue: #8b5cf6;
+            --accent-green: #a78bfa;
+            --accent-purple: #8b5cf6;
+        }
+
+        /* Obsidian Dark Theme - even darker obsidian */
+        [data-theme="obsidian-dark"] {
+            --bg-primary: rgb(15, 15, 20);
+            --bg-secondary: rgb(25, 25, 35);
+            --bg-tertiary: rgb(35, 35, 45);
+            --bg-elevated: rgb(30, 30, 40);
+            --border-subtle: rgba(60, 60, 80, 0.3);
+            --border-default: rgba(60, 60, 80, 0.5);
+            --text-primary: #c4c4cc;
+            --text-secondary: #9494a0;
+            --text-tertiary: #64647a;
+            --accent-blue: #a78bfa;
+            --accent-green: #c4b5fd;
+            --accent-purple: #a78bfa;
+        }
+
+        /* Milk White Theme - soft cream/white */
+        [data-theme="milk-white"] {
+            --bg-primary: rgb(255, 253, 250);
+            --bg-secondary: rgb(250, 248, 245);
+            --bg-tertiary: rgb(245, 243, 240);
+            --bg-elevated: rgb(255, 255, 255);
+            --border-subtle: rgba(220, 215, 210, 0.5);
+            --border-default: rgba(220, 215, 210, 0.8);
+            --text-primary: #3d3d3d;
+            --text-secondary: #5a5a5a;
+            --text-tertiary: #888888;
+            --accent-blue: #7c3aed;
+            --accent-green: #059669;
+            --accent-purple: #7c3aed;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -803,14 +851,17 @@
             border: 1px solid transparent;
             transition: border-color 0.15s ease;
         }
+
         .widget-value-editable:hover {
             border-color: var(--accent-blue);
         }
+
         .widget-editor-inline {
             display: flex;
             align-items: center;
             gap: 4px;
         }
+
         .widget-editor-input {
             font-family: 'JetBrains Mono', monospace;
             font-size: 12px;
@@ -822,9 +873,11 @@
             width: 100%;
             outline: none;
         }
+
         .widget-editor-input:focus {
             box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
         }
+
         .widget-editor-select {
             font-family: 'JetBrains Mono', monospace;
             font-size: 12px;
@@ -1087,60 +1140,80 @@
         }
 
         /**
+         * Send button click to main window via BroadcastChannel
+         * This invokes the widget's callback function on the main canvas
+         */
+        function sendButtonClick(nodeId, widgetName) {
+            channel.postMessage({
+                type: 'button-click',
+                data: {
+                    nodeId: nodeId,
+                    widgetName: widgetName
+                },
+                timestamp: Date.now()
+            });
+        }
+
+        /**
          * Start editing a widget value inline
          */
         function editWidgetValue(element, nodeId, widgetName, currentValue, widgetType, options) {
             // Already editing?
             if (element.querySelector('.widget-editor-inline')) return;
-            
+
             const originalHtml = element.innerHTML;
-            const isCombo = widgetType === 'combo' && Array.isArray(options) && options.length > 0;
+            // Check for combo by looking at options array, not just type
+            const isCombo = Array.isArray(options) && options.length > 0;
             const isNumber = widgetType === 'number' || widgetType === 'int' || widgetType === 'float';
             const isBoolean = widgetType === 'toggle' || widgetType === 'boolean';
-            
+
             let editorHtml;
-            
+
             if (isCombo) {
-                const optionsHtml = options.map(opt => 
+                const optionsHtml = options.map(opt =>
                     `<option value="${escapeHtml(String(opt))}" ${opt == currentValue ? 'selected' : ''}>${escapeHtml(String(opt))}</option>`
                 ).join('');
                 editorHtml = `<select class="widget-editor-select" onchange="commitWidgetEdit(this, ${nodeId}, '${widgetName}')">${optionsHtml}</select>`;
             } else if (isBoolean) {
-                // Toggle immediately for boolean
-                const newValue = currentValue !== true && currentValue !== 'true';
+                // Read the CURRENT displayed value from the element text, not the stale parameter
+                const displayedText = element.textContent?.trim().toLowerCase();
+                const currentBool = displayedText === 'true';
+                const newValue = !currentBool;
                 sendWidgetEdit(nodeId, widgetName, newValue);
-                element.innerHTML = `<span style="color: ${newValue ? 'var(--accent-green)' : 'var(--text-tertiary)'}">${newValue ? 'true' : 'false'}</span>`;
+                // Update display - keep it simple, just update text and color
+                element.textContent = newValue ? 'true' : 'false';
+                element.style.color = newValue ? 'var(--accent-green)' : 'var(--text-tertiary)';
                 return;
             } else {
                 const inputType = isNumber ? 'number' : 'text';
                 editorHtml = `<input type="${inputType}" class="widget-editor-input" value="${escapeHtml(String(currentValue))}" 
                     onblur="commitWidgetEdit(this, ${nodeId}, '${widgetName}')" 
-                    onkeydown="if(event.key==='Enter'){this.blur();}if(event.key==='Escape'){cancelWidgetEdit(this,'${escapeHtml(originalHtml.replace(/'/g, "\\\\'"  ))}');}"/>`;
+                    onkeydown="if(event.key==='Enter'){this.blur();}if(event.key==='Escape'){cancelWidgetEdit(this,'${escapeHtml(originalHtml.replace(/'/g, "\\\\'"))}');}"/>`;
             }
-            
+
             element.innerHTML = `<div class="widget-editor-inline">${editorHtml}</div>`;
-            
+
             const input = element.querySelector('input, select');
             if (input) {
                 input.focus();
                 if (input.select) input.select();
             }
         }
-        
+
         /**
          * Commit widget edit and send to main window
          */
         function commitWidgetEdit(input, nodeId, widgetName) {
             const value = input.type === 'number' ? parseFloat(input.value) : input.value;
             sendWidgetEdit(nodeId, widgetName, value);
-            
+
             // Update display
             const container = input.closest('.widget-value-editable');
             if (container) {
                 container.innerHTML = `<span style="color: var(--accent-blue);">${escapeHtml(String(value))}</span>`;
             }
         }
-        
+
         /**
          * Cancel widget edit
          */
@@ -1248,7 +1321,7 @@
                             <!-- Dynamic Lists (Inputs/Outputs/Widgets) -->
                             ${renderList('Inputs', info.hoveredNode.inputs)}
                             ${renderList('Outputs', info.hoveredNode.outputs)}
-                            ${renderList('Widgets', info.hoveredNode.widgets)}
+                            ${renderList('Widgets', info.hoveredNode.widgets, info.hoveredNode.id)}
                         </div>
                     </div>
                 `;
@@ -1317,7 +1390,7 @@
             return String(pos);
         }
 
-        function renderList(title, items) {
+        function renderList(title, items, nodeId = null) {
             if (!items || items.length === 0) return '';
 
             // Icon mapping for different list types
@@ -1344,15 +1417,149 @@
             };
             const badgeColor = badgeColors[title] || '#888';
 
+            // Check if this is the Widgets section and we have a nodeId for editing
+            const isEditable = title === 'Widgets' && nodeId != null;
+
             const listHtml = items.map((item, index) => {
                 const name = escapeHtml(item.name || item.label || 'Unknown');
                 const type = item.type ? escapeHtml(item.type) : null;
                 const rawValue = item.value !== undefined ? String(item.value) : null;
                 const itemId = `${title.toLowerCase()}-${index}`;
 
+                // Detect toggle-style "button" widgets (have boolean values)
+                // These are buttons that toggle on/off state
+                const isButtonType = type && type.toLowerCase() === 'button';
+                const hasBooleanValue = rawValue === 'true' || rawValue === 'false';
+                const isToggleButton = isButtonType && hasBooleanValue;
+
+                // True action buttons have null/undefined values or are explicitly action-oriented
+                const isActionButton = isButtonType && !hasBooleanValue &&
+                    (rawValue === 'null' || rawValue === 'undefined' || rawValue === null);
+
                 // Check if value contains a data URI image (chart/plot)
                 const isImageValue = rawValue && rawValue.includes("data:image");
                 const value = isImageValue ? rawValue : (rawValue ? escapeHtml(rawValue) : null);
+
+                // For toggle-style button widgets, render a toggle button with on/off visual indication
+                if (isToggleButton && nodeId != null) {
+                    const isOn = rawValue === 'true';
+                    const toggleColor = isOn ? 'var(--accent-green, #22c55e)' : 'var(--text-tertiary, #666)';
+                    const toggleBg = isOn ? 'var(--accent-green, #22c55e)' : 'var(--bg-tertiary, #333)';
+                    const toggleText = isOn ? 'ON' : 'OFF';
+
+                    return `
+                        <div style="
+                            padding: 10px 12px;
+                            background: var(--bg-secondary);
+                            border-radius: 6px;
+                            margin-bottom: 6px;
+                            border: 1px solid var(--border-subtle);
+                        ">
+                            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px;">
+                                <span style="
+                                    font-size: 12px;
+                                    font-weight: 600;
+                                    color: var(--text-primary);
+                                ">${name}</span>
+                                <span style="
+                                    font-size: 8px;
+                                    padding: 2px 5px;
+                                    background: ${badgeColor}22;
+                                    color: ${badgeColor};
+                                    border-radius: 3px;
+                                    font-weight: 500;
+                                    text-transform: uppercase;
+                                ">TOGGLE</span>
+                            </div>
+                            <button 
+                                id="${itemId}"
+                                onclick="
+                                    const currentState = this.dataset.state === 'true';
+                                    const newState = !currentState;
+                                    this.dataset.state = String(newState);
+                                    sendWidgetEdit(${nodeId}, '${escapeHtml(item.name || '')}', newState);
+                                    this.textContent = newState ? '✓ ON' : '○ OFF';
+                                    this.style.background = newState ? 'var(--accent-green, #22c55e)' : 'var(--bg-tertiary, #333)';
+                                    this.style.color = newState ? 'var(--bg-primary, #1a1a1a)' : 'var(--text-secondary, #aaa)';
+                                    this.style.borderColor = newState ? 'var(--accent-green, #22c55e)' : 'var(--border-default, #555)';
+                                    this.style.transform='scale(0.95)'; 
+                                    setTimeout(() => this.style.transform='', 100);
+                                "
+                                data-state="${isOn}"
+                                style="
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    gap: 6px;
+                                    width: 100%;
+                                    padding: 8px 16px;
+                                    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+                                    font-size: 13px;
+                                    background: ${toggleBg};
+                                    color: ${isOn ? 'var(--bg-primary, #1a1a1a)' : 'var(--text-secondary, #aaa)'};
+                                    border: 2px solid ${isOn ? 'var(--accent-green, #22c55e)' : 'var(--border-default, #555)'};
+                                    border-radius: 6px;
+                                    cursor: pointer;
+                                    font-weight: 600;
+                                    transition: all 0.2s ease;
+                                "
+                                onmouseover="this.style.transform='translateY(-1px)';"
+                                onmouseout="this.style.transform='';"
+                            >${isOn ? '✓ ON' : '○ OFF'}</button>
+                        </div>`;
+                }
+
+                // For true action button widgets, render a clickable styled button
+                if (isActionButton && nodeId != null) {
+                    return `
+                        <div style="
+                            padding: 10px 12px;
+                            background: var(--bg-secondary);
+                            border-radius: 6px;
+                            margin-bottom: 6px;
+                            border: 1px solid var(--border-subtle);
+                        ">
+                            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px;">
+                                <span style="
+                                    font-size: 12px;
+                                    font-weight: 600;
+                                    color: var(--text-primary);
+                                ">${name}</span>
+                                <span style="
+                                    font-size: 8px;
+                                    padding: 2px 5px;
+                                    background: ${badgeColor}22;
+                                    color: ${badgeColor};
+                                    border-radius: 3px;
+                                    font-weight: 500;
+                                    text-transform: uppercase;
+                                ">ACTION</span>
+                            </div>
+                            <button 
+                                onclick="sendButtonClick(${nodeId}, '${escapeHtml(item.name || '')}'); this.style.transform='scale(0.95)'; setTimeout(() => this.style.transform='', 100);"
+                                style="
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    gap: 6px;
+                                    width: 100%;
+                                    padding: 8px 16px;
+                                    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+                                    font-size: 13px;
+                                    background: var(--accent-purple, #a855f7);
+                                    color: var(--bg-primary, #1a1a1a);
+                                    border: none;
+                                    border-radius: 6px;
+                                    cursor: pointer;
+                                    font-weight: 600;
+                                    transition: all 0.2s ease;
+                                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+                                "
+                                onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 3px 8px rgba(0, 0, 0, 0.25)';"
+                                onmouseout="this.style.transform=''; this.style.boxShadow='0 1px 3px rgba(0, 0, 0, 0.2)';"
+                            >▶ Click</button>
+                        </div>`;
+                }
 
                 // For image values, render directly without escaping
                 if (isImageValue) {
@@ -1390,6 +1597,16 @@
                         </div>`;
                 }
 
+                // Get widget options for combo boxes
+                const widgetOptions = item.options ? JSON.stringify(item.options).replace(/"/g, '&quot;') : '[]';
+
+                // Build onclick handler for editable widgets
+                const editableClass = isEditable ? 'widget-value-editable' : '';
+                const editableClick = isEditable && rawValue != null ?
+                    `onclick="editWidgetValue(this, ${nodeId}, '${escapeHtml(item.name || '')}', ${JSON.stringify(rawValue).replace(/"/g, '&quot;')}, '${type || 'text'}', ${widgetOptions})"` : '';
+                const editableStyle = isEditable ? 'cursor: pointer;' : '';
+                const editableTitle = isEditable ? 'title="Click to edit"' : '';
+
                 return `
                     <div style="
                         padding: 10px 12px;
@@ -1418,42 +1635,27 @@
                                 word-break: break-all;
                                 max-width: 100%;
                             ">${type}</span>` : ''}
+                            ${isEditable ? `<span style="
+                                font-size: 9px;
+                                color: var(--accent-amber);
+                                margin-left: auto;
+                                opacity: 0.7;
+                            ">✏️ editable</span>` : ''}
                         </div>
                         ${value ? `<div style="position: relative;">
-                            <div id="${itemId}" style="
+                            <div id="${itemId}" class="${editableClass}" ${editableClick} ${editableTitle} style="
                                 font-size: 11px;
                                 color: var(--accent-blue);
                                 font-weight: 500;
                                 background: var(--bg-tertiary);
-                                padding: 8px 36px 8px 10px;
+                                padding: 8px 10px;
                                 border-radius: 4px;
                                 word-break: break-word;
                                 white-space: pre-wrap;
                                 font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
                                 line-height: 1.4;
+                                ${editableStyle}
                             ">${value}</div>
-                            <button onclick="copyToClipboard('${rawValue.replace(/'/g, "\\'")}', this)" style="
-                                position: absolute;
-                                top: 6px;
-                                right: 6px;
-                                background: var(--bg-secondary);
-                                border: 1px solid var(--border-subtle);
-                                border-radius: 4px;
-                                padding: 4px 6px;
-                                cursor: pointer;
-                                display: flex;
-                                align-items: center;
-                                justify-content: center;
-                                opacity: 0.7;
-                                transition: all 0.15s ease;
-                            " onmouseover="this.style.opacity='1'; this.style.background='var(--bg-tertiary)'" 
-                               onmouseout="this.style.opacity='0.7'; this.style.background='var(--bg-secondary)'"
-                               title="Copy to clipboard">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-                                </svg>
-                            </button>
                         </div>` : ''}
                     </div>`;
             }).join('');

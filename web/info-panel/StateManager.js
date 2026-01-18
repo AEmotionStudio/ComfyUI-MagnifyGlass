@@ -71,7 +71,13 @@ class StateManager {
       const colorPalette = getSettingValue("Comfy.ColorPalette", "");
       if (colorPalette) {
         const paletteStr = String(colorPalette).toLowerCase();
-        if (paletteStr.includes("solarized")) {
+        if (paletteStr.includes("obsidian") && paletteStr.includes("dark")) {
+          detectedTheme = "obsidian-dark";
+        } else if (paletteStr.includes("obsidian")) {
+          detectedTheme = "obsidian";
+        } else if (paletteStr.includes("milk") || paletteStr.includes("white")) {
+          detectedTheme = "milk-white";
+        } else if (paletteStr.includes("solarized")) {
           detectedTheme = "solarized";
         } else if (paletteStr.includes("arc")) {
           detectedTheme = "arc";
@@ -96,7 +102,13 @@ class StateManager {
         detectedTheme = dataTheme.toLowerCase();
       }
       const classes = (body.className + " " + html.className).toLowerCase();
-      if (classes.includes("theme-solarized") || classes.includes("solarized")) {
+      if (classes.includes("theme-obsidian-dark") || classes.includes("obsidian-dark")) {
+        detectedTheme = "obsidian-dark";
+      } else if (classes.includes("theme-obsidian") || classes.includes("obsidian")) {
+        detectedTheme = "obsidian";
+      } else if (classes.includes("theme-milk-white") || classes.includes("milk-white") || classes.includes("milk_white")) {
+        detectedTheme = "milk-white";
+      } else if (classes.includes("theme-solarized") || classes.includes("solarized")) {
         detectedTheme = "solarized";
       } else if (classes.includes("theme-arc") || classes.includes("arc-theme")) {
         detectedTheme = "arc";

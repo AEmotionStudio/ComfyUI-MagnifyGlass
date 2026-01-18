@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Security**: Enforced `textContent` for sidebar titles to prevent XSS.
 
 ### Fixed
+- **FPS Counter**: Resolved the issue causing the ComfyUI FPS counter to display inflated values (1000+ FPS) while the glass was active.
 - **Event Leaks**: Fixed memory leaks caused by lingering event listeners on dropdowns.
 - **Stale Overlays**: Fixed visual artifacts where stale overlays persisted during early rendering returns.
 - **Drag Values**: Corrected logic in `DragValueController` for more reliable value updates.

@@ -214,7 +214,6 @@ Access settings via the **new Sidebar Panel** or the ComfyUI Settings (⚙️) m
 ## 🐛 Known Issues
 
 *   **Virtual Zoom Cursor Alignment**: When using "Virtual Zoom" (canvas zoom < 100%), the mini cursor preview in the glass may not perfectly align with the actual content due to a fundamental drift in the coordinate capture system. **Workaround**: Press `D` to toggle Direct Capture mode for accurate cursor alignment (at the cost of lower magnification quality).
-*   **Inflated FPS Counter**: You may notice the ComfyUI FPS counter displaying extremely high numbers (e.g., 1000+ FPS) while the glass is active. This is a False Reading caused by the extension's internal render loop triggering the counter hooks multiple times per frame to ensure smooth glass updates. It does not indicate excessive GPU load or actual frame rate.
 
 ---
 

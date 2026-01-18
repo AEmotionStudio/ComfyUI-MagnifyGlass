@@ -40,7 +40,7 @@
 
 [<img src="https://img.youtube.com/vi/aUz5kbJDs0I/maxresdefault.jpg" width="100%">](https://youtu.be/aUz5kbJDs0I)
 
-<p align="center"><i>NotebookLM Overview: Exploring the features and updates of the ComfyUI-MagnifyGlass extension.</i></p>
+<p align="center"><i>NotebookLM Overview: Exploring the features and updates of the ComfyUI-MagnifyGlass extension. (Click to watch on YouTube)</i></p>
 
 ## ✨ Features
 
@@ -260,5 +260,7 @@ This project is licensed under the [GPL-3.0](LICENSE) License - see the [LICENSE
 *It ZOOMS! It INSPECTS! It POPS OUT!* ⚡️🔍
 
 [<img src="https://img.youtube.com/vi/2qOlO-QPZ4o/maxresdefault.jpg" width="100%">](https://youtu.be/2qOlO-QPZ4o)
+
+<p align="center"><i>(Click to watch on YouTube)</i></p>
 
 </div>

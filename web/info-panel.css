@@ -801,12 +801,12 @@
 }
 
 .focus-node-btn:hover {
-    /* Subtle glow state - no popout animation */
-    background: var(--info-panel-accent-color, #74b9ff);
-    color: #fff;
+    /* Glow only - no background fill to reduce animation load */
+    background: transparent;
+    color: var(--info-panel-accent-color, #74b9ff);
 
     /* Subtle glow effect */
-    box-shadow: 0 2px 8px -2px var(--info-panel-accent-color, #74b9ff);
+    box-shadow: 0 0 12px -2px var(--info-panel-accent-color, #74b9ff);
 
     opacity: 1;
 }

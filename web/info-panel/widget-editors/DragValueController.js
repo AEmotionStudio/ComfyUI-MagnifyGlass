@@ -6,8 +6,8 @@ import { Logger } from "../../shared/logger.js";
 const DRAG_SENSITIVITY = {
   // Pixels to drag for one step change (applies to all numeric types)
   pixelsPerStep: 10,
-  // Minimum pixels to trigger option cycle for combos
-  comboThreshold: 40
+  // Minimum pixels to trigger option cycle for combos (increased to prevent accidental cycling)
+  comboThreshold: 60
 };
 class DragValueController {
   constructor(element, config) {

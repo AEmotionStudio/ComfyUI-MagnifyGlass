@@ -5,13 +5,10 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Added
+## [1.13.0] - 2026-01-19
 
 ### Changed
-
-### Fixed
+- Version number updated to 1.13.0
 
 ## [1.12.0] - 2026-01-18
 
@@ -22,9 +19,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Widget Sync**: Edits made in the popout inspector now sync back to the main graph.
   - **New Themes**: Added support for additional themes in the popout viewer.
   - **Parameter Visibility**: Improved how parameters are displayed in the inspector.
+  - **Inline Sliders**: Added inline slider support for number widgets.
+- **Keyboard Accessibility**: Improved keyboard navigation for sidebar settings.
+
+### Improved
+- **Performance**: Optimized magnified view update loop to prevent layout thrashing.
+- **Defaults**: Adjusted default glass Y offset for better initial positioning.
+
+### Fixed
+- **Security**: Eliminated XSS vector by enforcing strict type checking.
+- **UI Stability**: Fixed menu toggle button persistence across re-renders.
+- **Styling**: Corrected CSS order for `focus-visible` on select elements.
+- **Popout**: Broadened action button detection logic.
 
 ### Documentation
-- **README**: Added "Click to watch on YouTube" hints to video links for better clarity.
+- **README**: Added "Click to watch on YouTube" hints and updated feature images.
 
 ## [1.11.0] - 2026-01-17
 

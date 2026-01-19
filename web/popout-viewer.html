@@ -1451,9 +1451,9 @@
                 const hasBooleanValue = rawValue === 'true' || rawValue === 'false';
                 const isToggleButton = isButtonType && hasBooleanValue;
 
-                // True action buttons have null/undefined values or are explicitly action-oriented
-                const isActionButton = isButtonType && !hasBooleanValue &&
-                    (rawValue === 'null' || rawValue === 'undefined' || rawValue === null);
+                // True action buttons are any button that doesn't have a boolean value
+                // (button callbacks may set any value, so we can't rely on value being null)
+                const isActionButton = isButtonType && !hasBooleanValue;
 
                 // Check for slider (widgets explicitly typed as 'slider')
                 const isSlider = type && type.toLowerCase() === 'slider';

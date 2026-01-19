@@ -259,7 +259,9 @@ export class EventHandler {
                     this.magnifyGlass.state.y = pixelY;
 
                     this.magnifyGlass.ui.positionGlass(clientX, clientY);
-                    this.magnifyGlass.updateMagnifiedView();
+                    // Optimization: Pass the cached rect to avoid re-measuring in calculateSourceRegion
+                    // which would cause layout thrashing (Read-Write-Read)
+                    this.magnifyGlass.updateMagnifiedView(rect);
                 }
             });
         }
@@ -305,7 +307,8 @@ export class EventHandler {
                 this.magnifyGlass.ui.positionGlass(clientX, clientY);
             }
 
-            this.magnifyGlass.updateMagnifiedView();
+            // Optimization: Pass the cached rect
+            this.magnifyGlass.updateMagnifiedView(rect);
         }
     }
 }

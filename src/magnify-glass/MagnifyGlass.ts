@@ -239,8 +239,9 @@ export class MagnifyGlass {
 
     /**
      * Update the magnified view.
+     * @param rect - Optional pre-calculated bounding rect of the canvas to avoid layout thrashing
      */
-    updateMagnifiedView(): void {
+    updateMagnifiedView(rect?: DOMRect): void {
         if (!this.state.active || !this.renderer || !this.litegraphCanvas) {
             return;
         }
@@ -255,7 +256,7 @@ export class MagnifyGlass {
         this.updateCanvasTransformation();
 
         // Calculate the source region
-        this.calculateSourceRegion();
+        this.calculateSourceRegion(rect);
 
         // Schedule the rendering operation
         if (!this.state.isRenderScheduled) {
@@ -321,8 +322,9 @@ export class MagnifyGlass {
 
     /**
      * Calculate the source region for magnification.
+     * @param cachedRect - Optional pre-calculated bounding rect of the canvas to avoid layout thrashing
      */
-    calculateSourceRegion(): void {
+    calculateSourceRegion(cachedRect?: DOMRect): void {
         const cursorPixelX = this.state.x;
         const cursorPixelY = this.state.y;
         const canvasScale = this.state.canvasScale;
@@ -333,7 +335,8 @@ export class MagnifyGlass {
         if (!this.litegraphCanvas) return;
 
         // Get DPR (Device Pixel Ratio) - relationship between Backing Store pixels and CSS pixels
-        const rect = this.litegraphCanvas.getBoundingClientRect();
+        // Optimization: Use cached rect if provided to avoid forcing a reflow (Read-Write-Read cycle)
+        const rect = cachedRect || this.litegraphCanvas.getBoundingClientRect();
         const dpr = rect.width > 0 ? this.litegraphCanvas.width / rect.width : 1;
 
         // Convert cursor Backing pixels to CSS pixels (Screen pixels)

@@ -61,7 +61,7 @@
 <td width="50%">
 
 ### ℹ️ Inspector Panel
-![Inspector Panel](https://via.placeholder.com/800x450.png?text=Inspector+Panel+Demo)
+![Inspector Panel](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/MagnifyGlass_InspectorPanel_v1.webp)
 
 *   **Deep Analysis**: View node parameters (Seed, CFG, Steps), text content, and image details on hover.
 *   **Dockable Interface**: Pin the panel to keep it stable, or let it follow the glass.

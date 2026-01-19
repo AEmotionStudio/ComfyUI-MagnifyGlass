@@ -83,7 +83,7 @@
 <td width="50%">
 
 ### 🖥️ Multi-Monitor Pop-Out
-![Multi-Monitor Pop-Out](https://via.placeholder.com/800x450.png?text=Pop-Out+Viewer+Demo)
+![Multi-Monitor Pop-Out](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/MagnifyGlass_Popout_v1.webp)
 
 *   **Detachable Viewer**: Open the magnified view in a separate browser tab.
 *   **Inspector Sidebar**: Real-time node details, cursor position, and canvas scale.

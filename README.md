@@ -2,6 +2,8 @@
 
 # ComfyUI-MagnifyGlass
 
+**A powerful, customizable magnifying glass extension for ComfyUI.**
+
 [![ComfyUI](https://img.shields.io/badge/ComfyUI-Extension-green?style=for-the-badge)](https://github.com/comfyanonymous/ComfyUI)
 [![Version](https://img.shields.io/badge/Version-1.12.0-orange?style=for-the-badge)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases)
 [![License](https://img.shields.io/badge/License-GPLv3-red?style=for-the-badge)](LICENSE)
@@ -14,7 +16,6 @@
 [![Last Commit](https://img.shields.io/github/last-commit/AEmotionStudio/ComfyUI-MagnifyGlass?style=for-the-badge&label=Last%20Update&color=orange)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/commits)
 [![Activity](https://img.shields.io/github/commit-activity/m/AEmotionStudio/ComfyUI-MagnifyGlass?style=for-the-badge&label=Activity&color=yellow)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/commits)
 
-**A powerful, customizable magnifying glass extension for ComfyUI.**
 ![MagnifyGlass Intro](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/MagnifyGlass_Intro_v1.webp)  
 *Inspect fine details in your generated images, node connections, and canvas with ease.*
 

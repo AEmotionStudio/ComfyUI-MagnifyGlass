@@ -14,7 +14,8 @@
 [![Last Commit](https://img.shields.io/github/last-commit/AEmotionStudio/ComfyUI-MagnifyGlass?style=for-the-badge&label=Last%20Update&color=orange)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/commits)
 [![Activity](https://img.shields.io/github/commit-activity/m/AEmotionStudio/ComfyUI-MagnifyGlass?style=for-the-badge&label=Activity&color=yellow)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/commits)
 
-**A powerful, customizable magnifying glass extension for ComfyUI.**  
+**A powerful, customizable magnifying glass extension for ComfyUI.**
+![MagnifyGlass Intro](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/MagnifyGlass_Intro_v1.webp)  
 *Inspect fine details in your generated images, node connections, and canvas with ease.*
 
 [Features](#-features) • [Installation](#-installation) • [Usage](#-usage) • [Configuration](#️-configuration) • [Known Issues](#-known-issues) • [Contributing](#-contributing) • [Changelog](CHANGELOG.md)

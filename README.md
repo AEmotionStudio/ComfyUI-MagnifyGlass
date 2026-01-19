@@ -215,7 +215,7 @@ Access settings via the **new Sidebar Panel** or the ComfyUI Settings (⚙️) m
 
 ## 🐛 Known Issues
 
-*   *None currently.*
+*   **FPS Counter Visual Bug**: While the magnifying glass is active, the ComfyUI FPS counter may display inflated values (often reaching the ~10,000 FPS limit). This is a visual display issue only and does not appear to affect actual performance.
 
 ---
 

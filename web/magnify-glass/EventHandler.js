@@ -190,7 +190,7 @@ class EventHandler {
           this.magnifyGlass.state.x = pixelX;
           this.magnifyGlass.state.y = pixelY;
           this.magnifyGlass.ui.positionGlass(clientX, clientY);
-          this.magnifyGlass.updateMagnifiedView();
+          this.magnifyGlass.updateMagnifiedView(rect);
         }
       });
     }
@@ -223,7 +223,7 @@ class EventHandler {
       } else {
         this.magnifyGlass.ui.positionGlass(clientX, clientY);
       }
-      this.magnifyGlass.updateMagnifiedView();
+      this.magnifyGlass.updateMagnifiedView(rect);
     }
   }
 }

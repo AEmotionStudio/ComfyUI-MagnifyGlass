@@ -161,8 +161,9 @@ class MagnifyGlass {
   }
   /**
    * Update the magnified view.
+   * @param rect - Optional pre-calculated bounding rect of the canvas to avoid layout thrashing
    */
-  updateMagnifiedView() {
+  updateMagnifiedView(rect) {
     if (!this.state.active || !this.renderer || !this.litegraphCanvas) {
       return;
     }
@@ -170,7 +171,7 @@ class MagnifyGlass {
       return;
     }
     this.updateCanvasTransformation();
-    this.calculateSourceRegion();
+    this.calculateSourceRegion(rect);
     if (!this.state.isRenderScheduled) {
       this.state.isRenderScheduled = true;
       requestAnimationFrame(() => {
@@ -216,8 +217,9 @@ class MagnifyGlass {
   }
   /**
    * Calculate the source region for magnification.
+   * @param cachedRect - Optional pre-calculated bounding rect of the canvas to avoid layout thrashing
    */
-  calculateSourceRegion() {
+  calculateSourceRegion(cachedRect) {
     const cursorPixelX = this.state.x;
     const cursorPixelY = this.state.y;
     const canvasScale = this.state.canvasScale;
@@ -225,7 +227,7 @@ class MagnifyGlass {
     const canvasOffsetY = this.state.canvasOffsetY;
     if (canvasScale === 0) return;
     if (!this.litegraphCanvas) return;
-    const rect = this.litegraphCanvas.getBoundingClientRect();
+    const rect = cachedRect || this.litegraphCanvas.getBoundingClientRect();
     const dpr = rect.width > 0 ? this.litegraphCanvas.width / rect.width : 1;
     const cursorCssX = cursorPixelX / dpr;
     const cursorCssY = cursorPixelY / dpr;

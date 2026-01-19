@@ -1198,9 +1198,14 @@
                 element.textContent = newValue ? 'true' : 'false';
                 element.style.color = newValue ? 'var(--accent-green)' : 'var(--text-tertiary)';
                 return;
+            } else if (isNumber) {
+                // Use regular number input (sliders are already rendered inline from renderList)
+                editorHtml = `<input type="number" class="widget-editor-input" value="${escapeHtml(String(currentValue))}" 
+                    onblur="commitWidgetEdit(this, ${nodeId}, '${widgetName}')" 
+                    onkeydown="if(event.key==='Enter'){this.blur();}if(event.key==='Escape'){cancelWidgetEdit(this,'${escapeHtml(originalHtml.replace(/'/g, "\\\\'"))}');}"/>`;
             } else {
-                const inputType = isNumber ? 'number' : 'text';
-                editorHtml = `<input type="${inputType}" class="widget-editor-input" value="${escapeHtml(String(currentValue))}" 
+                // Text input
+                editorHtml = `<input type="text" class="widget-editor-input" value="${escapeHtml(String(currentValue))}" 
                     onblur="commitWidgetEdit(this, ${nodeId}, '${widgetName}')" 
                     onkeydown="if(event.key==='Enter'){this.blur();}if(event.key==='Escape'){cancelWidgetEdit(this,'${escapeHtml(originalHtml.replace(/'/g, "\\\\'"))}');}"/>`;
             }
@@ -1450,6 +1455,9 @@
                 const isActionButton = isButtonType && !hasBooleanValue &&
                     (rawValue === 'null' || rawValue === 'undefined' || rawValue === null);
 
+                // Check for slider (widgets explicitly typed as 'slider')
+                const isSlider = type && type.toLowerCase() === 'slider';
+
                 // Check if value contains a data URI image (chart/plot)
                 const isImageValue = rawValue && rawValue.includes("data:image");
                 const value = isImageValue ? rawValue : (rawValue ? escapeHtml(rawValue) : null);
@@ -1572,6 +1580,59 @@
                                 onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 3px 8px rgba(0, 0, 0, 0.25)';"
                                 onmouseout="this.style.transform=''; this.style.boxShadow='0 1px 3px rgba(0, 0, 0, 0.2)';"
                             >▶ Click</button>
+                        </div>`;
+                }
+
+                // For slider widgets, render inline range control
+                if (isSlider && nodeId != null) {
+                    const opts = item.options && typeof item.options === 'object' ? item.options : {};
+                    const min = opts.min !== undefined ? opts.min : 0;
+                    const max = opts.max !== undefined ? opts.max : 100;
+                    const step = opts.step !== undefined ? opts.step : 0.01;
+
+                    return `
+                        <div style="
+                            padding: 10px 12px;
+                            background: var(--bg-secondary);
+                            border-radius: 6px;
+                            margin-bottom: 6px;
+                            border: 1px solid var(--border-subtle);
+                        ">
+                            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px;">
+                                <span style="
+                                    font-size: 12px;
+                                    font-weight: 600;
+                                    color: var(--text-primary);
+                                ">${name}</span>
+                                ${type ? `<span style="
+                                    font-size: 8px;
+                                    padding: 2px 5px;
+                                    background: ${badgeColor}22;
+                                    color: ${badgeColor};
+                                    border-radius: 3px;
+                                    font-weight: 500;
+                                    text-transform: uppercase;
+                                ">${type}</span>` : ''}
+                            </div>
+                            <div class="widget-slider-container" style="display: flex; align-items: center; gap: 8px; width: 100%;">
+                                <input type="range" 
+                                    class="widget-editor-slider" 
+                                    min="${min}" 
+                                    max="${max}" 
+                                    step="${step}" 
+                                    value="${rawValue}"
+                                    style="flex: 1; accent-color: var(--accent-purple); cursor: pointer;"
+                                    oninput="this.nextElementSibling.textContent = this.value"
+                                    onchange="commitWidgetEdit(this, ${nodeId}, '${escapeHtml(item.name || '')}')"
+                                />
+                                <span class="widget-slider-value" style="
+                                    min-width: 50px; 
+                                    text-align: right; 
+                                    font-family: monospace;
+                                    color: var(--accent-blue);
+                                    font-weight: 600;
+                                ">${rawValue}</span>
+                            </div>
                         </div>`;
                 }
 

@@ -221,4 +221,3 @@ class InfoPanel {
 export {
   InfoPanel
 };
-//# sourceMappingURL=InfoPanel.js.map

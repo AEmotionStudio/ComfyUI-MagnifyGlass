@@ -371,4 +371,3 @@ function registerGlassSettings(magnifyGlass) {
 export {
   registerGlassSettings
 };
-//# sourceMappingURL=glassSettings.js.map

@@ -178,4 +178,3 @@ class PositionManager {
 export {
   PositionManager
 };
-//# sourceMappingURL=PositionManager.js.map

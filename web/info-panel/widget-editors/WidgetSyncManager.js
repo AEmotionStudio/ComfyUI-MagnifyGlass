@@ -254,4 +254,3 @@ __publicField(WidgetSyncManager, "DEBOUNCE_MS", 50);
 export {
   WidgetSyncManager
 };
-//# sourceMappingURL=WidgetSyncManager.js.map

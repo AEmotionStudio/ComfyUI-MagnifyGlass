@@ -182,4 +182,3 @@ class EventManager {
 export {
   EventManager
 };
-//# sourceMappingURL=EventManager.js.map

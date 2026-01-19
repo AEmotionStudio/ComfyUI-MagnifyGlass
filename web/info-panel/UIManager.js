@@ -1396,4 +1396,3 @@ class UIManager {
 export {
   UIManager
 };
-//# sourceMappingURL=UIManager.js.map

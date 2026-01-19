@@ -253,4 +253,3 @@ class ConfigManager {
 export {
   ConfigManager
 };
-//# sourceMappingURL=ConfigManager.js.map

@@ -67,4 +67,3 @@ export {
   rectsOverlap,
   setSettingValue
 };
-//# sourceMappingURL=utils.js.map

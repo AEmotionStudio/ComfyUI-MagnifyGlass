@@ -61,4 +61,3 @@ export {
   DEFAULT_GLASS_SETTINGS,
   DEFAULT_PANEL_SETTINGS
 };
-//# sourceMappingURL=defaults.js.map

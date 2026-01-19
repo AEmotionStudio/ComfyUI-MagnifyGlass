@@ -111,4 +111,3 @@ export {
   getImportantNodeParameters,
   getTextBoxContent
 };
-//# sourceMappingURL=NodeDataExtractor.js.map

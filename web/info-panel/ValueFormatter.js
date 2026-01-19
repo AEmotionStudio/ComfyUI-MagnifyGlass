@@ -48,4 +48,3 @@ export {
   getValueAttributes,
   getValueClass
 };
-//# sourceMappingURL=ValueFormatter.js.map

@@ -24,7 +24,7 @@ const RESET_KEYS = ["r", "o", "p", "k", "l"];
 const TOGGLE_FOLLOW_KEYS = ["f", "g", "h", "j", "k"];
 const DIRECT_CAPTURE_KEYS = ["d", "s", "a", "q", "e"];
 const DEFAULT_PADDING = 4;
-const DEFAULT_GLASS_Y_OFFSET = 200;
+const DEFAULT_GLASS_Y_OFFSET = 198;
 const DEFAULT_GLASS_SIZE = 300;
 const DEFAULT_ZOOM_FACTOR = 300;
 const DEFAULT_BORDER_WIDTH = 1;
@@ -65,4 +65,3 @@ export {
   TOGGLE_FOLLOW_KEYS,
   Z_INDEX
 };
-//# sourceMappingURL=constants.js.map

@@ -148,4 +148,3 @@ class CanvasHighlighter {
 export {
   CanvasHighlighter
 };
-//# sourceMappingURL=CanvasHighlighter.js.map

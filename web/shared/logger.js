@@ -41,4 +41,3 @@ const Logger = {
 export {
   Logger
 };
-//# sourceMappingURL=logger.js.map

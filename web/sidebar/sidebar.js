@@ -78,4 +78,3 @@ export {
   initSidebar,
   registerSidebar
 };
-//# sourceMappingURL=sidebar.js.map

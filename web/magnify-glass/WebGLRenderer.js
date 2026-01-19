@@ -337,4 +337,3 @@ class WebGLRenderer {
 export {
   WebGLRenderer
 };
-//# sourceMappingURL=WebGLRenderer.js.map

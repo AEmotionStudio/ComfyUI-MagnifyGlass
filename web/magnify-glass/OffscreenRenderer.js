@@ -806,4 +806,3 @@ let OffscreenRenderer = _OffscreenRenderer;
 export {
   OffscreenRenderer
 };
-//# sourceMappingURL=OffscreenRenderer.js.map

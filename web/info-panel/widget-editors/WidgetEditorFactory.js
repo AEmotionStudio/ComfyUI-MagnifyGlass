@@ -407,4 +407,3 @@ class WidgetEditorFactory {
 export {
   WidgetEditorFactory
 };
-//# sourceMappingURL=WidgetEditorFactory.js.map

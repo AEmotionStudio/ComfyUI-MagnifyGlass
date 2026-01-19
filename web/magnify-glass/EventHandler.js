@@ -230,4 +230,3 @@ class EventHandler {
 export {
   EventHandler
 };
-//# sourceMappingURL=EventHandler.js.map

@@ -53,7 +53,7 @@ export const DIRECT_CAPTURE_KEYS = ["d", "s", "a", "q", "e"] as const;
 
 // UI Constants
 export const DEFAULT_PADDING = 4;
-export const DEFAULT_GLASS_Y_OFFSET = 200; // Starting Y position offset (below top bar with 3px gap)
+export const DEFAULT_GLASS_Y_OFFSET = 198; // Starting Y position offset (below top bar with 3px gap)
 export const DEFAULT_GLASS_SIZE = 300;
 export const DEFAULT_ZOOM_FACTOR = 300; // 3x as percentage
 export const DEFAULT_BORDER_WIDTH = 1;

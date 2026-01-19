@@ -220,4 +220,3 @@ class DragValueController {
 export {
   DragValueController
 };
-//# sourceMappingURL=DragValueController.js.map

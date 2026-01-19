@@ -220,4 +220,3 @@ function registerAccessibilitySettings(magnifyGlass) {
 export {
   registerAccessibilitySettings
 };
-//# sourceMappingURL=accessibilitySettings.js.map

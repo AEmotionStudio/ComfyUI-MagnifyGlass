@@ -12,4 +12,3 @@ app.registerExtension({
     Logger.debug("Magnify Glass extension initialized");
   }
 });
-//# sourceMappingURL=magnify_glass.js.map

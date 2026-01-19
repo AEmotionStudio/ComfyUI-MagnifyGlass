@@ -301,4 +301,3 @@ class InformationGatherer {
 export {
   InformationGatherer
 };
-//# sourceMappingURL=InformationGatherer.js.map

@@ -32,4 +32,3 @@ function initializeInfoPanel() {
     Logger.error("Error during initialization:", e);
   }
 }
-//# sourceMappingURL=magnify_info_panel.js.map

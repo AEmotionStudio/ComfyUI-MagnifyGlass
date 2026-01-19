@@ -25,7 +25,7 @@ export default defineConfig({
                 entryFileNames: '[name].js',
             }
         },
-        sourcemap: true,
+        sourcemap: false,
         minify: false // Keep readable for debugging
     },
     resolve: {

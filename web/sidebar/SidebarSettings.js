@@ -918,4 +918,3 @@ export {
   createToggle,
   renderSettingsPanel
 };
-//# sourceMappingURL=SidebarSettings.js.map

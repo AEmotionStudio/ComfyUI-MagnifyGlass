@@ -582,4 +582,3 @@ class MagnifyGlass {
 export {
   MagnifyGlass
 };
-//# sourceMappingURL=MagnifyGlass.js.map

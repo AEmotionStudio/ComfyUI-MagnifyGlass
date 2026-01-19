@@ -412,4 +412,3 @@ class StateManager {
 export {
   StateManager
 };
-//# sourceMappingURL=StateManager.js.map

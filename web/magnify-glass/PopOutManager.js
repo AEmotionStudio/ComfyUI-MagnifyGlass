@@ -493,4 +493,3 @@ class PopOutManager {
 export {
   PopOutManager
 };
-//# sourceMappingURL=PopOutManager.js.map

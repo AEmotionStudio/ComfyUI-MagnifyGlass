@@ -257,4 +257,3 @@ function registerPanelSettings(stateManager, uiManager, positionManager) {
 export {
   registerPanelSettings
 };
-//# sourceMappingURL=panelSettings.js.map

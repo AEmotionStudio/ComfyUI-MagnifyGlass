@@ -85,4 +85,3 @@ class MagnifierState {
 export {
   MagnifierState
 };
-//# sourceMappingURL=MagnifierState.js.map

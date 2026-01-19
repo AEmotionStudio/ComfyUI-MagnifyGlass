@@ -595,10 +595,10 @@ class UIManager {
       }
       nodeContent.push({
         label: "Location",
-        value: `<span class="focus-node-btn">${Icons.focus} Focus Node</span>`,
+        value: "Focus Node",
         clickable: "zoom",
         nodeId: info.hoveredNode.id,
-        isHtml: true
+        specialType: "focus-node"
       });
       if (info.hoveredNode.category) {
         nodeContent.push({ label: "Category", value: info.hoveredNode.category, copyable: true });
@@ -672,7 +672,12 @@ class UIManager {
                 <div class="section-content">
                     <div class="section-body">
                         ${section.content.map((item) => {
-      const value = item.isHtml ? item.value : formatValue(item.value, item.label);
+      let value;
+      if (item.specialType === "focus-node") {
+        value = `<span class="focus-node-btn">${Icons.focus} ${escapeHtml(item.value)}</span>`;
+      } else {
+        value = formatValue(item.value, item.label);
+      }
       const valueClass = getValueClass(item.value);
       const valueAttributes = getValueAttributes(item.value);
       const clickableAttr = item.clickable ? `data-clickable="${item.clickable}"` : "";

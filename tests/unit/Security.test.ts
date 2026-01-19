@@ -26,27 +26,72 @@ describe('Security', () => {
 
     describe('UIManager Rendering Logic', () => {
         // Mock logic for UIManager rendering to verify the fix for trusted HTML
-        it('should NOT escape values marked as isHtml', () => {
+
+        // Helper to simulate UIManager.renderSections logic
+        const renderItem = (item: any) => {
+            let value;
+            if (item.specialType === 'focus-node') {
+                // Mimic UIManager logic: inject static HTML structure but escape the dynamic value
+                // In actual code: `<span class="focus-node-btn">${Icons.focus} ${escapeHtml(item.value)}</span>`
+                // We mock Icons.focus here for simplicity
+                value = `<span class="focus-node-btn">ICON ${escapeHtml(item.value)}</span>`;
+            } else {
+                value = formatValue(item.value, item.label);
+            }
+            return value;
+        };
+
+        it('should escape values even if isHtml is true (legacy bypass check)', () => {
             const item = {
-                value: '<span class="icon">Icon</span> Button',
-                isHtml: true,
-                label: 'Test Button'
+                value: '<script>alert("xss")</script>',
+                isHtml: true, // This flag should be IGNORED now
+                label: 'Malicious Button'
             };
 
-            const renderedValue = item.isHtml ? item.value : formatValue(item.value, item.label);
+            const renderedValue = renderItem(item);
 
-            expect(renderedValue).toContain('<span class="icon">');
-            expect(renderedValue).not.toContain('&lt;span class=&quot;icon&quot;&gt;');
+            // It should fall through to formatValue which escapes
+            expect(renderedValue).not.toContain('<script>');
+            expect(renderedValue).toContain('&lt;script&gt;');
+        });
+
+        it('should correctly render specialType="focus-node" with safe value', () => {
+            const item = {
+                value: 'Focus Node',
+                specialType: 'focus-node',
+                label: 'Location'
+            };
+
+            const renderedValue = renderItem(item);
+
+            expect(renderedValue).toContain('<span class="focus-node-btn">');
+            expect(renderedValue).toContain('Focus Node');
+        });
+
+        it('should escape malicious content even in specialType="focus-node"', () => {
+            const item = {
+                value: '<script>alert(1)</script>',
+                specialType: 'focus-node',
+                label: 'Location'
+            };
+
+            const renderedValue = renderItem(item);
+
+            // The container span is there
+            expect(renderedValue).toContain('<span class="focus-node-btn">');
+            // But the content is escaped
+            expect(renderedValue).not.toContain('<script>');
+            expect(renderedValue).toContain('&lt;script&gt;');
         });
 
         it('should escape values NOT marked as isHtml', () => {
             const item = {
                 value: '<script>alert(1)</script>',
-                isHtml: false, // or undefined
+                isHtml: false,
                 label: 'Malicious Input'
             };
 
-            const renderedValue = item.isHtml ? item.value : formatValue(item.value, item.label);
+            const renderedValue = renderItem(item);
 
             expect(renderedValue).not.toContain('<script>');
             expect(renderedValue).toContain('&lt;script&gt;');

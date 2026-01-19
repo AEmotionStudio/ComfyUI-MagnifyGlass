@@ -95,7 +95,7 @@
 <td width="50%">
 
 ### ♿ Accessibility Suite
-![Accessibility Suite](https://via.placeholder.com/800x450.png?text=Accessibility+Options+Demo)
+![Accessibility Suite](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/MagnifyGlass_Access_v1.webp)
 
 *   **Visual Modes**: Toggle **Invert Colors** or **Grayscale** for high-contrast viewing.
 *   **Reduce Motion**: Disable smooth animations for instant feedback.

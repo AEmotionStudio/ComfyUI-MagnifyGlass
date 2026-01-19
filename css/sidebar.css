@@ -223,13 +223,13 @@
     background-position: right 8px center;
 }
 
-.magnify-select:focus-visible {
-    outline: 2px solid var(--p-primary-color, #3b82f6);
+.magnify-select:focus {
+    outline: none;
     border-color: var(--p-primary-color, #3b82f6);
 }
 
-.magnify-select:focus {
-    outline: none;
+.magnify-select:focus-visible {
+    outline: 2px solid var(--p-primary-color, #3b82f6);
     border-color: var(--p-primary-color, #3b82f6);
 }
 

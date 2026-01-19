@@ -406,13 +406,18 @@ export class UiManager {
 
     /**
      * Inject a quick toggle button into the ComfyUI menu.
+     * Uses a MutationObserver to persist the button across Vue re-renders
+     * (e.g., when the properties panel is opened/closed).
      */
     injectMenuButton(): void {
-        // Stop after 30 seconds
-        const stopTime = Date.now() + 30000;
+        // Track the current active state across re-injections
+        let isActiveState = false;
 
-        // Define check function
-        const attemptInjection = () => {
+        // Store observer reference for cleanup
+        let observer: MutationObserver | null = null;
+
+        // Define injection function
+        const attemptInjection = (): boolean => {
             // Use data-testid selectors to find the specific buttons in the bottom toolbar
             // These are the official ComfyUI frontend identifiers
             const minimapBtn = document.querySelector('button[data-testid="toggle-minimap-button"]') as HTMLButtonElement;
@@ -423,7 +428,7 @@ export class UiManager {
                 return false;
             }
 
-            // Check if already injected
+            // Check if already injected in the current parent
             if (minimapBtn.parentElement.querySelector('.magnify-toggle-btn')) {
                 return true;
             }
@@ -442,7 +447,7 @@ export class UiManager {
 
             btn.title = "Toggle Magnify Glass (X)";
             btn.setAttribute('aria-label', "Toggle Magnify Glass");
-            btn.setAttribute('aria-pressed', 'false');
+            btn.setAttribute('aria-pressed', String(isActiveState));
             btn.setAttribute('data-testid', 'toggle-magnify-glass-button');
             btn.innerHTML = Icons.magnifyGlass;
 
@@ -460,15 +465,22 @@ export class UiManager {
                 btn.style.borderRadius = computed.borderRadius;
             }
 
+            // Apply active state if previously active
+            if (isActiveState) {
+                btn.classList.add('active');
+                btn.classList.add('p-highlight');
+                btn.classList.add('selected');
+            }
+
             // Add active state tracking
             btn.addEventListener('click', () => {
                 if (this.onToggle) {
                     this.onToggle();
                     // Toggle active states to match ComfyUI's button styling
-                    const isActive = btn.classList.toggle('active');
+                    isActiveState = btn.classList.toggle('active');
                     btn.classList.toggle('p-highlight'); // PrimeVue
                     btn.classList.toggle('selected');
-                    btn.setAttribute('aria-pressed', String(isActive));
+                    btn.setAttribute('aria-pressed', String(isActiveState));
                 }
             });
 
@@ -487,20 +499,56 @@ export class UiManager {
             return true;
         };
 
-        // Run immediately first
-        if (attemptInjection()) return;
+        // Setup MutationObserver to re-inject button when the bottom bar is re-rendered
+        // This handles cases like opening/closing the properties panel which causes Vue re-renders
+        const setupObserver = () => {
+            if (observer) {
+                observer.disconnect();
+            }
 
-        // Then poll rapidly
+            observer = new MutationObserver((mutations) => {
+                // Check if our button was removed or if the toolbar changed
+                const existingBtn = document.querySelector('.magnify-toggle-btn');
+                const minimapBtn = document.querySelector('button[data-testid="toggle-minimap-button"]');
+
+                if (minimapBtn && !existingBtn) {
+                    // Our button was removed, re-inject it
+                    Logger.debug('MutationObserver detected button removal, re-injecting...');
+                    attemptInjection();
+                }
+            });
+
+            // Observe the document body for changes in the subtree
+            // This is necessary because Vue may recreate entire sections of the DOM
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+        };
+
+        // Initial injection attempt with polling fallback
+        const stopTime = Date.now() + 30000;
+
         const checkForMenu = setInterval(() => {
             if (Date.now() > stopTime) {
                 console.warn("[MagnifyGlass] Menu injection timed out. Could not find toggle-minimap-button");
                 clearInterval(checkForMenu);
+                // Still setup observer in case the toolbar appears later
+                setupObserver();
                 return;
             }
 
             if (attemptInjection()) {
                 clearInterval(checkForMenu);
+                // Setup the observer to handle future re-renders
+                setupObserver();
             }
         }, 100);
+
+        // Also try immediately
+        if (attemptInjection()) {
+            clearInterval(checkForMenu);
+            setupObserver();
+        }
     }
 }

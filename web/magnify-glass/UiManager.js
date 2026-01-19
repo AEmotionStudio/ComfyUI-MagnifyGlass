@@ -306,9 +306,12 @@ class UiManager {
   }
   /**
    * Inject a quick toggle button into the ComfyUI menu.
+   * Uses a MutationObserver to persist the button across Vue re-renders
+   * (e.g., when the properties panel is opened/closed).
    */
   injectMenuButton() {
-    const stopTime = Date.now() + 3e4;
+    let isActiveState = false;
+    let observer = null;
     const attemptInjection = () => {
       const minimapBtn = document.querySelector('button[data-testid="toggle-minimap-button"]');
       const linkVisibilityBtn = document.querySelector('button[data-testid="toggle-link-visibility-button"]');
@@ -327,7 +330,7 @@ class UiManager {
       btn.style.width = computed.width;
       btn.title = "Toggle Magnify Glass (X)";
       btn.setAttribute("aria-label", "Toggle Magnify Glass");
-      btn.setAttribute("aria-pressed", "false");
+      btn.setAttribute("aria-pressed", String(isActiveState));
       btn.setAttribute("data-testid", "toggle-magnify-glass-button");
       btn.innerHTML = Icons.magnifyGlass;
       btn.style.display = "inline-flex";
@@ -340,13 +343,18 @@ class UiManager {
       } else {
         btn.style.borderRadius = computed.borderRadius;
       }
+      if (isActiveState) {
+        btn.classList.add("active");
+        btn.classList.add("p-highlight");
+        btn.classList.add("selected");
+      }
       btn.addEventListener("click", () => {
         if (this.onToggle) {
           this.onToggle();
-          const isActive = btn.classList.toggle("active");
+          isActiveState = btn.classList.toggle("active");
           btn.classList.toggle("p-highlight");
           btn.classList.toggle("selected");
-          btn.setAttribute("aria-pressed", String(isActive));
+          btn.setAttribute("aria-pressed", String(isActiveState));
         }
       });
       if (linkVisibilityBtn && minimapBtn.parentElement === linkVisibilityBtn.parentElement) {
@@ -359,17 +367,40 @@ class UiManager {
       Logger.debug("Menu toggle button injected successfully between minimap and link visibility");
       return true;
     };
-    if (attemptInjection()) return;
+    const setupObserver = () => {
+      if (observer) {
+        observer.disconnect();
+      }
+      observer = new MutationObserver((mutations) => {
+        const existingBtn = document.querySelector(".magnify-toggle-btn");
+        const minimapBtn = document.querySelector('button[data-testid="toggle-minimap-button"]');
+        if (minimapBtn && !existingBtn) {
+          Logger.debug("MutationObserver detected button removal, re-injecting...");
+          attemptInjection();
+        }
+      });
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true
+      });
+    };
+    const stopTime = Date.now() + 3e4;
     const checkForMenu = setInterval(() => {
       if (Date.now() > stopTime) {
         console.warn("[MagnifyGlass] Menu injection timed out. Could not find toggle-minimap-button");
         clearInterval(checkForMenu);
+        setupObserver();
         return;
       }
       if (attemptInjection()) {
         clearInterval(checkForMenu);
+        setupObserver();
       }
     }, 100);
+    if (attemptInjection()) {
+      clearInterval(checkForMenu);
+      setupObserver();
+    }
   }
 }
 export {

@@ -27,6 +27,7 @@ function createSlider(label, value, min, max, step, unit, onChange, tooltip, onI
   slider.max = String(max);
   slider.step = String(step);
   slider.value = String(value);
+  slider.setAttribute("aria-valuetext", `${value}${unit}`);
   slider.addEventListener("mousedown", (e) => e.stopPropagation());
   slider.addEventListener("touchstart", (e) => e.stopPropagation());
   slider.addEventListener("pointerdown", (e) => e.stopPropagation());
@@ -34,6 +35,7 @@ function createSlider(label, value, min, max, step, unit, onChange, tooltip, onI
     e.stopPropagation();
     const newValue = parseFloat(slider.value);
     valueEl.textContent = `${newValue}${unit}`;
+    slider.setAttribute("aria-valuetext", `${newValue}${unit}`);
     if (onInput) onInput(newValue);
   });
   slider.addEventListener("change", (e) => {

@@ -51,7 +51,7 @@
 <td width="50%">
 
 ### 🔍 Magnifying Glass
-![Magnifying Glass](https://via.placeholder.com/800x450.png?text=Magnifying+Glass+Demo)
+![Magnifying Glass](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/MagnifyGlass_GlassPreview_v1.webp)
 
 *   **WebGL-Powered**: Smooth, high-performance rendering at any zoom level.
 *   **Smart Interactions**: Follows your cursor or stays fixed. Toggles transparently for click-through.

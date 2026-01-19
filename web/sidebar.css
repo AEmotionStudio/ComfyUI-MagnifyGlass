@@ -62,6 +62,12 @@
     background: rgba(255, 255, 255, 0.06);
 }
 
+.magnify-sidebar-section-header:focus-visible {
+    outline: 2px solid var(--p-primary-color, #3b82f6);
+    outline-offset: -2px;
+    background: rgba(255, 255, 255, 0.06);
+}
+
 .magnify-sidebar-section-header svg {
     width: 12px;
     height: 12px;
@@ -125,6 +131,11 @@
     cursor: pointer;
 }
 
+.magnify-slider:focus-visible {
+    outline: 2px solid var(--p-primary-color, #3b82f6);
+    outline-offset: 2px;
+}
+
 .magnify-slider::-webkit-slider-thumb {
     appearance: none;
     width: 14px;
@@ -171,6 +182,11 @@
     transition: background 0.2s;
 }
 
+.magnify-toggle:focus-visible {
+    outline: 2px solid var(--p-primary-color, #3b82f6);
+    outline-offset: 2px;
+}
+
 .magnify-toggle.active {
     background: var(--p-primary-color, #3b82f6);
 }
@@ -209,6 +225,11 @@
 
 .magnify-select:focus {
     outline: none;
+    border-color: var(--p-primary-color, #3b82f6);
+}
+
+.magnify-select:focus-visible {
+    outline: 2px solid var(--p-primary-color, #3b82f6);
     border-color: var(--p-primary-color, #3b82f6);
 }
 
@@ -305,6 +326,12 @@
     transform: scale(0.98);
 }
 
+.magnify-btn:focus-visible {
+    outline: 2px solid white;
+    outline-offset: -2px;
+    box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.5);
+}
+
 .magnify-btn-secondary {
     background: rgba(255, 255, 255, 0.1);
 }
@@ -334,6 +361,11 @@
     border-radius: 4px;
     cursor: pointer;
     background: transparent;
+}
+
+.magnify-color-input:focus-visible {
+    outline: 2px solid var(--p-primary-color, #3b82f6);
+    outline-offset: 2px;
 }
 
 .magnify-color-input::-webkit-color-swatch-wrapper {

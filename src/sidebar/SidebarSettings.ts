@@ -71,6 +71,7 @@ export function createSlider(
     slider.max = String(max);
     slider.step = String(step);
     slider.value = String(value);
+    slider.setAttribute('aria-valuetext', `${value}${unit}`);
 
     // Prevent ComfyUI from capturing mouse events during drag
     slider.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -81,6 +82,7 @@ export function createSlider(
         e.stopPropagation();
         const newValue = parseFloat(slider.value);
         valueEl.textContent = `${newValue}${unit}`;
+        slider.setAttribute('aria-valuetext', `${newValue}${unit}`);
         if (onInput) onInput(newValue);
     });
 

@@ -73,7 +73,7 @@
 <td width="50%">
 
 ### ⚙️ Sidebar Integration
-![Sidebar Integration](https://via.placeholder.com/800x450.png?text=Sidebar+Integration+Demo)
+![Sidebar Integration](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/MagnifyGlass_Sidebar_v1.webp)
 
 *   **Organized Settings**: All Magnify Glass and Info Panel settings in one place.
 *   **Live Previews**: Changes apply instantly without needing to refresh.

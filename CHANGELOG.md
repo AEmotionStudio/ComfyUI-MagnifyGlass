@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `UIManager.hide()` now calls `cleanupEditors()` to destroy all active drag controllers, editors, and inline controls.
   - Fixed CSS `display: flex !important` on `.persist-active` overriding inline `display: none`, keeping the panel fully interactive while visually hidden.
   - Added `pointer-events: none` safety net on panel and floating controls when hidden, with proper restoration on re-show.
-- **Glass Drag Cursor Stuck**: Fixed the magnify glass drag mode not resetting `document.body` cursor and `userSelect` after releasing, leaving the cursor permanently in grab/scroll mode.
+- **Glass Drag Cursor Stuck**: Fixed the magnify glass drag corrupting LiteGraph canvas state, leaving the cursor permanently in grab/pan mode and all canvas clicks non-functional. Root cause: LiteGraph uses pointer events (`pointerdown`/`pointerup`) while our drag only intercepted mouse events. In Firefox and Brave, these are independent event types — the `pointerup` still reached LiteGraph, corrupting its `pointer_is_down` state. Fixed by switching glass drag to use pointer events with full propagation blocking, plus a direct `resetLiteGraphCanvasState()` safety net.
 
 ---
 

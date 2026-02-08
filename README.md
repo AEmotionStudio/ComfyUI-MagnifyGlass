@@ -5,7 +5,7 @@
 **A powerful, customizable magnifying glass extension for ComfyUI.**
 
 [![ComfyUI](https://img.shields.io/badge/ComfyUI-Extension-green?style=for-the-badge)](https://github.com/comfyanonymous/ComfyUI)
-[![Version](https://img.shields.io/badge/Version-1.13.0-orange?style=for-the-badge)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases)
+[![Version](https://img.shields.io/badge/Version-1.13.1-orange?style=for-the-badge)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases)
 [![License](https://img.shields.io/badge/License-GPLv3-red?style=for-the-badge)](LICENSE)
 [![Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen?style=for-the-badge&color=blue)](package.json)
 
@@ -25,16 +25,13 @@
 
 ---
 
-## 🚀 What's New in v1.13.0 (January 19, 2026)
+## 🚀 What's New in v1.13.1 (February 7, 2026)
 
-**Direct Node Editing & Performance Optimization**
+**Stability & Cross-Browser Fixes**
 
-*   **✏️ Direct Node Editing**: Modify node values (text, numbers, toggles, combos) directly from the Inspector Panel without leaving your spot.
-*   **⚡ Performance Boost**: Batched DOM operations for HTML overlays significantly reduce layout thrashing.
-*   **⌨️ Accessibility & UX**: 
-    *   Full keyboard navigation (Arrows/Enter/Esc) for node selector dropdowns.
-    *   Dropdowns now intelligently close when clicking the canvas.
-*   **🛡️ Security Hardening**: Improved XSS protection in sidebar rendering.
+*   **🐛 Glass Drag Fixed**: Resolved an issue where dragging the magnify glass would corrupt LiteGraph canvas state, leaving the cursor stuck in grab/pan mode and all canvas clicks non-functional. Now works reliably across Chromium, Firefox, and Brave.
+*   **🐛 Ghost Interactions Fixed**: Fixed cursor actions (grab, text-input, pointer) persisting after hiding the info panel via the X key toggle.
+*   **🔧 Cross-Browser Compatibility**: Glass drag now uses pointer events to match LiteGraph's event model, ensuring consistent behavior across all browsers.
 
 > 📄 **See [CHANGELOG.md](CHANGELOG.md) for the complete version history.**
 

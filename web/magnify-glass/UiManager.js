@@ -87,9 +87,10 @@ class UiManager {
       this.glassDiv.style.cursor = "grab";
       this.glassDiv.style.pointerEvents = "auto";
       this.glassDiv.classList.add("drag-mode");
-      const onMouseDown = (e) => {
+      const onPointerDown = (e) => {
         e.preventDefault();
         e.stopPropagation();
+        e.stopImmediatePropagation();
         const rect = this.glassDiv.getBoundingClientRect();
         const grabOffsetX = rect.left - e.clientX;
         const grabOffsetY = rect.top - e.clientY;
@@ -101,7 +102,8 @@ class UiManager {
         this.glassDiv.style.cursor = "grabbing";
         document.body.style.cursor = "grabbing";
         document.body.style.userSelect = "none";
-        const onMouseMove = (moveEvent) => {
+        let cleaned = false;
+        const onPointerMove = (moveEvent) => {
           moveEvent.preventDefault();
           moveEvent.stopPropagation();
           const newLeft = moveEvent.clientX + grabOffsetX;
@@ -111,12 +113,27 @@ class UiManager {
             this.glassDiv.style.top = `${newTop}px`;
           }
         };
-        const onMouseUpHandler = (upEvent) => {
-          upEvent.preventDefault();
-          upEvent.stopPropagation();
-          upEvent.stopImmediatePropagation();
-          document.removeEventListener("mousemove", onMouseMove, true);
-          document.removeEventListener("mouseup", onMouseUpHandler, true);
+        const cleanup = (upEvent) => {
+          if (cleaned) return;
+          cleaned = true;
+          if (upEvent) {
+            upEvent.preventDefault();
+            upEvent.stopPropagation();
+            upEvent.stopImmediatePropagation();
+          }
+          document.removeEventListener("pointermove", onPointerMove, true);
+          document.removeEventListener("pointerup", cleanup, true);
+          document.removeEventListener("pointercancel", cleanup, true);
+          const stopMouseEvent = (me) => {
+            me.preventDefault();
+            me.stopPropagation();
+            me.stopImmediatePropagation();
+            document.removeEventListener("mouseup", stopMouseEvent, true);
+          };
+          document.addEventListener("mouseup", stopMouseEvent, true);
+          requestAnimationFrame(() => {
+            document.removeEventListener("mouseup", stopMouseEvent, true);
+          });
           document.body.style.cursor = "";
           document.body.style.userSelect = "";
           this.state.isDragModeEnabled = false;
@@ -126,11 +143,19 @@ class UiManager {
             infoPanel.uiManager.updateControlStates();
           }
         };
-        document.addEventListener("mousemove", onMouseMove, true);
-        document.addEventListener("mouseup", onMouseUpHandler, true);
+        document.addEventListener("pointermove", onPointerMove, true);
+        document.addEventListener("pointerup", cleanup, true);
+        document.addEventListener("pointercancel", cleanup, true);
       };
+      const onMouseDown = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation();
+      };
+      this.glassDiv.addEventListener("pointerdown", onPointerDown);
       this.glassDiv.addEventListener("mousedown", onMouseDown);
-      this.glassDiv._dragHandler = onMouseDown;
+      this.glassDiv._dragHandler = onPointerDown;
+      this.glassDiv._dragMouseHandler = onMouseDown;
     } else {
       this.glassDiv.style.cursor = "";
       this.glassDiv.style.pointerEvents = "none";
@@ -139,8 +164,12 @@ class UiManager {
       document.body.style.userSelect = "";
       this.resetLiteGraphCanvasState();
       if (this.glassDiv._dragHandler) {
-        this.glassDiv.removeEventListener("mousedown", this.glassDiv._dragHandler);
+        this.glassDiv.removeEventListener("pointerdown", this.glassDiv._dragHandler);
         delete this.glassDiv._dragHandler;
+      }
+      if (this.glassDiv._dragMouseHandler) {
+        this.glassDiv.removeEventListener("mousedown", this.glassDiv._dragMouseHandler);
+        delete this.glassDiv._dragMouseHandler;
       }
     }
   }

@@ -113,12 +113,17 @@ export class UiManager {
             this.glassDiv.style.pointerEvents = 'auto';
             this.glassDiv.classList.add('drag-mode');
 
-            // Add drag handlers
-            const onMouseDown = (e: MouseEvent) => {
+            // Use pointer events for drag handling.
+            // LiteGraph uses pointerdown/pointerup for its canvas event handling.
+            // We MUST intercept pointer events (not just mouse events) to prevent
+            // LiteGraph from receiving unmatched events that corrupt its internal
+            // state machine (pointer_is_down, dragging_canvas flags).
+            const onPointerDown = (e: PointerEvent) => {
                 e.preventDefault();
                 e.stopPropagation();
+                e.stopImmediatePropagation();
 
-                // Calculate the fixed offset between mouse and glass top-left
+                // Calculate the fixed offset between pointer and glass top-left
                 const rect = this.glassDiv!.getBoundingClientRect();
                 const grabOffsetX = rect.left - e.clientX;
                 const grabOffsetY = rect.top - e.clientY;
@@ -135,7 +140,10 @@ export class UiManager {
                 document.body.style.cursor = 'grabbing';
                 document.body.style.userSelect = 'none';
 
-                const onMouseMove = (moveEvent: MouseEvent) => {
+                // Track whether cleanup has already been called (safety against double-fire)
+                let cleaned = false;
+
+                const onPointerMove = (moveEvent: PointerEvent) => {
                     moveEvent.preventDefault();
                     moveEvent.stopPropagation();
 
@@ -148,18 +156,34 @@ export class UiManager {
                     }
                 };
 
-                const onMouseUpHandler = (upEvent: MouseEvent) => {
-                    // CRITICAL: Stop propagation so the mouseup doesn't reach
-                    // LiteGraph's canvas handlers. LiteGraph gets confused when it
-                    // receives a mouseup without a matching mousedown (which we
-                    // consumed via stopPropagation above), causing it to enter
-                    // a permanent "grab/pan" cursor state.
-                    upEvent.preventDefault();
-                    upEvent.stopPropagation();
-                    upEvent.stopImmediatePropagation();
+                const cleanup = (upEvent?: PointerEvent) => {
+                    if (cleaned) return;
+                    cleaned = true;
 
-                    document.removeEventListener('mousemove', onMouseMove, true);
-                    document.removeEventListener('mouseup', onMouseUpHandler, true);
+                    if (upEvent) {
+                        upEvent.preventDefault();
+                        upEvent.stopPropagation();
+                        upEvent.stopImmediatePropagation();
+                    }
+
+                    // Remove all event listeners
+                    document.removeEventListener('pointermove', onPointerMove, true);
+                    document.removeEventListener('pointerup', cleanup, true);
+                    document.removeEventListener('pointercancel', cleanup, true);
+
+                    // Also stop any mouse events that might fire alongside pointer events
+                    // (prevents LiteGraph from seeing stale mouseup)
+                    const stopMouseEvent = (me: MouseEvent) => {
+                        me.preventDefault();
+                        me.stopPropagation();
+                        me.stopImmediatePropagation();
+                        document.removeEventListener('mouseup', stopMouseEvent, true);
+                    };
+                    document.addEventListener('mouseup', stopMouseEvent, true);
+                    // Auto-cleanup the mouseup interceptor after a frame
+                    requestAnimationFrame(() => {
+                        document.removeEventListener('mouseup', stopMouseEvent, true);
+                    });
 
                     // Reset all cursor and selection overrides
                     document.body.style.cursor = '';
@@ -176,13 +200,24 @@ export class UiManager {
                     }
                 };
 
-                // Use capture phase to ensure we get events before anyone else
-                document.addEventListener('mousemove', onMouseMove, true);
-                document.addEventListener('mouseup', onMouseUpHandler, true);
+                // Use capture phase to intercept events before LiteGraph sees them
+                document.addEventListener('pointermove', onPointerMove, true);
+                document.addEventListener('pointerup', cleanup, true);
+                document.addEventListener('pointercancel', cleanup, true);
             };
 
+            // Also add a mousedown interceptor on the glass to catch any
+            // mousedown events that fire alongside pointerdown
+            const onMouseDown = (e: MouseEvent) => {
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+            };
+
+            this.glassDiv.addEventListener('pointerdown', onPointerDown);
             this.glassDiv.addEventListener('mousedown', onMouseDown);
-            (this.glassDiv as any)._dragHandler = onMouseDown;
+            (this.glassDiv as any)._dragHandler = onPointerDown;
+            (this.glassDiv as any)._dragMouseHandler = onMouseDown;
         } else {
             this.glassDiv.style.cursor = '';
             this.glassDiv.style.pointerEvents = 'none';
@@ -195,10 +230,14 @@ export class UiManager {
             // Reset LiteGraph canvas state to prevent stuck cursor/interaction
             this.resetLiteGraphCanvasState();
 
-            // Remove drag handler
+            // Remove drag handlers
             if ((this.glassDiv as any)._dragHandler) {
-                this.glassDiv.removeEventListener('mousedown', (this.glassDiv as any)._dragHandler);
+                this.glassDiv.removeEventListener('pointerdown', (this.glassDiv as any)._dragHandler);
                 delete (this.glassDiv as any)._dragHandler;
+            }
+            if ((this.glassDiv as any)._dragMouseHandler) {
+                this.glassDiv.removeEventListener('mousedown', (this.glassDiv as any)._dragMouseHandler);
+                delete (this.glassDiv as any)._dragMouseHandler;
             }
         }
     }

@@ -84,13 +84,12 @@ class UiManager {
   setDragMode(enabled) {
     if (!this.glassDiv) return;
     if (enabled) {
-      this.glassDiv.style.cursor = "all-scroll";
+      this.glassDiv.style.cursor = "grab";
       this.glassDiv.style.pointerEvents = "auto";
       this.glassDiv.classList.add("drag-mode");
-      const onPointerDown = (e) => {
+      const onMouseDown = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        this.glassDiv.setPointerCapture(e.pointerId);
         const rect = this.glassDiv.getBoundingClientRect();
         const grabOffsetX = rect.left - e.clientX;
         const grabOffsetY = rect.top - e.clientY;
@@ -102,8 +101,9 @@ class UiManager {
         this.glassDiv.style.cursor = "grabbing";
         document.body.style.cursor = "grabbing";
         document.body.style.userSelect = "none";
-        const onPointerMove = (moveEvent) => {
+        const onMouseMove = (moveEvent) => {
           moveEvent.preventDefault();
+          moveEvent.stopPropagation();
           const newLeft = moveEvent.clientX + grabOffsetX;
           const newTop = moveEvent.clientY + grabOffsetY;
           if (this.glassDiv) {
@@ -111,17 +111,14 @@ class UiManager {
             this.glassDiv.style.top = `${newTop}px`;
           }
         };
-        const finishDrag = () => {
-          this.glassDiv.removeEventListener("pointermove", onPointerMove);
-          this.glassDiv.removeEventListener("pointerup", onPointerUp);
-          this.glassDiv.removeEventListener("pointercancel", onPointerUp);
-          this.glassDiv.removeEventListener("lostpointercapture", onPointerUp);
+        const onMouseUpHandler = (upEvent) => {
+          upEvent.preventDefault();
+          upEvent.stopPropagation();
+          upEvent.stopImmediatePropagation();
+          document.removeEventListener("mousemove", onMouseMove, true);
+          document.removeEventListener("mouseup", onMouseUpHandler, true);
           document.body.style.cursor = "";
           document.body.style.userSelect = "";
-          const canvas = document.querySelector("canvas.graph-canvas-container, #graph-canvas");
-          if (canvas) {
-            canvas.style.cursor = "";
-          }
           this.state.isDragModeEnabled = false;
           this.setDragMode(false);
           const infoPanel = window.infoPanelManager;
@@ -129,26 +126,50 @@ class UiManager {
             infoPanel.uiManager.updateControlStates();
           }
         };
-        const onPointerUp = (upEvent) => {
-          finishDrag();
-        };
-        this.glassDiv.addEventListener("pointermove", onPointerMove);
-        this.glassDiv.addEventListener("pointerup", onPointerUp);
-        this.glassDiv.addEventListener("pointercancel", onPointerUp);
-        this.glassDiv.addEventListener("lostpointercapture", onPointerUp);
+        document.addEventListener("mousemove", onMouseMove, true);
+        document.addEventListener("mouseup", onMouseUpHandler, true);
       };
-      this.glassDiv.addEventListener("pointerdown", onPointerDown);
-      this.glassDiv._dragHandler = onPointerDown;
+      this.glassDiv.addEventListener("mousedown", onMouseDown);
+      this.glassDiv._dragHandler = onMouseDown;
     } else {
       this.glassDiv.style.cursor = "";
       this.glassDiv.style.pointerEvents = "none";
       this.glassDiv.classList.remove("drag-mode");
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
+      this.resetLiteGraphCanvasState();
       if (this.glassDiv._dragHandler) {
-        this.glassDiv.removeEventListener("pointerdown", this.glassDiv._dragHandler);
+        this.glassDiv.removeEventListener("mousedown", this.glassDiv._dragHandler);
         delete this.glassDiv._dragHandler;
       }
+    }
+  }
+  /**
+   * Reset LiteGraph canvas internal state after our drag operation.
+   * LiteGraph tracks mouse state (pointer_is_down, dragging, etc.) internally.
+   * Our drag operation can confuse this state machine because we intercept
+   * mouse events with stopPropagation. This method forces a clean state.
+   */
+  resetLiteGraphCanvasState() {
+    try {
+      const appRef = window.app;
+      if (appRef == null ? void 0 : appRef.canvas) {
+        const lgCanvas = appRef.canvas;
+        if (lgCanvas.pointer_is_down !== void 0) {
+          lgCanvas.pointer_is_down = false;
+        }
+        if (lgCanvas.dragging_canvas !== void 0) {
+          lgCanvas.dragging_canvas = false;
+        }
+        if (lgCanvas.node_dragged !== void 0) {
+          lgCanvas.node_dragged = false;
+        }
+        const canvasEl = lgCanvas.canvas || lgCanvas.bgcanvas;
+        if (canvasEl && canvasEl.style) {
+          canvasEl.style.cursor = "";
+        }
+      }
+    } catch (_) {
     }
   }
   /**

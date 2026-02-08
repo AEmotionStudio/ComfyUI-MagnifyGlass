@@ -108,46 +108,37 @@ export class UiManager {
         if (!this.glassDiv) return;
 
         if (enabled) {
-            // Use 'all-scroll' which shows a 4-way arrow consistently across browsers
-            // Firefox shows 'move' as a grab/fist cursor which is confusing
-            this.glassDiv.style.cursor = 'all-scroll';
+            // Use 'grab' cursor when hover, 'grabbing' when actively dragging
+            this.glassDiv.style.cursor = 'grab';
             this.glassDiv.style.pointerEvents = 'auto';
             this.glassDiv.classList.add('drag-mode');
 
-            // Add drag handlers using pointer events + pointer capture for reliable tracking
-            const onPointerDown = (e: PointerEvent) => {
+            // Add drag handlers
+            const onMouseDown = (e: MouseEvent) => {
                 e.preventDefault();
                 e.stopPropagation();
 
-                // Capture pointer to this element — ensures all move/up events
-                // are delivered here even if the pointer leaves the glass element
-                this.glassDiv!.setPointerCapture(e.pointerId);
-
                 // Calculate the fixed offset between mouse and glass top-left
-                // This maintains the "grab point" relative to the glass
                 const rect = this.glassDiv!.getBoundingClientRect();
                 const grabOffsetX = rect.left - e.clientX;
                 const grabOffsetY = rect.top - e.clientY;
 
-                // First, set left/top to current position to prevent jump
+                // Set left/top to current position to prevent jump
                 this.glassDiv!.style.left = `${rect.left}px`;
                 this.glassDiv!.style.top = `${rect.top}px`;
-
-                // Then clear opposite positioning props (now safe since left/top are set)
                 this.glassDiv!.style.right = 'auto';
                 this.glassDiv!.style.bottom = 'auto';
-                this.glassDiv!.style.transform = 'none'; // Clear any centering transforms if they exist
+                this.glassDiv!.style.transform = 'none';
 
-                // Set body cursor so it persists even when dragging outside the glass div
+                // Visual feedback: grabbing cursor everywhere during drag
                 this.glassDiv!.style.cursor = 'grabbing';
                 document.body.style.cursor = 'grabbing';
                 document.body.style.userSelect = 'none';
 
-                const onPointerMove = (moveEvent: PointerEvent) => {
+                const onMouseMove = (moveEvent: MouseEvent) => {
                     moveEvent.preventDefault();
+                    moveEvent.stopPropagation();
 
-                    // 1:1 Movement: Glass moves exactly with mouse
-                    // New Pos = Mouse Pos + Initial Grab Offset
                     const newLeft = moveEvent.clientX + grabOffsetX;
                     const newTop = moveEvent.clientY + grabOffsetY;
 
@@ -157,21 +148,22 @@ export class UiManager {
                     }
                 };
 
-                const finishDrag = () => {
-                    this.glassDiv!.removeEventListener('pointermove', onPointerMove);
-                    this.glassDiv!.removeEventListener('pointerup', onPointerUp);
-                    this.glassDiv!.removeEventListener('pointercancel', onPointerUp);
-                    this.glassDiv!.removeEventListener('lostpointercapture', onPointerUp);
+                const onMouseUpHandler = (upEvent: MouseEvent) => {
+                    // CRITICAL: Stop propagation so the mouseup doesn't reach
+                    // LiteGraph's canvas handlers. LiteGraph gets confused when it
+                    // receives a mouseup without a matching mousedown (which we
+                    // consumed via stopPropagation above), causing it to enter
+                    // a permanent "grab/pan" cursor state.
+                    upEvent.preventDefault();
+                    upEvent.stopPropagation();
+                    upEvent.stopImmediatePropagation();
 
-                    // Reset body cursor and user-select
+                    document.removeEventListener('mousemove', onMouseMove, true);
+                    document.removeEventListener('mouseup', onMouseUpHandler, true);
+
+                    // Reset all cursor and selection overrides
                     document.body.style.cursor = '';
                     document.body.style.userSelect = '';
-
-                    // Also reset the ComfyUI canvas cursor directly
-                    const canvas = document.querySelector('canvas.graph-canvas-container, #graph-canvas') as HTMLElement;
-                    if (canvas) {
-                        canvas.style.cursor = '';
-                    }
 
                     // Disable drag mode after drop
                     this.state.isDragModeEnabled = false;
@@ -184,32 +176,64 @@ export class UiManager {
                     }
                 };
 
-                const onPointerUp = (upEvent: PointerEvent) => {
-                    finishDrag();
-                };
-
-                this.glassDiv!.addEventListener('pointermove', onPointerMove);
-                this.glassDiv!.addEventListener('pointerup', onPointerUp);
-                this.glassDiv!.addEventListener('pointercancel', onPointerUp);
-                this.glassDiv!.addEventListener('lostpointercapture', onPointerUp);
+                // Use capture phase to ensure we get events before anyone else
+                document.addEventListener('mousemove', onMouseMove, true);
+                document.addEventListener('mouseup', onMouseUpHandler, true);
             };
 
-            this.glassDiv.addEventListener('pointerdown', onPointerDown);
-            (this.glassDiv as any)._dragHandler = onPointerDown;
+            this.glassDiv.addEventListener('mousedown', onMouseDown);
+            (this.glassDiv as any)._dragHandler = onMouseDown;
         } else {
             this.glassDiv.style.cursor = '';
             this.glassDiv.style.pointerEvents = 'none';
             this.glassDiv.classList.remove('drag-mode');
 
-            // Safety: ensure body cursor/userSelect are reset in case pointerup was missed
+            // Safety: ensure body cursor/userSelect are reset
             document.body.style.cursor = '';
             document.body.style.userSelect = '';
 
+            // Reset LiteGraph canvas state to prevent stuck cursor/interaction
+            this.resetLiteGraphCanvasState();
+
             // Remove drag handler
             if ((this.glassDiv as any)._dragHandler) {
-                this.glassDiv.removeEventListener('pointerdown', (this.glassDiv as any)._dragHandler);
+                this.glassDiv.removeEventListener('mousedown', (this.glassDiv as any)._dragHandler);
                 delete (this.glassDiv as any)._dragHandler;
             }
+        }
+    }
+
+    /**
+     * Reset LiteGraph canvas internal state after our drag operation.
+     * LiteGraph tracks mouse state (pointer_is_down, dragging, etc.) internally.
+     * Our drag operation can confuse this state machine because we intercept
+     * mouse events with stopPropagation. This method forces a clean state.
+     */
+    private resetLiteGraphCanvasState(): void {
+        try {
+            const appRef = (window as any).app;
+            if (appRef?.canvas) {
+                const lgCanvas = appRef.canvas;
+
+                // Reset internal mouse tracking flags
+                if (lgCanvas.pointer_is_down !== undefined) {
+                    lgCanvas.pointer_is_down = false;
+                }
+                if (lgCanvas.dragging_canvas !== undefined) {
+                    lgCanvas.dragging_canvas = false;
+                }
+                if (lgCanvas.node_dragged !== undefined) {
+                    lgCanvas.node_dragged = false;
+                }
+
+                // Reset the canvas element cursor
+                const canvasEl = lgCanvas.canvas || lgCanvas.bgcanvas;
+                if (canvasEl && canvasEl.style) {
+                    canvasEl.style.cursor = '';
+                }
+            }
+        } catch (_) {
+            // Ignore errors - LiteGraph API may have changed
         }
     }
 

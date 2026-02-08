@@ -114,10 +114,14 @@ export class UiManager {
             this.glassDiv.style.pointerEvents = 'auto';
             this.glassDiv.classList.add('drag-mode');
 
-            // Add drag handlers
-            const onMouseDown = (e: MouseEvent) => {
+            // Add drag handlers using pointer events + pointer capture for reliable tracking
+            const onPointerDown = (e: PointerEvent) => {
                 e.preventDefault();
                 e.stopPropagation();
+
+                // Capture pointer to this element — ensures all move/up events
+                // are delivered here even if the pointer leaves the glass element
+                this.glassDiv!.setPointerCapture(e.pointerId);
 
                 // Calculate the fixed offset between mouse and glass top-left
                 // This maintains the "grab point" relative to the glass
@@ -135,12 +139,12 @@ export class UiManager {
                 this.glassDiv!.style.transform = 'none'; // Clear any centering transforms if they exist
 
                 // Set body cursor so it persists even when dragging outside the glass div
-                document.body.style.cursor = 'all-scroll';
+                this.glassDiv!.style.cursor = 'grabbing';
+                document.body.style.cursor = 'grabbing';
                 document.body.style.userSelect = 'none';
 
-                const onMouseMove = (moveEvent: MouseEvent) => {
+                const onPointerMove = (moveEvent: PointerEvent) => {
                     moveEvent.preventDefault();
-                    moveEvent.stopPropagation();
 
                     // 1:1 Movement: Glass moves exactly with mouse
                     // New Pos = Mouse Pos + Initial Grab Offset
@@ -153,13 +157,21 @@ export class UiManager {
                     }
                 };
 
-                const onMouseUp = (upEvent: MouseEvent) => {
-                    document.removeEventListener('mousemove', onMouseMove);
-                    document.removeEventListener('mouseup', onMouseUp);
+                const finishDrag = () => {
+                    this.glassDiv!.removeEventListener('pointermove', onPointerMove);
+                    this.glassDiv!.removeEventListener('pointerup', onPointerUp);
+                    this.glassDiv!.removeEventListener('pointercancel', onPointerUp);
+                    this.glassDiv!.removeEventListener('lostpointercapture', onPointerUp);
 
                     // Reset body cursor and user-select
                     document.body.style.cursor = '';
                     document.body.style.userSelect = '';
+
+                    // Also reset the ComfyUI canvas cursor directly
+                    const canvas = document.querySelector('canvas.graph-canvas-container, #graph-canvas') as HTMLElement;
+                    if (canvas) {
+                        canvas.style.cursor = '';
+                    }
 
                     // Disable drag mode after drop
                     this.state.isDragModeEnabled = false;
@@ -172,24 +184,30 @@ export class UiManager {
                     }
                 };
 
-                document.addEventListener('mousemove', onMouseMove);
-                document.addEventListener('mouseup', onMouseUp);
+                const onPointerUp = (upEvent: PointerEvent) => {
+                    finishDrag();
+                };
+
+                this.glassDiv!.addEventListener('pointermove', onPointerMove);
+                this.glassDiv!.addEventListener('pointerup', onPointerUp);
+                this.glassDiv!.addEventListener('pointercancel', onPointerUp);
+                this.glassDiv!.addEventListener('lostpointercapture', onPointerUp);
             };
 
-            this.glassDiv.addEventListener('mousedown', onMouseDown);
-            (this.glassDiv as any)._dragHandler = onMouseDown;
+            this.glassDiv.addEventListener('pointerdown', onPointerDown);
+            (this.glassDiv as any)._dragHandler = onPointerDown;
         } else {
             this.glassDiv.style.cursor = '';
             this.glassDiv.style.pointerEvents = 'none';
             this.glassDiv.classList.remove('drag-mode');
 
-            // Safety: ensure body cursor/userSelect are reset in case mouseup was missed
+            // Safety: ensure body cursor/userSelect are reset in case pointerup was missed
             document.body.style.cursor = '';
             document.body.style.userSelect = '';
 
             // Remove drag handler
             if ((this.glassDiv as any)._dragHandler) {
-                this.glassDiv.removeEventListener('mousedown', (this.glassDiv as any)._dragHandler);
+                this.glassDiv.removeEventListener('pointerdown', (this.glassDiv as any)._dragHandler);
                 delete (this.glassDiv as any)._dragHandler;
             }
         }

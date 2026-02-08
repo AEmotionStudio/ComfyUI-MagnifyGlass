@@ -87,9 +87,10 @@ class UiManager {
       this.glassDiv.style.cursor = "all-scroll";
       this.glassDiv.style.pointerEvents = "auto";
       this.glassDiv.classList.add("drag-mode");
-      const onMouseDown = (e) => {
+      const onPointerDown = (e) => {
         e.preventDefault();
         e.stopPropagation();
+        this.glassDiv.setPointerCapture(e.pointerId);
         const rect = this.glassDiv.getBoundingClientRect();
         const grabOffsetX = rect.left - e.clientX;
         const grabOffsetY = rect.top - e.clientY;
@@ -98,11 +99,11 @@ class UiManager {
         this.glassDiv.style.right = "auto";
         this.glassDiv.style.bottom = "auto";
         this.glassDiv.style.transform = "none";
-        document.body.style.cursor = "all-scroll";
+        this.glassDiv.style.cursor = "grabbing";
+        document.body.style.cursor = "grabbing";
         document.body.style.userSelect = "none";
-        const onMouseMove = (moveEvent) => {
+        const onPointerMove = (moveEvent) => {
           moveEvent.preventDefault();
-          moveEvent.stopPropagation();
           const newLeft = moveEvent.clientX + grabOffsetX;
           const newTop = moveEvent.clientY + grabOffsetY;
           if (this.glassDiv) {
@@ -110,11 +111,17 @@ class UiManager {
             this.glassDiv.style.top = `${newTop}px`;
           }
         };
-        const onMouseUp = (upEvent) => {
-          document.removeEventListener("mousemove", onMouseMove);
-          document.removeEventListener("mouseup", onMouseUp);
+        const finishDrag = () => {
+          this.glassDiv.removeEventListener("pointermove", onPointerMove);
+          this.glassDiv.removeEventListener("pointerup", onPointerUp);
+          this.glassDiv.removeEventListener("pointercancel", onPointerUp);
+          this.glassDiv.removeEventListener("lostpointercapture", onPointerUp);
           document.body.style.cursor = "";
           document.body.style.userSelect = "";
+          const canvas = document.querySelector("canvas.graph-canvas-container, #graph-canvas");
+          if (canvas) {
+            canvas.style.cursor = "";
+          }
           this.state.isDragModeEnabled = false;
           this.setDragMode(false);
           const infoPanel = window.infoPanelManager;
@@ -122,11 +129,16 @@ class UiManager {
             infoPanel.uiManager.updateControlStates();
           }
         };
-        document.addEventListener("mousemove", onMouseMove);
-        document.addEventListener("mouseup", onMouseUp);
+        const onPointerUp = (upEvent) => {
+          finishDrag();
+        };
+        this.glassDiv.addEventListener("pointermove", onPointerMove);
+        this.glassDiv.addEventListener("pointerup", onPointerUp);
+        this.glassDiv.addEventListener("pointercancel", onPointerUp);
+        this.glassDiv.addEventListener("lostpointercapture", onPointerUp);
       };
-      this.glassDiv.addEventListener("mousedown", onMouseDown);
-      this.glassDiv._dragHandler = onMouseDown;
+      this.glassDiv.addEventListener("pointerdown", onPointerDown);
+      this.glassDiv._dragHandler = onPointerDown;
     } else {
       this.glassDiv.style.cursor = "";
       this.glassDiv.style.pointerEvents = "none";
@@ -134,7 +146,7 @@ class UiManager {
       document.body.style.cursor = "";
       document.body.style.userSelect = "";
       if (this.glassDiv._dragHandler) {
-        this.glassDiv.removeEventListener("mousedown", this.glassDiv._dragHandler);
+        this.glassDiv.removeEventListener("pointerdown", this.glassDiv._dragHandler);
         delete this.glassDiv._dragHandler;
       }
     }

@@ -233,5 +233,6 @@ export class PositionManager {
         // Show controls now that they're positioned (initially hidden off-screen)
         controlsElement.style.display = 'flex';
         controlsElement.style.visibility = 'visible';
+        controlsElement.style.pointerEvents = 'auto';
     }
 }

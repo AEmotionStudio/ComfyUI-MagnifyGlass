@@ -44,6 +44,7 @@ export class DragValueController {
     private accumulatedDelta: number = 0;
 
     // Bound event handlers for cleanup
+    private boundPointerDown: (e: PointerEvent) => void;
     private boundPointerMove: (e: PointerEvent) => void;
     private boundPointerUp: (e: PointerEvent) => void;
     private boundPointerCancel: (e: PointerEvent) => void;
@@ -53,6 +54,7 @@ export class DragValueController {
         this.element = element;
         this.config = config;
 
+        this.boundPointerDown = this.onPointerDown.bind(this);
         this.boundPointerMove = this.onPointerMove.bind(this);
         this.boundPointerUp = this.onPointerUp.bind(this);
         this.boundPointerCancel = this.onPointerCancel.bind(this);
@@ -67,7 +69,7 @@ export class DragValueController {
     private init(): void {
         this.element.classList.add('draggable');
 
-        this.element.addEventListener('pointerdown', this.onPointerDown.bind(this));
+        this.element.addEventListener('pointerdown', this.boundPointerDown);
 
         // Add visual indicator
         // this.addDragIndicator();
@@ -296,6 +298,9 @@ export class DragValueController {
         if (indicator) {
             indicator.remove();
         }
+
+        // Remove the pointerdown listener from the element
+        this.element.removeEventListener('pointerdown', this.boundPointerDown);
 
         // Remove document listeners if still attached (with capture flag)
         document.removeEventListener('pointermove', this.boundPointerMove, true);

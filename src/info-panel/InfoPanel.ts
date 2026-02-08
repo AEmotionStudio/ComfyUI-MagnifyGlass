@@ -128,6 +128,7 @@ export class InfoPanel {
                     const showControls = this.stateManager.state.settings["🔍MagnifyGlass.ShowHoveringControls"] !== false;
                     if (showControls && this.uiManager.elements.controls) {
                         this.uiManager.elements.controls.style.display = 'flex';
+                        this.uiManager.elements.controls.style.pointerEvents = 'auto';
                     }
 
                     // Ensure states are updated
@@ -151,11 +152,15 @@ export class InfoPanel {
             // FORCE HIDE: Directly set panel display to none as a safety measure
             if (this.uiManager.elements.panel) {
                 this.uiManager.elements.panel.style.display = 'none';
+                this.uiManager.elements.panel.style.pointerEvents = 'none';
+                // Also force opacity 0 to prevent any visual ghost
+                this.uiManager.elements.panel.style.opacity = '0';
             }
 
             // Explicitly hide floating controls when glass is disabled
             if (this.uiManager.elements.controls) {
                 this.uiManager.elements.controls.style.display = 'none';
+                this.uiManager.elements.controls.style.pointerEvents = 'none';
             }
 
             // Fix: Ensure highlight is cleared when glass is disabled

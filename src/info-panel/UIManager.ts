@@ -672,7 +672,14 @@ export class UIManager {
         if (!this.elements.panel) return;
 
         if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"]) {
+            // Re-enable pointer events (disabled by hide())
+            this.elements.panel.style.pointerEvents = 'auto';
             this.elements.panel.style.display = "block";
+            // Restore persist-active class if sticky mode is enabled
+            // (removed by hide() to prevent CSS !important display override)
+            if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"]) {
+                this.elements.panel.classList.add('persist-active');
+            }
             // Controls are shown by positionFloatingControls() after proper positioning
             // Apply user's opacity setting when showing (convert percentage to decimal)
             const opacityPercent = Number(this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelOpacity"]) || 100;
@@ -691,11 +698,18 @@ export class UIManager {
     hide(): void {
         if (!this.elements.panel) return;
 
+        // Cleanup active drag controllers, editors, and inline controls
+        // to prevent ghost interactions on hidden panel elements
+        this.cleanupEditors();
+
         this.elements.panel.classList.remove('visible');
-        this.elements.panel.classList.remove('visible');
-        if (this.elements.panel) {
-            this.elements.panel.style.display = "none";
-        }
+        // Remove persist-active class so its CSS `display: flex !important`
+        // doesn't override our inline `display: none`
+        this.elements.panel.classList.remove('persist-active');
+        // Disable pointer events as a safety net — prevents cursor changes
+        // and click interactions even if CSS rules override display
+        this.elements.panel.style.pointerEvents = 'none';
+        this.elements.panel.style.display = 'none';
         this.stateManager.state.isPanelVisible = false;
         this.updateControlStates();
     }

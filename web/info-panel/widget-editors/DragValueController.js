@@ -19,12 +19,14 @@ class DragValueController {
     __publicField(this, "startOptionIndex", 0);
     __publicField(this, "accumulatedDelta", 0);
     // Bound event handlers for cleanup
+    __publicField(this, "boundPointerDown");
     __publicField(this, "boundPointerMove");
     __publicField(this, "boundPointerUp");
     __publicField(this, "boundPointerCancel");
     __publicField(this, "boundLostCapture");
     this.element = element;
     this.config = config;
+    this.boundPointerDown = this.onPointerDown.bind(this);
     this.boundPointerMove = this.onPointerMove.bind(this);
     this.boundPointerUp = this.onPointerUp.bind(this);
     this.boundPointerCancel = this.onPointerCancel.bind(this);
@@ -36,7 +38,7 @@ class DragValueController {
    */
   init() {
     this.element.classList.add("draggable");
-    this.element.addEventListener("pointerdown", this.onPointerDown.bind(this));
+    this.element.addEventListener("pointerdown", this.boundPointerDown);
   }
   /**
    * Add visual drag indicator to the row
@@ -198,6 +200,7 @@ class DragValueController {
     if (indicator) {
       indicator.remove();
     }
+    this.element.removeEventListener("pointerdown", this.boundPointerDown);
     document.removeEventListener("pointermove", this.boundPointerMove, true);
     document.removeEventListener("pointerup", this.boundPointerUp, true);
     document.removeEventListener("pointercancel", this.boundPointerCancel, true);

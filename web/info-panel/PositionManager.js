@@ -173,6 +173,7 @@ class PositionManager {
     controlsElement.style.top = `${top}px`;
     controlsElement.style.display = "flex";
     controlsElement.style.visibility = "visible";
+    controlsElement.style.pointerEvents = "auto";
   }
 }
 export {

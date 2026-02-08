@@ -85,6 +85,7 @@ class InfoPanel {
           const showControls = this.stateManager.state.settings["🔍MagnifyGlass.ShowHoveringControls"] !== false;
           if (showControls && this.uiManager.elements.controls) {
             this.uiManager.elements.controls.style.display = "flex";
+            this.uiManager.elements.controls.style.pointerEvents = "auto";
           }
           this.uiManager.updateControlStates();
           setTimeout(() => {
@@ -99,9 +100,12 @@ class InfoPanel {
       this.uiManager.hide();
       if (this.uiManager.elements.panel) {
         this.uiManager.elements.panel.style.display = "none";
+        this.uiManager.elements.panel.style.pointerEvents = "none";
+        this.uiManager.elements.panel.style.opacity = "0";
       }
       if (this.uiManager.elements.controls) {
         this.uiManager.elements.controls.style.display = "none";
+        this.uiManager.elements.controls.style.pointerEvents = "none";
       }
       this.canvasHighlighter.setHighlightedNode(null);
     }).bind(this);

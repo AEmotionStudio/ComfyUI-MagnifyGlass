@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.1] - 2026-02-07
+
+### Fixed
+- **Ghost Interactions**: Fixed cursor actions (grab, text-input, pointer) persisting after hiding the info panel via the X key toggle.
+  - `DragValueController.destroy()` now properly removes the `pointerdown` listener (previously used an unreferenced `.bind()` making removal impossible).
+  - `UIManager.hide()` now calls `cleanupEditors()` to destroy all active drag controllers, editors, and inline controls.
+  - Fixed CSS `display: flex !important` on `.persist-active` overriding inline `display: none`, keeping the panel fully interactive while visually hidden.
+  - Added `pointer-events: none` safety net on panel and floating controls when hidden, with proper restoration on re-show.
+
+---
+
 ## [1.13.0] - 2026-01-19
 
 ### Changed

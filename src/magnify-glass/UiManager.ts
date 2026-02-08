@@ -134,6 +134,10 @@ export class UiManager {
                 this.glassDiv!.style.bottom = 'auto';
                 this.glassDiv!.style.transform = 'none'; // Clear any centering transforms if they exist
 
+                // Set body cursor so it persists even when dragging outside the glass div
+                document.body.style.cursor = 'all-scroll';
+                document.body.style.userSelect = 'none';
+
                 const onMouseMove = (moveEvent: MouseEvent) => {
                     moveEvent.preventDefault();
                     moveEvent.stopPropagation();
@@ -152,6 +156,10 @@ export class UiManager {
                 const onMouseUp = (upEvent: MouseEvent) => {
                     document.removeEventListener('mousemove', onMouseMove);
                     document.removeEventListener('mouseup', onMouseUp);
+
+                    // Reset body cursor and user-select
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
 
                     // Disable drag mode after drop
                     this.state.isDragModeEnabled = false;
@@ -174,6 +182,10 @@ export class UiManager {
             this.glassDiv.style.cursor = '';
             this.glassDiv.style.pointerEvents = 'none';
             this.glassDiv.classList.remove('drag-mode');
+
+            // Safety: ensure body cursor/userSelect are reset in case mouseup was missed
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
 
             // Remove drag handler
             if ((this.glassDiv as any)._dragHandler) {

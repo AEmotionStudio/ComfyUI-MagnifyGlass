@@ -98,6 +98,8 @@ class UiManager {
         this.glassDiv.style.right = "auto";
         this.glassDiv.style.bottom = "auto";
         this.glassDiv.style.transform = "none";
+        document.body.style.cursor = "all-scroll";
+        document.body.style.userSelect = "none";
         const onMouseMove = (moveEvent) => {
           moveEvent.preventDefault();
           moveEvent.stopPropagation();
@@ -111,6 +113,8 @@ class UiManager {
         const onMouseUp = (upEvent) => {
           document.removeEventListener("mousemove", onMouseMove);
           document.removeEventListener("mouseup", onMouseUp);
+          document.body.style.cursor = "";
+          document.body.style.userSelect = "";
           this.state.isDragModeEnabled = false;
           this.setDragMode(false);
           const infoPanel = window.infoPanelManager;
@@ -127,6 +131,8 @@ class UiManager {
       this.glassDiv.style.cursor = "";
       this.glassDiv.style.pointerEvents = "none";
       this.glassDiv.classList.remove("drag-mode");
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
       if (this.glassDiv._dragHandler) {
         this.glassDiv.removeEventListener("mousedown", this.glassDiv._dragHandler);
         delete this.glassDiv._dragHandler;

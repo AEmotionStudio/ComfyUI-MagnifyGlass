@@ -89,6 +89,41 @@ export class OffscreenRenderer {
     }
 
     /**
+     * Get a list of nodes visible within the source rectangle.
+     * This avoids iterating over all nodes multiple times per frame.
+     */
+    private getVisibleNodes(
+        sourceCssX: number,
+        sourceCssY: number,
+        sourceCssWidth: number,
+        sourceCssHeight: number,
+        scale: number,
+        offset: [number, number]
+    ): any[] {
+        const graph = app?.graph;
+        if (!graph || !graph._nodes) return [];
+
+        const visibleNodes = [];
+        for (const node of graph._nodes) {
+            if (!node.pos || !node.size) continue;
+            if (node.flags?.collapsed) continue;
+
+            // Calculate node position in CSS pixels
+            const nodeCssX = node.pos[0] * scale + offset[0];
+            const nodeCssY = node.pos[1] * scale + offset[1];
+            const nodeCssWidth = node.size[0] * scale;
+            const nodeCssHeight = node.size[1] * scale;
+
+            // Check overlap
+            if (nodeCssX + nodeCssWidth < sourceCssX || nodeCssX > sourceCssX + sourceCssWidth) continue;
+            if (nodeCssY + nodeCssHeight < sourceCssY || nodeCssY > sourceCssY + sourceCssHeight) continue;
+
+            visibleNodes.push(node);
+        }
+        return visibleNodes;
+    }
+
+    /**
      * Detect if there are nodes with image previews in the capture region.
      * These nodes (Save Image, Preview Image, etc.) have images that are drawn
      * via onDrawBackground/onDrawForeground and cause artifacts during Virtual Zoom.
@@ -191,11 +226,19 @@ export class OffscreenRenderer {
             const lgCanvas = app?.canvas;
             const currentScale = lgCanvas?.ds?.scale ?? 1.0;
             const currentOffset: [number, number] = lgCanvas?.ds?.offset ? [lgCanvas.ds.offset[0], lgCanvas.ds.offset[1]] : [0, 0];
-            this.drawWidgetTextNatively(sourceX, sourceY, sourceWidth, sourceHeight, renderSize, currentScale, currentOffset);
+
+            // OPTIMIZATION: Get visible nodes once
+            const sourceCssX = sourceX / dpr;
+            const sourceCssY = sourceY / dpr;
+            const sourceCssWidth = sourceWidth / dpr;
+            const sourceCssHeight = sourceHeight / dpr;
+            const visibleNodes = this.getVisibleNodes(sourceCssX, sourceCssY, sourceCssWidth, sourceCssHeight, currentScale, currentOffset);
+
+            this.drawWidgetTextNatively(visibleNodes, sourceX, sourceY, sourceWidth, sourceHeight, renderSize, currentScale, currentOffset);
 
             // Draw node titles if emphasis is enabled
             if (this.config.accessibilityEnabled && this.config.nodeTitleEmphasis) {
-                this.drawNodeTitlesNatively(sourceX, sourceY, sourceWidth, sourceHeight, renderSize, currentScale, currentOffset);
+                this.drawNodeTitlesNatively(visibleNodes, sourceX, sourceY, sourceWidth, sourceHeight, renderSize, currentScale, currentOffset);
             }
 
             // NOTE: We do NOT call drawImagePreviewsNatively() here.
@@ -346,15 +389,23 @@ export class OffscreenRenderer {
             // Note: For virtual zoom, we use targetScale and the CURRENT offset (after setZoom)
             // because lgCanvas.setZoom() modified the offset to zoom around the pivot
             const captureOffset: [number, number] = [lgCanvas.ds.offset[0], lgCanvas.ds.offset[1]];
-            this.drawWidgetTextNatively(sourceX, sourceY, sourceWidth, sourceHeight, renderSize, targetScale, captureOffset);
+
+            // OPTIMIZATION: Get visible nodes once
+            const sourceCssX = sourceX / dpr;
+            const sourceCssY = sourceY / dpr;
+            const sourceCssWidth = sourceWidth / dpr;
+            const sourceCssHeight = sourceHeight / dpr;
+            const visibleNodes = this.getVisibleNodes(sourceCssX, sourceCssY, sourceCssWidth, sourceCssHeight, targetScale, captureOffset);
+
+            this.drawWidgetTextNatively(visibleNodes, sourceX, sourceY, sourceWidth, sourceHeight, renderSize, targetScale, captureOffset);
 
             // Draw node titles if emphasis is enabled
             if (this.config.accessibilityEnabled && this.config.nodeTitleEmphasis) {
-                this.drawNodeTitlesNatively(sourceX, sourceY, sourceWidth, sourceHeight, renderSize, targetScale, captureOffset);
+                this.drawNodeTitlesNatively(visibleNodes, sourceX, sourceY, sourceWidth, sourceHeight, renderSize, targetScale, captureOffset);
             }
 
             // Draw image/video previews natively on top of the captured canvas
-            this.drawImagePreviewsNatively(sourceX, sourceY, sourceWidth, sourceHeight, renderSize, targetScale, captureOffset);
+            this.drawImagePreviewsNatively(visibleNodes, sourceX, sourceY, sourceWidth, sourceHeight, renderSize, targetScale, captureOffset);
 
             // Draw cursor preview overlay if enabled
             if (this.config.showCursorPreview) {
@@ -400,6 +451,7 @@ export class OffscreenRenderer {
      * Draw node titles natively with accessibility styling.
      */
     private drawNodeTitlesNatively(
+        visibleNodes: any[],
         sourceX: number,
         sourceY: number,
         sourceWidth: number,
@@ -408,8 +460,7 @@ export class OffscreenRenderer {
         scale: number,
         offset: [number, number]
     ): void {
-        const graph = app?.graph;
-        if (!graph || !graph._nodes || !this.offscreenCtx) return;
+        if (!this.offscreenCtx) return;
 
         const ctx = this.offscreenCtx;
         const TITLE_HEIGHT = 30;
@@ -425,7 +476,7 @@ export class OffscreenRenderer {
         const sourceCssWidth = sourceWidth / actualDpr;
         const sourceCssHeight = sourceHeight / actualDpr;
 
-        for (const node of graph._nodes) {
+        for (const node of visibleNodes) {
             if (!node.pos || !node.size) continue;
             if (node.flags?.collapsed) continue;
 
@@ -497,6 +548,7 @@ export class OffscreenRenderer {
      * Draw widget text natively on the offscreen canvas.
      * This renders text content that would otherwise be lost since widgets are DOM elements.
      * 
+     * @param visibleNodes - List of nodes to check for text widgets
      * @param sourceX - Source X position in backing pixels
      * @param sourceY - Source Y position in backing pixels
      * @param sourceWidth - Source width in backing pixels
@@ -506,6 +558,7 @@ export class OffscreenRenderer {
      * @param offset - Canvas offset [x, y] used during capture
      */
     private drawWidgetTextNatively(
+        visibleNodes: any[],
         sourceX: number,
         sourceY: number,
         sourceWidth: number,
@@ -514,8 +567,7 @@ export class OffscreenRenderer {
         scale: number,
         offset: [number, number]
     ): void {
-        const graph = app?.graph;
-        if (!graph || !graph._nodes || !this.offscreenCtx) return;
+        if (!this.offscreenCtx) return;
 
         const ctx = this.offscreenCtx;
         const lgCanvas = app?.canvas;
@@ -546,7 +598,7 @@ export class OffscreenRenderer {
         const sourceCssWidth = sourceWidth / actualDpr;
         const sourceCssHeight = sourceHeight / actualDpr;
 
-        for (const node of graph._nodes) {
+        for (const node of visibleNodes) {
             if (!node.widgets || !node.pos || !node.size) continue;
             if (node.flags?.collapsed) continue;
 
@@ -711,6 +763,7 @@ export class OffscreenRenderer {
      * - node.imgs[] array (standard ComfyUI SaveImage/PreviewImage nodes)
      * - VHS-style DOM widget previews (video/image elements)
      * 
+     * @param visibleNodes - List of nodes to check for image previews
      * @param sourceX - Source X position in backing pixels
      * @param sourceY - Source Y position in backing pixels
      * @param sourceWidth - Source width in backing pixels
@@ -720,6 +773,7 @@ export class OffscreenRenderer {
      * @param offset - Canvas offset [x, y] used during capture
      */
     private drawImagePreviewsNatively(
+        visibleNodes: any[],
         sourceX: number,
         sourceY: number,
         sourceWidth: number,
@@ -728,8 +782,7 @@ export class OffscreenRenderer {
         scale: number,
         offset: [number, number]
     ): void {
-        const graph = app?.graph;
-        if (!graph || !graph._nodes || !this.offscreenCtx) return;
+        if (!this.offscreenCtx) return;
 
         const ctx = this.offscreenCtx;
 
@@ -748,7 +801,7 @@ export class OffscreenRenderer {
         const TITLE_HEIGHT = 30;
         const WIDGET_MARGIN = 4;
 
-        for (const node of graph._nodes) {
+        for (const node of visibleNodes) {
             if (!node.pos || !node.size) continue;
             if (node.flags?.collapsed) continue;
 

@@ -9,3 +9,7 @@
 ## 2024-05-23 - Read-Write-Read Layout Thrashing
 **Learning:** Writing to the DOM (e.g., `element.style.top = ...`) immediately invalidates the layout. If you subsequently read a layout property (e.g., `getBoundingClientRect()`) in the same frame, the browser must force a synchronous layout recalculation.
 **Action:** In event handlers that move elements, Read all necessary dimensions first, then Perform all Writes. If a downstream method (like `updateMagnifiedView`) needs dimensions, pass the cached values instead of re-reading them.
+
+## 2026-02-09 - Redundant Node Iterations
+**Learning:** Iterating `app.graph._nodes` multiple times per frame (e.g., once for text, once for titles, once for images) is a significant bottleneck in extensions, especially with large graphs. Each traversal is O(N).
+**Action:** Calculate the visible subset of nodes ONCE per frame (`getVisibleNodes`) and reuse this list for all subsequent rendering passes.

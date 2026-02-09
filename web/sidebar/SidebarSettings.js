@@ -127,11 +127,31 @@ function createColorPicker(label, value, onChange, tooltip, onInput) {
   colorInput.id = colorId;
   colorInput.className = "magnify-color-input";
   colorInput.value = value;
-  const colorPreview = document.createElement("span");
+  const colorPreview = document.createElement("input");
+  colorPreview.type = "text";
   colorPreview.className = "magnify-color-preview";
-  colorPreview.textContent = value;
+  colorPreview.value = value;
+  colorPreview.maxLength = 7;
+  colorPreview.setAttribute("aria-label", `Hex code for ${label}`);
+  colorPreview.addEventListener("keydown", (e) => e.stopPropagation());
+  colorPreview.addEventListener("focus", () => colorPreview.select());
+  const updateFromText = () => {
+    let val = colorPreview.value;
+    if (!val.startsWith("#") && /^[0-9A-Fa-f]{6}$/.test(val)) {
+      val = "#" + val;
+    }
+    if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+      colorPreview.value = val;
+      colorInput.value = val;
+      if (onInput) onInput(val);
+      onChange(val);
+    } else {
+      colorPreview.value = colorInput.value;
+    }
+  };
+  colorPreview.addEventListener("change", updateFromText);
   colorInput.addEventListener("input", () => {
-    colorPreview.textContent = colorInput.value;
+    colorPreview.value = colorInput.value;
     if (onInput) onInput(colorInput.value);
   });
   colorInput.addEventListener("change", () => {

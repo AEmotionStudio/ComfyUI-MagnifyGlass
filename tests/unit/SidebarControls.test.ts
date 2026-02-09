@@ -173,9 +173,7 @@ describe('Sidebar Controls', () => {
 
             // Should not update color input (keeps previous value)
             expect(colorInput.value).toBe('#ff0000');
-
-            // Simulate blur with invalid code -> should revert
-            textInput.dispatchEvent(new Event('blur'));
+            // Should revert text input to last valid value immediately on change
             expect(textInput.value).toBe('#ff0000');
         });
 

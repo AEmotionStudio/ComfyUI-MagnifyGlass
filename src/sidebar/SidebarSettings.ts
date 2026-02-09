@@ -262,16 +262,16 @@ export function createColorPicker(
             colorInput.value = val;
             if (onInput) onInput(val);
             onChange(val);
+        } else {
+            // Revert to last valid value if invalid
+            colorPreview.value = colorInput.value;
         }
     };
 
     colorPreview.addEventListener('change', updateFromText);
-    colorPreview.addEventListener('blur', () => {
-        // Revert to valid value on blur if invalid
-        if (!/^#[0-9A-Fa-f]{6}$/.test(colorPreview.value)) {
-            colorPreview.value = colorInput.value;
-        }
-    });
+    // Blur is handled by change for most cases, but keeping it as a fallback isn't harmful
+    // However, since change covers commit actions (Enter/Blur), the explicit blur handler is redundant if updateFromText handles reversion.
+    // Removing explicit blur handler to avoid double-handling, as change event suffices for committing value.
 
     colorInput.addEventListener('input', () => {
         colorPreview.value = colorInput.value;

@@ -1,8 +1,61 @@
 import { describe, it, expect } from 'vitest';
+import { Window } from 'happy-dom';
 import { formatValue } from '../../src/info-panel/ValueFormatter';
-import { escapeHtml } from '../../src/shared/utils';
+import { escapeHtml, sanitizeElement } from '../../src/shared/utils';
 
 describe('Security', () => {
+    describe('sanitizeElement', () => {
+        it('should remove event handlers from an element', () => {
+            const window = new Window();
+            const document = window.document;
+            const element = document.createElement('div');
+            element.setAttribute('onclick', 'alert(1)');
+            element.setAttribute('onerror', 'alert(1)');
+            element.setAttribute('onload', 'alert(1)');
+            element.setAttribute('class', 'safe');
+
+            sanitizeElement(element as unknown as HTMLElement);
+
+            expect(element.hasAttribute('onclick')).toBe(false);
+            expect(element.hasAttribute('onerror')).toBe(false);
+            expect(element.hasAttribute('onload')).toBe(false);
+            expect(element.getAttribute('class')).toBe('safe');
+        });
+
+        it('should recursively remove event handlers from children', () => {
+            const window = new Window();
+            const document = window.document;
+            const parent = document.createElement('div');
+            const child = document.createElement('img');
+
+            child.setAttribute('src', 'x');
+            child.setAttribute('onerror', 'alert(1)');
+            parent.appendChild(child);
+
+            sanitizeElement(parent as unknown as HTMLElement);
+
+            expect(child.hasAttribute('onerror')).toBe(false);
+            expect(child.getAttribute('src')).toBe('x');
+        });
+
+        it('should handle elements without attributes gracefully', () => {
+             const window = new Window();
+             const document = window.document;
+             const element = document.createElement('div');
+
+             // Should not throw
+             sanitizeElement(element as unknown as HTMLElement);
+             expect(true).toBe(true);
+        });
+
+        it('should handle null/undefined gracefully', () => {
+            // Should not throw
+            sanitizeElement(null as any);
+            sanitizeElement(undefined as any);
+            expect(true).toBe(true);
+       });
+    });
+
     describe('formatValue', () => {
         it('should escape HTML in values to prevent XSS', () => {
             const maliciousInput = '<script>alert("xss")</script>';

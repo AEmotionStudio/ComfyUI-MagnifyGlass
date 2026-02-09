@@ -188,3 +188,27 @@ export function escapeHtml(str: unknown): string {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 }
+
+/**
+ * Recursively sanitize an element by removing all event handler attributes (on*).
+ * This prevents XSS when cloning nodes that might contain malicious handlers.
+ * @param element - The element to sanitize
+ */
+export function sanitizeElement(element: HTMLElement): void {
+    if (!element || !element.attributes) return;
+
+    // Remove all attributes starting with 'on'
+    const attributes = element.attributes;
+    for (let i = attributes.length - 1; i >= 0; i--) {
+        const attrName = attributes[i].name;
+        if (attrName.toLowerCase().startsWith('on')) {
+            element.removeAttribute(attrName);
+        }
+    }
+
+    // Recursively sanitize children
+    const children = element.children;
+    for (let i = 0; i < children.length; i++) {
+        sanitizeElement(children[i] as HTMLElement);
+    }
+}

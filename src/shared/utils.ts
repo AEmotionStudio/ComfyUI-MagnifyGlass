@@ -210,7 +210,9 @@ export function sanitizeElement(element: HTMLElement): void {
 
         // 2. Remove javascript: URIs in specific attributes
         if (['href', 'src', 'action', 'formaction'].includes(attrName)) {
-            if (attrValue.startsWith('javascript:')) {
+            // Strip all whitespace and control characters to prevent bypasses like "java\tscript:"
+            const normalizedValue = attrValue.replace(/[\s\x00-\x1F\x7F]/g, '');
+            if (normalizedValue.startsWith('javascript:')) {
                 element.removeAttribute(attributes[i].name);
             }
         }

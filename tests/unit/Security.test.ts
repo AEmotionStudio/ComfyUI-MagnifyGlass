@@ -60,6 +60,25 @@ describe('Security', () => {
             expect(form.hasAttribute('formaction')).toBe(false);
         });
 
+        it('should remove obscured javascript: URIs (whitespace bypass)', () => {
+            const window = new Window();
+            const document = window.document;
+            const link = document.createElement('a');
+
+            // Bypass attempts: tabs, newlines, spaces
+            link.setAttribute('href', 'java\tscript:alert(1)');
+            sanitizeElement(link as unknown as HTMLElement);
+            expect(link.hasAttribute('href')).toBe(false);
+
+            link.setAttribute('href', 'java\nscript:alert(1)');
+            sanitizeElement(link as unknown as HTMLElement);
+            expect(link.hasAttribute('href')).toBe(false);
+
+            link.setAttribute('href', ' javascript:alert(1)');
+            sanitizeElement(link as unknown as HTMLElement);
+            expect(link.hasAttribute('href')).toBe(false);
+        });
+
         it('should preserve safe URLs', () => {
             const window = new Window();
             const document = window.document;

@@ -237,12 +237,44 @@ export function createColorPicker(
     colorInput.className = 'magnify-color-input';
     colorInput.value = value;
 
-    const colorPreview = document.createElement('span');
+    const colorPreview = document.createElement('input');
+    colorPreview.type = 'text';
     colorPreview.className = 'magnify-color-preview';
-    colorPreview.textContent = value;
+    colorPreview.value = value;
+    colorPreview.maxLength = 7;
+    colorPreview.setAttribute('aria-label', `Hex code for ${label}`);
+
+    // Stop propagation of keys to prevent global hotkeys while typing
+    colorPreview.addEventListener('keydown', (e) => e.stopPropagation());
+
+    // Select all on focus for easy copy/paste
+    colorPreview.addEventListener('focus', () => colorPreview.select());
+
+    // Sync from text input to color picker
+    const updateFromText = () => {
+        let val = colorPreview.value;
+        if (!val.startsWith('#') && /^[0-9A-Fa-f]{6}$/.test(val)) {
+            val = '#' + val;
+        }
+
+        if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+            colorPreview.value = val; // Ensure normalized format
+            colorInput.value = val;
+            if (onInput) onInput(val);
+            onChange(val);
+        } else {
+            // Revert to last valid value if invalid
+            colorPreview.value = colorInput.value;
+        }
+    };
+
+    colorPreview.addEventListener('change', updateFromText);
+    // Blur is handled by change for most cases, but keeping it as a fallback isn't harmful
+    // However, since change covers commit actions (Enter/Blur), the explicit blur handler is redundant if updateFromText handles reversion.
+    // Removing explicit blur handler to avoid double-handling, as change event suffices for committing value.
 
     colorInput.addEventListener('input', () => {
-        colorPreview.textContent = colorInput.value;
+        colorPreview.value = colorInput.value;
         if (onInput) onInput(colorInput.value);
     });
 

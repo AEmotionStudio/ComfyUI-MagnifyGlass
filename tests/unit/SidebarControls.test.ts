@@ -141,5 +141,53 @@ describe('Sidebar Controls', () => {
             expect(labelEl.getAttribute('for')).toBe(input.id);
             expect(input.id).toMatch(/^magnify-color-/);
         });
+
+        it('should sync text input with color picker', () => {
+            const onChange = vi.fn();
+            const colorRow = createColorPicker('Test Color', '#000000', onChange);
+
+            const colorInput = colorRow.querySelector('input[type="color"]') as HTMLInputElement;
+            const textInput = colorRow.querySelector('input.magnify-color-preview') as HTMLInputElement;
+
+            expect(textInput).toBeTruthy();
+            expect(textInput.value).toBe('#000000');
+
+            // Simulate typing a valid hex code
+            textInput.value = '#ffffff';
+            textInput.dispatchEvent(new Event('change'));
+
+            expect(colorInput.value).toBe('#ffffff');
+            expect(onChange).toHaveBeenCalledWith('#ffffff');
+
+            // Simulate typing a hex code without hash
+            textInput.value = 'ff0000';
+            textInput.dispatchEvent(new Event('change'));
+
+            expect(textInput.value).toBe('#ff0000'); // Should normalize
+            expect(colorInput.value).toBe('#ff0000');
+            expect(onChange).toHaveBeenCalledWith('#ff0000');
+
+            // Simulate typing invalid hex code
+            textInput.value = 'invalid';
+            textInput.dispatchEvent(new Event('change'));
+
+            // Should not update color input (keeps previous value)
+            expect(colorInput.value).toBe('#ff0000');
+            // Should revert text input to last valid value immediately on change
+            expect(textInput.value).toBe('#ff0000');
+        });
+
+        it('should stop keydown propagation on text input', () => {
+            const onChange = vi.fn();
+            const colorRow = createColorPicker('Test Color', '#000000', onChange);
+            const textInput = colorRow.querySelector('input.magnify-color-preview') as HTMLInputElement;
+
+            const event = new KeyboardEvent('keydown', { key: 'a' });
+            const stopPropagationSpy = vi.spyOn(event, 'stopPropagation');
+
+            textInput.dispatchEvent(event);
+
+            expect(stopPropagationSpy).toHaveBeenCalled();
+        });
     });
 });

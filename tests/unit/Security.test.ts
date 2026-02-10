@@ -38,6 +38,39 @@ describe('Security', () => {
             expect(child.getAttribute('src')).toBe('x');
         });
 
+        it('should remove javascript: URIs from dangerous attributes', () => {
+            const window = new Window();
+            const document = window.document;
+            const link = document.createElement('a');
+            const img = document.createElement('img');
+            const form = document.createElement('form');
+
+            link.setAttribute('href', 'javascript:alert(1)');
+            img.setAttribute('src', 'javascript:alert(1)');
+            form.setAttribute('action', 'javascript:alert(1)');
+            form.setAttribute('formaction', 'javascript:alert(1)');
+
+            sanitizeElement(link as unknown as HTMLElement);
+            sanitizeElement(img as unknown as HTMLElement);
+            sanitizeElement(form as unknown as HTMLElement);
+
+            expect(link.hasAttribute('href')).toBe(false);
+            expect(img.hasAttribute('src')).toBe(false);
+            expect(form.hasAttribute('action')).toBe(false);
+            expect(form.hasAttribute('formaction')).toBe(false);
+        });
+
+        it('should preserve safe URLs', () => {
+            const window = new Window();
+            const document = window.document;
+            const link = document.createElement('a');
+
+            link.setAttribute('href', 'https://example.com');
+            sanitizeElement(link as unknown as HTMLElement);
+
+            expect(link.getAttribute('href')).toBe('https://example.com');
+        });
+
         it('should handle elements without attributes gracefully', () => {
              const window = new Window();
              const document = window.document;

@@ -188,3 +188,39 @@ export function escapeHtml(str: unknown): string {
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#039;");
 }
+
+/**
+ * Recursively sanitize an element by removing dangerous attributes.
+ * This prevents XSS when cloning nodes that might contain malicious handlers or javascript: URIs.
+ * @param element - The element to sanitize
+ */
+export function sanitizeElement(element: HTMLElement): void {
+    if (!element || !element.attributes) return;
+
+    const attributes = element.attributes;
+    for (let i = attributes.length - 1; i >= 0; i--) {
+        const attrName = attributes[i].name.toLowerCase();
+        const attrValue = attributes[i].value.toLowerCase().trim();
+
+        // 1. Remove event handlers (on*)
+        if (attrName.startsWith('on')) {
+            element.removeAttribute(attributes[i].name);
+            continue;
+        }
+
+        // 2. Remove javascript: URIs in specific attributes
+        if (['href', 'src', 'action', 'formaction'].includes(attrName)) {
+            // Strip all whitespace and control characters to prevent bypasses like "java\tscript:"
+            const normalizedValue = attrValue.replace(/[\s\x00-\x1F\x7F]/g, '');
+            if (normalizedValue.startsWith('javascript:')) {
+                element.removeAttribute(attributes[i].name);
+            }
+        }
+    }
+
+    // Recursively sanitize children
+    const children = element.children;
+    for (let i = 0; i < children.length; i++) {
+        sanitizeElement(children[i] as HTMLElement);
+    }
+}

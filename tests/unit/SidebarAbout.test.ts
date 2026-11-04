@@ -14,7 +14,8 @@ vi.mock('/scripts/app.js', () => ({
             }
         },
         extensionManager: {
-            registerSidebarTab: vi.fn()
+            registerSidebarTab: vi.fn(),
+            command: { execute: vi.fn() }
         }
     }
 }));
@@ -82,5 +83,31 @@ describe('Sidebar About', () => {
         tab.render(el);
 
         expect(el.style.height).toBe('100%');
+    });
+
+    it('closes the tab from the X in the header', () => {
+        registerSidebar();
+        const tab = vi.mocked(app.extensionManager.registerSidebarTab).mock.calls[0][0];
+        const el = document.createElement('div');
+        tab.render(el);
+
+        const close = el.querySelector('.magnify-sidebar-header [aria-label="Close"]') as HTMLButtonElement;
+        close.click();
+
+        expect(app.extensionManager.command.execute).toHaveBeenCalledWith(`Workspace.ToggleSidebarTab.${tab.id}`);
+    });
+
+    it('toggles the pop-out viewer from the header', () => {
+        const toggle = vi.fn();
+        (window as any).comfyUIMagnifyGlass = { popOutManager: { toggle } };
+        registerSidebar();
+        const tab = vi.mocked(app.extensionManager.registerSidebarTab).mock.calls[0][0];
+        const el = document.createElement('div');
+        tab.render(el);
+
+        (el.querySelector('.magnify-sidebar-header .pi-external-link')!.parentElement as HTMLButtonElement).click();
+
+        expect(toggle).toHaveBeenCalledTimes(1);
+        delete (window as any).comfyUIMagnifyGlass;
     });
 });

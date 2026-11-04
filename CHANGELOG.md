@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.15.0] - 2026-11-04
 
+### Added
+- **Sidebar header buttons**: Open or close the pop-out viewer, and close the sidebar with the X.
+
 ### Changed
 - **Inspector look**: The panel, its toolbar and its menus follow your ComfyUI palette (any palette, light or dark) with a flat, denser layout. Text and Accent Color override the palette only when changed from their defaults. Max Height and Opacity now apply in every mode.
 - **Header and navigation**: The header shows the node's title, `#id` and type, with Lock and Minimize (double-click the header to minimize). Below it: Back/Forward, Previous/Next in execution order, Centre on node, and a searchable **Go to node** picker (title, type or `#id`) that replaces the three node lists. A breadcrumb shows the subgraph path and group, with "Enter subgraph" for subgraph nodes. Every jump centres the canvas and locks the panel to the node.

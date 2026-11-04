@@ -80,6 +80,25 @@
     text-overflow: ellipsis;
 }
 
+.magnify-sidebar-tool {
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: 2rem;
+    height: 2rem;
+    padding: 0;
+    border: 0;
+    border-radius: 0.5rem;
+    background: transparent;
+    color: var(--mg-muted);
+    transition: background-color 120ms, color 120ms;
+}
+
+.magnify-sidebar-tool:hover {
+    background: var(--mg-control);
+    color: var(--mg-fg);
+}
+
 /* Body: the panel's one scroller */
 .magnify-sidebar-content {
     flex: 1 1 auto;

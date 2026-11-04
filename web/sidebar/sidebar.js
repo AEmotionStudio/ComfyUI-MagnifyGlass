@@ -1,6 +1,7 @@
 import { app } from "/scripts/app.js";
 import { renderSettingsPanel } from "./SidebarSettings.js";
 import { renderAbout } from "./SidebarAbout.js";
+const SIDEBAR_TAB_ID = "magnifyglass";
 let sidebarRegistered = false;
 function loadSidebarStyles(onLoaded) {
   const existingLink = document.getElementById("magnify-sidebar-styles");
@@ -18,6 +19,16 @@ function loadSidebarStyles(onLoaded) {
     link.onerror = onLoaded;
   }
   document.head.appendChild(link);
+}
+function headerButton(icon, label, onClick) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "magnify-sidebar-tool";
+  button.title = label;
+  button.setAttribute("aria-label", label);
+  button.innerHTML = `<i class="pi ${icon}" aria-hidden="true"></i>`;
+  button.addEventListener("click", onClick);
+  return button;
 }
 function renderSidebar(container) {
   if (container.querySelector(".magnify-sidebar")) {
@@ -37,7 +48,20 @@ function renderSidebar(container) {
   const title = document.createElement("h2");
   title.className = "magnify-sidebar-title";
   title.textContent = "MagnifyGlass";
-  header.append(mark, title);
+  const popOut = headerButton(
+    "pi-external-link",
+    "Open or close the pop-out viewer (Shift+P)",
+    () => {
+      var _a;
+      return (_a = window.comfyUIMagnifyGlass) == null ? void 0 : _a.popOutManager.toggle();
+    }
+  );
+  const close = headerButton(
+    "pi-times",
+    "Close",
+    () => void app.extensionManager.command.execute(`Workspace.ToggleSidebarTab.${SIDEBAR_TAB_ID}`)
+  );
+  header.append(mark, title, popOut, close);
   sidebar.appendChild(header);
   const content = document.createElement("div");
   content.className = "magnify-sidebar-content";
@@ -65,7 +89,7 @@ function registerSidebar() {
   }
   try {
     app.extensionManager.registerSidebarTab({
-      id: "magnifyglass",
+      id: SIDEBAR_TAB_ID,
       icon: "pi pi-search",
       title: "Magnify",
       tooltip: "MagnifyGlass Settings",

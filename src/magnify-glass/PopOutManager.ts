@@ -34,6 +34,8 @@ export interface PopOutStatus {
     glass: 'on' | 'hidden' | 'off';
     inspector: boolean;
     reduceMotion: boolean;
+    /** The glass zoom, in percent */
+    zoom: number;
 }
 
 /**
@@ -106,6 +108,7 @@ type PopOutMessage =
     | { type: 'pong' }
     | { type: 'close' }
     | { type: 'visibility'; data: boolean }
+    | { type: 'zoom'; data: number }
     | { type: 'frame'; data: Blob }
     | { type: 'config'; data: PopOutConfig }
     | { type: 'info'; data: PopOutInfo }
@@ -159,7 +162,11 @@ export class PopOutManager {
     /** Unanswered pings, one a second, before the viewer counts as gone */
     private readonly PING_LIMIT = 5;
 
-    constructor(private readonly getStatus: () => PopOutStatus, private readonly onConnect: () => void) {
+    constructor(
+        private readonly getStatus: () => PopOutStatus,
+        private readonly onConnect: () => void,
+        private readonly onZoom: (zoom: number) => void
+    ) {
         // sessionStorage survives a reload, so the viewer finds this tab again after F5
         this.session = sessionStorage.getItem(SESSION_KEY) ?? Math.random().toString(36).slice(2);
         sessionStorage.setItem(SESSION_KEY, this.session);
@@ -216,6 +223,11 @@ export class PopOutManager {
                 break;
             case 'visibility':
                 this.viewerHidden = message.data;
+                break;
+            case 'zoom':
+                this.onZoom(message.data);
+                // The setting applies at once; the viewer need not wait for the next pong to show it
+                this.syncConfig();
                 break;
             case 'search-nodes':
                 if (this.onSearchNodes) {

@@ -385,7 +385,7 @@ describe('Pop-out viewer editing', () => {
         expect(channel.postMessage.mock.calls.map(([m]) => m.type)).not.toContain('close');
 
         // Nothing to navigate while the Inspector is off
-        channel.onmessage!({ data: { type: 'config', data: { palette, reduceMotion: false, glass: 'on', inspector: false } } });
+        channel.onmessage!({ data: { type: 'config', data: { palette, reduceMotion: false, zoom: 300, glass: 'on', inspector: false } } });
         key(document.body, 'ArrowRight');
         key(document.body, 'k', { ctrlKey: true });
         expect(posted('panel-action')).toHaveLength(3);
@@ -414,7 +414,7 @@ describe('Pop-out viewer editing', () => {
     it('status follows pings and config, and never wipes the sidebar or an open editor', () => {
         const label = () => document.querySelector('.status-label')!.textContent;
         const ping = () => channel.onmessage!({ data: { type: 'ping' } });
-        const config = (glass: string) => channel.onmessage!({ data: { type: 'config', data: { palette, reduceMotion: false, glass, inspector: true } } });
+        const config = (glass: string) => channel.onmessage!({ data: { type: 'config', data: { palette, reduceMotion: false, zoom: 300, glass, inspector: true } } });
         ping();
         config('off');
         sendInfo([row('seed', 'INT', 1)]);
@@ -442,16 +442,16 @@ describe('Pop-out viewer editing', () => {
 
     it('says when the Inspector is off in ComfyUI', () => {
         sendInfo([row('seed', 'INT', 1)]);
-        channel.onmessage!({ data: { type: 'config', data: { palette, reduceMotion: false, glass: 'on', inspector: false } } });
+        channel.onmessage!({ data: { type: 'config', data: { palette, reduceMotion: false, zoom: 300, glass: 'on', inspector: false } } });
         expect(sidebar().textContent).toContain('The Inspector is off in ComfyUI');
-        channel.onmessage!({ data: { type: 'config', data: { palette, reduceMotion: false, glass: 'on', inspector: true } } });
+        channel.onmessage!({ data: { type: 'config', data: { palette, reduceMotion: false, zoom: 300, glass: 'on', inspector: true } } });
         expect(valueOf('seed')).toBeDefined();
     });
 
     it('applies the palette ComfyUI sends, drops an override that went away, and follows Reduce Motion', () => {
         const root = document.documentElement;
         const config = (properties: Record<string, string>, scheme: string, reduceMotion: boolean) =>
-            channel.onmessage!({ data: { type: 'config', data: { glass: 'on', inspector: true, reduceMotion, palette: { ...palette, scheme, properties } } } });
+            channel.onmessage!({ data: { type: 'config', data: { glass: 'on', inspector: true, reduceMotion, zoom: 300, palette: { ...palette, scheme, properties } } } });
 
         config({ '--fg-color': '#222222', '--mg-panel-accent': '#ff8800' }, 'light', true);
         expect(root.style.getPropertyValue('--fg-color')).toBe('#222222');
@@ -466,6 +466,112 @@ describe('Pop-out viewer editing', () => {
         expect(root.style.getPropertyValue('--mg-panel-accent')).toBe('');
         expect(root.style.colorScheme).toBe('dark');
         expect(root.classList.contains('reduce-motion')).toBe(false);
+    });
+
+    it('zoom buttons and the wheel write the zoom once they rest for 250 ms, within 100-1000%', () => {
+        const zoomIn = document.getElementById('zoom-in') as HTMLButtonElement;
+        const zoomOut = document.getElementById('zoom-out') as HTMLButtonElement;
+        const shown = () => document.querySelector('.zoom-value')!.textContent;
+        const config = (zoom: number) => receive('config', { palette, reduceMotion: false, zoom, glass: 'on', inspector: true });
+        const wheel = (deltaY: number) => document.querySelector('.canvas-section')!.dispatchEvent(new WheelEvent('wheel', { deltaY, bubbles: true, cancelable: true }));
+        expect(zoomIn.disabled).toBe(true);
+        receive('ping');
+        config(300);
+        expect(shown()).toBe('300%');
+
+        zoomIn.click();
+        zoomIn.click();
+        wheel(-100);
+        expect(shown()).toBe('375%');
+        vi.advanceTimersByTime(249);
+        // ComfyUI's older zoom does not replace one still waiting to be written
+        config(300);
+        expect(shown()).toBe('375%');
+        expect(posted('zoom')).toEqual([]);
+        vi.advanceTimersByTime(1);
+        expect(posted('zoom')).toEqual([375]);
+
+        // A touchpad's small deltas add up to a step
+        wheel(40);
+        wheel(40);
+        expect(shown()).toBe('375%');
+        wheel(40);
+        expect(shown()).toBe('350%');
+        zoomOut.click();
+        vi.advanceTimersByTime(250);
+        expect(posted('zoom')).toEqual([375, 325]);
+
+        config(1000);
+        expect(zoomIn.disabled).toBe(true);
+        wheel(-100);
+        vi.advanceTimersByTime(250);
+        expect(posted('zoom')).toHaveLength(2);
+        config(110);
+        zoomOut.click();
+        vi.advanceTimersByTime(250);
+        expect(posted('zoom')).toEqual([375, 325, 100]);
+    });
+
+    it('keeps the view mode, the Inspector width and the collapsed sections across reloads', () => {
+        const main = document.querySelector('.main-container') as HTMLElement;
+        const viewButton = (view: string) => document.querySelector(`[data-view="${view}"]`) as HTMLButtonElement;
+        const divider = document.querySelector('.inspector-divider') as HTMLElement;
+        vi.spyOn(main, 'getBoundingClientRect').mockReturnValue({ right: 1000, width: 1000 } as DOMRect);
+        divider.setPointerCapture = vi.fn();
+        receive('ping');
+        sendInfo([row('seed', 'INT', 1)]);
+
+        viewButton('info').click();
+        expect(main.dataset.view).toBe('info');
+        expect(viewButton('info').getAttribute('aria-pressed')).toBe('true');
+        expect(viewButton('split').getAttribute('aria-pressed')).toBe('false');
+        expect(main.hasAttribute('aria-pressed')).toBe(false);
+        // Info shows no frame, so ComfyUI need not send any
+        expect(posted('visibility').at(-1)).toBe(true);
+        viewButton('glass').click();
+        expect(posted('visibility').at(-1)).toBe(false);
+
+        divider.dispatchEvent(new PointerEvent('pointerdown', { button: 0, pointerId: 1 }));
+        divider.dispatchEvent(new PointerEvent('pointermove', { clientX: 600 }));
+        expect(main.style.getPropertyValue('--inspector-w')).toBe('400px');
+        // The frame keeps its minimum, the Inspector its own
+        divider.dispatchEvent(new PointerEvent('pointermove', { clientX: 0 }));
+        expect(main.style.getPropertyValue('--inspector-w')).toBe('808px');
+        divider.dispatchEvent(new PointerEvent('pointermove', { clientX: 990 }));
+        expect(main.style.getPropertyValue('--inspector-w')).toBe('240px');
+        divider.dispatchEvent(new PointerEvent('pointermove', { clientX: 650 }));
+        divider.dispatchEvent(new Event('lostpointercapture'));
+        const visibilityPosts = posted('visibility').length;
+        (sidebar().querySelector('.section-header') as HTMLElement).click();
+        expect(posted('visibility').length).toBe(visibilityPosts);
+
+        document.body.innerHTML = bodyHtml;
+        new Function(script)();
+        sendInfo([row('seed', 'INT', 1)]);
+        const reloaded = document.querySelector('.main-container') as HTMLElement;
+        expect(reloaded.dataset.view).toBe('glass');
+        expect(document.querySelector('[data-view="glass"]')!.getAttribute('aria-pressed')).toBe('true');
+        expect(reloaded.style.getPropertyValue('--inspector-w')).toBe('350px');
+        expect(sidebar().querySelector('.info-section.collapsed')).not.toBeNull();
+
+        // Double-click resets the width
+        document.querySelector('.inspector-divider')!.dispatchEvent(new Event('dblclick'));
+        expect(reloaded.style.getPropertyValue('--inspector-w')).toBe('');
+        expect(JSON.parse(localStorage.getItem('magnifyglass-viewer-layout')!).inspectorWidth).toBeNull();
+    });
+
+    it('the divider resizes with the arrow keys, not Prev/Next', () => {
+        const main = document.querySelector('.main-container') as HTMLElement;
+        const divider = document.querySelector('.inspector-divider') as HTMLElement;
+        vi.spyOn(main, 'getBoundingClientRect').mockReturnValue({ right: 1000, width: 1000 } as DOMRect);
+        vi.spyOn(document.getElementById('inspector')!, 'getBoundingClientRect').mockReturnValue({ width: 320 } as DOMRect);
+        sendInfo([]);
+
+        key(divider, 'ArrowLeft');
+        expect(main.style.getPropertyValue('--inspector-w')).toBe('336px');
+        key(divider, 'ArrowRight');
+        expect(main.style.getPropertyValue('--inspector-w')).toBe('304px');
+        expect(posted('panel-action')).toEqual([]);
     });
 
     it('draws a Blob frame at its own size and closes its bitmap', async () => {

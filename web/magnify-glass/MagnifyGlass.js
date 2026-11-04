@@ -1,7 +1,7 @@
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-import { findLiteGraphCanvas } from "../shared/utils.js";
+import { setSettingValue, findLiteGraphCanvas } from "../shared/utils.js";
 import { DEFAULT_PADDING, DEFAULT_GLASS_Y_OFFSET } from "../shared/constants.js";
 import "../shared/settings/defaults.js";
 import { registerGlassSettings } from "../shared/settings/glassSettings.js";
@@ -37,8 +37,9 @@ class MagnifyGlass {
     this.popOutManager = new PopOutManager(() => ({
       glass: !this.state.active ? "off" : this.state.isPreviewHidden ? "hidden" : "on",
       inspector: !!window.infoPanelManager,
-      reduceMotion: this.config.reduceMotion
-    }), () => this.updateMagnifiedView());
+      reduceMotion: this.config.reduceMotion,
+      zoom: Math.round(this.config.zoomFactor * 100)
+    }), () => this.updateMagnifiedView(), (zoom) => setSettingValue("🔍MagnifyGlass.ZoomFactor", zoom));
     this.ui = new UiManager(
       this.config,
       this.state,

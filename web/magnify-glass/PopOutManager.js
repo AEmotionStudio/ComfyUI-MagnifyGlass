@@ -22,7 +22,7 @@ const PALETTE_PROPERTIES = [
 ];
 const SESSION_KEY = "magnifyglass-popout-session";
 class PopOutManager {
-  constructor(getStatus, onConnect) {
+  constructor(getStatus, onConnect, onZoom) {
     __publicField(this, "channel", null);
     __publicField(this, "isOpen", false);
     __publicField(this, "popOutWindow", null);
@@ -57,6 +57,7 @@ class PopOutManager {
     __publicField(this, "PING_LIMIT", 5);
     this.getStatus = getStatus;
     this.onConnect = onConnect;
+    this.onZoom = onZoom;
     this.session = sessionStorage.getItem(SESSION_KEY) ?? Math.random().toString(36).slice(2);
     sessionStorage.setItem(SESSION_KEY, this.session);
     this.viewerUrl = this.getViewerUrl();
@@ -112,6 +113,10 @@ class PopOutManager {
         break;
       case "visibility":
         this.viewerHidden = message.data;
+        break;
+      case "zoom":
+        this.onZoom(message.data);
+        this.syncConfig();
         break;
       case "search-nodes":
         if (this.onSearchNodes) {

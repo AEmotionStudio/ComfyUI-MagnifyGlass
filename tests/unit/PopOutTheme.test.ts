@@ -13,7 +13,7 @@ describe('Pop-out palette', () => {
             postMessage(message: unknown) { posted.push(message); }
             close() { }
         });
-        manager = new PopOutManager(() => ({ glass: 'on', inspector: true, reduceMotion: false }), () => { });
+        manager = new PopOutManager(() => ({ glass: 'on', inspector: true, reduceMotion: false, zoom: 300 }), () => { }, () => { });
     });
 
     afterEach(() => {

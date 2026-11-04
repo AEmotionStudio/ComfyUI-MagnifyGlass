@@ -6,6 +6,7 @@ describe('Pop-out connection', () => {
     let channels: { name: string; posted: any[] }[];
     let status: PopOutStatus;
     let connects: number;
+    let zooms: number[];
     const posted = () => channels[0].posted;
     const pings = () => posted().filter(m => m.type === 'ping').length;
     const receive = (message: unknown) => (manager as any).handleMessage(message);
@@ -14,8 +15,9 @@ describe('Pop-out connection', () => {
         vi.useFakeTimers();
         sessionStorage.clear();
         channels = [];
-        status = { glass: 'on', inspector: true, reduceMotion: false };
+        status = { glass: 'on', inspector: true, reduceMotion: false, zoom: 300 };
         connects = 0;
+        zooms = [];
         vi.stubGlobal('BroadcastChannel', class {
             onmessage: ((e: MessageEvent) => void) | null = null;
             posted: any[] = [];
@@ -23,7 +25,7 @@ describe('Pop-out connection', () => {
             postMessage(message: unknown) { this.posted.push(message); }
             close() { }
         });
-        manager = new PopOutManager(() => status, () => connects++);
+        manager = new PopOutManager(() => status, () => connects++, (zoom) => zooms.push(zoom));
     });
 
     afterEach(() => {
@@ -39,7 +41,7 @@ describe('Pop-out connection', () => {
         expect(channels[0].name).toBe(`comfyui-magnifyglass-popout:${session}`);
         expect(new URL((manager as any).viewerUrl).searchParams.get('session')).toBe(session);
 
-        const reloaded = new PopOutManager(() => status, () => { });
+        const reloaded = new PopOutManager(() => status, () => { }, () => { });
         expect(channels[1].name).toBe(channels[0].name);
         reloaded.cleanup();
     });
@@ -124,11 +126,21 @@ describe('Pop-out connection', () => {
         const configs = () => posted().filter(m => m.type === 'config').map(m => [m.data.glass, m.data.inspector]);
         receive({ type: 'pong' });
         receive({ type: 'pong' });
-        status = { glass: 'hidden', inspector: true, reduceMotion: false };
+        status = { glass: 'hidden', inspector: true, reduceMotion: false, zoom: 300 };
         receive({ type: 'pong' });
-        status = { glass: 'off', inspector: false, reduceMotion: false };
+        status = { glass: 'off', inspector: false, reduceMotion: false, zoom: 300 };
         receive({ type: 'pong' });
         expect(configs()).toEqual([['on', true], ['hidden', true], ['off', false]]);
+    });
+
+    it('hands a zoom to the glass and sends the config it made at once', () => {
+        const configZooms = () => posted().filter(m => m.type === 'config').map(m => m.data.zoom);
+        receive({ type: 'pong' });
+
+        status = { ...status, zoom: 350 };
+        receive({ type: 'zoom', data: 350 });
+        expect(zooms).toEqual([350]);
+        expect(configZooms()).toEqual([300, 350]);
     });
 
     it('sends frames as Blobs, one encode at a time, and none while the viewer is hidden', () => {

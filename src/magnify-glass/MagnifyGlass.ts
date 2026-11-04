@@ -5,7 +5,7 @@
  */
 
 import type { ComfyApp } from '../types/comfyui';
-import { findLiteGraphCanvas } from '../shared/utils';
+import { findLiteGraphCanvas, setSettingValue } from '../shared/utils';
 import { DEFAULT_PADDING, DEFAULT_GLASS_Y_OFFSET } from '../shared/constants';
 import { registerGlassSettings, registerAccessibilitySettings } from '../shared/settings';
 import { ConfigManager } from './ConfigManager';
@@ -51,8 +51,9 @@ export class MagnifyGlass {
         this.popOutManager = new PopOutManager(() => ({
             glass: !this.state.active ? 'off' : this.state.isPreviewHidden ? 'hidden' : 'on',
             inspector: !!window.infoPanelManager,
-            reduceMotion: this.config.reduceMotion
-        }), () => this.updateMagnifiedView());
+            reduceMotion: this.config.reduceMotion,
+            zoom: Math.round(this.config.zoomFactor * 100)
+        }), () => this.updateMagnifiedView(), (zoom) => setSettingValue('🔍MagnifyGlass.ZoomFactor', zoom));
         this.ui = new UiManager(
             this.config,
             this.state,

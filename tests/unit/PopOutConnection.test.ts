@@ -131,18 +131,30 @@ describe('Pop-out connection', () => {
         expect(configs()).toEqual([['on', true], ['hidden', true], ['off', false]]);
     });
 
-    it('sends no frames while the viewer is hidden', () => {
-        const canvas = { toDataURL: () => 'data:image/png;base64,AA' } as unknown as HTMLCanvasElement;
-        const frames = () => posted().filter(m => m.type === 'frame').length;
+    it('sends frames as Blobs, one encode at a time, and none while the viewer is hidden', () => {
+        const blob = new Blob(['png'], { type: 'image/png' });
+        let encode: BlobCallback | null = null;
+        const canvas = { toBlob: (callback: BlobCallback) => { encode = callback; } } as unknown as HTMLCanvasElement;
+        const frames = () => posted().filter(m => m.type === 'frame').map(m => m.data);
         receive({ type: 'pong' });
 
         receive({ type: 'visibility', data: true });
         manager.sendFrame(canvas);
-        expect(frames()).toBe(0);
+        expect(encode).toBeNull();
 
         receive({ type: 'visibility', data: false });
         manager.sendFrame(canvas);
-        expect(frames()).toBe(1);
+        const first = encode!;
+        encode = null;
+        // The first frame is still encoding
+        vi.advanceTimersByTime(100);
+        manager.sendFrame(canvas);
+        expect(encode).toBeNull();
+
+        first(blob);
+        expect(frames()).toEqual([blob]);
+        manager.sendFrame(canvas);
+        expect(encode).not.toBeNull();
     });
 
     it('hands viewer requests to the Inspector and sends its info as it is', () => {

@@ -33,6 +33,8 @@ class PopOutManager {
     __publicField(this, "lastFrameTime", 0);
     __publicField(this, "FRAME_INTERVAL", 33);
     // ~30fps
+    /** One frame is encoded at a time; a slow encode drops frames instead of queueing them */
+    __publicField(this, "frameInFlight", false);
     /** Unanswered pings, one a second, before the viewer counts as gone */
     __publicField(this, "PING_LIMIT", 5);
     this.getStatus = getStatus;
@@ -168,22 +170,22 @@ class PopOutManager {
     return this.isOpen;
   }
   /**
-   * Send a frame to the pop-out viewer, unless it is hidden.
+   * Send a frame to the pop-out viewer as a PNG Blob, unless it is hidden.
    * Throttled to ~30fps for performance.
    * @param canvas - The source canvas to send
    */
   sendFrame(canvas) {
-    if (!this.isOpen || this.viewerHidden || !this.channel) return;
+    if (!this.isOpen || this.viewerHidden || this.frameInFlight || !this.channel) return;
     const now = Date.now();
     if (now - this.lastFrameTime < this.FRAME_INTERVAL) {
       return;
     }
     this.lastFrameTime = now;
-    try {
-      this.sendMessage({ type: "frame", data: canvas.toDataURL("image/png") });
-    } catch (e) {
-      Logger.error("[PopOut] Failed to send frame:", e);
-    }
+    this.frameInFlight = true;
+    canvas.toBlob((blob) => {
+      this.frameInFlight = false;
+      if (blob && this.isOpen) this.sendMessage({ type: "frame", data: blob });
+    }, "image/png");
   }
   /**
    * Send the theme and the glass and Inspector state when they change.

@@ -87,7 +87,7 @@ type PopOutMessage =
     | { type: 'pong' }
     | { type: 'close' }
     | { type: 'visibility'; data: boolean }
-    | { type: 'frame'; data: string }
+    | { type: 'frame'; data: Blob }
     | { type: 'config'; data: PopOutConfig }
     | { type: 'info'; data: PopOutInfo }
     | { type: 'nodes-list'; data: NodeListData }
@@ -133,6 +133,8 @@ export class PopOutManager {
     /** Throttle frame sending to ~30fps */
     private lastFrameTime: number = 0;
     private readonly FRAME_INTERVAL = 33; // ~30fps
+    /** One frame is encoded at a time; a slow encode drops frames instead of queueing them */
+    private frameInFlight: boolean = false;
 
     /** Unanswered pings, one a second, before the viewer counts as gone */
     private readonly PING_LIMIT = 5;
@@ -283,12 +285,12 @@ export class PopOutManager {
     }
 
     /**
-     * Send a frame to the pop-out viewer, unless it is hidden.
+     * Send a frame to the pop-out viewer as a PNG Blob, unless it is hidden.
      * Throttled to ~30fps for performance.
      * @param canvas - The source canvas to send
      */
     sendFrame(canvas: HTMLCanvasElement): void {
-        if (!this.isOpen || this.viewerHidden || !this.channel) return;
+        if (!this.isOpen || this.viewerHidden || this.frameInFlight || !this.channel) return;
 
         // Throttle frame rate
         const now = Date.now();
@@ -297,12 +299,12 @@ export class PopOutManager {
         }
         this.lastFrameTime = now;
 
-        try {
-            // Convert canvas to data URL (efficient for small canvases)
-            this.sendMessage({ type: 'frame', data: canvas.toDataURL('image/png') });
-        } catch (e) {
-            Logger.error('[PopOut] Failed to send frame:', e);
-        }
+        // The WebGL canvas keeps its drawing buffer, so encoding after this frame is safe
+        this.frameInFlight = true;
+        canvas.toBlob((blob) => {
+            this.frameInFlight = false;
+            if (blob && this.isOpen) this.sendMessage({ type: 'frame', data: blob });
+        }, 'image/png');
     }
 
     /**

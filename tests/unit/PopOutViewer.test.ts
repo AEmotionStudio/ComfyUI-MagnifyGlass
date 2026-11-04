@@ -38,7 +38,7 @@ describe('Pop-out viewer editing', () => {
             constructor(public name: string) { channel = this as any; }
         });
         history.replaceState(null, '', '/popout-viewer.html?v=1&session=abc123');
-        vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+        vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({ clearRect: vi.fn(), drawImage: vi.fn() } as any);
         vi.spyOn(window, 'close').mockImplementation(() => { });
         document.body.innerHTML = bodyHtml;
         new Function(script)();
@@ -240,6 +240,42 @@ describe('Pop-out viewer editing', () => {
         expect(sidebar().textContent).toContain('The Inspector is off in ComfyUI');
         channel.onmessage!({ data: { type: 'config', data: { theme: 'dark', glass: 'on', inspector: true } } });
         expect(valueOf('seed')).toBeDefined();
+    });
+
+    it('draws a Blob frame at its own size and closes its bitmap', async () => {
+        const bitmap = { width: 400, height: 400, close: vi.fn() };
+        const decode = vi.fn().mockResolvedValue(bitmap);
+        vi.stubGlobal('createImageBitmap', decode);
+        const canvas = document.getElementById('viewer-canvas') as HTMLCanvasElement;
+        const ctx = canvas.getContext('2d') as any;
+        const blob = new Blob(['png'], { type: 'image/png' });
+
+        channel.onmessage!({ data: { type: 'frame', data: blob } });
+        await vi.waitFor(() => expect(bitmap.close).toHaveBeenCalled());
+
+        expect(decode).toHaveBeenCalledWith(blob);
+        expect([canvas.width, canvas.height]).toEqual([400, 400]);
+        expect(ctx.drawImage).toHaveBeenCalledWith(bitmap, 0, 0);
+        expect(document.querySelector('.canvas-placeholder')!.classList.contains('hidden')).toBe(true);
+    });
+
+    it('never draws an older frame over a newer one', async () => {
+        const older = { width: 400, height: 400, close: vi.fn() };
+        const newer = { width: 400, height: 400, close: vi.fn() };
+        let resolveOlder!: (bitmap: typeof older) => void;
+        vi.stubGlobal('createImageBitmap', vi.fn()
+            .mockReturnValueOnce(new Promise(resolve => { resolveOlder = resolve; }))
+            .mockResolvedValueOnce(newer));
+        const ctx = (document.getElementById('viewer-canvas') as HTMLCanvasElement).getContext('2d') as any;
+
+        channel.onmessage!({ data: { type: 'frame', data: new Blob(['a']) } });
+        channel.onmessage!({ data: { type: 'frame', data: new Blob(['b']) } });
+        await vi.waitFor(() => expect(newer.close).toHaveBeenCalled());
+        resolveOlder(older);
+        await vi.waitFor(() => expect(older.close).toHaveBeenCalled());
+
+        expect(ctx.drawImage).toHaveBeenCalledTimes(1);
+        expect(ctx.drawImage).toHaveBeenCalledWith(newer, 0, 0);
     });
 
     it('Escape closes the node list, never the window', () => {

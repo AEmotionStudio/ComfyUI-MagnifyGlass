@@ -558,7 +558,7 @@
             max-width: 100% !important;
             max-height: 100% !important;
             border-radius: 0;
-            object-fit: cover;
+            object-fit: contain;
             box-shadow: none;
         }
 
@@ -580,7 +580,7 @@
             max-height: none !important;
             border-radius: 0 !important;
             box-shadow: none !important;
-            object-fit: cover;
+            object-fit: contain;
         }
 
         /* Clickable row styles */
@@ -896,7 +896,7 @@
         let connection = 'connecting';
         let lastPingTime = 0;
         let config = { glass: 'on', inspector: true };
-        const frameImage = new Image();
+        let frameCount = 0;
 
         const channel = new BroadcastChannel(`${CHANNEL_NAME}:${session}`);
 
@@ -957,22 +957,22 @@
             }
         };
 
-        function handleFrame(dataUrl) {
-            if (!dataUrl) return;
-
-            frameImage.onload = () => {
-                if (canvas.width !== frameImage.width || canvas.height !== frameImage.height) {
-                    canvas.width = frameImage.width;
-                    canvas.height = frameImage.height;
-                    // Resolution display removed
-                }
-
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(frameImage, 0, 0);
-                canvas.classList.add('active');
-            };
-
-            frameImage.src = dataUrl;
+        async function handleFrame(blob) {
+            const frame = ++frameCount;
+            const bitmap = await createImageBitmap(blob);
+            // Decodes can finish out of order; never draw over a newer frame
+            if (frame !== frameCount) {
+                bitmap.close();
+                return;
+            }
+            if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {
+                canvas.width = bitmap.width;
+                canvas.height = bitmap.height;
+            }
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.drawImage(bitmap, 0, 0);
+            bitmap.close();
+            canvas.classList.add('active');
             placeholder.classList.add('hidden');
         }
 

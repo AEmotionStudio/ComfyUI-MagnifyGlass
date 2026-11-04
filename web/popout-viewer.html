@@ -698,6 +698,32 @@
             border-color: var(--accent-blue);
         }
 
+        .widget-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-subtle);
+        }
+
+        .widget-card:hover {
+            background: var(--bg-tertiary);
+            border-color: var(--border-default);
+        }
+
+        .widget-button:hover {
+            transform: translateY(-1px);
+        }
+
+        .widget-button[data-kind="action"] {
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+
+        .widget-button[data-kind="action"]:hover {
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+        }
+
+        .widget-image img {
+            max-width: 100%;
+        }
+
         .widget-editor-inline {
             display: flex;
             align-items: center;
@@ -1011,6 +1037,13 @@
         }
 
         sidebarContent.addEventListener('click', (e) => {
+            const action = e.target.closest('[data-action]');
+            if (action) {
+                if (action.dataset.action === 'toggle-section') toggleSection(action);
+                else if (action.dataset.action === 'node-dropdown') requestNodeDropdown(action.dataset.sort, action);
+                else if (action.dataset.action === 'zoom-node' && renderedNode) requestZoomToNode(renderedNode.id);
+                return;
+            }
             const element = e.target.closest('[data-widget]');
             const widget = element && widgetFor(element);
             if (!widget) return;
@@ -1024,6 +1057,11 @@
             } else if (kind === 'value') {
                 editWidgetValue(element, renderedNode.id, widget);
             }
+        });
+
+        sidebarContent.addEventListener('input', (e) => {
+            const slider = e.target.closest('.widget-editor-slider');
+            if (slider) slider.nextElementSibling.textContent = slider.value;
         });
 
         sidebarContent.addEventListener('change', (e) => {
@@ -1166,7 +1204,7 @@
 
                 html += `
                     <div class="info-section ${isCollapsed ? 'collapsed' : ''}" data-section-id="cursor">
-                        <div class="section-header" onclick="toggleSection(this)">
+                        <div class="section-header" data-action="toggle-section">
                             <svg class="section-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="12" cy="12" r="10"/>
                                 <circle cx="12" cy="12" r="6"/>
@@ -1199,7 +1237,7 @@
 
                 html += `
                     <div class="info-section ${isCollapsed ? 'collapsed' : ''}" data-section-id="node">
-                        <div class="section-header" onclick="toggleSection(this)">
+                        <div class="section-header" data-action="toggle-section">
                             <svg class="section-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
                             </svg>
@@ -1207,18 +1245,18 @@
                             <span class="section-badge">${escapeHtml(info.hoveredNode.type || 'Unknown')}</span>
                         </div>
                         <div class="section-body">
-                            <div class="info-row clickable-row" onclick="requestNodeDropdown('title', this)">
+                            <div class="info-row clickable-row" data-action="node-dropdown" data-sort="title">
                                 <span class="info-label">Title</span>
-                                <span class="info-value clickable-value" onclick="requestNodeDropdown('title', this)">${escapeHtml(info.hoveredNode.title || 'Untitled')} (#${info.hoveredNode.id})<span class="dropdown-indicator">▼</span></span>
+                                <span class="info-value clickable-value">${escapeHtml(info.hoveredNode.title || 'Untitled')} (#${escapeHtml(info.hoveredNode.id)})<span class="dropdown-indicator">▼</span></span>
                             </div>
                             
                             ${info.hoveredNode.executionOrder !== undefined ? `
-                            <div class="info-row clickable-row" onclick="requestNodeDropdown('execOrder', this)">
+                            <div class="info-row clickable-row" data-action="node-dropdown" data-sort="execOrder">
                                 <span class="info-label">Exec Order</span>
-                                <span class="info-value">${info.hoveredNode.executionOrder}<span class="dropdown-indicator">▼</span></span>
+                                <span class="info-value">${escapeHtml(info.hoveredNode.executionOrder)}<span class="dropdown-indicator">▼</span></span>
                             </div>` : ''}
 
-                            <div class="info-row clickable-row" style="cursor: pointer;" onclick="requestZoomToNode(${info.hoveredNode.id})">
+                            <div class="info-row clickable-row" data-action="zoom-node">
                                 <span class="info-label">Location</span>
                                 <span class="info-value"><span style="display: inline-flex; align-items: center; gap: 6px; vertical-align: middle;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg> Focus Node</span></span>
                             </div>
@@ -1242,12 +1280,12 @@
                             ${info.hoveredNode.size ? `
                             <div class="info-row">
                                 <span class="info-label">Size</span>
-                                <span class="info-value">${formatSize(info.hoveredNode.size)}</span>
+                                <span class="info-value">${escapeHtml(formatSize(info.hoveredNode.size))}</span>
                             </div>` : ''}
                             ${info.hoveredNode.pos ? `
                             <div class="info-row">
                                 <span class="info-label">Pos</span>
-                                <span class="info-value">${formatPos(info.hoveredNode.pos)}</span>
+                                <span class="info-value">${escapeHtml(formatPos(info.hoveredNode.pos))}</span>
                             </div>` : ''}
 
                             <!-- Dynamic Lists (Inputs/Outputs/Widgets) -->
@@ -1261,6 +1299,11 @@
 
             if (html) {
                 sidebarContent.innerHTML = html;
+                for (const holder of sidebarContent.querySelectorAll('.widget-image')) {
+                    const img = document.createElement('img');
+                    img.src = holder.dataset.src;
+                    holder.appendChild(img);
+                }
             } else {
                 showEmptyState();
             }
@@ -1341,9 +1384,9 @@
                 // Check for slider (widgets explicitly typed as 'slider')
                 const isSlider = type && type.toLowerCase() === 'slider';
 
-                // Check if value contains a data URI image (chart/plot)
-                const isImageValue = rawValue && rawValue.includes("data:image");
-                const value = isImageValue ? rawValue : (rawValue ? escapeHtml(rawValue) : null);
+                // Plot nodes send an <img> with a data URI; only the URI itself is used
+                const imageSrc = rawValue && rawValue.match(IMAGE_DATA_URI)?.[0];
+                const value = rawValue ? escapeHtml(rawValue) : null;
 
                 // For toggle-style button widgets, render a toggle button with on/off visual indication
                 if (isToggleButton && nodeId != null) {
@@ -1378,6 +1421,7 @@
                             </div>
                             <button 
                                 id="${itemId}"
+                                class="widget-button"
                                 data-widget="${index}"
                                 data-kind="toggle"
                                 data-state="${isOn}"
@@ -1398,8 +1442,6 @@
                                     font-weight: 600;
                                     transition: all 0.2s ease;
                                 "
-                                onmouseover="this.style.transform='translateY(-1px)';"
-                                onmouseout="this.style.transform='';"
                             >${isOn ? '✓ ON' : '○ OFF'}</button>
                         </div>`;
                 }
@@ -1431,6 +1473,7 @@
                                 ">ACTION</span>
                             </div>
                             <button 
+                                class="widget-button"
                                 data-widget="${index}"
                                 data-kind="action"
                                 style="
@@ -1449,10 +1492,7 @@
                                     cursor: pointer;
                                     font-weight: 600;
                                     transition: all 0.2s ease;
-                                    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
                                 "
-                                onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 3px 8px rgba(0, 0, 0, 0.25)';"
-                                onmouseout="this.style.transform=''; this.style.boxShadow='0 1px 3px rgba(0, 0, 0, 0.2)';"
                             >▶ Click</button>
                         </div>`;
                 }
@@ -1491,13 +1531,12 @@
                             <div class="widget-slider-container" style="display: flex; align-items: center; gap: 8px; width: 100%;">
                                 <input type="range" 
                                     class="widget-editor-slider" 
-                                    min="${min}" 
-                                    max="${max}" 
-                                    step="${step}" 
-                                    value="${rawValue}"
+                                    min="${escapeHtml(min)}"
+                                    max="${escapeHtml(max)}"
+                                    step="${escapeHtml(step)}"
+                                    value="${value}"
                                     style="flex: 1; accent-color: var(--accent-purple); cursor: pointer;"
                                     data-widget="${index}"
-                                    oninput="this.nextElementSibling.textContent = this.value"
                                 />
                                 <span class="widget-slider-value" style="
                                     min-width: 50px; 
@@ -1505,13 +1544,12 @@
                                     font-family: monospace;
                                     color: var(--accent-blue);
                                     font-weight: 600;
-                                ">${rawValue}</span>
+                                ">${value}</span>
                             </div>
                         </div>`;
                 }
 
-                // For image values, render directly without escaping
-                if (isImageValue) {
+                if (imageSrc) {
                     return `
                         <div style="
                             padding: 10px 12px;
@@ -1542,7 +1580,7 @@
                                 padding: 8px;
                                 text-align: center;
                                 overflow: hidden;
-                            ">${value}</div>
+                            " class="widget-image" data-src="${imageSrc}"></div>
                         </div>`;
                 }
 
@@ -1554,15 +1592,12 @@
                 const editableTitle = canEditValue ? 'title="Click to edit"' : '';
 
                 return `
-                    <div style="
+                    <div class="widget-card" style="
                         padding: 10px 12px;
-                        background: var(--bg-secondary);
                         border-radius: 6px;
                         margin-bottom: 6px;
-                        border: 1px solid var(--border-subtle);
                         transition: all 0.15s ease;
-                    " onmouseover="this.style.background='var(--bg-tertiary)'; this.style.borderColor='var(--border-default)'" 
-                       onmouseout="this.style.background='var(--bg-secondary)'; this.style.borderColor='var(--border-subtle)'">
+                    ">
                         <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: ${value ? '6px' : '0'};">
                             <span style="
                                 font-size: 12px;
@@ -1645,10 +1680,11 @@
             `;
         }
 
+        const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+        const IMAGE_DATA_URI = /data:image\/(?:png|jpeg|webp|gif);base64,[A-Za-z0-9+\/=]+/;
+
         function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+            return String(text ?? '').replace(/[&<>"']/g, c => HTML_ESCAPES[c]);
         }
 
         function showEmptyState() {
@@ -1704,19 +1740,19 @@
 
                 if (sortBy === 'execOrder' && node.order !== undefined) {
                     item.innerHTML = `
-                        <span class="node-order">#${node.order}</span>
-                        <span class="node-title">${escapeHtml(node.title)} (#${node.id})</span>
+                        <span class="node-order">#${escapeHtml(node.order)}</span>
+                        <span class="node-title">${escapeHtml(node.title)} (#${escapeHtml(node.id)})</span>
                         <span class="node-type">${escapeHtml(node.type)}</span>
                     `;
                 } else if (sortBy === 'id') {
                     item.innerHTML = `
-                        <span class="node-order">#${node.id}</span>
+                        <span class="node-order">#${escapeHtml(node.id)}</span>
                         <span class="node-title">${escapeHtml(node.title)}</span>
                         <span class="node-type">${escapeHtml(node.type)}</span>
                     `;
                 } else {
                     item.innerHTML = `
-                        <span class="node-title">${escapeHtml(node.title)} (#${node.id})</span>
+                        <span class="node-title">${escapeHtml(node.title)} (#${escapeHtml(node.id)})</span>
                         <span class="node-type">${escapeHtml(node.type)}</span>
                     `;
                 }

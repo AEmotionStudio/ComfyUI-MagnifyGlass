@@ -113,4 +113,30 @@ describe('Pop-out viewer editing', () => {
         const clicks = channel.postMessage.mock.calls.map(([m]) => m).filter((m: any) => m.type === 'button-click');
         expect(clicks.map((m: any) => m.data)).toEqual([{ nodeId: 5, widgetName: `run "now"` }]);
     });
+
+    it('a data:image value renders only the image, never its markup', () => {
+        const png = 'data:image/png;base64,iVBORw0KGgo=';
+        sendInfo([
+            { name: 'evil', type: 'text', value: `<img src=x onerror="window.__pwned=1"> data:image/png;base64,AAAA` },
+            { name: 'plot', type: 'text', value: `<img src="${png}" style="width:100%">` },
+        ]);
+
+        expect(sidebar().querySelector('[onerror]')).toBeNull();
+        expect(sidebar().querySelector('img[src="x"]')).toBeNull();
+        expect([...sidebar().querySelectorAll('img')].map(img => img.getAttribute('src'))).toEqual(['data:image/png;base64,AAAA', png]);
+        expect((window as any).__pwned).toBeUndefined();
+    });
+
+    it('node ids stay text, and node actions post through delegated listeners', () => {
+        const id = `1); window.__pwned = (1`;
+        channel.onmessage!({ data: { type: 'info', data: { hoveredNode: { id, title: 'Node', type: 'Node', widgets: [], inputs: [], outputs: [] } } } });
+
+        expect(sidebar().querySelector('[onclick]')).toBeNull();
+        expect(sidebar().textContent).toContain(`(#${id})`);
+        (sidebar().querySelector('[data-action="zoom-node"]') as HTMLElement).click();
+        (sidebar().querySelector('[data-action="node-dropdown"]') as HTMLElement).click();
+        const posted = channel.postMessage.mock.calls.map(([m]) => m).filter((m: any) => m.type !== 'pong');
+        expect(posted).toEqual([{ type: 'zoom-node', data: id }, { type: 'request-nodes', data: 'title' }]);
+        expect((window as any).__pwned).toBeUndefined();
+    });
 });

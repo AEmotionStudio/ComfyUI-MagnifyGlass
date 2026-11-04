@@ -27,33 +27,16 @@ class PopOutManager {
     this.initChannel();
   }
   /**
-   * Get the URL for the pop-out viewer page.
+   * Get the URL for the pop-out viewer page, which sits at the web root next to this module's folder.
    */
   getViewerUrl() {
-    const version = "v25";
-    const scripts = document.querySelectorAll('script[src*="magnify"]');
-    Logger.debug(`[PopOut] Found ${scripts.length} magnify scripts`);
-    if (scripts.length > 0) {
-      const src = scripts[0].src;
-      Logger.debug(`[PopOut] First script src: ${src}`);
-      const urlParts = src.split("/");
-      let extensionIndex = -1;
-      for (let i = 0; i < urlParts.length; i++) {
-        if (urlParts[i].toLowerCase().includes("magnify")) {
-          extensionIndex = i;
-          break;
-        }
-      }
-      if (extensionIndex >= 0) {
-        const baseUrl = urlParts.slice(0, extensionIndex + 1).join("/");
-        const viewerUrl = `${baseUrl}/popout-viewer.html?${version}`;
-        Logger.debug(`[PopOut] Using viewer URL: ${viewerUrl}`);
-        return viewerUrl;
-      }
-    }
-    const fallbackUrl = `/extensions/comfyui-magnifyglass/popout-viewer.html?${version}`;
-    Logger.debug(`[PopOut] Using fallback URL: ${fallbackUrl}`);
-    return fallbackUrl;
+    const url = new URL(
+      /* @vite-ignore */
+      "../popout-viewer.html",
+      import.meta.url
+    );
+    url.searchParams.set("v", "1.15.0");
+    return url.href;
   }
   /**
    * Initialize the BroadcastChannel.
@@ -172,16 +155,16 @@ class PopOutManager {
     }
   }
   /**
-   * Open the pop-out viewer in a new tab.
+   * Open the pop-out viewer in a popup window.
    */
   open() {
     if (this.popOutWindow && !this.popOutWindow.closed) {
       this.popOutWindow.focus();
       return;
     }
-    this.popOutWindow = window.open(this.viewerUrl, "MagnifyGlassPopout");
+    this.popOutWindow = window.open(this.viewerUrl, "MagnifyGlassPopout", "popup,width=1100,height=720");
     if (!this.popOutWindow) {
-      Logger.error("[PopOut] Failed to open new tab - popup may be blocked");
+      Logger.error("[PopOut] Failed to open the viewer - popup may be blocked");
       return;
     }
     this.startPing();

@@ -98,49 +98,17 @@ export class PopOutManager {
     private readonly CONNECTION_TIMEOUT = 5000;
 
     constructor() {
-        // Get the viewer URL relative to the extension
-        // The viewer HTML will be in the web directory
         this.viewerUrl = this.getViewerUrl();
         this.initChannel();
     }
 
     /**
-     * Get the URL for the pop-out viewer page.
+     * Get the URL for the pop-out viewer page, which sits at the web root next to this module's folder.
      */
     private getViewerUrl(): string {
-        // Cache-busting version - increment to force refresh
-        const version = 'v25';
-
-        // Find the extension's base URL from the loaded scripts
-        const scripts = document.querySelectorAll('script[src*="magnify"]');
-        Logger.debug(`[PopOut] Found ${scripts.length} magnify scripts`);
-
-        if (scripts.length > 0) {
-            const src = (scripts[0] as HTMLScriptElement).src;
-            Logger.debug(`[PopOut] First script src: ${src}`);
-
-            // src might be like: /extensions/comfyui-magnifyglass/magnify-glass/MagnifyGlass.js
-            // We need to get to the web root: /extensions/comfyui-magnifyglass/
-            const urlParts = src.split('/');
-            // Find the extension folder (contains 'magnify' in name)
-            let extensionIndex = -1;
-            for (let i = 0; i < urlParts.length; i++) {
-                if (urlParts[i].toLowerCase().includes('magnify')) {
-                    extensionIndex = i;
-                    break;
-                }
-            }
-            if (extensionIndex >= 0) {
-                const baseUrl = urlParts.slice(0, extensionIndex + 1).join('/');
-                const viewerUrl = `${baseUrl}/popout-viewer.html?${version}`;
-                Logger.debug(`[PopOut] Using viewer URL: ${viewerUrl}`);
-                return viewerUrl;
-            }
-        }
-        // Fallback: assume standard ComfyUI extension path
-        const fallbackUrl = `/extensions/comfyui-magnifyglass/popout-viewer.html?${version}`;
-        Logger.debug(`[PopOut] Using fallback URL: ${fallbackUrl}`);
-        return fallbackUrl;
+        const url = new URL(/* @vite-ignore */ '../popout-viewer.html', import.meta.url);
+        url.searchParams.set('v', __MAGNIFY_VERSION__);
+        return url.href;
     }
 
     /**
@@ -278,7 +246,7 @@ export class PopOutManager {
     }
 
     /**
-     * Open the pop-out viewer in a new tab.
+     * Open the pop-out viewer in a popup window.
      */
     open(): void {
         // If window exists and is open, focus it
@@ -287,12 +255,11 @@ export class PopOutManager {
             return;
         }
 
-        // Open new tab (or refocus existing if name matches)
-        // Use a constant name to ensure singleton behavior across reloads
-        this.popOutWindow = window.open(this.viewerUrl, 'MagnifyGlassPopout');
+        // A named popup window: a tab would hide ComfyUI and pause its render loop
+        this.popOutWindow = window.open(this.viewerUrl, 'MagnifyGlassPopout', 'popup,width=1100,height=720');
 
         if (!this.popOutWindow) {
-            Logger.error('[PopOut] Failed to open new tab - popup may be blocked');
+            Logger.error('[PopOut] Failed to open the viewer - popup may be blocked');
             return;
         }
 

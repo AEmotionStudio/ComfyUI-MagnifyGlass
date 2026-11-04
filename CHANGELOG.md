@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Node Title Emphasis** sits on the title bar instead of the first slot row, and is not drawn on nodes without a title bar such as Reroute.
 - The glass background matches the page past the canvas edge and at canvas zoom of 1.5 and above.
 - **Subgraphs**: The panel, picker, highlight and editing use the graph on screen, so they work inside subgraphs. Title bars and collapsed nodes are hit.
-- **Widget edits** run the widget's callback, redraw the canvas and record undo. CLIPLoader's `type` widget shows again.
+- **Widget edits** run the widget's callback, redraw the canvas and record undo. CLIPLoader's `type` widget shows again. The frontend's internal `$$` preview widgets (e.g. on Load Image) are no longer listed.
 - Dropdowns no longer get orphaned or keep writing after the panel re-renders, and they can be filtered by typing.
 - The panel re-renders only when the shown node changes, so hover, focus and text selection survive.
 - Saved fonts no longer reset on reload, and High Contrast Text applies on load.

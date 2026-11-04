@@ -268,4 +268,16 @@ describe('getImportantNodeParameters', () => {
         expect(seed.isLinked).toBe(true);
         expect(seed.isEditable).toBe(false);
     });
+
+    it("leaves out the frontend's own $$ preview widgets", () => {
+        const items = getImportantNodeParameters({
+            id: 9, type: 'LoadImage',
+            widgets: [
+                { name: 'image', type: 'combo', value: 'beetle.png', options: { values: ['beetle.png'] } },
+                { name: '$$canvas-image-preview', type: 'image', value: '' }
+            ],
+            inputs: []
+        } as any);
+        expect(items.map(i => i.label)).toEqual(['image']);
+    });
 });

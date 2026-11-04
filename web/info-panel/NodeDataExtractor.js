@@ -33,7 +33,7 @@ function getImportantNodeParameters(nodeInfo) {
     };
   };
   for (const widget of nodeInfo.widgets) {
-    if (widget.name && (!SKIP_WIDGET_NAMES.includes(widget.name.toLowerCase()) || widgetSlot(widget))) {
+    if (widget.name && !widget.name.startsWith("$$") && (!SKIP_WIDGET_NAMES.includes(widget.name.toLowerCase()) || widgetSlot(widget))) {
       parameters.push(createParameterItem(widget));
     }
   }

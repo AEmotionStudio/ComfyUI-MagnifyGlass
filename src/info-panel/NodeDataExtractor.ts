@@ -69,9 +69,9 @@ export function getImportantNodeParameters(nodeInfo: NodeInfo): ParameterItem[] 
         };
     };
 
-    // Every named widget, as the pop-out shows them
+    // Every named widget, as the pop-out shows them. The frontend names its own preview widgets $$...
     for (const widget of nodeInfo.widgets) {
-        if (widget.name && (!SKIP_WIDGET_NAMES.includes(widget.name.toLowerCase()) || widgetSlot(widget))) {
+        if (widget.name && !widget.name.startsWith('$$') && (!SKIP_WIDGET_NAMES.includes(widget.name.toLowerCase()) || widgetSlot(widget))) {
             parameters.push(createParameterItem(widget));
         }
     }

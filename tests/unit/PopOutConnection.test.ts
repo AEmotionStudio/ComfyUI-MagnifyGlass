@@ -7,6 +7,7 @@ describe('Pop-out connection', () => {
     let status: PopOutStatus;
     let connects: number;
     let zooms: number[];
+    let api: EventTarget;
     const posted = () => channels[0].posted;
     const pings = () => posted().filter(m => m.type === 'ping').length;
     const receive = (message: unknown) => (manager as any).handleMessage(message);
@@ -18,6 +19,8 @@ describe('Pop-out connection', () => {
         status = { glass: 'on', inspector: true, reduceMotion: false, zoom: 300 };
         connects = 0;
         zooms = [];
+        api = new EventTarget();
+        vi.stubGlobal('app', { api, ui: { lastQueueSize: 2 }, graph: null, canvas: null, extensionManager: { workflow: { activeWorkflow: {} } } });
         vi.stubGlobal('BroadcastChannel', class {
             onmessage: ((e: MessageEvent) => void) | null = null;
             posted: any[] = [];
@@ -198,5 +201,134 @@ describe('Pop-out connection', () => {
         // The reply names its query, so the viewer can drop one for an earlier keystroke
         expect(posted().filter(m => m.type === 'nodes-list')).toEqual([{ type: 'nodes-list', data: { query: 'ks', nodes: [{ id: 5, title: 'ks', type: 'Node', order: 0 }] } }]);
         expect(posted().at(-1)).toEqual({ type: 'info', data: info });
+    });
+    describe('run', () => {
+        const emit = (type: string, detail?: unknown) => api.dispatchEvent(new CustomEvent(type, { detail }));
+        const runs = () => posted().filter(m => m.type === 'run').map(m => structuredClone(m.data));
+        let subgraph: any;
+        let root: any;
+
+        beforeEach(() => {
+            // Node 7 is a subgraph node; its node 3 runs as '7:3'
+            const inner = { id: 3, title: 'Inner Sampler', graph: null as unknown };
+            subgraph = { getNodeById: (id: number) => id === 3 ? inner : null };
+            inner.graph = subgraph;
+            const nodes: Record<number, unknown> = { 4: { id: 4, title: 'Loader' }, 7: { id: 7, title: 'Group', subgraph } };
+            root = { getNodeById: (id: number) => nodes[id] ?? null };
+            (nodes[4] as any).graph = root;
+            Object.assign((globalThis as any).app, { graph: root, canvas: { graph: root } });
+        });
+
+        it('starts from the queue ComfyUI knows, and sends what the events add up to at most every 100 ms', () => {
+            receive({ type: 'pong' });
+            expect(runs()).toEqual([{ queue: 2, nodeId: null, title: '', value: 0, max: 0, cached: [], done: [], error: null }]);
+
+            emit('execution_start', { prompt_id: 'p' });
+            emit('execution_cached', { nodes: ['1', 4] });
+            emit('executing', '5');
+            emit('progress', { value: 3, max: 20, node: '5' });
+            expect(runs()).toHaveLength(1);
+            vi.advanceTimersByTime(100);
+            expect(runs().at(-1)).toMatchObject({ queue: 2, nodeId: '5', value: 3, max: 20, cached: ['1', '4'], done: [] });
+
+            // A node inside a subgraph is named by its execution id, and its title found through the subgraph node
+            emit('executing', '7:3');
+            emit('progress_state', { prompt_id: 'p', nodes: { '7:3': { state: 'running', value: 8, max: 10, node_id: '7:3' } } });
+            emit('status', { exec_info: { queue_remaining: 1 } });
+            for (let i = 1; i <= 30; i++) emit('progress', { value: i, max: 30, node: '7:3' });
+            vi.advanceTimersByTime(100);
+            expect(runs()).toHaveLength(3);
+            expect(runs().at(-1)).toMatchObject({ queue: 1, nodeId: '7:3', title: 'Inner Sampler', value: 30, max: 30, done: ['5'] });
+
+            emit('executed', { node: '9', display_node: '9', output: {} });
+            emit('executing', null);
+            emit('execution_success', { prompt_id: 'p' });
+            vi.advanceTimersByTime(100);
+            expect(runs().at(-1)).toMatchObject({ nodeId: null, title: '', done: ['5', '9', '7:3'] });
+        });
+
+        it('keeps the error until the next prompt, and finds the running node again after a reconnect', () => {
+            receive({ type: 'pong' });
+            emit('executing', '4');
+            emit('execution_error', {
+                prompt_id: 'p', node_id: '4', node_type: 'CheckpointLoader', exception_message: 'No such file',
+                traceback: ['Traceback:\n', '  line 1\n']
+            });
+            vi.advanceTimersByTime(100);
+            expect(runs().at(-1)).toMatchObject({
+                nodeId: null,
+                done: ['4'],
+                error: { nodeId: '4', title: 'Loader', type: 'CheckpointLoader', message: 'No such file', traceback: 'Traceback:\n  line 1\n' }
+            });
+
+            emit('execution_start', { prompt_id: 'q' });
+            vi.advanceTimersByTime(100);
+            expect(runs().at(-1)).toEqual({ queue: 2, nodeId: null, title: '', value: 0, max: 0, cached: [], done: [], error: null });
+
+            // Connected mid-run: the next progress state names the running node
+            emit('progress_state', { prompt_id: 'q', nodes: { '4': { state: 'finished', value: 1, max: 1, node_id: '4' }, '5': { state: 'running', value: 2, max: 9, node_id: '5' } } });
+            vi.advanceTimersByTime(100);
+            expect(runs().at(-1)).toMatchObject({ nodeId: '5', value: 2, max: 9 });
+        });
+
+        it('listens only while connected, and stops on a timeout, a close and cleanup', () => {
+            const add = vi.spyOn(api, 'addEventListener');
+            const remove = vi.spyOn(api, 'removeEventListener');
+            emit('executing', '4');
+            vi.advanceTimersByTime(100);
+            expect(runs()).toEqual([]);
+
+            receive({ type: 'pong' });
+            expect(add).toHaveBeenCalledTimes(10);
+            // Unanswered pings time the viewer out; a pending send is dropped with the listeners
+            vi.advanceTimersByTime(4950);
+            emit('executing', '4');
+            vi.advanceTimersByTime(100);
+            emit('executing', '5');
+            vi.advanceTimersByTime(200);
+            expect(manager.isPopOutOpen()).toBe(false);
+            expect(remove).toHaveBeenCalledTimes(10);
+            expect(runs()).toHaveLength(1);
+            expect(vi.getTimerCount()).toBe(0);
+
+            receive({ type: 'pong' });
+            receive({ type: 'close' });
+            receive({ type: 'pong' });
+            manager.cleanup();
+            expect(add).toHaveBeenCalledTimes(30);
+            expect(remove).toHaveBeenCalledTimes(30);
+            const count = runs().length;
+            emit('executing', '4');
+            vi.advanceTimersByTime(100);
+            expect(runs()).toHaveLength(count);
+        });
+
+        it('does not mark an interrupted node done', () => {
+            receive({ type: 'pong' });
+            emit('executing', '4');
+            emit('executing', '5');
+            emit('execution_interrupted', { prompt_id: 'p', node_id: '5' });
+            vi.advanceTimersByTime(100);
+            expect(runs().at(-1)).toMatchObject({ nodeId: null, done: ['4'] });
+        });
+
+        it('goes to a run node only in the graph and the workflow tab on screen', () => {
+            const selected: number[] = [];
+            manager.onNodeSelect = (id) => selected.push(id);
+            receive({ type: 'pong' });
+            receive({ type: 'run-node-select', data: '4' });
+            receive({ type: 'run-node-select', data: '7:3' });
+            (globalThis as any).app.canvas.graph = subgraph;
+            receive({ type: 'run-node-select', data: '7:3' });
+            receive({ type: 'run-node-select', data: '4' });
+            expect(selected).toEqual([4, 3]);
+
+            // Another tab's node 4 is not the run's
+            emit('execution_start', { prompt_id: 'p' });
+            (globalThis as any).app.canvas.graph = root;
+            (globalThis as any).app.extensionManager.workflow.activeWorkflow = {};
+            receive({ type: 'run-node-select', data: '4' });
+            expect(selected).toEqual([4, 3]);
+        });
     });
 });

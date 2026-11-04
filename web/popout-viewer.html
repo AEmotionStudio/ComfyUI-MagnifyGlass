@@ -25,6 +25,9 @@
 
         :root {
             --mg-backdrop: var(--comfy-menu-secondary-bg, #0f0f0f);
+            --mg-error: var(--error-text, #ff4444);
+            /* The error colour as text, readable on light palettes too */
+            --mg-error-fg: color-mix(in srgb, var(--mg-error) 70%, var(--mg-fg));
             color-scheme: dark;
             font-family: Inter, system-ui, sans-serif;
         }
@@ -42,9 +45,10 @@
             box-sizing: border-box;
         }
 
+        /* Header, error banner, frame and Inspector, run bar; a hidden banner leaves its row empty */
         body {
             display: grid;
-            grid-template-rows: auto minmax(0, 1fr);
+            grid-template-rows: auto auto minmax(0, 1fr) auto;
             height: 100vh;
             height: 100dvh;
             overflow: hidden;
@@ -80,6 +84,7 @@
 
         /* Header */
         .header {
+            grid-row: 1;
             display: flex;
             flex-wrap: wrap;
             align-items: center;
@@ -220,6 +225,7 @@
         /* Frame and Inspector side by side; the Inspector stacks under the frame in narrow windows */
         /* The divider sets --inspector-w; the frame keeps at least 12rem */
         .main-container {
+            grid-row: 3;
             display: grid;
             grid-template-columns: minmax(0, 1fr) min(var(--inspector-w, 20rem), calc(100% - 12rem));
             min-height: 0;
@@ -329,11 +335,7 @@
             display: none;
         }
 
-        :root:fullscreen body {
-            grid-template-rows: minmax(0, 1fr);
-        }
-
-        :root:fullscreen :is(.header, .inspector-sidebar) {
+        :root:fullscreen :is(.header, .error-banner, .run-bar, .inspector-sidebar) {
             display: none;
         }
 
@@ -451,6 +453,27 @@
             background: var(--mg-control);
             color: var(--mg-muted);
             font-size: 0.75rem;
+        }
+
+        /* Running x/y, Cached, Done or Error, from the run ComfyUI sends */
+        .run-badge {
+            flex: none;
+            padding: 0.125em 0.5em;
+            border: 1px solid var(--mg-stroke);
+            border-radius: 1em;
+            color: var(--mg-muted);
+            font-size: 0.75rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .run-badge[data-state="running"] {
+            border-color: var(--mg-accent);
+            color: var(--mg-accent-fg);
+        }
+
+        .run-badge[data-state="error"] {
+            border-color: var(--mg-error);
+            color: var(--mg-error-fg);
         }
 
         .copy-icon {
@@ -792,6 +815,18 @@
             text-decoration: underline;
         }
 
+        /* The last queued prompt failed validation on this input */
+        .info-row.has-error .info-label {
+            color: var(--mg-error-fg);
+        }
+
+        .row-error {
+            grid-column: 1 / -1;
+            color: var(--mg-error-fg);
+            font-size: 0.75rem;
+            overflow-wrap: anywhere;
+        }
+
         .edit-hint {
             margin: 0.375em 0.75em;
             padding: 0.125em 0.5em;
@@ -979,6 +1014,105 @@
             font-family: ui-monospace, monospace;
         }
 
+        /* The last prompt's error */
+        .error-banner {
+            grid-row: 2;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.25rem 0.5rem;
+            padding: 0.375rem 0.5rem 0.375rem 0.75rem;
+            border-bottom: 1px solid var(--mg-error);
+            background: color-mix(in srgb, var(--mg-error) 12%, var(--mg-surface));
+        }
+
+        .error-banner[hidden] {
+            display: none;
+        }
+
+        .error-banner > svg {
+            color: var(--mg-error-fg);
+        }
+
+        .error-text {
+            flex: 1 1 12rem;
+            min-width: 0;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .error-node {
+            font-weight: 600;
+        }
+
+        .error-action {
+            display: flex;
+            align-items: center;
+            gap: 0.375em;
+            min-height: 1.75rem;
+            padding: 0 0.625rem;
+            border: 1px solid var(--mg-stroke);
+            border-radius: 0.375rem;
+            background: var(--mg-control);
+            font-size: 0.75rem;
+        }
+
+        .error-action:hover {
+            background: var(--mg-control-hover);
+        }
+
+        .error-action .copy-icon {
+            margin: 0;
+            opacity: 1;
+        }
+
+        /* The running node, its progress and the queue */
+        .run-bar {
+            grid-row: 4;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            min-height: 1.75rem;
+            padding: 0.25rem 0.75rem;
+            border-top: 1px solid var(--mg-stroke);
+            color: var(--mg-muted);
+            font-size: 0.75rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .run-node {
+            flex: 0 1 auto;
+            min-width: 0;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .run-node.is-running {
+            color: var(--mg-fg);
+        }
+
+        .run-progress {
+            flex: 1;
+            min-width: 4rem;
+            height: 0.25rem;
+            border-radius: 0.125rem;
+            background: var(--mg-control);
+            overflow: hidden;
+        }
+
+        .run-progress-fill {
+            width: 0;
+            height: 100%;
+            background: var(--mg-accent);
+            transition: width 120ms var(--mg-ease);
+        }
+
+        .run-queue {
+            flex: none;
+        }
+
         .empty-state {
             display: flex;
             flex-direction: column;
@@ -1100,6 +1234,16 @@
         </div>
     </header>
 
+    <div class="error-banner" role="alert" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span class="error-text"><span class="error-node"></span> <span class="error-message"></span></span>
+        <button type="button" class="error-action" data-action="go-to-error" title="Go to the node in ComfyUI, if its graph is on screen">Go to node</button>
+        <button type="button" class="error-action" data-action="copy-traceback" title="Copy the traceback and the message">
+            <span class="copy-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
+            Copy traceback
+        </button>
+    </div>
+
     <main class="main-container" data-view="split">
         <section class="canvas-section">
             <div class="canvas-wrapper">
@@ -1126,6 +1270,7 @@
                     <span class="node-name is-empty">Inspector</span>
                     <span class="node-id" hidden></span>
                     <span class="node-badge" hidden></span>
+                    <span class="run-badge" hidden></span>
                     <span class="copy-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
                 </button>
             </div>
@@ -1173,6 +1318,12 @@
         </aside>
     </main>
 
+    <footer class="run-bar" aria-label="Queue">
+        <span class="run-node">Idle</span>
+        <div class="run-progress" role="progressbar" aria-label="Node progress" aria-valuemin="0" aria-valuenow="0"><div class="run-progress-fill"></div></div>
+        <span class="run-queue">Queue 0</span>
+    </footer>
+
     <script>
         const CHANNEL_NAME = 'comfyui-magnifyglass-popout';
         // Each ComfyUI tab has its own channel, named by the session in this page's URL
@@ -1201,6 +1352,9 @@
         const zoomOut = document.getElementById('zoom-out');
         const zoomIn = document.getElementById('zoom-in');
         const viewButtons = document.querySelectorAll('.view-modes [data-view]');
+        const errorBanner = document.querySelector('.error-banner');
+        const runBar = document.querySelector('.run-bar');
+        const runProgress = runBar.querySelector('.run-progress');
 
         // The view mode, the Inspector's width and the collapsed sections, kept per browser
         const LAYOUT_KEY = 'magnifyglass-viewer-layout';
@@ -1261,6 +1415,10 @@
                     break;
                 case 'info':
                     handleInfo(message.data);
+                    break;
+                case 'run':
+                    run = message.data;
+                    renderRun();
                     break;
                 case 'ping':
                     lastPingTime = Date.now();
@@ -1595,6 +1753,7 @@
             badge.title = badge.textContent;
             badge.hidden = !node || node.type === node.title;
             identity.disabled = !node;
+            renderRunBadge();
 
             const button = (action) => inspector.querySelector(`.node-nav [data-action="${action}"]`);
             button('back').disabled = !nav?.canBack;
@@ -1747,11 +1906,12 @@
                 const expandKey = `${info.node.id}:${row.label}`;
                 const expanded = long && expandedValues.has(expandKey);
                 return `
-                    <div class="info-row${imageSrc ? ' is-wide' : ''}${expanded ? ' is-expanded' : ''}"${long ? ` data-expand-key="${escapeHtml(expandKey)}"` : ''}>
+                    <div class="info-row${imageSrc ? ' is-wide' : ''}${expanded ? ' is-expanded' : ''}${row.error ? ' has-error' : ''}"${long ? ` data-expand-key="${escapeHtml(expandKey)}"` : ''}>
                         <span class="info-label">${label}${row.isLinked ? '<span class="linked-tag" title="Set by a link">linked</span>' : ''}${row.widgetType ? `<span class="widget-type">${escapeHtml(row.widgetType)}</span>` : ''}</span>
                         ${body}
                         ${imageSrc ? '' : copyButton(row.value, row.label)}
                         ${long ? `<button type="button" class="value-expand" data-action="expand-value" aria-expanded="${expanded}">${expanded ? 'Show less' : 'Show more'}</button>` : ''}
+                        ${row.error ? `<span class="row-error">${escapeHtml(row.error)}</span>` : ''}
                     </div>`;
             }).join('');
         }
@@ -1879,6 +2039,58 @@
         });
         document.addEventListener('pointerdown', (e) => {
             if (!picker.hidden && !picker.contains(e.target) && !gotoBtn.contains(e.target)) closePicker(false);
+        });
+
+        // The queue and the running prompt, null until ComfyUI sends them. Nodes are named by execution id.
+        let run = null;
+
+        function renderRun() {
+            const running = run.nodeId !== null;
+            const node = runBar.querySelector('.run-node');
+            node.textContent = running ? `${run.title || 'Node'} #${run.nodeId}` : run.queue ? 'Queued' : 'Idle';
+            node.title = node.textContent;
+            node.classList.toggle('is-running', running);
+            const percent = running && run.max ? Math.round(run.value / run.max * 100) : 0;
+            runProgress.firstElementChild.style.width = `${percent}%`;
+            runProgress.setAttribute('aria-valuenow', String(percent));
+            runBar.querySelector('.run-queue').textContent = `Queue ${run.queue}`;
+
+            const error = run.error;
+            errorBanner.hidden = !error;
+            if (error) {
+                errorBanner.querySelector('.error-node').textContent = `${error.title || error.type} #${error.nodeId}`;
+                errorBanner.querySelector('.error-message').textContent = error.message;
+                errorBanner.querySelector('.error-text').title = error.message;
+            }
+            renderRunBadge();
+        }
+
+        const RUN_BADGES = { running: 'Running', cached: 'Cached', done: 'Done', error: 'Error' };
+
+        // How the shown node did in the running or last prompt
+        function renderRunBadge() {
+            const badge = identity.querySelector('.run-badge');
+            const id = renderedInfo?.node?.executionId;
+            let state = null;
+            if (run && id !== undefined) {
+                if (run.error?.nodeId === id) state = 'error';
+                else if (run.nodeId === id) state = 'running';
+                else if (run.cached.includes(id)) state = 'cached';
+                else if (run.done.includes(id)) state = 'done';
+            }
+            badge.hidden = !state;
+            badge.dataset.state = state ?? '';
+            badge.textContent = state === 'running' && run.max ? `Running ${run.value}/${run.max}` : RUN_BADGES[state] ?? '';
+        }
+
+        errorBanner.addEventListener('click', (e) => {
+            const action = e.target.closest('[data-action]');
+            if (!action || !run?.error) return;
+            if (action.dataset.action === 'go-to-error') {
+                channel.postMessage({ type: 'run-node-select', data: run.error.nodeId });
+            } else if (action.dataset.action === 'copy-traceback') {
+                copyText(action, run.error.traceback + run.error.message);
+            }
         });
 
         const STATUS_LABELS = { connecting: 'Connecting...', inactive: 'ComfyUI tab inactive', closed: 'Disconnected from ComfyUI' };

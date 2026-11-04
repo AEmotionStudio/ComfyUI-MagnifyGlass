@@ -18,7 +18,17 @@ export interface ComfyApp {
     canvas: ComfyCanvas;
     ui: ComfyUI;
     extensionManager: ComfyExtensionManager;
+    /** Dispatches the server's execution events */
+    api: EventTarget;
+    /** Validation errors of the last queued prompt by execution id, null when it had none */
+    lastNodeErrors: Record<string, { errors: ComfyNodeError[] }> | null;
     registerExtension(extension: ComfyExtension): void;
+}
+
+export interface ComfyNodeError {
+    message: string;
+    details: string;
+    extra_info?: { input_name?: string };
 }
 
 export interface ComfyExtension {
@@ -90,6 +100,8 @@ export interface ComfyBadge {
 
 export interface ComfyUI {
     settings: ComfySettings;
+    /** Prompts waiting or running, from the last status event */
+    lastQueueSize?: number;
 }
 
 export interface ComfySettings {
@@ -109,6 +121,8 @@ export interface ComfyExtensionManager {
     };
     toast: ComfyToast;
     dialog: ComfyDialog;
+    /** The open workflow tabs */
+    workflow: { activeWorkflow: object | null };
     registerSidebarTab(tab: ComfySidebarTab): void;
 }
 
@@ -325,6 +339,8 @@ export interface NodeInfo {
     pythonModule?: string;
     /** Names of the subgraphs from the root down to the node's graph */
     graphPath: string[];
+    /** The id the server runs the node by: the ids of the subgraph nodes it is in, then its own, joined by ':' */
+    executionId: string;
     group?: string;
     isSubgraph: boolean;
 }

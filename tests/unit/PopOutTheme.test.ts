@@ -8,6 +8,7 @@ describe('Pop-out palette', () => {
     beforeEach(() => {
         vi.useFakeTimers();
         posted = [];
+        vi.stubGlobal('app', { api: new EventTarget(), ui: {}, extensionManager: { workflow: { activeWorkflow: null } } });
         vi.stubGlobal('BroadcastChannel', class {
             onmessage: ((e: MessageEvent) => void) | null = null;
             postMessage(message: unknown) { posted.push(message); }

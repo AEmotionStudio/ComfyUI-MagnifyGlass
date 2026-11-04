@@ -750,7 +750,7 @@ describe('Info Panel lifecycle', () => {
         it('sends the header, navigation and Inspector rows as plain data, without combo lists', () => {
             const info = last();
             expect(sent()).toHaveLength(1);
-            expect(info.node).toEqual({ id: 1, title: 'Loader', type: 'KSampler', mode: 'Always', execOrder: 1, graphPath: [], isSubgraph: false });
+            expect(info.node).toEqual({ id: 1, title: 'Loader', type: 'KSampler', mode: 'Always', execOrder: 1, executionId: '1', graphPath: [], isSubgraph: false });
             expect(info.nav).toEqual({ source: 'hover', locked: false, canBack: false, canForward: false, canEdit: false });
             expect(info.rows.map((row: any) => [row.widgetName, row.widgetType, row.rawValue, row.isEditable, row.isLinked, row.isActionable])).toEqual([
                 ['steps', 'INT', 20, true, false, false],
@@ -867,6 +867,30 @@ describe('Info Panel lifecycle', () => {
             const count = sent().length;
             popOut().onPanelAction('minimize', 1);
             expect(sent()).toHaveLength(count);
+        });
+
+        it('marks the inputs the last queued prompt failed validation on, and sends again when that changes', () => {
+            const count = sent().length;
+            (window as any).app.lastNodeErrors = {
+                '1': { errors: [
+                    { message: 'Value not in list', details: "sampler_name: 'x' not in [...]", extra_info: { input_name: 'sampler_name' } },
+                    { message: 'Required input is missing', details: '', extra_info: { input_name: 'positive' } }
+                ] },
+                '2': { errors: [{ message: 'Value too big', details: '', extra_info: { input_name: 'steps' } }] }
+            };
+            vi.advanceTimersByTime(250);
+            expect(sent()).toHaveLength(count + 1);
+            expect(last().rows.map((row: any) => [row.widgetName, row.error])).toEqual([
+                ['steps', undefined],
+                ['sampler_name', "Value not in list: sampler_name: 'x' not in [...]"],
+                ['model', undefined],
+                ['data', undefined],
+                ['run', undefined]
+            ]);
+
+            (window as any).app.lastNodeErrors = null;
+            vi.advanceTimersByTime(250);
+            expect(last().rows.every((row: any) => row.error === undefined)).toBe(true);
         });
 
         it('searches nodes like the Go to node picker', () => {

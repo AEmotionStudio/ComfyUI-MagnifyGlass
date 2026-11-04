@@ -20,6 +20,18 @@ const PALETTE_PROPERTIES = [
   "--mg-panel-fg",
   "--mg-panel-accent"
 ];
+const RUN_EVENTS = [
+  "status",
+  "execution_start",
+  "executing",
+  "progress",
+  "progress_state",
+  "execution_cached",
+  "executed",
+  "execution_success",
+  "execution_error",
+  "execution_interrupted"
+];
 const SESSION_KEY = "magnifyglass-popout-session";
 class PopOutManager {
   constructor(getStatus, onConnect, onZoom) {
@@ -46,6 +58,18 @@ class PopOutManager {
     __publicField(this, "sentConfig", null);
     __publicField(this, "onPageHide", () => {
       if (this.isOpen) this.sendMessage({ type: "close" });
+    });
+    __publicField(this, "run", PopOutManager.idleRun(0));
+    // The workflow tab on screen when the prompt started; the run's ids name other nodes in any other tab
+    __publicField(this, "runWorkflow", null);
+    // Execution events can come many times a second; the viewer gets their result at most every 100 ms
+    __publicField(this, "runTimer", null);
+    __publicField(this, "onRunEvent", (event) => {
+      this.reduceRun(event.type, event.detail);
+      this.runTimer ?? (this.runTimer = window.setTimeout(() => {
+        this.runTimer = null;
+        this.sendMessage({ type: "run", data: this.run });
+      }, 100));
     });
     /** Throttle frame sending to ~30fps */
     __publicField(this, "lastFrameTime", 0);
@@ -94,7 +118,7 @@ class PopOutManager {
    * Handle incoming messages from the viewer tab.
    */
   handleMessage(message) {
-    var _a, _b, _c, _d;
+    var _a, _b, _c, _d, _e, _f;
     switch (message.type) {
       case "pong":
         this.pendingPings = 0;
@@ -103,6 +127,10 @@ class PopOutManager {
           this.viewerHidden = false;
           this.sentConfig = null;
           this.startPing();
+          this.run = PopOutManager.idleRun(app.ui.lastQueueSize ?? 0);
+          this.runWorkflow = app.extensionManager.workflow.activeWorkflow;
+          this.sendMessage({ type: "run", data: this.run });
+          for (const name of RUN_EVENTS) app.api.addEventListener(name, this.onRunEvent);
           if (this.onStateChange) this.onStateChange(true);
           this.onConnect();
         }
@@ -126,14 +154,19 @@ class PopOutManager {
       case "node-select":
         (_a = this.onNodeSelect) == null ? void 0 : _a.call(this, message.data);
         break;
+      case "run-node-select": {
+        const node = this.runNode(message.data);
+        if (node && node.graph === ((_b = app.canvas) == null ? void 0 : _b.graph)) (_c = this.onNodeSelect) == null ? void 0 : _c.call(this, node.id);
+        break;
+      }
       case "panel-action":
-        (_b = this.onPanelAction) == null ? void 0 : _b.call(this, message.data.name, message.data.nodeId);
+        (_d = this.onPanelAction) == null ? void 0 : _d.call(this, message.data.name, message.data.nodeId);
         break;
       case "widget-edit":
-        (_c = this.onWidgetEdit) == null ? void 0 : _c.call(this, message.data);
+        (_e = this.onWidgetEdit) == null ? void 0 : _e.call(this, message.data);
         break;
       case "button-click":
-        (_d = this.onButtonClick) == null ? void 0 : _d.call(this, message.data);
+        (_f = this.onButtonClick) == null ? void 0 : _f.call(this, message.data);
         break;
       case "request-options":
         if (this.onRequestOptions) {
@@ -176,6 +209,11 @@ class PopOutManager {
     this.stopPing();
     if (!this.isOpen) return;
     this.isOpen = false;
+    for (const name of RUN_EVENTS) app.api.removeEventListener(name, this.onRunEvent);
+    if (this.runTimer !== null) {
+      clearTimeout(this.runTimer);
+      this.runTimer = null;
+    }
     if (this.onStateChange) this.onStateChange(false);
   }
   /**
@@ -237,6 +275,94 @@ class PopOutManager {
   sendInfo(info) {
     if (!this.isOpen) return;
     this.sendMessage({ type: "info", data: info });
+  }
+  static idleRun(queue) {
+    return { queue, nodeId: null, title: "", value: 0, max: 0, cached: [], done: [], error: null };
+  }
+  /**
+   * Apply one of ComfyUI's execution events to the run the viewer shows.
+   */
+  reduceRun(type, detail) {
+    var _a;
+    const run = this.run;
+    switch (type) {
+      case "status":
+        run.queue = (detail == null ? void 0 : detail.exec_info.queue_remaining) ?? 0;
+        break;
+      case "execution_start":
+        this.run = PopOutManager.idleRun(run.queue);
+        this.runWorkflow = app.extensionManager.workflow.activeWorkflow;
+        break;
+      case "executing":
+        this.setRunNode(detail === null ? null : String(detail));
+        break;
+      case "progress":
+        run.value = detail.value;
+        run.max = detail.max;
+        break;
+      case "progress_state": {
+        const nodes = detail.nodes;
+        const state = run.nodeId !== null ? nodes[run.nodeId] : Object.values(nodes).find((node) => node.state === "running");
+        if (!state) break;
+        if (run.nodeId === null) this.setRunNode(state.display_node_id || state.node_id);
+        run.value = state.value;
+        run.max = state.max;
+        break;
+      }
+      case "execution_cached":
+        run.cached.push(...detail.nodes.map(String));
+        break;
+      case "executed": {
+        const id = String(detail.display_node || detail.node);
+        if (!run.done.includes(id)) run.done.push(id);
+        break;
+      }
+      case "execution_error": {
+        const nodeId = String(detail.node_id);
+        run.error = {
+          nodeId,
+          title: ((_a = this.runNode(nodeId)) == null ? void 0 : _a.title) ?? "",
+          type: detail.node_type,
+          message: detail.exception_message,
+          traceback: detail.traceback.join("")
+        };
+        this.setRunNode(null);
+        break;
+      }
+      case "execution_success":
+        this.setRunNode(null);
+        break;
+      case "execution_interrupted":
+        run.nodeId = null;
+        this.setRunNode(null);
+        break;
+    }
+  }
+  /**
+   * Start showing a node as running; the one running before is done.
+   */
+  setRunNode(nodeId) {
+    var _a;
+    const run = this.run;
+    if (run.nodeId !== null && !run.done.includes(run.nodeId)) run.done.push(run.nodeId);
+    run.nodeId = nodeId;
+    run.title = nodeId === null ? "" : ((_a = this.runNode(nodeId)) == null ? void 0 : _a.title) ?? "";
+    run.value = 0;
+    run.max = 0;
+  }
+  /**
+   * The node an execution id names, found from the root graph through the subgraph nodes it is in.
+   * None while another workflow tab is on screen than the one the prompt started in.
+   */
+  runNode(executionId) {
+    if (app.extensionManager.workflow.activeWorkflow !== this.runWorkflow) return null;
+    let graph = app.graph;
+    let node = null;
+    for (const id of executionId.split(":")) {
+      node = (graph == null ? void 0 : graph.getNodeById(Number(id))) ?? null;
+      graph = node == null ? void 0 : node.subgraph;
+    }
+    return node;
   }
   /**
    * Send a message through the BroadcastChannel.

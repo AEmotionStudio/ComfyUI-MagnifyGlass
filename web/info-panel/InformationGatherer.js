@@ -57,6 +57,7 @@ class InformationGatherer {
       executionOrder = node.order;
     } catch (e) {
     }
+    const subgraphNodes = this.getSubgraphNodes(node.graph);
     return {
       id: node.id,
       title: node.title || "Untitled Node",
@@ -77,21 +78,22 @@ class InformationGatherer {
       executionOrder,
       category,
       pythonModule,
-      graphPath: this.getGraphPath(node.graph),
+      graphPath: subgraphNodes.map((subgraphNode) => subgraphNode.subgraph.name || "Subgraph"),
+      executionId: [...subgraphNodes, node].map((pathNode) => pathNode.id).join(":"),
       group: (_e = (_d = node.graph) == null ? void 0 : _d.getGroupOnPos(node.pos[0] + node.size[0] / 2, node.pos[1] + node.size[1] / 2)) == null ? void 0 : _e.title,
       isSubgraph: !!((_f = node.isSubgraphNode) == null ? void 0 : _f.call(node))
     };
   }
   /**
-   * Names of the subgraphs that lead from the root graph to this one, found through the subgraph nodes.
+   * The subgraph nodes that lead from the root graph to this one.
    */
-  getGraphPath(graph) {
+  getSubgraphNodes(graph) {
     if (!graph || graph.rootGraph === graph) return [];
     const find = (nodes, path) => {
       var _a;
       for (const node of nodes) {
         if (!node.subgraph || !((_a = node.isSubgraphNode) == null ? void 0 : _a.call(node))) continue;
-        const subPath = [...path, node.subgraph.name || "Subgraph"];
+        const subPath = [...path, node];
         const found = node.subgraph === graph ? subPath : find(node.subgraph._nodes, subPath);
         if (found) return found;
       }

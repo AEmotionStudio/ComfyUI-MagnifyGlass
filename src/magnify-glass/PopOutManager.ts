@@ -8,6 +8,9 @@
 import { BROADCAST_CHANNEL_NAME } from '../shared/constants';
 import { Logger } from '../shared/logger';
 import type { NodeListEntry } from '../info-panel/NodeSelector';
+import type { ComfyApp, ComfyGraph, ComfyNode } from '../types/comfyui';
+
+declare const app: ComfyApp;
 
 /**
  * A widget of a node, as the viewer names it in edits and requests
@@ -76,6 +79,8 @@ export interface PopOutRow {
     isLinked: boolean;
     isActionable: boolean;
     constraints: { min?: number; max?: number; step?: number; round?: number; precision?: number };
+    /** Why the last queued prompt failed validation on this input */
+    error?: string;
 }
 
 /**
@@ -88,6 +93,7 @@ export interface PopOutInfo {
         type: string;
         mode: string;
         execOrder?: number;
+        executionId: string;
         graphPath: string[];
         group?: string;
         isSubgraph: boolean;
@@ -102,6 +108,31 @@ export interface PopOutInfo {
     rows: PopOutRow[];
 }
 
+/**
+ * The queue and the prompt running, reduced from ComfyUI's execution events.
+ * Nodes are named by execution id, as NodeInfo.executionId.
+ */
+export interface PopOutRun {
+    /** Prompts waiting or running */
+    queue: number;
+    /** The running node, null between nodes and prompts */
+    nodeId: string | null;
+    title: string;
+    value: number;
+    max: number;
+    /** The running prompt's nodes that came from the cache, or that ran */
+    cached: string[];
+    done: string[];
+    /** The last prompt's error, until the next prompt starts */
+    error: { nodeId: string; title: string; type: string; message: string; traceback: string } | null;
+}
+
+// The execution events the viewer shows, listened to while it is connected
+const RUN_EVENTS = [
+    'status', 'execution_start', 'executing', 'progress', 'progress_state', 'execution_cached',
+    'executed', 'execution_success', 'execution_error', 'execution_interrupted'
+];
+
 /** Messages on the session's channel, in both directions */
 type PopOutMessage =
     | { type: 'ping' }
@@ -112,6 +143,8 @@ type PopOutMessage =
     | { type: 'frame'; data: Blob }
     | { type: 'config'; data: PopOutConfig }
     | { type: 'info'; data: PopOutInfo }
+    | { type: 'run'; data: PopOutRun }
+    | { type: 'run-node-select'; data: string }
     | { type: 'nodes-list'; data: NodeListData }
     | { type: 'search-nodes'; data: string }
     | { type: 'node-select'; data: number }
@@ -151,6 +184,18 @@ export class PopOutManager {
     private sentConfig: string | null = null;
     private readonly onPageHide = () => {
         if (this.isOpen) this.sendMessage({ type: 'close' });
+    };
+    private run: PopOutRun = PopOutManager.idleRun(0);
+    // The workflow tab on screen when the prompt started; the run's ids name other nodes in any other tab
+    private runWorkflow: object | null = null;
+    // Execution events can come many times a second; the viewer gets their result at most every 100 ms
+    private runTimer: number | null = null;
+    private readonly onRunEvent = (event: Event) => {
+        this.reduceRun(event.type, (event as CustomEvent).detail);
+        this.runTimer ??= window.setTimeout(() => {
+            this.runTimer = null;
+            this.sendMessage({ type: 'run', data: this.run });
+        }, 100);
     };
 
     /** Throttle frame sending to ~30fps */
@@ -212,6 +257,11 @@ export class PopOutManager {
                     this.viewerHidden = false;
                     this.sentConfig = null;
                     this.startPing();
+                    // The events missed while disconnected are gone; the queue size is kept by ComfyUI
+                    this.run = PopOutManager.idleRun(app.ui.lastQueueSize ?? 0);
+                    this.runWorkflow = app.extensionManager.workflow.activeWorkflow;
+                    this.sendMessage({ type: 'run', data: this.run });
+                    for (const name of RUN_EVENTS) app.api.addEventListener(name, this.onRunEvent);
                     if (this.onStateChange) this.onStateChange(true);
                     this.onConnect();
                 }
@@ -237,6 +287,12 @@ export class PopOutManager {
             case 'node-select':
                 this.onNodeSelect?.(message.data);
                 break;
+            case 'run-node-select': {
+                // Only a node of the graph on screen; its id means another node in any other graph
+                const node = this.runNode(message.data);
+                if (node && node.graph === app.canvas?.graph) this.onNodeSelect?.(node.id);
+                break;
+            }
             case 'panel-action':
                 this.onPanelAction?.(message.data.name, message.data.nodeId);
                 break;
@@ -296,6 +352,11 @@ export class PopOutManager {
         this.stopPing();
         if (!this.isOpen) return;
         this.isOpen = false;
+        for (const name of RUN_EVENTS) app.api.removeEventListener(name, this.onRunEvent);
+        if (this.runTimer !== null) {
+            clearTimeout(this.runTimer);
+            this.runTimer = null;
+        }
         if (this.onStateChange) this.onStateChange(false);
     }
 
@@ -367,6 +428,99 @@ export class PopOutManager {
     sendInfo(info: PopOutInfo): void {
         if (!this.isOpen) return;
         this.sendMessage({ type: 'info', data: info });
+    }
+
+    private static idleRun(queue: number): PopOutRun {
+        return { queue, nodeId: null, title: '', value: 0, max: 0, cached: [], done: [], error: null };
+    }
+
+    /**
+     * Apply one of ComfyUI's execution events to the run the viewer shows.
+     */
+    private reduceRun(type: string, detail: any): void {
+        const run = this.run;
+        switch (type) {
+            case 'status':
+                run.queue = detail?.exec_info.queue_remaining ?? 0;
+                break;
+            case 'execution_start':
+                this.run = PopOutManager.idleRun(run.queue);
+                this.runWorkflow = app.extensionManager.workflow.activeWorkflow;
+                break;
+            case 'executing':
+                // The display id of the node starting; null when the prompt is done
+                this.setRunNode(detail === null ? null : String(detail));
+                break;
+            case 'progress':
+                run.value = detail.value;
+                run.max = detail.max;
+                break;
+            case 'progress_state': {
+                // Every node's state, keyed by execution id; the running node's progress, or the running node after a reconnect
+                const nodes: Record<string, { state: string; value: number; max: number; display_node_id?: string; node_id: string }> = detail.nodes;
+                const state = run.nodeId !== null ? nodes[run.nodeId] : Object.values(nodes).find(node => node.state === 'running');
+                if (!state) break;
+                if (run.nodeId === null) this.setRunNode(state.display_node_id || state.node_id);
+                run.value = state.value;
+                run.max = state.max;
+                break;
+            }
+            case 'execution_cached':
+                run.cached.push(...detail.nodes.map(String));
+                break;
+            case 'executed': {
+                const id = String(detail.display_node || detail.node);
+                if (!run.done.includes(id)) run.done.push(id);
+                break;
+            }
+            case 'execution_error': {
+                const nodeId = String(detail.node_id);
+                run.error = {
+                    nodeId,
+                    title: this.runNode(nodeId)?.title ?? '',
+                    type: detail.node_type,
+                    message: detail.exception_message,
+                    traceback: detail.traceback.join('')
+                };
+                this.setRunNode(null);
+                break;
+            }
+            case 'execution_success':
+                this.setRunNode(null);
+                break;
+            case 'execution_interrupted':
+                // The node stopped part-way did not finish
+                run.nodeId = null;
+                this.setRunNode(null);
+                break;
+        }
+    }
+
+    /**
+     * Start showing a node as running; the one running before is done.
+     */
+    private setRunNode(nodeId: string | null): void {
+        const run = this.run;
+        if (run.nodeId !== null && !run.done.includes(run.nodeId)) run.done.push(run.nodeId);
+        run.nodeId = nodeId;
+        run.title = nodeId === null ? '' : this.runNode(nodeId)?.title ?? '';
+        run.value = 0;
+        run.max = 0;
+    }
+
+    /**
+     * The node an execution id names, found from the root graph through the subgraph nodes it is in.
+     * None while another workflow tab is on screen than the one the prompt started in.
+     */
+    private runNode(executionId: string): ComfyNode | null {
+        if (app.extensionManager.workflow.activeWorkflow !== this.runWorkflow) return null;
+        let graph: ComfyGraph | undefined = app.graph;
+        let node: ComfyNode | null = null;
+        for (const id of executionId.split(':')) {
+            node = graph?.getNodeById(Number(id)) ?? null;
+            graph = node?.subgraph;
+        }
+        return node;
     }
 
     /**

@@ -339,7 +339,8 @@ export class InfoPanel {
             ...this.uiManager.getHistoryNav(),
             canEdit: this.uiManager.canEdit()
         };
-        const key = [...this.uiManager.getRenderKey(info), ...Object.values(nav)];
+        // A queued prompt that fails validation replaces lastNodeErrors
+        const key = [...this.uiManager.getRenderKey(info), ...Object.values(nav), app.lastNodeErrors];
         const sent = this.popOutKey;
         if (sent && key.length === sent.length && key.every((v, i) => Object.is(v, sent[i]))) return;
         this.popOutKey = key;
@@ -355,6 +356,13 @@ export class InfoPanel {
     private buildPopOutInfo(node: NodeInfo | null, nav: PopOutNav): PopOutInfo {
         if (!node) return { node: null, nav, rows: [] };
 
+        // The last queued prompt's validation errors, by the input they name
+        const errors = new Map<string, string>();
+        for (const error of app.lastNodeErrors?.[node.executionId]?.errors ?? []) {
+            const input = error.extra_info?.input_name;
+            if (input) errors.set(input, error.details ? `${error.message}: ${error.details}` : error.message);
+        }
+
         return {
             node: {
                 id: node.id,
@@ -362,6 +370,7 @@ export class InfoPanel {
                 type: node.type,
                 mode: node.mode,
                 execOrder: node.executionOrder,
+                executionId: node.executionId,
                 graphPath: node.graphPath,
                 group: node.group,
                 isSubgraph: node.isSubgraph
@@ -380,7 +389,8 @@ export class InfoPanel {
                     isEditable: !!row.isEditable,
                     isLinked: !!row.isLinked,
                     isActionable: !!row.isActionable,
-                    constraints
+                    constraints,
+                    error: row.widgetName ? errors.get(row.widgetName) : undefined
                 };
             })
         };

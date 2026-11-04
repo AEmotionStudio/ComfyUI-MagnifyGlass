@@ -20,7 +20,7 @@ describe('Pop-out viewer editing', () => {
         label: widgetName, widgetName, widgetType, value: String(rawValue), rawValue,
         isEditable: true, isLinked: false, isActionable: false, constraints: {}, ...extra
     });
-    const node = (id: unknown = 5) => ({ id, title: 'Node', type: 'Node', mode: 'Always', graphPath: [], isSubgraph: false });
+    const node = (id: unknown = 5) => ({ id, title: 'Node', type: 'Node', mode: 'Always', executionId: String(id), graphPath: [], isSubgraph: false });
     const nav = (canEdit = true) => ({ source: 'locked', locked: canEdit, canBack: false, canForward: false, canEdit });
     const sendInfo = (list: any[], canEdit = true) => {
         rows = list;
@@ -390,6 +390,68 @@ describe('Pop-out viewer editing', () => {
         key(document.body, 'k', { ctrlKey: true });
         expect(posted('panel-action')).toHaveLength(3);
         expect(picker.hidden).toBe(true);
+    });
+
+    it('the run bar shows the running node, its progress and the queue, and the shown node its state', () => {
+        const run = (data: object) => receive('run', { queue: 0, nodeId: null, title: '', value: 0, max: 0, cached: [], done: [], error: null, ...data });
+        const bar = () => [...document.querySelectorAll('.run-bar > span')].map(el => el.textContent);
+        const fill = () => (document.querySelector('.run-progress-fill') as HTMLElement).style.width;
+        const badge = () => document.querySelector('.run-badge') as HTMLElement;
+        expect(bar()).toEqual(['Idle', 'Queue 0']);
+
+        sendInfo([row('seed', 'INT', 1)]);
+        valueOf('seed').click();
+        const input = sidebar().querySelector('input[type="number"]');
+        expect(badge().hidden).toBe(true);
+
+        run({ queue: 2, nodeId: '<b>9</b>', title: '<i>Loader</i>', value: 1, max: 4 });
+        expect(bar()).toEqual(['<i>Loader</i> #<b>9</b>', 'Queue 2']);
+        expect(document.querySelector('.run-bar b, .run-bar i')).toBeNull();
+        expect(fill()).toBe('25%');
+        expect(badge().hidden).toBe(true);
+
+        run({ queue: 2, nodeId: '5', title: 'Node', value: 3, max: 20, cached: ['1'], done: ['9'] });
+        expect([badge().hidden, badge().textContent, badge().dataset.state]).toEqual([false, 'Running 3/20', 'running']);
+        // The badge updates without rendering the rows, so an open editor stays
+        expect(sidebar().querySelector('input[type="number"]')).toBe(input);
+
+        run({ queue: 1, cached: ['5'] });
+        expect([badge().textContent, bar()[0], fill()]).toEqual(['Cached', 'Queued', '0%']);
+        run({ done: ['5'] });
+        expect([badge().textContent, bar()[0]]).toEqual(['Done', 'Idle']);
+        // Another node shown takes its own state
+        key(input!, 'Escape');
+        receive('info', { node: node(9), nav: nav(), rows: [] });
+        expect(badge().hidden).toBe(true);
+    });
+
+    it('shows the last error with Go to node and Copy traceback, and marks the inputs that failed validation', async () => {
+        const writeText = vi.fn().mockResolvedValue(undefined);
+        vi.stubGlobal('navigator', { clipboard: { writeText } });
+        const banner = document.querySelector('.error-banner') as HTMLElement;
+        const error = { nodeId: '7:5', title: '', type: 'KSampler', message: '<img src=x onerror="window.__pwned=1">', traceback: 'Traceback:\n  line 1\n' };
+        expect(banner.hidden).toBe(true);
+
+        receive('info', { node: { ...node(5), executionId: '7:5' }, nav: nav(), rows: [] });
+        receive('run', { queue: 0, nodeId: null, title: '', value: 0, max: 0, cached: [], done: ['7:5'], error });
+        expect(banner.hidden).toBe(false);
+        expect(banner.querySelector('.error-text')!.textContent).toBe(`KSampler #7:5 ${error.message}`);
+        expect(banner.querySelector('img')).toBeNull();
+        expect(document.querySelector('.run-badge')!.textContent).toBe('Error');
+
+        (banner.querySelector('[data-action="go-to-error"]') as HTMLElement).click();
+        expect(posted('run-node-select')).toEqual(['7:5']);
+        (banner.querySelector('[data-action="copy-traceback"]') as HTMLElement).click();
+        await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith(`Traceback:\n  line 1\n${error.message}`));
+
+        receive('run', { queue: 0, nodeId: null, title: '', value: 0, max: 0, cached: [], done: [], error: null });
+        expect(banner.hidden).toBe(true);
+
+        sendInfo([row('ckpt_name', 'combo', 'x'), row('steps', 'INT', 20, { error: 'Value not in list: <b>x</b>' })]);
+        const marked = [...sidebar().querySelectorAll('.info-row.has-error')];
+        expect(marked.map(el => el.querySelector('.row-error')!.textContent)).toEqual(['Value not in list: <b>x</b>']);
+        expect(marked[0].querySelector('b')).toBeNull();
+        expect((window as any).__pwned).toBeUndefined();
     });
 
     it('shows the empty state for no node, with no Cursor section', () => {

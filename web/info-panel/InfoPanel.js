@@ -266,7 +266,7 @@ class InfoPanel {
       ...this.uiManager.getHistoryNav(),
       canEdit: this.uiManager.canEdit()
     };
-    const key = [...this.uiManager.getRenderKey(info), ...Object.values(nav)];
+    const key = [...this.uiManager.getRenderKey(info), ...Object.values(nav), app.lastNodeErrors];
     const sent = this.popOutKey;
     if (sent && key.length === sent.length && key.every((v, i) => Object.is(v, sent[i]))) return;
     this.popOutKey = key;
@@ -278,7 +278,13 @@ class InfoPanel {
    * The pop-out payload: the node's identity and place, and its widget rows as plain data.
    */
   buildPopOutInfo(node, nav) {
+    var _a, _b, _c;
     if (!node) return { node: null, nav, rows: [] };
+    const errors = /* @__PURE__ */ new Map();
+    for (const error of ((_b = (_a = app.lastNodeErrors) == null ? void 0 : _a[node.executionId]) == null ? void 0 : _b.errors) ?? []) {
+      const input = (_c = error.extra_info) == null ? void 0 : _c.input_name;
+      if (input) errors.set(input, error.details ? `${error.message}: ${error.details}` : error.message);
+    }
     return {
       node: {
         id: node.id,
@@ -286,6 +292,7 @@ class InfoPanel {
         type: node.type,
         mode: node.mode,
         execOrder: node.executionOrder,
+        executionId: node.executionId,
         graphPath: node.graphPath,
         group: node.group,
         isSubgraph: node.isSubgraph
@@ -303,7 +310,8 @@ class InfoPanel {
           isEditable: !!row.isEditable,
           isLinked: !!row.isLinked,
           isActionable: !!row.isActionable,
-          constraints
+          constraints,
+          error: row.widgetName ? errors.get(row.widgetName) : void 0
         };
       })
     };

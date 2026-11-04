@@ -37,28 +37,11 @@ export class InformationGatherer {
             return app.canvas.node_over;
         }
 
-        try {
-            const canvasRect = app.canvas.canvas.getBoundingClientRect();
-            const mouseX = magnifyGlass.lastKnownMousePosition.x - canvasRect.left;
-            const mouseY = magnifyGlass.lastKnownMousePosition.y - canvasRect.top;
-
-            let graphPos: [number, number];
-            if (app.canvas.convertOffsetToCanvasPos) {
-                graphPos = app.canvas.convertOffsetToCanvasPos([mouseX, mouseY]);
-            } else {
-                const ds = app.canvas.ds || { scale: 1, offset: [0, 0] };
-                graphPos = [
-                    (mouseX / ds.scale) - (ds.offset[0] / ds.scale),
-                    (mouseY / ds.scale) - (ds.offset[1] / ds.scale)
-                ];
-            }
-
-            return graph.getNodeOnPos(graphPos[0], graphPos[1]) ?? null;
-        } catch (err) {
-            console.warn("Error in node detection:", err);
-        }
-
-        return null;
+        const canvasRect = app.canvas.canvas.getBoundingClientRect();
+        const { x, y } = magnifyGlass.lastKnownMousePosition;
+        // LiteGraph draws a graph position at (pos + offset) * scale from the canvas corner
+        const [graphX, graphY] = app.canvas.ds.convertCanvasToOffset([x - canvasRect.left, y - canvasRect.top]);
+        return graph.getNodeOnPos(graphX, graphY) ?? null;
     }
 
     getDetailedNodeInfo(node: ComfyNode): NodeInfo {

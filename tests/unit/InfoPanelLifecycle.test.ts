@@ -79,7 +79,8 @@ describe('Info Panel lifecycle', () => {
         // Node's own localStorage global hides happy-dom's
         vi.stubGlobal('localStorage', new Storage());
         addSetting.mockClear();
-        (window as any).app = { canvas: { onDrawForeground: null, setDirty: vi.fn() }, graph: null };
+        const ds = { convertCanvasToOffset: (pos: [number, number]) => pos };
+        (window as any).app = { canvas: { canvas: document.createElement('canvas'), ds, onDrawForeground: null, setDirty: vi.fn() }, graph: null };
         mg = new FakeGlass();
     });
 
@@ -996,7 +997,7 @@ describe('Info Panel lifecycle', () => {
 
         beforeEach(() => {
             nodes = [makeNode(1, 'Loader'), makeNode(2, 'Sampler')];
-            const graph = { _nodes: nodes, getNodeById: (id: number) => nodes.find(n => n.id === id) ?? null };
+            const graph = { _nodes: nodes, getNodeById: (id: number) => nodes.find(n => n.id === id) ?? null, getNodeOnPos: () => null };
             Object.assign((window as any).app.canvas, { graph, node_over: nodes[0], selected_nodes: {}, centerOnNode: vi.fn() });
             (mg as any).state = { active: true, x: 0, y: 0, canvasScale: 1 };
             (mg as any).config = { showCursorPreview: false };
@@ -1204,7 +1205,7 @@ describe('Info Panel lifecycle', () => {
             panelManager().updateInfo();
             expect(shown()).toBe('Loader (undone)');
 
-            canvas.graph = { _nodes: [], getNodeById: () => nodes[0] };
+            canvas.graph = { _nodes: [], getNodeById: () => nodes[0], getNodeOnPos: () => null };
             panelManager().updateInfo();
             expect(state().currentNodeId).toBeNull();
         });

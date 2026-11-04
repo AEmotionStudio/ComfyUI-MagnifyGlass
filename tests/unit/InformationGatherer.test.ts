@@ -17,7 +17,11 @@ const mockApp: any = {
             getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600 })
         },
         node_over: null,
-        ds: { scale: 1, offset: [0, 0] }
+        ds: {
+            scale: 1,
+            offset: [0, 0],
+            convertCanvasToOffset(pos: number[]) { return [pos[0] / this.scale - this.offset[0], pos[1] / this.scale - this.offset[1]]; }
+        }
     }
 };
 
@@ -78,6 +82,12 @@ describe('InformationGatherer', () => {
 
             expect(getNodeOnPos).toHaveBeenCalledWith(200, 200);
             expect(hit).toBe(node);
+
+            // Zoomed and panned: graph = canvas / scale - offset, as LiteGraph draws (pos + offset) * scale
+            Object.assign(mockApp.canvas.ds, { scale: 2, offset: [10, 20] });
+            gatherer.getNodeUnderCursor();
+            expect(getNodeOnPos).toHaveBeenLastCalledWith(90, 80);
+            Object.assign(mockApp.canvas.ds, { scale: 1, offset: [0, 0] });
             mockApp.canvas.graph = canvasGraph;
         });
 

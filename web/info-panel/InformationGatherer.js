@@ -9,32 +9,17 @@ class InformationGatherer {
       return null;
     }
     if (((_b = window.LiteGraph) == null ? void 0 : _b.vueNodesMode) && !app.canvas.read_only) {
-      const { x, y } = magnifyGlass.lastKnownMousePosition;
-      const nodeEl = document.elementsFromPoint(x, y).map((el) => el.closest(".lg-node[data-node-id]")).find(Boolean);
+      const { x: x2, y: y2 } = magnifyGlass.lastKnownMousePosition;
+      const nodeEl = document.elementsFromPoint(x2, y2).map((el) => el.closest(".lg-node[data-node-id]")).find(Boolean);
       return nodeEl ? graph.getNodeById(Number(nodeEl.dataset.nodeId)) ?? null : null;
     }
     if (app.canvas.node_over) {
       return app.canvas.node_over;
     }
-    try {
-      const canvasRect = app.canvas.canvas.getBoundingClientRect();
-      const mouseX = magnifyGlass.lastKnownMousePosition.x - canvasRect.left;
-      const mouseY = magnifyGlass.lastKnownMousePosition.y - canvasRect.top;
-      let graphPos;
-      if (app.canvas.convertOffsetToCanvasPos) {
-        graphPos = app.canvas.convertOffsetToCanvasPos([mouseX, mouseY]);
-      } else {
-        const ds = app.canvas.ds || { scale: 1, offset: [0, 0] };
-        graphPos = [
-          mouseX / ds.scale - ds.offset[0] / ds.scale,
-          mouseY / ds.scale - ds.offset[1] / ds.scale
-        ];
-      }
-      return graph.getNodeOnPos(graphPos[0], graphPos[1]) ?? null;
-    } catch (err) {
-      console.warn("Error in node detection:", err);
-    }
-    return null;
+    const canvasRect = app.canvas.canvas.getBoundingClientRect();
+    const { x, y } = magnifyGlass.lastKnownMousePosition;
+    const [graphX, graphY] = app.canvas.ds.convertCanvasToOffset([x - canvasRect.left, y - canvasRect.top]);
+    return graph.getNodeOnPos(graphX, graphY) ?? null;
   }
   getDetailedNodeInfo(node) {
     var _a, _b, _c, _d, _e, _f;

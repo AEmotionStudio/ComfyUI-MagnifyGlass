@@ -355,6 +355,33 @@
             border: 0;
         }
 
+        /* Output: the frame area shows one of the shown node's outputs */
+        .output-view {
+            display: none;
+            color: var(--descrip-text, var(--mg-muted));
+        }
+
+        .main-container[data-view="output"] .output-view {
+            display: flex;
+        }
+
+        .main-container[data-view="output"] :is(.canvas-inner, .canvas-placeholder) {
+            display: none;
+        }
+
+        .output-image {
+            max-width: 100cqw;
+            max-height: 100cqh;
+            object-fit: contain;
+            border: 1px solid var(--mg-stroke);
+            border-radius: 0.5rem;
+        }
+
+        :root:fullscreen .output-image {
+            border: 0;
+            border-radius: 0;
+        }
+
         /* Inspector */
         .inspector-sidebar {
             position: relative;
@@ -667,6 +694,46 @@
 
         .crumb-action:hover {
             background: var(--mg-control-hover);
+        }
+
+        .node-outputs {
+            display: flex;
+            gap: 0.375rem;
+            padding: 0.5rem 0.75rem;
+            border-bottom: 1px solid var(--mg-stroke);
+            overflow-x: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--mg-stroke) transparent;
+        }
+
+        .node-outputs[hidden] {
+            display: none;
+        }
+
+        .output-thumb {
+            flex: none;
+            width: 3.5rem;
+            height: 3.5rem;
+            padding: 0;
+            overflow: hidden;
+            border: 1px solid var(--mg-stroke);
+            border-radius: 0.375rem;
+            background: var(--mg-backdrop);
+        }
+
+        .output-thumb:hover {
+            border-color: var(--mg-muted);
+        }
+
+        .output-thumb[aria-pressed="true"] {
+            border: 2px solid var(--mg-accent);
+        }
+
+        .output-thumb img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .sidebar-content {
@@ -1149,8 +1216,8 @@
             }
         }
 
-        /* Glass or Info alone */
-        .main-container:not([data-view="split"]) {
+        /* Glass or Info alone; Output is laid out like Split */
+        .main-container:not([data-view="split"], [data-view="output"]) {
             grid-template: minmax(0, 1fr) / minmax(0, 1fr);
         }
 
@@ -1163,7 +1230,7 @@
             border: 0;
         }
 
-        .main-container:not([data-view="split"]) .inspector-divider {
+        .main-container:not([data-view="split"], [data-view="output"]) .inspector-divider {
             display: none;
         }
 
@@ -1217,6 +1284,7 @@
                 <button type="button" data-view="split" title="Frame and Inspector" aria-pressed="true">Split</button>
                 <button type="button" data-view="glass" title="Frame only" aria-pressed="false">Glass</button>
                 <button type="button" data-view="info" title="Inspector only" aria-pressed="false">Info</button>
+                <button type="button" data-view="output" title="The shown node's output and the Inspector (Esc returns to the glass)" aria-pressed="false">Output</button>
             </div>
             <button id="fit-btn" class="icon-button" title="Fit to window" aria-label="Fit to window" aria-pressed="false">
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -1258,6 +1326,10 @@
                         <line x1="21" y1="21" x2="16.65" y2="16.65" />
                     </svg>
                     <p>Waiting for connection from ComfyUI...</p>
+                </div>
+                <div class="output-view">
+                    <img class="output-image" alt="Node output" hidden>
+                    <p class="output-empty">No output for this node yet</p>
                 </div>
             </div>
         </section>
@@ -1305,6 +1377,7 @@
                 </div>
             </div>
             <div class="node-breadcrumb" hidden></div>
+            <div class="node-outputs" role="group" aria-label="Outputs" hidden></div>
             <div class="sidebar-content" id="sidebar-content">
                 <div class="empty-state" id="empty-state">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -1340,6 +1413,9 @@
         const emptyState = document.getElementById('empty-state');
         const identity = inspector.querySelector('.node-identity');
         const breadcrumb = inspector.querySelector('.node-breadcrumb');
+        const outputStrip = inspector.querySelector('.node-outputs');
+        const outputImage = document.querySelector('.output-image');
+        const outputEmpty = document.querySelector('.output-empty');
         const gotoBtn = inspector.querySelector('[data-action="go-to-node"]');
         const picker = inspector.querySelector('.node-picker');
         const pickerFilter = picker.querySelector('.node-picker-filter');
@@ -1490,10 +1566,12 @@
 
         function handleInfo(info) {
             currentInfo = info;
+            // Outputs sit outside the rows and update in place, so live previews never re-render the rows
+            renderOutputs(config.inspector ? info : null);
             // Re-rendering would drop an open editor; closing it renders the latest info
             if (sidebarContent.querySelector('.widget-editor-inline')) return;
             // ComfyUI sends unchanged info again after edits; rendering it would drop hover, focus and text selection
-            const key = JSON.stringify([info, config.inspector]);
+            const key = JSON.stringify([info && { ...info, outputs: undefined }, config.inspector]);
             if (key === renderedKey) return;
             renderedKey = key;
             renderedInfo = config.inspector ? info : null;
@@ -1543,6 +1621,10 @@
                     toggleExpanded(action);
                 } else if (name === 'toggle-section') {
                     toggleSection(action);
+                } else if (name === 'show-output') {
+                    outputIndex = Number(action.dataset.output);
+                    setView('output');
+                    saveLayout();
                 }
                 return;
             }
@@ -1724,6 +1806,8 @@
             }
             editor.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') {
+                    // Not Output's Escape
+                    e.stopPropagation();
                     finish(false);
                 } else if (e.key === 'Enter' && (editor.tagName !== 'TEXTAREA' || e.ctrlKey || e.metaKey)) {
                     e.preventDefault();
@@ -1776,6 +1860,50 @@
                 node?.isSubgraph ? '<button type="button" class="crumb-action" data-action="enter-subgraph">Enter subgraph</button>' : ''
             ].join('');
             breadcrumb.hidden = !breadcrumb.innerHTML;
+        }
+
+        // Output view: the shown outputs, the picked one, the node it belongs to, and the view Escape returns to
+        let outputUrls = [];
+        let outputIndex = 0;
+        let outputNodeId = null;
+        let glassView = 'split';
+
+        // Thumbnails of the shown node's outputs, updated in place so each keeps its image while a new URL loads
+        function renderOutputs(info) {
+            outputUrls = info?.outputs ?? [];
+            const nodeId = info?.node?.executionId ?? null;
+            if (nodeId !== outputNodeId) {
+                outputNodeId = nodeId;
+                outputIndex = 0;
+            }
+            while (outputStrip.children.length > outputUrls.length) outputStrip.lastElementChild.remove();
+            outputUrls.forEach((url, i) => {
+                let thumb = outputStrip.children[i];
+                if (!thumb) {
+                    thumb = document.createElement('button');
+                    thumb.type = 'button';
+                    thumb.className = 'output-thumb';
+                    thumb.dataset.action = 'show-output';
+                    thumb.dataset.output = String(i);
+                    thumb.title = 'Show in the frame area';
+                    thumb.setAttribute('aria-label', `Output ${i + 1}`);
+                    thumb.appendChild(document.createElement('img')).alt = '';
+                    outputStrip.appendChild(thumb);
+                }
+                const img = thumb.firstElementChild;
+                if (img.getAttribute('src') !== url) img.src = url;
+            });
+            outputStrip.hidden = !outputUrls.length;
+            renderOutputView();
+        }
+
+        function renderOutputView() {
+            outputIndex = Math.min(outputIndex, Math.max(outputUrls.length - 1, 0));
+            const url = outputUrls[outputIndex];
+            outputImage.hidden = !url;
+            outputEmpty.hidden = !!url;
+            if (url && outputImage.getAttribute('src') !== url) outputImage.src = url;
+            [...outputStrip.children].forEach((thumb, i) => thumb.setAttribute('aria-pressed', String(layout.view === 'output' && i === outputIndex)));
         }
 
         function renderInfo(info) {
@@ -2103,10 +2231,10 @@
             if (state === 'connected') postVisibility();
         }
 
-        // The ComfyUI tab skips frames while this page is hidden or shows only the Inspector
+        // The ComfyUI tab skips frames while this page is hidden or shows only the Inspector or an output
         function postVisibility() {
             if (connection !== 'connected') return;
-            channel.postMessage({ type: 'visibility', data: document.hidden || (layout.view === 'info' && !document.fullscreenElement) });
+            channel.postMessage({ type: 'visibility', data: document.hidden || layout.view === 'output' || (layout.view === 'info' && !document.fullscreenElement) });
         }
 
         // Status never touches the sidebar, so an open editor and the last info stay
@@ -2133,11 +2261,16 @@
             channel.close();
         });
 
-        // Escape closes the picker; an editor handles its own. ←/→, L and Ctrl+K act like their buttons, outside typing fields
+        // Escape closes the picker, or leaves Output; an editor handles its own. ←/→, L and Ctrl+K act like their buttons, outside typing fields
         const VIEWER_KEYS = { ArrowLeft: 'prev-node', ArrowRight: 'next-node', l: 'lock-node', L: 'lock-node' };
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
-                closePicker(true);
+                if (!picker.hidden) {
+                    closePicker(true);
+                } else if (layout.view === 'output') {
+                    setView(glassView);
+                    saveLayout();
+                }
                 return;
             }
             if (document.activeElement?.matches('input, textarea, select')) return;
@@ -2202,14 +2335,16 @@
             localStorage.removeItem('magnifyglass-viewer-size');
         });
 
-        // Split shows the frame and the Inspector, Glass and Info one of them
-        const VIEWS = ['split', 'glass', 'info'];
+        // Split shows the frame and the Inspector, Glass and Info one of them, Output an output in place of the frame
+        const VIEWS = ['split', 'glass', 'info', 'output'];
 
         function setView(view) {
+            if (layout.view === 'split' || layout.view === 'glass') glassView = layout.view;
             layout.view = VIEWS.includes(view) ? view : 'split';
             mainContainer.dataset.view = layout.view;
             for (const button of viewButtons) button.setAttribute('aria-pressed', String(button.dataset.view === layout.view));
-            if (layout.view === 'split') divider.setAttribute('aria-valuenow', String(Math.round(inspector.getBoundingClientRect().width)));
+            if (layout.view === 'split' || layout.view === 'output') divider.setAttribute('aria-valuenow', String(Math.round(inspector.getBoundingClientRect().width)));
+            renderOutputView();
             postVisibility();
         }
 
@@ -2301,6 +2436,8 @@
         zoomIn.addEventListener('click', () => setZoom(zoom + ZOOM_STEP));
 
         canvasSection.addEventListener('wheel', (e) => {
+            // The glass is not shown
+            if (layout.view === 'output') return;
             e.preventDefault();
             // A mouse notch is about 100 px; a touchpad's small deltas add up to steps
             wheelRest += e.deltaMode ? Math.sign(e.deltaY) * 100 : e.deltaY;

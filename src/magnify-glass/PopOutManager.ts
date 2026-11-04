@@ -106,6 +106,8 @@ export interface PopOutInfo {
         canEdit: boolean;
     };
     rows: PopOutRow[];
+    /** The node's images as /view or blob URLs: its live previews while it runs, otherwise its last results */
+    outputs: string[];
 }
 
 /**

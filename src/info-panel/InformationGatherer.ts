@@ -113,6 +113,7 @@ export class InformationGatherer {
             pythonModule: pythonModule,
             graphPath: subgraphNodes.map(subgraphNode => subgraphNode.subgraph!.name || 'Subgraph'),
             executionId: [...subgraphNodes, node].map(pathNode => pathNode.id).join(':'),
+            locatorId: subgraphNodes.length ? `${node.graph!.id}:${node.id}` : String(node.id),
             group: node.graph?.getGroupOnPos(node.pos[0] + node.size[0] / 2, node.pos[1] + node.size[1] / 2)?.title,
             isSubgraph: !!node.isSubgraphNode?.()
         };

@@ -31,6 +31,9 @@ class InfoPanel {
     // The node the pop-out shows and the graph it came from; its edits apply only there
     __publicField(this, "popOutNodeId", null);
     __publicField(this, "popOutGraph", null);
+    // The results the pop-out's /view URLs were built from; each build gets a new rand param, which loads every image again
+    __publicField(this, "popOutImages", null);
+    __publicField(this, "popOutImageUrls", []);
     // The node Sticky keeps, looked up again on each update like the locked one
     __publicField(this, "stickyNodeId", null);
     __publicField(this, "stickyGraph", null);
@@ -266,20 +269,27 @@ class InfoPanel {
       ...this.uiManager.getHistoryNav(),
       canEdit: this.uiManager.canEdit()
     };
-    const key = [...this.uiManager.getRenderKey(info), ...Object.values(nav), app.lastNodeErrors];
+    const node = info.hoveredNode;
+    const key = [
+      ...this.uiManager.getRenderKey(info),
+      ...Object.values(nav),
+      app.lastNodeErrors,
+      node && ((_a = app.nodeOutputs[node.locatorId]) == null ? void 0 : _a.images),
+      node && app.nodePreviewImages[node.locatorId]
+    ];
     const sent = this.popOutKey;
     if (sent && key.length === sent.length && key.every((v, i) => Object.is(v, sent[i]))) return;
     this.popOutKey = key;
-    this.popOutNodeId = ((_a = info.hoveredNode) == null ? void 0 : _a.id) ?? null;
+    this.popOutNodeId = (node == null ? void 0 : node.id) ?? null;
     this.popOutGraph = (_b = app.canvas) == null ? void 0 : _b.graph;
-    this.magnifyGlass.popOutManager.sendInfo(this.buildPopOutInfo(info.hoveredNode, nav));
+    this.magnifyGlass.popOutManager.sendInfo(this.buildPopOutInfo(node, nav));
   }
   /**
    * The pop-out payload: the node's identity and place, and its widget rows as plain data.
    */
   buildPopOutInfo(node, nav) {
     var _a, _b, _c;
-    if (!node) return { node: null, nav, rows: [] };
+    if (!node) return { node: null, nav, rows: [], outputs: [] };
     const errors = /* @__PURE__ */ new Map();
     for (const error of ((_b = (_a = app.lastNodeErrors) == null ? void 0 : _a[node.executionId]) == null ? void 0 : _b.errors) ?? []) {
       const input = (_c = error.extra_info) == null ? void 0 : _c.input_name;
@@ -313,8 +323,25 @@ class InfoPanel {
           constraints,
           error: row.widgetName ? errors.get(row.widgetName) : void 0
         };
-      })
+      }),
+      outputs: this.popOutOutputs(node.locatorId)
     };
+  }
+  /**
+   * The node's images as ComfyUI previews them on the node: its live previews while it runs, otherwise its last results.
+   */
+  popOutOutputs(locatorId) {
+    var _a;
+    const previews = app.nodePreviewImages[locatorId];
+    if (previews == null ? void 0 : previews.length) return previews;
+    const output = app.nodeOutputs[locatorId];
+    if (!(output == null ? void 0 : output.images)) return [];
+    if (output.images !== this.popOutImages) {
+      this.popOutImages = output.images;
+      const video = ((_a = output.animated) == null ? void 0 : _a.some(Boolean)) && !output.images.some((image) => /webp|png/.test(image.filename));
+      this.popOutImageUrls = video ? [] : output.images.map((image) => app.api.apiURL(`/view?${new URLSearchParams(image)}${app.getRandParam()}`));
+    }
+    return this.popOutImageUrls;
   }
   /**
    * The row of a widget on the node the pop-out shows, while its graph is still on screen.

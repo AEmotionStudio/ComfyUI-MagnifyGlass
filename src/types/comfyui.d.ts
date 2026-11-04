@@ -19,9 +19,15 @@ export interface ComfyApp {
     ui: ComfyUI;
     extensionManager: ComfyExtensionManager;
     /** Dispatches the server's execution events */
-    api: EventTarget;
+    api: EventTarget & { apiURL(route: string): string };
     /** Validation errors of the last queued prompt by execution id, null when it had none */
     lastNodeErrors: Record<string, { errors: ComfyNodeError[] }> | null;
+    /** Each node's last results by locator id; an image is the query of its /view URL */
+    nodeOutputs: Record<string, { images?: Record<string, string>[]; animated?: boolean[] }>;
+    /** Blob URLs of the running nodes' live previews, by locator id */
+    nodePreviewImages: Record<string, string[]>;
+    /** A query parameter that keeps /view responses out of the browser cache, or '' */
+    getRandParam(): string;
     registerExtension(extension: ComfyExtension): void;
 }
 
@@ -158,6 +164,7 @@ export interface ComfyDialog {
 
 export interface ComfyGraph {
     _nodes: ComfyNode[];
+    id: string;
     /** The graph itself for the root graph; set on subgraphs */
     rootGraph: ComfyGraph;
     /** Subgraphs only */
@@ -341,6 +348,8 @@ export interface NodeInfo {
     graphPath: string[];
     /** The id the server runs the node by: the ids of the subgraph nodes it is in, then its own, joined by ':' */
     executionId: string;
+    /** The id ComfyUI keeps the node's outputs by: its subgraph's id and its own, joined by ':', or its own in the root graph */
+    locatorId: string;
     group?: string;
     isSubgraph: boolean;
 }

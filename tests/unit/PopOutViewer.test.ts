@@ -454,6 +454,63 @@ describe('Pop-out viewer editing', () => {
         expect((window as any).__pwned).toBeUndefined();
     });
 
+    it('shows the node outputs as thumbnails, one large in Output, and Escape returns to the glass', () => {
+        const main = document.querySelector('.main-container') as HTMLElement;
+        const strip = document.querySelector('.node-outputs') as HTMLElement;
+        const thumbs = () => [...strip.querySelectorAll('.output-thumb')] as HTMLButtonElement[];
+        const large = document.querySelector('.output-image') as HTMLImageElement;
+        const outputs = (id: number, urls: string[]) => receive('info', { node: node(id), nav: nav(), rows: [], outputs: urls });
+        receive('ping');
+        (document.querySelector('[data-view="glass"]') as HTMLElement).click();
+
+        outputs(5, []);
+        expect(strip.hidden).toBe(true);
+        outputs(5, ['/api/view?filename=a.png&type=output', '/api/view?filename=b"><img onerror=x>.png&type=output']);
+        expect(strip.hidden).toBe(false);
+        expect(thumbs().map(thumb => thumb.querySelector('img')!.getAttribute('src'))).toEqual(['/api/view?filename=a.png&type=output', '/api/view?filename=b"><img onerror=x>.png&type=output']);
+        expect(strip.querySelectorAll('img')).toHaveLength(2);
+
+        thumbs()[1].click();
+        expect(main.dataset.view).toBe('output');
+        expect(large.getAttribute('src')).toBe('/api/view?filename=b"><img onerror=x>.png&type=output');
+        expect(thumbs().map(thumb => thumb.getAttribute('aria-pressed'))).toEqual(['false', 'true']);
+        // No glass frame is shown
+        expect(posted('visibility').at(-1)).toBe(true);
+
+        // A live preview replaces the results in place
+        const first = thumbs()[0];
+        outputs(5, ['blob:http://127.0.0.1/preview']);
+        expect(thumbs()).toEqual([first]);
+        expect(large.getAttribute('src')).toBe('blob:http://127.0.0.1/preview');
+
+        // New previews leave the rows as they are
+        receive('info', { node: node(5), nav: nav(), rows: [row('seed', 'INT', 1)], outputs: ['blob:http://127.0.0.1/a'] });
+        const rows = sidebar().innerHTML;
+        const seed = valueOf('seed');
+        receive('info', { node: node(5), nav: nav(), rows: [row('seed', 'INT', 1)], outputs: ['blob:http://127.0.0.1/b'] });
+        expect(valueOf('seed')).toBe(seed);
+        expect(sidebar().innerHTML).toBe(rows);
+        expect(large.getAttribute('src')).toBe('blob:http://127.0.0.1/b');
+
+        // Another node without outputs
+        outputs(6, []);
+        expect([strip.hidden, large.hidden]).toEqual([true, true]);
+        expect((document.querySelector('.output-empty') as HTMLElement).hidden).toBe(false);
+
+        // An editor's Escape stays in Output; Escape then returns to the view with the glass
+        sendInfo([row('seed', 'INT', 1)]);
+        valueOf('seed').click();
+        key(sidebar().querySelector('input')!, 'Escape');
+        expect(main.dataset.view).toBe('output');
+        key(document.body, 'Escape');
+        expect(main.dataset.view).toBe('glass');
+        expect(posted('visibility').at(-1)).toBe(false);
+        expect(JSON.parse(localStorage.getItem('magnifyglass-viewer-layout')!).view).toBe('glass');
+
+        (document.querySelector('[data-view="output"]') as HTMLElement).click();
+        expect(main.dataset.view).toBe('output');
+    });
+
     it('shows the empty state for no node, with no Cursor section', () => {
         channel.onmessage!({ data: { type: 'info', data: { node: null, nav: nav(false), rows: [] } } });
         expect(sidebar().querySelector('.empty-state')).not.toBeNull();

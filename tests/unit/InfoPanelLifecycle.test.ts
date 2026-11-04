@@ -736,6 +736,7 @@ describe('Info Panel lifecycle', () => {
             nodes = [makeNode(1, 'Loader'), makeNode(2, 'Sampler')];
             graph = { _nodes: nodes, getNodeById: (id: number) => nodes.find(n => n.id === id) ?? null };
             Object.assign((window as any).app.canvas, { graph, node_over: nodes[0], selected_nodes: {}, centerOnNode: vi.fn() });
+            Object.assign((window as any).app, { nodeOutputs: {}, nodePreviewImages: {} });
             (mg as any).state = { active: true, x: 0, y: 0, canvasScale: 1 };
             window.comfyUIMagnifyGlass = mg as any;
             // Already connected when the Inspector mounts
@@ -891,6 +892,55 @@ describe('Info Panel lifecycle', () => {
             (window as any).app.lastNodeErrors = null;
             vi.advanceTimersByTime(250);
             expect(last().rows.every((row: any) => row.error === undefined)).toBe(true);
+        });
+
+        it('sends the outputs ComfyUI keeps by locator id inside a subgraph, the live preview first', () => {
+            const app = (window as any).app;
+            const root: any = { id: 'root-uuid', _nodes: [] };
+            root.rootGraph = root;
+            const subgraph = { ...graph, id: 'sub-uuid', rootGraph: root, getGroupOnPos: () => undefined };
+            root._nodes.push({ id: 7, subgraph, isSubgraphNode: () => true });
+            for (const node of nodes) node.graph = subgraph;
+            Object.assign(app.canvas, { graph: subgraph });
+            app.api = { apiURL: (route: string) => `/api${route}` };
+            let rand = 0;
+            app.getRandParam = () => `&rand=${++rand}`;
+            vi.advanceTimersByTime(250);
+            expect(last().outputs).toEqual([]);
+
+            // The root graph's node 1 is another node
+            app.nodeOutputs['1'] = { images: [{ filename: 'root.png', subfolder: '', type: 'output' }] };
+            app.nodeOutputs['sub-uuid:1'] = { images: [{ filename: 'a b.png', subfolder: 'x', type: 'output' }, { filename: 'c.png', subfolder: '', type: 'temp' }] };
+            vi.advanceTimersByTime(250);
+            expect(last().outputs).toEqual(['/api/view?filename=a+b.png&subfolder=x&type=output&rand=1', '/api/view?filename=c.png&subfolder=&type=temp&rand=2']);
+
+            // An unrelated change sends the same URLs, so the viewer loads nothing again
+            nodes[0].title = 'Renamed';
+            vi.advanceTimersByTime(250);
+            expect(last().node.title).toBe('Renamed');
+            expect(last().outputs).toEqual(['/api/view?filename=a+b.png&subfolder=x&type=output&rand=1', '/api/view?filename=c.png&subfolder=&type=temp&rand=2']);
+
+            const count = sent().length;
+            app.nodePreviewImages['sub-uuid:1'] = ['blob:preview'];
+            vi.advanceTimersByTime(250);
+            expect(sent()).toHaveLength(count + 1);
+            expect(last().outputs).toEqual(['blob:preview']);
+
+            // The results of a run replace the arrays, and the previews go
+            delete app.nodePreviewImages['sub-uuid:1'];
+            app.nodeOutputs['sub-uuid:1'] = { images: [{ filename: 'd.png', subfolder: '', type: 'output' }] };
+            vi.advanceTimersByTime(250);
+            expect(last().outputs).toEqual(['/api/view?filename=d.png&subfolder=&type=output&rand=3']);
+            vi.advanceTimersByTime(1000);
+            expect(sent()).toHaveLength(count + 2);
+
+            // ComfyUI shows an animated MP4 as video; an animated WebP stays an image
+            app.nodeOutputs['sub-uuid:1'] = { images: [{ filename: 'e.mp4', subfolder: '', type: 'output' }], animated: [true] };
+            vi.advanceTimersByTime(250);
+            expect(last().outputs).toEqual([]);
+            app.nodeOutputs['sub-uuid:1'] = { images: [{ filename: 'f.webp', subfolder: '', type: 'output' }], animated: [true] };
+            vi.advanceTimersByTime(250);
+            expect(last().outputs).toEqual(['/api/view?filename=f.webp&subfolder=&type=output&rand=4']);
         });
 
         it('searches nodes like the Go to node picker', () => {

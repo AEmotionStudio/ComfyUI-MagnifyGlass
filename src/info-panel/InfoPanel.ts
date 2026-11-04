@@ -43,6 +43,9 @@ export class InfoPanel {
     // The node the pop-out shows and the graph it came from; its edits apply only there
     private popOutNodeId: number | null = null;
     private popOutGraph: unknown = null;
+    // The results the pop-out's /view URLs were built from; each build gets a new rand param, which loads every image again
+    private popOutImages: Record<string, string>[] | null = null;
+    private popOutImageUrls: string[] = [];
 
     constructor(magnifyGlass: MagnifyGlassInstance) {
         this.magnifyGlass = magnifyGlass;
@@ -339,22 +342,26 @@ export class InfoPanel {
             ...this.uiManager.getHistoryNav(),
             canEdit: this.uiManager.canEdit()
         };
-        // A queued prompt that fails validation replaces lastNodeErrors
-        const key = [...this.uiManager.getRenderKey(info), ...Object.values(nav), app.lastNodeErrors];
+        // A failed validation replaces lastNodeErrors; a run replaces the node's results and previews
+        const node = info.hoveredNode;
+        const key = [
+            ...this.uiManager.getRenderKey(info), ...Object.values(nav), app.lastNodeErrors,
+            node && app.nodeOutputs[node.locatorId]?.images, node && app.nodePreviewImages[node.locatorId]
+        ];
         const sent = this.popOutKey;
         if (sent && key.length === sent.length && key.every((v, i) => Object.is(v, sent[i]))) return;
         this.popOutKey = key;
 
-        this.popOutNodeId = info.hoveredNode?.id ?? null;
+        this.popOutNodeId = node?.id ?? null;
         this.popOutGraph = app.canvas?.graph;
-        this.magnifyGlass.popOutManager!.sendInfo(this.buildPopOutInfo(info.hoveredNode, nav));
+        this.magnifyGlass.popOutManager!.sendInfo(this.buildPopOutInfo(node, nav));
     }
 
     /**
      * The pop-out payload: the node's identity and place, and its widget rows as plain data.
      */
     private buildPopOutInfo(node: NodeInfo | null, nav: PopOutNav): PopOutInfo {
-        if (!node) return { node: null, nav, rows: [] };
+        if (!node) return { node: null, nav, rows: [], outputs: [] };
 
         // The last queued prompt's validation errors, by the input they name
         const errors = new Map<string, string>();
@@ -392,8 +399,26 @@ export class InfoPanel {
                     constraints,
                     error: row.widgetName ? errors.get(row.widgetName) : undefined
                 };
-            })
+            }),
+            outputs: this.popOutOutputs(node.locatorId)
         };
+    }
+
+    /**
+     * The node's images as ComfyUI previews them on the node: its live previews while it runs, otherwise its last results.
+     */
+    private popOutOutputs(locatorId: string): string[] {
+        const previews = app.nodePreviewImages[locatorId];
+        if (previews?.length) return previews;
+        const output = app.nodeOutputs[locatorId];
+        if (!output?.images) return [];
+        if (output.images !== this.popOutImages) {
+            this.popOutImages = output.images;
+            // ComfyUI shows animated results other than WebP and PNG as video, which an <img> can't show
+            const video = output.animated?.some(Boolean) && !output.images.some(image => /webp|png/.test(image.filename));
+            this.popOutImageUrls = video ? [] : output.images.map(image => app.api.apiURL(`/view?${new URLSearchParams(image)}${app.getRandParam()}`));
+        }
+        return this.popOutImageUrls;
     }
 
     /**

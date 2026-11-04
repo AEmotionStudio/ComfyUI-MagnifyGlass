@@ -127,18 +127,19 @@ describe('InformationGatherer', () => {
     });
 
     describe('getDetailedNodeInfo', () => {
-        it('names the subgraphs on the way to the node, and runs it by their nodes\' ids', () => {
+        it('names the subgraphs on the way to the node, runs it by their nodes\' ids and finds its outputs by its subgraph\'s', () => {
             const root: any = { _nodes: [], getGroupOnPos: () => undefined };
             root.rootGraph = root;
             const outer: any = { name: 'Outer', rootGraph: root, _nodes: [], getGroupOnPos: () => undefined };
-            const inner: any = { name: '', rootGraph: root, _nodes: [], getGroupOnPos: () => undefined };
+            const inner: any = { id: 'inner-uuid', name: '', rootGraph: root, _nodes: [], getGroupOnPos: () => undefined };
             const subgraphNode = (id: number, subgraph: any) => ({ id, subgraph, isSubgraphNode: () => true });
             root._nodes.push({ id: 2 }, subgraphNode(7, outer));
             outer._nodes.push(subgraphNode(12, inner));
             const node = (graph: any) => ({ id: 3, title: 'Sampler', type: 'KSampler', mode: 0, pos: [0, 0], size: [1, 1], graph }) as any;
 
-            expect(gatherer.getDetailedNodeInfo(node(root))).toMatchObject({ graphPath: [], executionId: '3' });
-            expect(gatherer.getDetailedNodeInfo(node(inner))).toMatchObject({ graphPath: ['Outer', 'Subgraph'], executionId: '7:12:3' });
+            expect(gatherer.getDetailedNodeInfo(node(root))).toMatchObject({ graphPath: [], executionId: '3', locatorId: '3' });
+            // ComfyUI keeps outputs by the node's own subgraph
+            expect(gatherer.getDetailedNodeInfo(node(inner))).toMatchObject({ graphPath: ['Outer', 'Subgraph'], executionId: '7:12:3', locatorId: 'inner-uuid:3' });
         });
     });
 

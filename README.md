@@ -12,7 +12,7 @@
 [![Last Commit](https://img.shields.io/github/last-commit/AEmotionStudio/ComfyUI-MagnifyGlass?style=for-the-badge&label=Last%20Update&color=orange)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/commits)
 [![Activity](https://img.shields.io/github/commit-activity/m/AEmotionStudio/ComfyUI-MagnifyGlass?style=for-the-badge&label=Activity&color=yellow)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/commits)
 
-![MagnifyGlass Intro](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v2/MagnifyGlass_Intro_v2.webp)  
+![MagnifyGlass Intro](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v2/MagnifyGlass_Intro_v2.1.webp)  
 *Inspect fine details in your generated images, node connections, and canvas with ease.*
 
 [Features](#-features) • [Installation](#-installation) • [Usage](#-usage) • [Configuration](#️-configuration) • [Known Issues](#-known-issues) • [Contributing](#-contributing) • [Changelog](CHANGELOG.md)
@@ -46,10 +46,10 @@
 <td width="50%">
 
 ### 🔍 Magnifying Glass
-![Magnifying Glass](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/MagnifyGlass_GlassPreview_v1.webp)
+![Magnifying Glass](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v2/MagnifyGlass_GlassPreview_v2.webp)
 
 *   **WebGL-Powered**: Smooth, high-performance rendering at any zoom level.
-*   **Smart Interactions**: Follows your cursor or stays fixed. Toggles transparently for click-through.
+*   **Smart Interactions**: Stays put or follows your cursor, drags anywhere with Move Glass, and Reset (`O`) brings it back. Clicks pass through to the canvas.
 *   **Customizable**: Adjust zoom (up to 10x), size, border, and shape (Circle/Square/Rounded).
 
 </td>
@@ -68,7 +68,7 @@
 <td width="50%">
 
 ### ⚙️ Sidebar Integration
-![Sidebar Integration](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v2/MagnifyGlass_Sidebar_v2.webp)
+![Sidebar Integration](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v2/MagnifyGlass_Sidebar_v2.1.webp)
 
 *   **Organized Settings**: Every glass, Inspector, hotkey and accessibility setting in one panel that follows your palette, with the Inspector panel switch at the top.
 *   **Live Previews**: Changes apply instantly without needing to refresh.
@@ -90,7 +90,7 @@
 <td width="50%">
 
 ### ♿ Accessibility Suite
-![Accessibility Suite](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/MagnifyGlass_Access_v1.webp)
+![Accessibility Suite](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v2/MagnifyGlass_Access_v2.webp)
 
 *   **Visual Modes**: Toggle **Invert Colors** or **Grayscale** for high-contrast viewing.
 *   **Reduce Motion**: Disable smooth animations for instant feedback.

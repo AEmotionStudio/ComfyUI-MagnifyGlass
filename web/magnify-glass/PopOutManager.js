@@ -33,6 +33,7 @@ const RUN_EVENTS = [
   "execution_interrupted"
 ];
 const SESSION_KEY = "magnifyglass-popout-session";
+const VIEWER_WINDOW_MESSAGE = "magnifyglass-viewer-window";
 class PopOutManager {
   constructor(getStatus, onConnect, onZoom) {
     __publicField(this, "channel", null);
@@ -73,12 +74,13 @@ class PopOutManager {
         this.sendMessage({ type: "run", data: this.run });
       }, 100));
     });
-    /** Throttle frame sending to ~30fps */
-    __publicField(this, "lastFrameTime", 0);
-    __publicField(this, "FRAME_INTERVAL", 33);
-    // ~30fps
-    /** One frame is encoded at a time; a slow encode drops frames instead of queueing them */
-    __publicField(this, "frameInFlight", false);
+    // The viewer announces its window to this tab's window, which opened it, so a reload here gets the handle back
+    __publicField(this, "onViewerWindow", (event) => {
+      var _a;
+      if (event.origin === location.origin && ((_a = event.data) == null ? void 0 : _a.type) === VIEWER_WINDOW_MESSAGE && event.data.session === this.session) {
+        this.popOutWindow = event.source;
+      }
+    });
     /** Unanswered pings, one a second, before the viewer counts as gone */
     __publicField(this, "PING_LIMIT", 5);
     this.getStatus = getStatus;
@@ -86,6 +88,7 @@ class PopOutManager {
     this.onZoom = onZoom;
     this.useSession(sessionStorage.getItem(SESSION_KEY) ?? void 0);
     window.addEventListener("pagehide", this.onPageHide);
+    window.addEventListener("message", this.onViewerWindow);
   }
   /**
    * Pair with the viewer of a session, a new one by default.
@@ -265,22 +268,13 @@ class PopOutManager {
     return this.isOpen && !this.viewerHidden;
   }
   /**
-   * Send a frame to the pop-out viewer as a PNG Blob, unless it is hidden.
-   * Throttled to ~30fps for performance.
-   * @param canvas - The source canvas to send
+   * Draw the glass's frame into the viewer, unless it is hidden. The viewer is a same-origin
+   * window, so the copy happens in this animation frame, with no encoding or messaging.
+   * @param canvas - The glass canvas, just rendered
    */
   sendFrame(canvas) {
-    if (!this.wantsFrames() || this.frameInFlight || !this.channel) return;
-    const now = Date.now();
-    if (now - this.lastFrameTime < this.FRAME_INTERVAL) {
-      return;
-    }
-    this.lastFrameTime = now;
-    this.frameInFlight = true;
-    canvas.toBlob((blob) => {
-      this.frameInFlight = false;
-      if (blob && this.isOpen) this.sendMessage({ type: "frame", data: blob });
-    }, "image/png");
+    var _a, _b;
+    if (this.wantsFrames()) (_b = (_a = this.popOutWindow) == null ? void 0 : _a.drawFrame) == null ? void 0 : _b.call(_a, canvas);
   }
   /**
    * Send the palette and the glass and Inspector state when they change.
@@ -439,6 +433,7 @@ class PopOutManager {
   cleanup() {
     this.close();
     window.removeEventListener("pagehide", this.onPageHide);
+    window.removeEventListener("message", this.onViewerWindow);
     if (this.channel) {
       this.channel.close();
       this.channel = null;

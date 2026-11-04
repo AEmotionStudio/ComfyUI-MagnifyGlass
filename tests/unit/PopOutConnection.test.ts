@@ -176,34 +176,35 @@ describe('Pop-out connection', () => {
         expect(configZooms()).toEqual([300, 350]);
     });
 
-    it('sends frames as Blobs, one encode at a time, and none while the viewer is hidden', () => {
-        const blob = new Blob(['png'], { type: 'image/png' });
-        let encode: BlobCallback | null = null;
-        const canvas = { toBlob: (callback: BlobCallback) => { encode = callback; } } as unknown as HTMLCanvasElement;
-        const frames = () => posted().filter(m => m.type === 'frame').map(m => m.data);
+    it('draws frames into the viewer window, none while it is hidden, and gets the window back after a reload', () => {
+        const canvas = {} as HTMLCanvasElement;
+        const viewer = { drawFrame: vi.fn(), close() { } };
+        const announce = (data: unknown, origin = location.origin) =>
+            window.dispatchEvent(new MessageEvent('message', { data, origin, source: viewer as any }));
+        const session = sessionStorage.getItem('magnifyglass-popout-session');
         receive({ type: 'pong' });
 
-        receive({ type: 'visibility', data: true });
+        // Another origin, or another tab's viewer, is not this tab's
+        announce({ type: 'magnifyglass-viewer-window', session }, 'http://elsewhere');
+        announce({ type: 'magnifyglass-viewer-window', session: 'other' });
         manager.sendFrame(canvas);
-        expect(encode).toBeNull();
+        expect(viewer.drawFrame).not.toHaveBeenCalled();
 
+        announce({ type: 'magnifyglass-viewer-window', session });
+        manager.sendFrame(canvas);
+        expect(viewer.drawFrame).toHaveBeenCalledWith(canvas);
+
+        receive({ type: 'visibility', data: true });
         expect(manager.wantsFrames()).toBe(false);
+        manager.sendFrame(canvas);
+        expect(viewer.drawFrame).toHaveBeenCalledTimes(1);
+
         // Shown again: the glass's render loop starts again
         receive({ type: 'visibility', data: false });
         expect(manager.wantsFrames()).toBe(true);
         expect(connects).toBe(2);
         manager.sendFrame(canvas);
-        const first = encode!;
-        encode = null;
-        // The first frame is still encoding
-        vi.advanceTimersByTime(100);
-        manager.sendFrame(canvas);
-        expect(encode).toBeNull();
-
-        first(blob);
-        expect(frames()).toEqual([blob]);
-        manager.sendFrame(canvas);
-        expect(encode).not.toBeNull();
+        expect(viewer.drawFrame).toHaveBeenCalledTimes(2);
     });
 
     it('acts on no request from a viewer that is not connected', () => {

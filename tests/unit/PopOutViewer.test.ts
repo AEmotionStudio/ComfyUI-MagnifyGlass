@@ -744,32 +744,20 @@ describe('Pop-out viewer editing', () => {
         expect(posted('panel-action')).toEqual([]);
     });
 
-    it('draws a Blob frame at its own size and closes its bitmap', async () => {
-        const bitmap = { width: 400, height: 400, close: vi.fn() };
-        const decode = vi.fn().mockResolvedValue(bitmap);
-        vi.stubGlobal('createImageBitmap', decode);
+    it('draws the frames ComfyUI hands it at their own size, and announces its window to its opener', () => {
         const canvas = document.getElementById('viewer-canvas') as HTMLCanvasElement;
         const ctx = canvas.getContext('2d') as any;
-        const blob = new Blob(['png'], { type: 'image/png' });
+        const source = { width: 400, height: 400 };
 
-        channel.onmessage!({ data: { type: 'frame', data: blob } });
-        await vi.waitFor(() => expect(bitmap.close).toHaveBeenCalled());
-
-        expect(decode).toHaveBeenCalledWith(blob);
+        (window as any).drawFrame(source);
         expect([canvas.width, canvas.height]).toEqual([400, 400]);
-        expect(ctx.drawImage).toHaveBeenCalledWith(bitmap, 0, 0);
+        expect(ctx.drawImage).toHaveBeenCalledWith(source, 0, 0);
         expect(document.querySelector('.canvas-placeholder')!.classList.contains('hidden')).toBe(true);
-    });
 
-    it('skips a frame that cannot be decoded', async () => {
-        const decode = vi.fn().mockRejectedValue(new DOMException('Truncated', 'InvalidStateError'));
-        vi.stubGlobal('createImageBitmap', decode);
-        const ctx = (document.getElementById('viewer-canvas') as HTMLCanvasElement).getContext('2d') as any;
-
-        channel.onmessage!({ data: { type: 'frame', data: new Blob(['a']) } });
-        await vi.waitFor(() => expect(decode).toHaveBeenCalled());
-        await Promise.resolve();
-        expect(ctx.drawImage).not.toHaveBeenCalled();
+        const opener = { postMessage: vi.fn() };
+        vi.stubGlobal('opener', opener);
+        vi.advanceTimersByTime(1000);
+        expect(opener.postMessage).toHaveBeenCalledWith({ type: 'magnifyglass-viewer-window', session: 'abc123' }, location.origin);
     });
 
     it('starts from its defaults when storage is blocked', () => {
@@ -778,24 +766,5 @@ describe('Pop-out viewer editing', () => {
         new Function(script)();
         expect((document.querySelector('.main-container') as HTMLElement).dataset.view).toBe('split');
         expect(document.getElementById('fit-btn')!.getAttribute('aria-pressed')).toBe('false');
-    });
-
-    it('never draws an older frame over a newer one', async () => {
-        const older = { width: 400, height: 400, close: vi.fn() };
-        const newer = { width: 400, height: 400, close: vi.fn() };
-        let resolveOlder!: (bitmap: typeof older) => void;
-        vi.stubGlobal('createImageBitmap', vi.fn()
-            .mockReturnValueOnce(new Promise(resolve => { resolveOlder = resolve; }))
-            .mockResolvedValueOnce(newer));
-        const ctx = (document.getElementById('viewer-canvas') as HTMLCanvasElement).getContext('2d') as any;
-
-        channel.onmessage!({ data: { type: 'frame', data: new Blob(['a']) } });
-        channel.onmessage!({ data: { type: 'frame', data: new Blob(['b']) } });
-        await vi.waitFor(() => expect(newer.close).toHaveBeenCalled());
-        resolveOlder(older);
-        await vi.waitFor(() => expect(older.close).toHaveBeenCalled());
-
-        expect(ctx.drawImage).toHaveBeenCalledTimes(1);
-        expect(ctx.drawImage).toHaveBeenCalledWith(newer, 0, 0);
     });
 });

@@ -147,7 +147,6 @@ type PopOutMessage =
     | { type: 'close' }
     | { type: 'visibility'; data: boolean }
     | { type: 'zoom'; data: number }
-    | { type: 'frame'; data: Blob }
     | { type: 'config'; data: PopOutConfig }
     | { type: 'info'; data: PopOutInfo }
     | { type: 'run'; data: PopOutRun }
@@ -163,6 +162,12 @@ type PopOutMessage =
 
 const SESSION_KEY = 'magnifyglass-popout-session';
 
+// Posted by the viewer to the window that opened it, with its session
+const VIEWER_WINDOW_MESSAGE = 'magnifyglass-viewer-window';
+
+/** The viewer's window; it draws the glass's frames itself once loaded */
+type ViewerWindow = Window & { drawFrame?: (source: CanvasImageSource) => void };
+
 /**
  * PopOutManager class.
  * Handles opening, closing, and syncing with the viewer window of this tab's session.
@@ -170,7 +175,7 @@ const SESSION_KEY = 'magnifyglass-popout-session';
 export class PopOutManager {
     private channel: BroadcastChannel | null = null;
     private isOpen: boolean = false;
-    private popOutWindow: Window | null = null;
+    private popOutWindow: ViewerWindow | null = null;
     public onStateChange: ((isOpen: boolean) => void) | null = null;
     // The Inspector owns the info and decides what the viewer may change
     public onNodeSelect: ((nodeId: number) => void) | null = null;
@@ -207,11 +212,12 @@ export class PopOutManager {
         }, 100);
     };
 
-    /** Throttle frame sending to ~30fps */
-    private lastFrameTime: number = 0;
-    private readonly FRAME_INTERVAL = 33; // ~30fps
-    /** One frame is encoded at a time; a slow encode drops frames instead of queueing them */
-    private frameInFlight: boolean = false;
+    // The viewer announces its window to this tab's window, which opened it, so a reload here gets the handle back
+    private readonly onViewerWindow = (event: MessageEvent) => {
+        if (event.origin === location.origin && event.data?.type === VIEWER_WINDOW_MESSAGE && event.data.session === this.session) {
+            this.popOutWindow = event.source as ViewerWindow;
+        }
+    };
 
     /** Unanswered pings, one a second, before the viewer counts as gone */
     private readonly PING_LIMIT = 5;
@@ -224,6 +230,7 @@ export class PopOutManager {
         // sessionStorage survives a reload, so the viewer finds this tab again after F5
         this.useSession(sessionStorage.getItem(SESSION_KEY) ?? undefined);
         window.addEventListener('pagehide', this.onPageHide);
+        window.addEventListener('message', this.onViewerWindow);
     }
 
     /**
@@ -424,26 +431,12 @@ export class PopOutManager {
     }
 
     /**
-     * Send a frame to the pop-out viewer as a PNG Blob, unless it is hidden.
-     * Throttled to ~30fps for performance.
-     * @param canvas - The source canvas to send
+     * Draw the glass's frame into the viewer, unless it is hidden. The viewer is a same-origin
+     * window, so the copy happens in this animation frame, with no encoding or messaging.
+     * @param canvas - The glass canvas, just rendered
      */
     sendFrame(canvas: HTMLCanvasElement): void {
-        if (!this.wantsFrames() || this.frameInFlight || !this.channel) return;
-
-        // Throttle frame rate
-        const now = Date.now();
-        if (now - this.lastFrameTime < this.FRAME_INTERVAL) {
-            return;
-        }
-        this.lastFrameTime = now;
-
-        // The WebGL canvas keeps its drawing buffer, so encoding after this frame is safe
-        this.frameInFlight = true;
-        canvas.toBlob((blob) => {
-            this.frameInFlight = false;
-            if (blob && this.isOpen) this.sendMessage({ type: 'frame', data: blob });
-        }, 'image/png');
+        if (this.wantsFrames()) this.popOutWindow?.drawFrame?.(canvas);
     }
 
     /**
@@ -617,6 +610,7 @@ export class PopOutManager {
     cleanup(): void {
         this.close();
         window.removeEventListener('pagehide', this.onPageHide);
+        window.removeEventListener('message', this.onViewerWindow);
         if (this.channel) {
             this.channel.close();
             this.channel = null;

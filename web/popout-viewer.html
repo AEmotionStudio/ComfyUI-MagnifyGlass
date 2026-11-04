@@ -1484,7 +1484,6 @@
         let connection = 'connecting';
         let lastPingTime = 0;
         let config = { glass: 'on', inspector: true };
-        let frameCount = 0;
 
         const channel = new BroadcastChannel(`${CHANNEL_NAME}:${session}`);
 
@@ -1518,9 +1517,6 @@
             const message = event.data;
 
             switch (message.type) {
-                case 'frame':
-                    handleFrame(message.data);
-                    break;
                 case 'config':
                     handleConfig(message.data);
                     break;
@@ -1548,29 +1544,16 @@
             }
         };
 
-        async function handleFrame(blob) {
-            const frame = ++frameCount;
-            let bitmap;
-            try {
-                bitmap = await createImageBitmap(blob);
-            } catch {
-                // A frame that cannot be decoded is skipped; the next one replaces it
-                return;
-            }
-            // Decodes can finish out of order; never draw over a newer frame
-            if (frame !== frameCount) {
-                bitmap.close();
-                return;
-            }
-            if (canvas.width !== bitmap.width || canvas.height !== bitmap.height) {
-                canvas.width = bitmap.width;
-                canvas.height = bitmap.height;
+        // ComfyUI draws each glass frame here as soon as it has rendered it
+        window.drawFrame = (source) => {
+            if (canvas.width !== source.width || canvas.height !== source.height) {
+                canvas.width = source.width;
+                canvas.height = source.height;
             }
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(bitmap, 0, 0);
-            bitmap.close();
+            ctx.drawImage(source, 0, 0);
             placeholder.classList.add('hidden');
-        }
+        };
 
         function handleConfig(data) {
             applyPalette(data.palette);
@@ -2321,12 +2304,17 @@
 
         document.addEventListener('visibilitychange', postVisibility);
 
-        // ComfyUI pings only while it counts this page as connected; until then announce once a second
+        // ComfyUI pings only while it counts this page as connected; until then announce once a second.
+        // The window that opened this one gets its handle back after a reload, to draw frames into it.
+        function announce() {
+            channel.postMessage({ type: 'pong' });
+            window.opener?.postMessage({ type: 'magnifyglass-viewer-window', session }, location.origin);
+        }
         setInterval(() => {
             if (connection === 'connected' && Date.now() - lastPingTime > 3000) setConnection('inactive');
-            if (connection !== 'connected') channel.postMessage({ type: 'pong' });
+            if (connection !== 'connected') announce();
         }, 1000);
-        channel.postMessage({ type: 'pong' });
+        announce();
 
         window.addEventListener('beforeunload', () => {
             channel.postMessage({ type: 'close' });

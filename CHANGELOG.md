@@ -37,7 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Saved fonts no longer reset on reload, and High Contrast Text applies on load.
 - Node modes read Mute and Bypass instead of Never and On Request.
 - The pop-out editor keeps newlines, handles widget names with quotes, and Escape no longer closes the window.
-- **Pop-out viewer**: It no longer returns 404 when the folder is named `ComfyUI-MagnifyGlass`, and it keeps updating while the glass preview is hidden. Values are escaped, so a workflow string can no longer run script in the viewer. Each ComfyUI tab pairs with its own viewer, so edits no longer land in every tab. The status no longer flickers or wipes the sidebar, and the viewer reconnects after a timeout, a close or a ComfyUI reload. Frames are sent as Blobs.
+- **Pop-out viewer**: It no longer returns 404 when the folder is named `ComfyUI-MagnifyGlass`, and it keeps updating while the glass preview is hidden. Values are escaped, so a workflow string can no longer run script in the viewer. Each ComfyUI tab pairs with its own viewer, so edits no longer land in every tab. The status no longer flickers or wipes the sidebar, and the viewer reconnects after a timeout, a close or a ComfyUI reload. The viewer draws every glass frame as it is rendered, with no encoding, so it keeps pace with the glass.
 
 ### Removed
 - The built-in panel themes and their palette detection.

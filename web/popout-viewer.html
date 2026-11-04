@@ -208,6 +208,11 @@
             box-shadow: var(--shadow-lg), 0 0 0 2px var(--accent-blue), 0 0 40px rgba(99, 102, 241, 0.15);
         }
 
+        /* The last frame, while no new ones come */
+        #viewer-canvas.dimmed {
+            opacity: 0.4;
+        }
+
         /* Resize handle */
         .resize-handle {
             position: absolute;
@@ -480,49 +485,6 @@
             font-family: 'JetBrains Mono', monospace;
         }
 
-        /* Keyboard hint */
-        .keyboard-hint {
-            padding: 6px 12px;
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border-subtle);
-            border-radius: 6px;
-            font-size: 12px;
-            color: var(--text-tertiary);
-        }
-
-        .keyboard-hint kbd {
-            background: var(--bg-secondary);
-            padding: 2px 6px;
-            border-radius: 4px;
-            border: 1px solid var(--border-default);
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 11px;
-            color: var(--text-secondary);
-        }
-
-        /* Checkbox */
-        .checkbox-container {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            cursor: pointer;
-            margin-right: 12px;
-            user-select: none;
-        }
-
-        .checkbox-label {
-            font-size: 13px;
-            color: var(--text-secondary);
-            font-weight: 500;
-        }
-
-        .checkbox-container input {
-            cursor: pointer;
-            accent-color: var(--accent-blue);
-            width: 14px;
-            height: 14px;
-        }
-
         .icon-button {
             background: transparent;
             border: 1px solid var(--border-subtle);
@@ -793,13 +755,6 @@
                         d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
                 </svg>
             </button>
-            <label class="checkbox-container" title="Prevent disconnection when idle">
-                <input type="checkbox" id="keep-alive-check">
-                <span class="checkbox-label">Keep Alive</span>
-            </label>
-            <div class="keyboard-hint">
-                <kbd>Esc</kbd> to close
-            </div>
             <div class="status-indicator">
                 <span class="status-dot connecting"></span>
                 <span class="status-label">Connecting...</span>
@@ -855,6 +810,8 @@
 
     <script>
         const CHANNEL_NAME = 'comfyui-magnifyglass-popout';
+        // Each ComfyUI tab has its own channel, named by the session in this page's URL
+        const session = new URLSearchParams(location.search).get('session');
 
         // DOM Elements
         const canvas = document.getElementById('viewer-canvas');
@@ -864,30 +821,14 @@
         const placeholder = document.querySelector('.canvas-placeholder');
         const sidebarContent = document.getElementById('sidebar-content');
         const emptyState = document.getElementById('empty-state');
-        const keepAliveCheck = document.getElementById('keep-alive-check');
 
-        // State
-        let isConnected = false;
-        let lastFrameTime = 0;
-        let keepAlive = false;
+        // State: 'connecting', 'connected', 'inactive' (no ping for a while) or 'closed' (ComfyUI closed or reloaded, or closed this viewer)
+        let connection = 'connecting';
+        let lastPingTime = 0;
+        let config = { glass: 'on', inspector: true };
         const frameImage = new Image();
 
-        // Initialize BroadcastChannel
-        const channel = new BroadcastChannel(CHANNEL_NAME);
-
-        // Access Keep-Alive setting
-        const savedKeepAlive = localStorage.getItem('magnifyglass-viewer-keepalive');
-        if (savedKeepAlive === 'true') {
-            keepAlive = true;
-            keepAliveCheck.checked = true;
-        }
-
-        keepAliveCheck.addEventListener('change', (e) => {
-            keepAlive = e.target.checked;
-            localStorage.setItem('magnifyglass-viewer-keepalive', keepAlive);
-            // If reconnecting/keeping alive, we might want to manually mark connected if we have a frame?
-            // But really we just prevent disconnection.
-        });
+        const channel = new BroadcastChannel(`${CHANNEL_NAME}:${session}`);
 
         // Fullscreen Logic
         const fullscreenBtn = document.getElementById('fullscreen-btn');
@@ -930,11 +871,12 @@
                     handleInfo(message.data);
                     break;
                 case 'ping':
-                    channel.postMessage({ type: 'pong', timestamp: Date.now() });
-                    markConnected();
+                    lastPingTime = Date.now();
+                    channel.postMessage({ type: 'pong' });
+                    setConnection('connected');
                     break;
                 case 'close':
-                    markDisconnected();
+                    setConnection('closed');
                     break;
                 case 'nodes-list':
                     handleNodesList(message.data);
@@ -958,29 +900,15 @@
             };
 
             frameImage.src = dataUrl;
-            lastFrameTime = Date.now();
-            markConnected();
+            placeholder.classList.add('hidden');
         }
 
-
-
-        function handleConfig(config) {
-            if (!config) return;
-
-            if (config.borderColor) {
-                canvas.style.boxShadow = `var(--shadow-lg), 0 0 0 2px ${config.borderColor}`;
-            }
-            if (config.glassShape === 'Circle') {
-                canvas.style.borderRadius = '50%';
-            } else if (config.glassShape === 'Rounded Square') {
-                canvas.style.borderRadius = '20%';
-            } else {
-                canvas.style.borderRadius = 'var(--radius-lg)';
-            }
-
-            if (config.theme) {
-                document.documentElement.setAttribute('data-theme', config.theme);
-            }
+        function handleConfig(data) {
+            document.documentElement.setAttribute('data-theme', data.theme);
+            const inspectorChanged = data.inspector !== config.inspector;
+            config = data;
+            renderStatus();
+            if (inspectorChanged) handleInfo(currentInfo);
         }
 
         // The latest info, and the node the sidebar was last rendered from
@@ -991,7 +919,7 @@
             currentInfo = info;
             // Re-rendering would drop an open editor; closing it renders the latest info
             if (sidebarContent.querySelector('.widget-editor-inline')) return;
-            if (!info) {
+            if (!info || !config.inspector) {
                 showEmptyState();
                 return;
             }
@@ -1010,8 +938,7 @@
                     nodeId: nodeId,
                     widgetName: widgetName,
                     value: value
-                },
-                timestamp: Date.now()
+                }
             });
         }
 
@@ -1025,8 +952,7 @@
                 data: {
                     nodeId: nodeId,
                     widgetName: widgetName
-                },
-                timestamp: Date.now()
+                }
             });
         }
 
@@ -1175,8 +1101,6 @@
             }
             editor.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') {
-                    // Escape on the page closes the window
-                    e.stopPropagation();
                     finish(false);
                 } else if (e.key === 'Enter' && (editor.tagName !== 'TEXTAREA' || e.ctrlKey || e.metaKey)) {
                     e.preventDefault();
@@ -1688,8 +1612,10 @@
         }
 
         function showEmptyState() {
+            const empty = emptyState.cloneNode(true);
+            if (!config.inspector) empty.querySelector('.empty-state-text').textContent = 'The Inspector is off in ComfyUI';
             sidebarContent.innerHTML = '';
-            sidebarContent.appendChild(emptyState.cloneNode(true));
+            sidebarContent.appendChild(empty);
         }
 
         function hideEmptyState() {
@@ -1810,51 +1736,45 @@
             }
         }
 
-        function markConnected() {
-            if (!isConnected) {
-                isConnected = true;
-                statusDot.classList.remove('connecting');
-                statusDot.classList.add('connected');
-                statusLabel.textContent = 'Connected';
-                placeholder.classList.add('hidden');
-            }
+        const STATUS_LABELS = { connecting: 'Connecting...', inactive: 'ComfyUI tab inactive', closed: 'Disconnected from ComfyUI' };
+        const GLASS_LABELS = { on: 'Connected', hidden: 'Glass hidden', off: 'Glass off' };
+
+        function setConnection(state) {
+            if (state === connection) return;
+            connection = state;
+            renderStatus();
+            // The ComfyUI tab skips frames while this page is hidden
+            if (state === 'connected') channel.postMessage({ type: 'visibility', data: document.hidden });
         }
 
-        function markDisconnected() {
-            isConnected = false;
-            statusDot.classList.remove('connected');
-            statusDot.classList.add('connecting');
-            statusLabel.textContent = 'Disconnected';
-            placeholder.classList.remove('hidden');
-            canvas.classList.remove('active');
-            showEmptyState();
+        // Status never touches the sidebar, so an open editor and the last info stay
+        function renderStatus() {
+            const live = connection === 'connected';
+            statusDot.classList.toggle('connected', live && config.glass !== 'off');
+            statusDot.classList.toggle('connecting', connection === 'connecting' || connection === 'inactive');
+            statusLabel.textContent = live ? GLASS_LABELS[config.glass] : STATUS_LABELS[connection];
+            canvas.classList.toggle('dimmed', !live || config.glass === 'off');
         }
 
-        // Check connection status
+        document.addEventListener('visibilitychange', () => {
+            if (connection === 'connected') channel.postMessage({ type: 'visibility', data: document.hidden });
+        });
+
+        // ComfyUI pings only while it counts this page as connected; until then announce once a second
         setInterval(() => {
-            if (!keepAlive && isConnected && Date.now() - lastFrameTime > 3000) {
-                markDisconnected();
-            }
+            if (connection === 'connected' && Date.now() - lastPingTime > 3000) setConnection('inactive');
+            if (connection !== 'connected') channel.postMessage({ type: 'pong' });
         }, 1000);
+        channel.postMessage({ type: 'pong' });
 
-        // Initial ping
-        channel.postMessage({ type: 'pong', timestamp: Date.now() });
-
-        // Cleanup
         window.addEventListener('beforeunload', () => {
             channel.postMessage({ type: 'close' });
             channel.close();
         });
 
-        // Escape to close
+        // Escape closes the node list; an editor handles its own
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') {
-                if (document.fullscreenElement) {
-                    return;
-                }
-                channel.postMessage({ type: 'close' });
-                window.close();
-            }
+            if (e.key === 'Escape') hideDropdown();
         });
 
         // Fit Mode Logic

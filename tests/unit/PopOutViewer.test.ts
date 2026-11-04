@@ -8,7 +8,7 @@ const bodyHtml = html.slice(html.indexOf('<body>') + 6, html.indexOf('<script>')
 const script = html.slice(html.indexOf('<script>') + 8, html.indexOf('</script>'));
 
 describe('Pop-out viewer editing', () => {
-    let channel: { onmessage: ((e: { data: unknown }) => void) | null; postMessage: ReturnType<typeof vi.fn> };
+    let channel: { name: string; onmessage: ((e: { data: unknown }) => void) | null; postMessage: ReturnType<typeof vi.fn> };
     const edits = () => channel.postMessage.mock.calls.map(([m]) => m).filter((m: any) => m.type === 'widget-edit').map((m: any) => m.data);
     const sidebar = () => document.getElementById('sidebar-content')!;
     const valueOf = (name: string) => [...sidebar().querySelectorAll('[data-kind="value"]')]
@@ -27,8 +27,9 @@ describe('Pop-out viewer editing', () => {
             onmessage = null;
             postMessage = vi.fn();
             close() { }
-            constructor() { channel = this as any; }
+            constructor(public name: string) { channel = this as any; }
         });
+        history.replaceState(null, '', '/popout-viewer.html?v=1&session=abc123');
         vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
         vi.spyOn(window, 'close').mockImplementation(() => { });
         document.body.innerHTML = bodyHtml;
@@ -36,6 +37,7 @@ describe('Pop-out viewer editing', () => {
     });
 
     afterEach(() => {
+        history.replaceState(null, '', '/');
         document.body.innerHTML = '';
         vi.restoreAllMocks();
         vi.unstubAllGlobals();
@@ -138,5 +140,68 @@ describe('Pop-out viewer editing', () => {
         const posted = channel.postMessage.mock.calls.map(([m]) => m).filter((m: any) => m.type !== 'pong');
         expect(posted).toEqual([{ type: 'zoom-node', data: id }, { type: 'request-nodes', data: 'title' }]);
         expect((window as any).__pwned).toBeUndefined();
+    });
+
+    it('listens on the channel of the session in its URL, and announces itself until pinged', () => {
+        const pongs = () => channel.postMessage.mock.calls.filter(([m]) => m.type === 'pong').length;
+        expect(channel.name).toBe('comfyui-magnifyglass-popout:abc123');
+        expect(pongs()).toBe(1);
+        vi.advanceTimersByTime(2000);
+        expect(pongs()).toBe(3);
+
+        channel.onmessage!({ data: { type: 'ping' } });
+        expect(pongs()).toBe(4);
+        vi.advanceTimersByTime(2000);
+        expect(pongs()).toBe(4);
+    });
+
+    it('status follows pings and config, and never wipes the sidebar or an open editor', () => {
+        const label = () => document.querySelector('.status-label')!.textContent;
+        const ping = () => channel.onmessage!({ data: { type: 'ping' } });
+        const config = (glass: string) => channel.onmessage!({ data: { type: 'config', data: { theme: 'dark', glass, inspector: true } } });
+        ping();
+        config('off');
+        sendInfo([{ name: 'seed', type: 'number', value: 1 }]);
+        valueOf('seed').click();
+        const input = sidebar().querySelector('input[type="number"]');
+        expect(label()).toBe('Glass off');
+        expect(document.getElementById('viewer-canvas')!.classList.contains('dimmed')).toBe(true);
+
+        // No frames for a while is not a disconnect
+        for (let i = 0; i < 5; i++) {
+            vi.advanceTimersByTime(1000);
+            ping();
+        }
+        expect(label()).toBe('Glass off');
+        config('hidden');
+        expect(label()).toBe('Glass hidden');
+
+        vi.advanceTimersByTime(4000);
+        expect(label()).toBe('ComfyUI tab inactive');
+        channel.onmessage!({ data: { type: 'close' } });
+        expect(label()).toBe('Disconnected from ComfyUI');
+        expect(window.close).not.toHaveBeenCalled();
+        expect(sidebar().querySelector('input[type="number"]')).toBe(input);
+    });
+
+    it('says when the Inspector is off in ComfyUI', () => {
+        sendInfo([{ name: 'seed', type: 'number', value: 1 }]);
+        channel.onmessage!({ data: { type: 'config', data: { theme: 'dark', glass: 'on', inspector: false } } });
+        expect(sidebar().textContent).toContain('The Inspector is off in ComfyUI');
+        channel.onmessage!({ data: { type: 'config', data: { theme: 'dark', glass: 'on', inspector: true } } });
+        expect(valueOf('seed')).toBeDefined();
+    });
+
+    it('Escape closes the node list, never the window', () => {
+        channel.onmessage!({ data: { type: 'info', data: { hoveredNode: { id: 5, title: 'Node', type: 'Node', widgets: [], inputs: [], outputs: [] } } } });
+        (sidebar().querySelector('[data-action="node-dropdown"]') as HTMLElement).click();
+        channel.onmessage!({ data: { type: 'nodes-list', data: { nodes: [{ id: 5, title: 'Node', type: 'Node' }], sortBy: 'title' } } });
+        expect(document.getElementById('node-dropdown')).not.toBeNull();
+
+        key(document.body, 'Escape');
+        expect(document.getElementById('node-dropdown')).toBeNull();
+        key(document.body, 'Escape');
+        expect(window.close).not.toHaveBeenCalled();
+        expect(channel.postMessage.mock.calls.map(([m]) => m.type)).not.toContain('close');
     });
 });

@@ -10,15 +10,6 @@ import { Logger } from '../shared/logger';
 import { WidgetSyncManager } from '../info-panel/widget-editors/WidgetSyncManager';
 
 /**
- * Message types for BroadcastChannel communication
- */
-interface PopOutMessage {
-    type: 'frame' | 'config' | 'info' | 'close' | 'ping' | 'pong' | 'node-select' | 'nodes-list' | 'request-nodes' | 'zoom-node' | 'widget-edit' | 'button-click';
-    data?: string | Partial<PopOutConfig> | PopOutInfo | NodeListData | number | WidgetEditData;
-    timestamp?: number;
-}
-
-/**
  * Widget edit command data from pop-out viewer
  */
 interface WidgetEditData {
@@ -35,12 +26,13 @@ interface NodeListData {
     sortBy: 'title' | 'execOrder' | 'id';
 }
 
-interface PopOutConfig {
-    glassSize: number;
-    borderColor: string;
-    borderWidth: number;
-    glassShape: string;
-    theme?: string;
+export interface PopOutStatus {
+    glass: 'on' | 'hidden' | 'off';
+    inspector: boolean;
+}
+
+interface PopOutConfig extends PopOutStatus {
+    theme: 'dark' | 'light';
 }
 
 /**
@@ -73,9 +65,27 @@ interface PopOutInfo {
     };
 }
 
+/** Messages on the session's channel, in both directions */
+type PopOutMessage =
+    | { type: 'ping' }
+    | { type: 'pong' }
+    | { type: 'close' }
+    | { type: 'visibility'; data: boolean }
+    | { type: 'frame'; data: string }
+    | { type: 'config'; data: PopOutConfig }
+    | { type: 'info'; data?: PopOutInfo }
+    | { type: 'nodes-list'; data: NodeListData }
+    | { type: 'request-nodes'; data: NodeListData['sortBy'] }
+    | { type: 'node-select'; data: number }
+    | { type: 'zoom-node'; data: number }
+    | { type: 'widget-edit'; data: WidgetEditData }
+    | { type: 'button-click'; data: { nodeId: number; widgetName: string } };
+
+const SESSION_KEY = 'magnifyglass-popout-session';
+
 /**
  * PopOutManager class.
- * Handles opening, closing, and syncing with an external browser tab.
+ * Handles opening, closing, and syncing with the viewer window of this tab's session.
  */
 export class PopOutManager {
     private channel: BroadcastChannel | null = null;
@@ -84,22 +94,34 @@ export class PopOutManager {
     public onStateChange: ((isOpen: boolean) => void) | null = null;
     public onNodeSelect: ((nodeId: number) => void) | null = null;
     public onWidgetEdit: (() => void) | null = null;
-    private lastPongTime: number = 0;
     private pingInterval: number | null = null;
+    // Pings since the last pong
+    private pendingPings: number = 0;
+    // Closed from here: an announcing viewer waits until open() is called again
+    private dismissed: boolean = false;
+    private viewerHidden: boolean = false;
+    private session: string;
     private viewerUrl: string;
-    // The theme last sent to the viewer, null until it connects
-    private sentTheme: string | null = null;
+    // The config last sent to the viewer, null until it connects
+    private sentConfig: string | null = null;
+    private readonly onPageHide = () => {
+        if (this.isOpen) this.sendMessage({ type: 'close' });
+    };
 
     /** Throttle frame sending to ~30fps */
     private lastFrameTime: number = 0;
     private readonly FRAME_INTERVAL = 33; // ~30fps
 
-    /** Connection timeout (ms) */
-    private readonly CONNECTION_TIMEOUT = 5000;
+    /** Unanswered pings, one a second, before the viewer counts as gone */
+    private readonly PING_LIMIT = 5;
 
-    constructor() {
+    constructor(private readonly getStatus: () => PopOutStatus, private readonly onConnect: () => void) {
+        // sessionStorage survives a reload, so the viewer finds this tab again after F5
+        this.session = sessionStorage.getItem(SESSION_KEY) ?? Math.random().toString(36).slice(2);
+        sessionStorage.setItem(SESSION_KEY, this.session);
         this.viewerUrl = this.getViewerUrl();
         this.initChannel();
+        window.addEventListener('pagehide', this.onPageHide);
     }
 
     /**
@@ -108,21 +130,19 @@ export class PopOutManager {
     private getViewerUrl(): string {
         const url = new URL(/* @vite-ignore */ '../popout-viewer.html', import.meta.url);
         url.searchParams.set('v', __MAGNIFY_VERSION__);
+        url.searchParams.set('session', this.session);
         return url.href;
     }
 
     /**
-     * Initialize the BroadcastChannel.
+     * Open this session's BroadcastChannel; other ComfyUI tabs have their own.
      */
     private initChannel(): void {
         try {
-            this.channel = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+            this.channel = new BroadcastChannel(`${BROADCAST_CHANNEL_NAME}:${this.session}`);
             this.channel.onmessage = (event: MessageEvent<PopOutMessage>) => {
                 this.handleMessage(event.data);
             };
-            Logger.debug('[PopOut] BroadcastChannel initialized');
-            // Start pinging immediately to detect if viewer is already open (e.g. after reload)
-            this.startPing();
         } catch (e) {
             Logger.error('[PopOut] Failed to create BroadcastChannel:', e);
         }
@@ -133,33 +153,29 @@ export class PopOutManager {
      */
     private handleMessage(message: PopOutMessage): void {
         switch (message.type) {
-            case 'pong': {
-                this.lastPongTime = Date.now();
-                if (!this.isOpen) {
+            case 'pong':
+                // A pong answers a ping, or announces a viewer that is waiting for this tab
+                this.pendingPings = 0;
+                if (!this.isOpen && !this.dismissed) {
                     this.isOpen = true;
-                    this.sentTheme = null;
-                    Logger.debug('[PopOut] Viewer tab connected');
+                    this.viewerHidden = false;
+                    this.sentConfig = null;
+                    this.startPing();
                     if (this.onStateChange) this.onStateChange(true);
+                    this.onConnect();
                 }
-                // The viewer follows the palette's light or dark, which the frontend keeps as body.dark-theme
-                const theme = document.body.classList.contains('dark-theme') ? 'dark' : 'light';
-                if (theme !== this.sentTheme) this.sendConfig({ theme });
+                if (this.isOpen) this.syncConfig();
                 break;
-            }
             case 'close':
-                this.isOpen = false;
-                this.popOutWindow = null;
-                // Don't stop pinging, we might want to reconnect if user re-opens externally
-                // or if we just want to keep checking. 
-                // However, original logic stopped ping. Let's keep pinging to auto-detect return.
-                // this.stopPing(); 
-                Logger.debug('[PopOut] Viewer tab closed');
-                if (this.onStateChange) this.onStateChange(false);
+                // The viewer window closed or reloaded; a reloaded one announces itself again
+                this.disconnect();
+                break;
+            case 'visibility':
+                this.viewerHidden = message.data;
                 break;
             case 'request-nodes':
                 // Popout is requesting the node list for dropdown
-                Logger.debug('[PopOut] Received request-nodes:', message.data);
-                this.handleNodeListRequest(message.data as 'title' | 'execOrder' | 'id');
+                this.handleNodeListRequest(message.data);
                 break;
             case 'node-select':
                 // Popout selected a node, notify main window
@@ -179,11 +195,11 @@ export class PopOutManager {
                 break;
             case 'widget-edit':
                 // Popout is sending a widget value edit
-                this.handleWidgetEdit(message.data as WidgetEditData);
+                this.handleWidgetEdit(message.data);
                 break;
             case 'button-click':
                 // Popout is requesting a button widget callback invocation
-                this.handleButtonClick(message.data as { nodeId: number; widgetName: string });
+                this.handleButtonClick(message.data);
                 break;
         }
     }
@@ -249,44 +265,45 @@ export class PopOutManager {
      * Open the pop-out viewer in a popup window.
      */
     open(): void {
-        // If window exists and is open, focus it
-        if (this.popOutWindow && !this.popOutWindow.closed) {
-            this.popOutWindow.focus();
+        this.dismissed = false;
+
+        if (this.isOpen) {
+            this.popOutWindow?.focus();
             return;
         }
 
-        // A named popup window: a tab would hide ComfyUI and pause its render loop
+        // A named popup window: a tab would hide ComfyUI and pause its render loop.
+        // Opening it moves a viewer from another tab to this session, or reloads a disconnected one.
         this.popOutWindow = window.open(this.viewerUrl, 'MagnifyGlassPopout', 'popup,width=1100,height=720');
 
         if (!this.popOutWindow) {
             Logger.error('[PopOut] Failed to open the viewer - popup may be blocked');
-            return;
         }
-
-        // Start pinging to detect when viewer is ready
-        this.startPing();
-        Logger.debug('[PopOut] Opening viewer tab...');
     }
 
     /**
      * Close the pop-out viewer tab.
      */
     close(): void {
-        if (!this.isOpen && !this.popOutWindow) return;
+        // A window this tab is not connected to may now belong to another tab's session
+        if (!this.isOpen) return;
 
-        // update state immediately for instant UI feedback
+        this.dismissed = true;
+        this.sendMessage({ type: 'close' });
+        // Without a handle, e.g. after a reload, the viewer stays and waits for open()
+        this.popOutWindow?.close();
+        this.popOutWindow = null;
+        this.disconnect();
+    }
+
+    /**
+     * Mark the viewer as gone. It announces itself again while it is alive.
+     */
+    private disconnect(): void {
+        this.stopPing();
+        if (!this.isOpen) return;
         this.isOpen = false;
         if (this.onStateChange) this.onStateChange(false);
-        this.stopPing();
-
-        this.sendMessage({ type: 'close' });
-
-        if (this.popOutWindow) {
-            this.popOutWindow.close();
-            this.popOutWindow = null;
-        }
-
-        Logger.debug('[PopOut] Sent close message to viewer');
     }
 
     /**
@@ -308,12 +325,12 @@ export class PopOutManager {
     }
 
     /**
-     * Send a frame to the pop-out viewer.
+     * Send a frame to the pop-out viewer, unless it is hidden.
      * Throttled to ~30fps for performance.
      * @param canvas - The source canvas to send
      */
     sendFrame(canvas: HTMLCanvasElement): void {
-        if (!this.isOpen || !this.channel) return;
+        if (!this.isOpen || this.viewerHidden || !this.channel) return;
 
         // Throttle frame rate
         const now = Date.now();
@@ -324,31 +341,25 @@ export class PopOutManager {
 
         try {
             // Convert canvas to data URL (efficient for small canvases)
-            const dataUrl = canvas.toDataURL('image/png');
-            this.sendMessage({
-                type: 'frame',
-                data: dataUrl,
-                timestamp: now
-            });
+            this.sendMessage({ type: 'frame', data: canvas.toDataURL('image/png') });
         } catch (e) {
             Logger.error('[PopOut] Failed to send frame:', e);
         }
     }
 
     /**
-     * Send configuration to the pop-out viewer.
+     * Send the theme and the glass and Inspector state when they change.
      */
-    sendConfig(config: Partial<PopOutConfig>): void {
-        if (!this.channel) return;
-
-        if (config.theme) {
-            this.sentTheme = config.theme;
-        }
-
-        this.sendMessage({
-            type: 'config',
-            data: config
-        });
+    private syncConfig(): void {
+        // The viewer follows the palette's light or dark, which the frontend keeps as body.dark-theme
+        const config: PopOutConfig = {
+            theme: document.body.classList.contains('dark-theme') ? 'dark' : 'light',
+            ...this.getStatus()
+        };
+        const json = JSON.stringify(config);
+        if (json === this.sentConfig) return;
+        this.sentConfig = json;
+        this.sendMessage({ type: 'config', data: config });
     }
 
     /**
@@ -573,40 +584,22 @@ export class PopOutManager {
     }
 
     /**
-     * Start pinging to check connection.
+     * Ping the viewer once a second while it is connected.
      */
     private startPing(): void {
-        // Define ping function
         const ping = () => {
-            if (this.channel) {
-                this.channel.postMessage({ type: 'ping', timestamp: Date.now() });
-            }
-
-            // Check for connection timeout
-            if (this.isOpen && Date.now() - this.lastPongTime > this.CONNECTION_TIMEOUT) {
+            // Count unanswered pings rather than time, so a throttled ComfyUI tab that pings late keeps its viewer
+            if (++this.pendingPings > this.PING_LIMIT) {
                 Logger.debug('[PopOut] Connection timeout, marking as closed');
-                this.isOpen = false;
-                this.stopPing(); // Stop pinging if timeout occurs (assume truly gone)
-                // Actually, if we want auto-reconnect, we should NOT stop pinging on timeout?
-                // But timeout implies "It was open, but stopped responding".
-                // If user closed it, we got 'close' message.
-                // If it crashed, we get timeout.
-                // If we stop pinging, we won't detect if it comes back?
-                // But usually we want to stop to save resources.
-                // Let's stick to original behavior for timeout: stop pinging.
-                // But for 'close' message: keep pinging (handled in handleMessage).
-                if (this.onStateChange) this.onStateChange(false);
+                this.disconnect();
+                return;
             }
+            this.sendMessage({ type: 'ping' });
         };
 
-        // Always send an immediate ping when startPing is called, 
-        // to ensure responsiveness (e.g. when clicking Open button).
+        this.stopPing();
+        this.pendingPings = 0;
         ping();
-
-        // If interval is already running, we don't need to start another one
-        if (this.pingInterval) return;
-
-        // Then ping every second
         this.pingInterval = window.setInterval(ping, 1000);
     }
 
@@ -625,7 +618,7 @@ export class PopOutManager {
      */
     cleanup(): void {
         this.close();
-        this.stopPing();
+        window.removeEventListener('pagehide', this.onPageHide);
         if (this.channel) {
             this.channel.close();
             this.channel = null;

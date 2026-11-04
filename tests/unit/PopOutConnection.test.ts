@@ -1,0 +1,147 @@
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { PopOutManager, type PopOutStatus } from '../../src/magnify-glass/PopOutManager';
+
+describe('Pop-out connection', () => {
+    let manager: PopOutManager;
+    let channels: { name: string; posted: any[] }[];
+    let status: PopOutStatus;
+    let connects: number;
+    const posted = () => channels[0].posted;
+    const pings = () => posted().filter(m => m.type === 'ping').length;
+    const receive = (message: unknown) => (manager as any).handleMessage(message);
+
+    beforeEach(() => {
+        vi.useFakeTimers();
+        sessionStorage.clear();
+        channels = [];
+        status = { glass: 'on', inspector: true };
+        connects = 0;
+        vi.stubGlobal('BroadcastChannel', class {
+            onmessage: ((e: MessageEvent) => void) | null = null;
+            posted: any[] = [];
+            constructor(public name: string) { channels.push(this); }
+            postMessage(message: unknown) { this.posted.push(message); }
+            close() { }
+        });
+        manager = new PopOutManager(() => status, () => connects++);
+    });
+
+    afterEach(() => {
+        manager.cleanup();
+        vi.restoreAllMocks();
+        vi.unstubAllGlobals();
+        vi.useRealTimers();
+    });
+
+    it('uses a channel and viewer URL of its own session, which survives a reload', () => {
+        const session = sessionStorage.getItem('magnifyglass-popout-session')!;
+        expect(session).toBeTruthy();
+        expect(channels[0].name).toBe(`comfyui-magnifyglass-popout:${session}`);
+        expect(new URL((manager as any).viewerUrl).searchParams.get('session')).toBe(session);
+
+        const reloaded = new PopOutManager(() => status, () => { });
+        expect(channels[1].name).toBe(channels[0].name);
+        reloaded.cleanup();
+    });
+
+    it('pings only while a viewer is connected', () => {
+        vi.advanceTimersByTime(3000);
+        expect(pings()).toBe(0);
+
+        receive({ type: 'pong' });
+        expect(manager.isPopOutOpen()).toBe(true);
+        expect(connects).toBe(1);
+        vi.advanceTimersByTime(3000);
+        expect(pings()).toBe(4);
+        expect(connects).toBe(1);
+    });
+
+    it('times out on unanswered pings, not on a late one, and reconnects when the viewer announces itself', () => {
+        receive({ type: 'pong' });
+        // A throttled tab: each ping is answered, however late
+        for (let i = 0; i < 10; i++) {
+            vi.advanceTimersByTime(1000);
+            receive({ type: 'pong' });
+        }
+        expect(manager.isPopOutOpen()).toBe(true);
+
+        vi.advanceTimersByTime(6000);
+        expect(manager.isPopOutOpen()).toBe(false);
+        const count = pings();
+        vi.advanceTimersByTime(3000);
+        expect(pings()).toBe(count);
+
+        receive({ type: 'pong' });
+        expect(manager.isPopOutOpen()).toBe(true);
+    });
+
+    it('a viewer that closed or reloaded reconnects; one closed from here waits for open()', () => {
+        vi.spyOn(window, 'open').mockReturnValue({ closed: false, focus() { }, close() { } } as unknown as Window);
+        receive({ type: 'pong' });
+        receive({ type: 'close' });
+        expect(manager.isPopOutOpen()).toBe(false);
+        receive({ type: 'pong' });
+        expect(manager.isPopOutOpen()).toBe(true);
+
+        manager.close();
+        expect(posted().at(-1)).toEqual({ type: 'close' });
+        receive({ type: 'pong' });
+        expect(manager.isPopOutOpen()).toBe(false);
+
+        manager.open();
+        receive({ type: 'pong' });
+        expect(manager.isPopOutOpen()).toBe(true);
+    });
+
+    it('focuses only a connected viewer; a disconnected window is opened again and never closed from here', () => {
+        const viewer = { closed: false, focus: vi.fn(), close: vi.fn() };
+        const open = vi.spyOn(window, 'open').mockReturnValue(viewer as unknown as Window);
+        manager.open();
+        // Another tab took the named window over before this one connected
+        manager.open();
+        expect(open).toHaveBeenCalledTimes(2);
+        manager.close();
+        expect(viewer.close).not.toHaveBeenCalled();
+
+        receive({ type: 'pong' });
+        manager.open();
+        expect(open).toHaveBeenCalledTimes(2);
+        expect(viewer.focus).toHaveBeenCalled();
+        manager.close();
+        expect(viewer.close).toHaveBeenCalled();
+    });
+
+    it('tells the viewer when ComfyUI goes away', () => {
+        window.dispatchEvent(new Event('pagehide'));
+        expect(posted()).toEqual([]);
+
+        receive({ type: 'pong' });
+        window.dispatchEvent(new Event('pagehide'));
+        expect(posted().at(-1)).toEqual({ type: 'close' });
+    });
+
+    it('sends the glass and Inspector state when they change', () => {
+        const configs = () => posted().filter(m => m.type === 'config').map(m => [m.data.glass, m.data.inspector]);
+        receive({ type: 'pong' });
+        receive({ type: 'pong' });
+        status = { glass: 'hidden', inspector: true };
+        receive({ type: 'pong' });
+        status = { glass: 'off', inspector: false };
+        receive({ type: 'pong' });
+        expect(configs()).toEqual([['on', true], ['hidden', true], ['off', false]]);
+    });
+
+    it('sends no frames while the viewer is hidden', () => {
+        const canvas = { toDataURL: () => 'data:image/png;base64,AA' } as unknown as HTMLCanvasElement;
+        const frames = () => posted().filter(m => m.type === 'frame').length;
+        receive({ type: 'pong' });
+
+        receive({ type: 'visibility', data: true });
+        manager.sendFrame(canvas);
+        expect(frames()).toBe(0);
+
+        receive({ type: 'visibility', data: false });
+        manager.sendFrame(canvas);
+        expect(frames()).toBe(1);
+    });
+});

@@ -13,7 +13,7 @@ describe('Pop-out theme', () => {
             postMessage(message: unknown) { posted.push(message); }
             close() { }
         });
-        manager = new PopOutManager();
+        manager = new PopOutManager(() => ({ glass: 'on', inspector: true }), () => { });
     });
 
     afterEach(() => {

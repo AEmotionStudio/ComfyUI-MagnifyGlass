@@ -4,27 +4,41 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
 import { BROADCAST_CHANNEL_NAME } from "../shared/constants.js";
 import { Logger } from "../shared/logger.js";
 import { WidgetSyncManager } from "../info-panel/widget-editors/WidgetSyncManager.js";
+const SESSION_KEY = "magnifyglass-popout-session";
 class PopOutManager {
-  constructor() {
+  constructor(getStatus, onConnect) {
     __publicField(this, "channel", null);
     __publicField(this, "isOpen", false);
     __publicField(this, "popOutWindow", null);
     __publicField(this, "onStateChange", null);
     __publicField(this, "onNodeSelect", null);
     __publicField(this, "onWidgetEdit", null);
-    __publicField(this, "lastPongTime", 0);
     __publicField(this, "pingInterval", null);
+    // Pings since the last pong
+    __publicField(this, "pendingPings", 0);
+    // Closed from here: an announcing viewer waits until open() is called again
+    __publicField(this, "dismissed", false);
+    __publicField(this, "viewerHidden", false);
+    __publicField(this, "session");
     __publicField(this, "viewerUrl");
-    // The theme last sent to the viewer, null until it connects
-    __publicField(this, "sentTheme", null);
+    // The config last sent to the viewer, null until it connects
+    __publicField(this, "sentConfig", null);
+    __publicField(this, "onPageHide", () => {
+      if (this.isOpen) this.sendMessage({ type: "close" });
+    });
     /** Throttle frame sending to ~30fps */
     __publicField(this, "lastFrameTime", 0);
     __publicField(this, "FRAME_INTERVAL", 33);
     // ~30fps
-    /** Connection timeout (ms) */
-    __publicField(this, "CONNECTION_TIMEOUT", 5e3);
+    /** Unanswered pings, one a second, before the viewer counts as gone */
+    __publicField(this, "PING_LIMIT", 5);
+    this.getStatus = getStatus;
+    this.onConnect = onConnect;
+    this.session = sessionStorage.getItem(SESSION_KEY) ?? Math.random().toString(36).slice(2);
+    sessionStorage.setItem(SESSION_KEY, this.session);
     this.viewerUrl = this.getViewerUrl();
     this.initChannel();
+    window.addEventListener("pagehide", this.onPageHide);
   }
   /**
    * Get the URL for the pop-out viewer page, which sits at the web root next to this module's folder.
@@ -36,19 +50,18 @@ class PopOutManager {
       import.meta.url
     );
     url.searchParams.set("v", "1.15.0");
+    url.searchParams.set("session", this.session);
     return url.href;
   }
   /**
-   * Initialize the BroadcastChannel.
+   * Open this session's BroadcastChannel; other ComfyUI tabs have their own.
    */
   initChannel() {
     try {
-      this.channel = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+      this.channel = new BroadcastChannel(`${BROADCAST_CHANNEL_NAME}:${this.session}`);
       this.channel.onmessage = (event) => {
         this.handleMessage(event.data);
       };
-      Logger.debug("[PopOut] BroadcastChannel initialized");
-      this.startPing();
     } catch (e) {
       Logger.error("[PopOut] Failed to create BroadcastChannel:", e);
     }
@@ -59,26 +72,25 @@ class PopOutManager {
   handleMessage(message) {
     var _a, _b;
     switch (message.type) {
-      case "pong": {
-        this.lastPongTime = Date.now();
-        if (!this.isOpen) {
+      case "pong":
+        this.pendingPings = 0;
+        if (!this.isOpen && !this.dismissed) {
           this.isOpen = true;
-          this.sentTheme = null;
-          Logger.debug("[PopOut] Viewer tab connected");
+          this.viewerHidden = false;
+          this.sentConfig = null;
+          this.startPing();
           if (this.onStateChange) this.onStateChange(true);
+          this.onConnect();
         }
-        const theme = document.body.classList.contains("dark-theme") ? "dark" : "light";
-        if (theme !== this.sentTheme) this.sendConfig({ theme });
+        if (this.isOpen) this.syncConfig();
         break;
-      }
       case "close":
-        this.isOpen = false;
-        this.popOutWindow = null;
-        Logger.debug("[PopOut] Viewer tab closed");
-        if (this.onStateChange) this.onStateChange(false);
+        this.disconnect();
+        break;
+      case "visibility":
+        this.viewerHidden = message.data;
         break;
       case "request-nodes":
-        Logger.debug("[PopOut] Received request-nodes:", message.data);
         this.handleNodeListRequest(message.data);
         break;
       case "node-select":
@@ -158,32 +170,37 @@ class PopOutManager {
    * Open the pop-out viewer in a popup window.
    */
   open() {
-    if (this.popOutWindow && !this.popOutWindow.closed) {
-      this.popOutWindow.focus();
+    var _a;
+    this.dismissed = false;
+    if (this.isOpen) {
+      (_a = this.popOutWindow) == null ? void 0 : _a.focus();
       return;
     }
     this.popOutWindow = window.open(this.viewerUrl, "MagnifyGlassPopout", "popup,width=1100,height=720");
     if (!this.popOutWindow) {
       Logger.error("[PopOut] Failed to open the viewer - popup may be blocked");
-      return;
     }
-    this.startPing();
-    Logger.debug("[PopOut] Opening viewer tab...");
   }
   /**
    * Close the pop-out viewer tab.
    */
   close() {
-    if (!this.isOpen && !this.popOutWindow) return;
+    var _a;
+    if (!this.isOpen) return;
+    this.dismissed = true;
+    this.sendMessage({ type: "close" });
+    (_a = this.popOutWindow) == null ? void 0 : _a.close();
+    this.popOutWindow = null;
+    this.disconnect();
+  }
+  /**
+   * Mark the viewer as gone. It announces itself again while it is alive.
+   */
+  disconnect() {
+    this.stopPing();
+    if (!this.isOpen) return;
     this.isOpen = false;
     if (this.onStateChange) this.onStateChange(false);
-    this.stopPing();
-    this.sendMessage({ type: "close" });
-    if (this.popOutWindow) {
-      this.popOutWindow.close();
-      this.popOutWindow = null;
-    }
-    Logger.debug("[PopOut] Sent close message to viewer");
   }
   /**
    * Toggle the pop-out state.
@@ -202,40 +219,35 @@ class PopOutManager {
     return this.isOpen;
   }
   /**
-   * Send a frame to the pop-out viewer.
+   * Send a frame to the pop-out viewer, unless it is hidden.
    * Throttled to ~30fps for performance.
    * @param canvas - The source canvas to send
    */
   sendFrame(canvas) {
-    if (!this.isOpen || !this.channel) return;
+    if (!this.isOpen || this.viewerHidden || !this.channel) return;
     const now = Date.now();
     if (now - this.lastFrameTime < this.FRAME_INTERVAL) {
       return;
     }
     this.lastFrameTime = now;
     try {
-      const dataUrl = canvas.toDataURL("image/png");
-      this.sendMessage({
-        type: "frame",
-        data: dataUrl,
-        timestamp: now
-      });
+      this.sendMessage({ type: "frame", data: canvas.toDataURL("image/png") });
     } catch (e) {
       Logger.error("[PopOut] Failed to send frame:", e);
     }
   }
   /**
-   * Send configuration to the pop-out viewer.
+   * Send the theme and the glass and Inspector state when they change.
    */
-  sendConfig(config) {
-    if (!this.channel) return;
-    if (config.theme) {
-      this.sentTheme = config.theme;
-    }
-    this.sendMessage({
-      type: "config",
-      data: config
-    });
+  syncConfig() {
+    const config = {
+      theme: document.body.classList.contains("dark-theme") ? "dark" : "light",
+      ...this.getStatus()
+    };
+    const json = JSON.stringify(config);
+    if (json === this.sentConfig) return;
+    this.sentConfig = json;
+    this.sendMessage({ type: "config", data: config });
   }
   /**
    * Send inspector info to the pop-out viewer.
@@ -410,22 +422,20 @@ class PopOutManager {
     }
   }
   /**
-   * Start pinging to check connection.
+   * Ping the viewer once a second while it is connected.
    */
   startPing() {
     const ping = () => {
-      if (this.channel) {
-        this.channel.postMessage({ type: "ping", timestamp: Date.now() });
-      }
-      if (this.isOpen && Date.now() - this.lastPongTime > this.CONNECTION_TIMEOUT) {
+      if (++this.pendingPings > this.PING_LIMIT) {
         Logger.debug("[PopOut] Connection timeout, marking as closed");
-        this.isOpen = false;
-        this.stopPing();
-        if (this.onStateChange) this.onStateChange(false);
+        this.disconnect();
+        return;
       }
+      this.sendMessage({ type: "ping" });
     };
+    this.stopPing();
+    this.pendingPings = 0;
     ping();
-    if (this.pingInterval) return;
     this.pingInterval = window.setInterval(ping, 1e3);
   }
   /**
@@ -442,7 +452,7 @@ class PopOutManager {
    */
   cleanup() {
     this.close();
-    this.stopPing();
+    window.removeEventListener("pagehide", this.onPageHide);
     if (this.channel) {
       this.channel.close();
       this.channel = null;

@@ -30,11 +30,14 @@ class MagnifyGlass {
     __publicField(this, "litegraphCanvas");
     /** Last known mouse position for better initial positioning */
     __publicField(this, "lastKnownMousePosition");
-    /** Render loop ID; the loop runs while the glass is active and visible */
+    /** Render loop ID; the loop runs while the glass is active and visible, or feeds the pop-out */
     __publicField(this, "animationLoopId");
     this.config = new ConfigManager();
     this.state = new MagnifierState();
-    this.popOutManager = new PopOutManager();
+    this.popOutManager = new PopOutManager(() => ({
+      glass: !this.state.active ? "off" : this.state.isPreviewHidden ? "hidden" : "on",
+      inspector: !!window.infoPanelManager
+    }), () => this.updateMagnifiedView());
     this.ui = new UiManager(
       this.config,
       this.state,
@@ -115,10 +118,9 @@ class MagnifyGlass {
   /**
    * Set glass preview visibility WITHOUT affecting info panel.
    * This is used by the toggle-glass hover control button.
-   * When hidden, the render loop stops completely to save performance.
-   * When shown, the render loop resumes.
+   * A hidden preview stops the render loop unless the pop-out shows it.
    * 
-   * @param visible - true to show and enable rendering, false to hide and disable
+   * @param visible - true to show the glass, false to hide it
    */
   setGlassPreviewActive(visible) {
     this.state.isPreviewHidden = !visible;
@@ -188,7 +190,8 @@ class MagnifyGlass {
   startAnimationLoop() {
     if (this.animationLoopId !== null) return;
     const animate = () => {
-      if (!this.state.active || this.state.isPreviewHidden || !this.renderer || !this.litegraphCanvas) {
+      const hidden = this.state.isPreviewHidden && !this.popOutManager.isPopOutOpen();
+      if (!this.state.active || hidden || !this.renderer || !this.litegraphCanvas) {
         this.animationLoopId = null;
         return;
       }

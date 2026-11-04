@@ -42,13 +42,16 @@ export class MagnifyGlass {
     /** Last known mouse position for better initial positioning */
     lastKnownMousePosition: { x: number; y: number };
 
-    /** Render loop ID; the loop runs while the glass is active and visible */
+    /** Render loop ID; the loop runs while the glass is active and visible, or feeds the pop-out */
     private animationLoopId: number | null;
 
     constructor() {
         this.config = new ConfigManager();
         this.state = new MagnifierState();
-        this.popOutManager = new PopOutManager();
+        this.popOutManager = new PopOutManager(() => ({
+            glass: !this.state.active ? 'off' : this.state.isPreviewHidden ? 'hidden' : 'on',
+            inspector: !!window.infoPanelManager
+        }), () => this.updateMagnifiedView());
         this.ui = new UiManager(
             this.config,
             this.state,
@@ -171,10 +174,9 @@ export class MagnifyGlass {
     /**
      * Set glass preview visibility WITHOUT affecting info panel.
      * This is used by the toggle-glass hover control button.
-     * When hidden, the render loop stops completely to save performance.
-     * When shown, the render loop resumes.
+     * A hidden preview stops the render loop unless the pop-out shows it.
      * 
-     * @param visible - true to show and enable rendering, false to hide and disable
+     * @param visible - true to show the glass, false to hide it
      */
     setGlassPreviewActive(visible: boolean): void {
         this.state.isPreviewHidden = !visible;
@@ -255,7 +257,9 @@ export class MagnifyGlass {
         if (this.animationLoopId !== null) return; // Already running
 
         const animate = () => {
-            if (!this.state.active || this.state.isPreviewHidden || !this.renderer || !this.litegraphCanvas) {
+            // A hidden glass still feeds the pop-out, which may be the only view of it
+            const hidden = this.state.isPreviewHidden && !this.popOutManager.isPopOutOpen();
+            if (!this.state.active || hidden || !this.renderer || !this.litegraphCanvas) {
                 this.animationLoopId = null;
                 return;
             }

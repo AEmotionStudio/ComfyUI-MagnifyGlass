@@ -25,8 +25,6 @@ class MagnifierState {
     __publicField(this, "canvasOffsetX");
     /** Canvas translation Y */
     __publicField(this, "canvasOffsetY");
-    /** Flag to manage requestAnimationFrame */
-    __publicField(this, "isRenderScheduled");
     /** Whether glass drag mode is enabled (move icon on hover controls) */
     __publicField(this, "isDragModeEnabled");
     /** Whether glass preview is hidden via hover controls (but tool still active) */
@@ -52,7 +50,6 @@ class MagnifierState {
     this.canvasScale = 1;
     this.canvasOffsetX = 0;
     this.canvasOffsetY = 0;
-    this.isRenderScheduled = false;
     this.isDragModeEnabled = false;
     this.isPreviewHidden = false;
     this.virtualMouseCssX = 0;
@@ -79,7 +76,6 @@ class MagnifierState {
     this.canvasScale = 1;
     this.canvasOffsetX = 0;
     this.canvasOffsetY = 0;
-    this.isRenderScheduled = false;
   }
 }
 export {

@@ -4,8 +4,8 @@
  * Orchestrates all components of the magnifying glass.
  */
 
-import type { ComfyApp, ComfyNode } from '../types/comfyui';
-import { findLiteGraphCanvas, rectsOverlap, Rectangle } from '../shared/utils';
+import type { ComfyApp } from '../types/comfyui';
+import { findLiteGraphCanvas } from '../shared/utils';
 import { DEFAULT_PADDING, DEFAULT_GLASS_Y_OFFSET, INFO_PANEL_ID } from '../shared/constants';
 import { registerGlassSettings, registerAccessibilitySettings } from '../shared/settings';
 import { ConfigManager } from './ConfigManager';
@@ -16,6 +16,7 @@ import { DebugManager } from './DebugManager';
 import { EventHandler } from './EventHandler';
 import { PopOutManager } from './PopOutManager';
 import { OffscreenRenderer } from './OffscreenRenderer';
+import { captureRegion } from './mediaLayout';
 
 // External ComfyUI globals
 declare const app: ComfyApp;
@@ -47,11 +48,8 @@ export class MagnifyGlass {
     /** Current media element under cursor */
     currentMediaElement: HTMLImageElement | HTMLVideoElement | null;
 
-    /** Animation loop ID for continuous video rendering */
+    /** Render loop ID; the loop runs while the glass is active and visible */
     private animationLoopId: number | null;
-
-    /** Whether videos are currently visible in magnified view */
-    private hasVisibleVideos: boolean;
 
     constructor() {
         this.config = new ConfigManager();
@@ -81,9 +79,7 @@ export class MagnifyGlass {
         this.isOverMedia = false;
         this.currentMediaElement = null;
 
-        // Animation loop for video rendering
         this.animationLoopId = null;
-        this.hasVisibleVideos = false;
     }
 
     /**
@@ -157,7 +153,6 @@ export class MagnifyGlass {
             if (this.eventHandler) {
                 this.eventHandler.updateInitialPosition();
             }
-            // Start continuous animation loop for smooth video playback
             this.startAnimationLoop();
         }
     }
@@ -169,7 +164,6 @@ export class MagnifyGlass {
     private forceHideAllComponents(): void {
         this.state.active = false;
         this.stopAnimationLoop();
-        this.hasVisibleVideos = false;
         this.ui.hide();
 
         // 1. Nuclear option: Direct DOM ID targeting
@@ -200,100 +194,26 @@ export class MagnifyGlass {
     /**
      * Set glass preview visibility WITHOUT affecting info panel.
      * This is used by the toggle-glass hover control button.
-     * When hidden, the renderer stops completely to save performance.
-     * When shown, the renderer resumes.
+     * When hidden, the render loop stops completely to save performance.
+     * When shown, the render loop resumes.
      * 
      * @param visible - true to show and enable rendering, false to hide and disable
      */
     setGlassPreviewActive(visible: boolean): void {
-        // Track this state internally
         this.state.isPreviewHidden = !visible;
-
-        if (visible) {
-            // Show the glass preview
-            this.ui.setPreviewVisibility(true);
-            // Resume rendering on next mouse move
-        } else {
-            // Hide the glass preview visually
-            this.ui.setPreviewVisibility(false);
-            // The rendering will be skipped in updateMagnifiedView due to isPreviewHidden check
+        this.ui.setPreviewVisibility(visible);
+        if (visible && this.state.active) {
+            this.startAnimationLoop();
         }
     }
 
     /**
-     * Check if the glass preview is visible.
-     * Returns false if hidden via hover controls.
+     * Update the magnified view. Rendering happens in the animation loop,
+     * so this only makes sure the loop is running.
      */
-    private isGlassPreviewVisible(): boolean {
-        // Check info panel extension state for isGlassPreviewVisible
-        const extensions = (window as any).comfyUIMagnifyGlassExtensions;
-        if (extensions && extensions.length > 0) {
-            const infoPanel = extensions[0];
-            if (infoPanel?.stateManager?.state) {
-                return infoPanel.stateManager.state.isGlassPreviewVisible !== false;
-            }
-        }
-        // Default to visible if we can't find the state
-        return true;
-    }
-
-    /**
-     * Update the magnified view.
-     * @param rect - Optional pre-calculated bounding rect of the canvas to avoid layout thrashing
-     */
-    updateMagnifiedView(rect?: DOMRect): void {
-        if (!this.state.active || !this.renderer || !this.litegraphCanvas) {
-            return;
-        }
-
-        // Skip rendering if glass preview is hidden via hover controls
-        // This prevents double FPS when only the info panel is active
-        if (this.state.isPreviewHidden) {
-            return;
-        }
-
-        // Get canvas transformation info
-        this.updateCanvasTransformation();
-
-        // Calculate the source region
-        this.calculateSourceRegion(rect);
-
-        // Schedule the rendering operation
-        if (!this.state.isRenderScheduled) {
-            this.state.isRenderScheduled = true;
-            requestAnimationFrame(() => {
-                if (!this.state.active || !this.renderer || !this.litegraphCanvas) {
-                    this.state.isRenderScheduled = false;
-                    return;
-                }
-
-                // Try virtual zoom capture for high-res magnification
-                // This temporarily sets LiteGraph to 100% zoom, captures clean pixels,
-                // then restores the original zoom level
-                let sourceCanvas: HTMLCanvasElement = this.litegraphCanvas;
-                if (this.offscreenRenderer && this.offscreenRenderer.isAvailable()) {
-                    const highResCanvas = this.offscreenRenderer.renderHighResRegion(this.litegraphCanvas);
-                    if (highResCanvas) {
-                        sourceCanvas = highResCanvas;
-                    }
-                }
-
-                // Render the magnified view
-                this.renderer.render(sourceCanvas);
-
-                // Update debug visualization
-
-
-                // Render HTML overlays for text, video, and image widgets
-                this.renderHtmlOverlays();
-
-                // Send frame to pop-out tab if open
-                if (this.popOutManager.isPopOutOpen() && this.ui.glassCanvas) {
-                    this.popOutManager.sendFrame(this.ui.glassCanvas);
-                }
-
-                this.state.isRenderScheduled = false;
-            });
+    updateMagnifiedView(): void {
+        if (this.state.active) {
+            this.startAnimationLoop();
         }
     }
 
@@ -321,409 +241,48 @@ export class MagnifyGlass {
     }
 
     /**
-     * Calculate the source region for magnification.
-     * @param cachedRect - Optional pre-calculated bounding rect of the canvas to avoid layout thrashing
+     * Calculate the source region (in canvas backing pixels) for magnification.
      */
-    calculateSourceRegion(cachedRect?: DOMRect): void {
-        const cursorPixelX = this.state.x;
-        const cursorPixelY = this.state.y;
-        const canvasScale = this.state.canvasScale;
-        const canvasOffsetX = this.state.canvasOffsetX;
-        const canvasOffsetY = this.state.canvasOffsetY;
-
-        if (canvasScale === 0) return;
+    calculateSourceRegion(): void {
         if (!this.litegraphCanvas) return;
-
-        // Get DPR (Device Pixel Ratio) - relationship between Backing Store pixels and CSS pixels
-        // Optimization: Use cached rect if provided to avoid forcing a reflow (Read-Write-Read cycle)
-        const rect = cachedRect || this.litegraphCanvas.getBoundingClientRect();
-        const dpr = rect.width > 0 ? this.litegraphCanvas.width / rect.width : 1;
-
-        // Convert cursor Backing pixels to CSS pixels (Screen pixels)
-        // state.x/y are in Backing Pixels (set in EventHandler)
-        const cursorCssX = cursorPixelX / dpr;
-        const cursorCssY = cursorPixelY / dpr;
-
-        // Convert cursor CSS pixels to LiteGraph graph coordinates
-        // ds.offset and ds.scale operate in CSS pixel space
-        const cursorGraphX = (cursorCssX - canvasOffsetX) / canvasScale;
-        const cursorGraphY = (cursorCssY - canvasOffsetY) / canvasScale;
-
-        // Apply manual offset (in Graph Units - arbitrary units)
-        const targetGraphCenterX = cursorGraphX + this.config.offsetX;
-        const targetGraphCenterY = cursorGraphY + this.config.offsetY;
-
-        // Calculate source dimensions in graph units
-        const sourceGraphWidth = (this.config.glassSize / this.config.zoomFactor) / canvasScale;
-        const sourceGraphHeight = (this.config.glassSize / this.config.zoomFactor) / canvasScale;
-
-        // Calculate source top-left corner in Graph Coordinates
-        const sourceGraphX = targetGraphCenterX - (sourceGraphWidth / 2);
-        const sourceGraphY = targetGraphCenterY - (sourceGraphHeight / 2);
-
-        // Convert back to Canvas Backing Pixels for the source rectangle
-        // 1. Convert Graph -> CSS: (Graph * Scale) + Offset
-        // 2. Convert CSS -> Backing: CSS * DPR
-        const sourceCssX = (sourceGraphX * canvasScale) + canvasOffsetX;
-        const sourceCssY = (sourceGraphY * canvasScale) + canvasOffsetY;
-        const sourceCssWidth = sourceGraphWidth * canvasScale;
-        const sourceCssHeight = sourceGraphHeight * canvasScale;
-
-        this.state.sourceX = sourceCssX * dpr;
-        this.state.sourceY = sourceCssY * dpr;
-        this.state.sourceWidth = sourceCssWidth * dpr;
-        this.state.sourceHeight = sourceCssHeight * dpr;
-    }
-
-    /**
-     * Render HTML overlays for text and media in the magnified view.
-     */
-    renderHtmlOverlays(): void {
-        const graph = (app as any).graph;
-        if (!this.state.active || !this.ui.htmlOverlayContainer || !graph || !this.litegraphCanvas) {
-            if (this.ui.htmlOverlayContainer) this.ui.htmlOverlayContainer.innerHTML = '';
-            return;
-        }
-
-        // Removed early clear to batch reads before writes
-        // this.ui.htmlOverlayContainer.innerHTML = '';
-
-        // Track if any videos are found for animation loop management
-        let foundVideos = false;
-
-        const magnifyRect: Rectangle = {
-            x: this.state.sourceX,
-            y: this.state.sourceY,
-            width: this.state.sourceWidth,
-            height: this.state.sourceHeight
-        };
-
-        const nodes: ComfyNode[] = graph._nodes;
-        if (!nodes) {
-             // Ensure any previous overlays are cleared if we exit early
-             this.ui.htmlOverlayContainer.innerHTML = '';
-             return;
-        }
-
-        // Calculate source region in graph coordinates for culling
-        // This mirrors calculateSourceRegion() but stops at graph coords
-        if (this.state.canvasScale === 0) {
-            // Ensure any previous overlays are cleared if we exit early
-            this.ui.htmlOverlayContainer.innerHTML = '';
-            return;
-        }
 
         const rect = this.litegraphCanvas.getBoundingClientRect();
         const dpr = rect.width > 0 ? this.litegraphCanvas.width / rect.width : 1;
+        const cap = captureRegion(this.state.x / dpr, this.state.y / dpr, this.config.glassSize, this.config.zoomFactor);
 
-        // Pre-calculate invariant values for the frame
-        const currentScale = this.state.canvasScale;
-        const isVirtualZoomMode = currentScale < 0.7;
-        const canvasRect = rect;
-        // Pivot point (mouse position) in CSS coordinates
-        const pivotCssX = this.state.x / dpr;
-        const pivotCssY = this.state.y / dpr;
+        this.state.sourceX = cap.left * dpr;
+        this.state.sourceY = cap.top * dpr;
+        this.state.sourceWidth = cap.size * dpr;
+        this.state.sourceHeight = cap.size * dpr;
+    }
 
-        const cursorCssX = pivotCssX;
-        const cursorCssY = pivotCssY;
-        const cursorGraphX = (cursorCssX - this.state.canvasOffsetX) / this.state.canvasScale;
-        const cursorGraphY = (cursorCssY - this.state.canvasOffsetY) / this.state.canvasScale;
-        const targetGraphCenterX = cursorGraphX + this.config.offsetX;
-        const targetGraphCenterY = cursorGraphY + this.config.offsetY;
-        const sourceGraphWidth = (this.config.glassSize / this.config.zoomFactor) / this.state.canvasScale;
-        const sourceGraphHeight = (this.config.glassSize / this.config.zoomFactor) / this.state.canvasScale;
+    /**
+     * Render one frame of the glass and forward it to the pop-out.
+     */
+    private renderFrame(renderer: WebGLRenderer, canvas: HTMLCanvasElement): void {
+        this.updateCanvasTransformation();
+        this.calculateSourceRegion();
 
-        const sourceGraphRect = {
-            x: targetGraphCenterX - (sourceGraphWidth / 2),
-            y: targetGraphCenterY - (sourceGraphHeight / 2),
-            width: sourceGraphWidth,
-            height: sourceGraphHeight
-        };
+        renderer.render(this.offscreenRenderer?.renderHighResRegion(canvas) ?? canvas);
 
-        // Batch optimization: Collect all render tasks first (Read Phase)
-        interface RenderTask {
-            element: HTMLElement;
-            type: 'text' | 'video' | 'image';
-            // Store the calculated overlay geometry so we don't recalculate in loop 2
-            overlayRect: Rectangle;
-            fontSize?: number;
-        }
-        const renderTasks: RenderTask[] = [];
-
-        for (const node of nodes) {
-            // Optimization: Cull nodes that are not in the source region
-            if (node.pos && node.size) {
-                const nodeRect = {
-                    x: node.pos[0],
-                    y: node.pos[1],
-                    width: node.size[0],
-                    height: node.size[1]
-                };
-                if (!rectsOverlap(sourceGraphRect, nodeRect)) {
-                    continue;
-                }
-            }
-
-            const widgets = (node as any).widgets;
-            if (!widgets) continue;
-
-            for (const widget of widgets) {
-                let isTextElement = false;
-                let isVideoElement = false;
-                let isImageElement = false;
-                let elementToProcess: HTMLElement | null = null;
-
-                // Check for VHS-style widgets with videoEl property (VideoHelperSuite pattern)
-                const widgetName = String(widget.name || '').toLowerCase();
-                if (widgetName === 'videopreview' || widgetName === 'audiopreview') {
-                    const videoEl = widget.videoEl as HTMLVideoElement | undefined;
-                    if (videoEl && !videoEl.hidden && videoEl.videoWidth > 0) {
-                        isVideoElement = true;
-                        foundVideos = true;
-                        elementToProcess = videoEl;
-                    }
-                }
-
-                // Check for standard DOM element widgets (existing logic)
-                if (!elementToProcess && widget.element) {
-                    const element = widget.element as HTMLElement;
-                    // Skip text elements - now rendered natively on canvas via OffscreenRenderer
-                    if (widget.type === "text" || widget.type === "string" || element.tagName === 'TEXTAREA') {
-                        // isTextElement = true; // DISABLED - using native canvas rendering
-                        // elementToProcess = element;
-                    } else if (element.tagName === 'VIDEO') {
-                        isVideoElement = true;
-                        foundVideos = true;
-                        elementToProcess = element;
-                    } else if (element.tagName === 'IMG') {
-                        isImageElement = true;
-                        elementToProcess = element;
-                    } else {
-                        const potentialVideo = element.querySelector('video');
-                        if (potentialVideo) {
-                            isVideoElement = true;
-                            foundVideos = true;
-                            elementToProcess = potentialVideo;
-                        } else {
-                            const potentialImage = element.querySelector('img');
-                            if (potentialImage) {
-                                isImageElement = true;
-                                elementToProcess = potentialImage;
-                            }
-                        }
-                    }
-                }
-
-                if (elementToProcess && (isTextElement || isVideoElement || isImageElement)) {
-                    // READ: Force layout calculation here, batched together
-                    const widgetRect = elementToProcess.getBoundingClientRect();
-
-                    // Widget position in CSS coordinates relative to canvas
-                    const widgetCssX = widgetRect.left - canvasRect.left;
-                    const widgetCssY = widgetRect.top - canvasRect.top;
-                    const widgetCssWidth = widgetRect.width;
-                    const widgetCssHeight = widgetRect.height;
-
-                    let finalWidgetCssX: number;
-                    let finalWidgetCssY: number;
-                    let finalWidgetCssWidth: number;
-                    let finalWidgetCssHeight: number;
-
-                    if (isVirtualZoomMode) {
-                        // Virtual Zoom: Transform widget position to match virtual 1.0 scale capture
-                        finalWidgetCssX = (widgetCssX - pivotCssX) / currentScale + pivotCssX;
-                        finalWidgetCssY = (widgetCssY - pivotCssY) / currentScale + pivotCssY;
-                        finalWidgetCssWidth = widgetCssWidth / currentScale;
-                        finalWidgetCssHeight = widgetCssHeight / currentScale;
-                    } else {
-                        // Direct Capture: Use actual positions
-                        finalWidgetCssX = widgetCssX;
-                        finalWidgetCssY = widgetCssY;
-                        finalWidgetCssWidth = widgetCssWidth;
-                        finalWidgetCssHeight = widgetCssHeight;
-                    }
-
-                    // Convert to backing pixels for comparison with magnifyRect
-                    const widgetCanvasX = finalWidgetCssX * dpr;
-                    const widgetCanvasY = finalWidgetCssY * dpr;
-                    const widgetCanvasWidth = finalWidgetCssWidth * dpr;
-                    const widgetCanvasHeight = finalWidgetCssHeight * dpr;
-
-                    const widgetSourceRect: Rectangle = {
-                        x: widgetCanvasX,
-                        y: widgetCanvasY,
-                        width: widgetCanvasWidth,
-                        height: widgetCanvasHeight
-                    };
-
-                    // Only process further if it actually overlaps
-                    if (rectsOverlap(magnifyRect, widgetSourceRect)) {
-                        const task: RenderTask = {
-                            element: elementToProcess,
-                            type: isTextElement ? 'text' : (isVideoElement ? 'video' : 'image'),
-                            overlayRect: widgetSourceRect, // Store calculated rect
-                            fontSize: undefined
-                        };
-
-                        // READ: Get computed style for text elements (only if overlapping)
-                        if (isTextElement) {
-                            task.fontSize = parseFloat(window.getComputedStyle(elementToProcess).fontSize);
-                        }
-
-                        if (isVideoElement) {
-                            foundVideos = true;
-                        }
-
-                        renderTasks.push(task);
-                    }
-                }
-            }
-        }
-
-        // WRITE Phase: Clear container and append new elements
-        this.ui.htmlOverlayContainer.innerHTML = '';
-        const fragment = document.createDocumentFragment();
-
-        // Process collected tasks
-        for (const task of renderTasks) {
-            const elementToProcess = task.element;
-            const widgetSourceRect = task.overlayRect; // Use stored calculated rect
-            const isTextElement = task.type === 'text';
-            const isVideoElement = task.type === 'video';
-            const isImageElement = task.type === 'image';
-
-            const clonedElement = elementToProcess.cloneNode(true) as HTMLElement;
-            clonedElement.style.position = 'absolute';
-            clonedElement.style.pointerEvents = 'none';
-
-            if (isTextElement) {
-                clonedElement.style.backgroundColor = elementToProcess.style.backgroundColor || '#222';
-                clonedElement.style.color = elementToProcess.style.color || '#DDD';
-                clonedElement.style.border = elementToProcess.style.border || '1px solid #555';
-                // Hide scrollbar while keeping content visible
-                clonedElement.style.overflow = 'hidden';
-                (clonedElement as HTMLInputElement).disabled = true;
-
-                // Dual adaptive font sizing:
-                // - When zoomed OUT (below 50%): shrink text to fit all content
-                // - When zoomed IN (above 50%): grow text for better readability
-                const canvasScale = this.state.canvasScale;
-                // READ: Use stored font size
-                const originalFontSize = task.fontSize || 12; // Fallback
-                const threshold = 0.5; // 50% zoom threshold
-
-                let adaptedFontSize: number;
-                if (canvasScale < threshold) {
-                    // Zoomed out: shrink text aggressively to fit content
-                    // Scale from threshold down to minimum
-                    const shrinkFactor = canvasScale / threshold;
-                    adaptedFontSize = Math.max(6, originalFontSize * shrinkFactor * 0.8);
-                } else {
-                    // Zoomed in: grow text for readability
-                    // Scale from 100% at threshold up to 150% at 100%+ zoom
-                    const growFactor = 1 + ((canvasScale - threshold) / (1 - threshold)) * 0.5;
-                    adaptedFontSize = originalFontSize * Math.min(1.5, growFactor);
-                }
-
-                clonedElement.style.fontSize = `${adaptedFontSize}px`;
-                clonedElement.style.lineHeight = canvasScale < threshold ? '1.2' : '1.4';
-            } else if (isVideoElement) {
-                const video = clonedElement as HTMLVideoElement;
-                const originalVideo = elementToProcess as HTMLVideoElement;
-                video.src = originalVideo.src;
-                video.autoplay = originalVideo.autoplay;
-                video.loop = originalVideo.loop;
-                video.preload = originalVideo.preload;
-                video.crossOrigin = originalVideo.crossOrigin;
-                video.muted = true;
-                if (!originalVideo.paused) {
-                    video.play().catch(e => {
-                        if (e.name !== 'AbortError') {
-                            console.warn("Magnify Glass: Cloned video play failed", e);
-                        }
-                    });
-                }
-                video.currentTime = originalVideo.currentTime;
-            } else if (isImageElement) {
-                const img = clonedElement as HTMLImageElement;
-                const originalImg = elementToProcess as HTMLImageElement;
-                img.src = originalImg.src;
-                img.alt = originalImg.alt;
-            }
-
-            const relativeX = widgetSourceRect.x - magnifyRect.x;
-            const relativeY = widgetSourceRect.y - magnifyRect.y;
-            const magnifiedX = relativeX * this.config.zoomFactor;
-            const magnifiedY = relativeY * this.config.zoomFactor;
-
-            clonedElement.style.left = `${magnifiedX}px`;
-            clonedElement.style.top = `${magnifiedY}px`;
-            clonedElement.style.width = `${widgetSourceRect.width}px`;
-            clonedElement.style.height = `${widgetSourceRect.height}px`;
-            clonedElement.style.transformOrigin = 'top left';
-            clonedElement.style.transform = `scale(${this.config.zoomFactor})`;
-
-            fragment.appendChild(clonedElement);
-        }
-
-        this.ui.htmlOverlayContainer.appendChild(fragment);
-
-        // Manage animation loop based on video presence
-        if (foundVideos && !this.hasVisibleVideos) {
-            this.hasVisibleVideos = true;
-            this.startAnimationLoop();
-        } else if (!foundVideos && this.hasVisibleVideos) {
-            this.hasVisibleVideos = false;
-            // Loop will stop itself on next iteration
+        if (this.popOutManager.isPopOutOpen() && this.ui.glassCanvas) {
+            this.popOutManager.sendFrame(this.ui.glassCanvas);
         }
     }
 
     /**
-     * Start the animation loop for continuous video rendering.
-     * Only runs when videos are visible in the magnified view.
-     * This loop directly renders without going through updateMagnifiedView's
-     * scheduling logic to ensure continuous frame updates for video playback.
+     * Start the render loop. It is the only render path and keeps running without
+     * mouse movement, so latent previews and videos update in the glass.
      */
     private startAnimationLoop(): void {
         if (this.animationLoopId !== null) return; // Already running
 
         const animate = () => {
-            // Stop if glass is deactivated or renderer unavailable
-            if (!this.state.active || !this.renderer || !this.litegraphCanvas) {
-                this.stopAnimationLoop();
+            if (!this.state.active || this.state.isPreviewHidden || !this.renderer || !this.litegraphCanvas) {
+                this.animationLoopId = null;
                 return;
             }
-
-            // Skip if glass preview is hidden
-            if (this.state.isPreviewHidden) {
-                this.animationLoopId = requestAnimationFrame(animate);
-                return;
-            }
-
-            // Update canvas transformation and source region
-            this.updateCanvasTransformation();
-            this.calculateSourceRegion();
-
-            // Direct render (bypass isRenderScheduled to ensure continuous updates)
-            let sourceCanvas: HTMLCanvasElement = this.litegraphCanvas;
-            if (this.offscreenRenderer && this.offscreenRenderer.isAvailable()) {
-                const highResCanvas = this.offscreenRenderer.renderHighResRegion(this.litegraphCanvas);
-                if (highResCanvas) {
-                    sourceCanvas = highResCanvas;
-                }
-            }
-
-            // Render the magnified view
-            this.renderer.render(sourceCanvas);
-
-            // Render HTML overlays for video widgets
-            this.renderHtmlOverlays();
-
-            // Send frame to pop-out tab if open
-            if (this.popOutManager.isPopOutOpen() && this.ui.glassCanvas) {
-                this.popOutManager.sendFrame(this.ui.glassCanvas);
-            }
-
+            this.renderFrame(this.renderer, this.litegraphCanvas);
             this.animationLoopId = requestAnimationFrame(animate);
         };
 

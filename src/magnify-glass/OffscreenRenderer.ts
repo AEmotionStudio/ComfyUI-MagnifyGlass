@@ -1,15 +1,28 @@
 /**
  * ComfyUI MagnifyGlass - Offscreen Renderer
- * 
+ *
  * Hybrid Renderer:
  * 1. Direct Capture (Nuclear) for near-100% zoom (Perfect Alignment, Good Quality).
  * 2. Virtual Zoom (High Res) for zoomed-out views (High Detail, sensitive alignment).
+ *
+ * Image and video previews are drawn on top in both modes from their full-resolution sources.
  */
 
 import type { ConfigManager } from './ConfigManager';
 import type { MagnifierState } from './MagnifierState';
+import { getSettingValue } from '../shared/utils';
+import { captureRegion, fitContent, graphBoxToCss, isSafeMediaSource, previewImageBoxes, scaleAbout, toGlass } from './mediaLayout';
+import type { Box, CaptureRegion } from './mediaLayout';
 
 declare const app: any;
+
+const TITLE_HEIGHT = 30;
+
+interface DomMedia {
+    el: HTMLImageElement | HTMLVideoElement;
+    box: Box;
+    objectFit: string;
+}
 
 export class OffscreenRenderer {
     private config: ConfigManager;
@@ -19,11 +32,6 @@ export class OffscreenRenderer {
     private lastRenderWidth: number = 0;
     private lastRenderHeight: number = 0;
     private isCapturing: boolean = false;
-
-    // Virtual Zoom Throttling (60 FPS = ~16ms per frame)
-    private static readonly VIRTUAL_ZOOM_MIN_INTERVAL_MS = 16;
-    private lastVirtualZoomTime: number = 0;
-    private cachedVirtualZoomResult: HTMLCanvasElement | null = null;
 
     constructor(config: ConfigManager, state: MagnifierState) {
         this.config = config;
@@ -53,199 +61,112 @@ export class OffscreenRenderer {
             this.lastRenderHeight = renderSize;
         }
 
-        const currentScale = lgCanvas.ds.scale;
         const rect = targetCanvas.getBoundingClientRect();
         // Calculate DPR exactly as EventHandler does (Canvas Pixels / CSS Pixels)
         const dpr = rect.width > 0 ? targetCanvas.width / rect.width : 1;
+        // state.x/y are Backing Pixels; the pivot is in CSS pixels relative to the canvas
+        const pivotX = this.state.x / dpr;
+        const pivotY = this.state.y / dpr;
+        const cap = captureRegion(pivotX, pivotY, renderSize, this.config.zoomFactor);
 
-        // Threshold for Hybrid Mode
-        // If we are zoomed in enough (>= 100%), Direct Capture quality is perfect,
-        // and it guarantees perfect alignment with zero extra draws.
-        // If we are zoomed out (< 100%), we use High Res Virtual Zoom for crisp details.
-        // Note: Image preview nodes are handled by drawImagePreviewsNatively() during Virtual Zoom.
-        // If forceDirectCapture is enabled (via hotkey), always use Direct Capture for accurate cursor alignment.
-        const useDirectCapture = currentScale >= 1.0 || this.config.forceDirectCapture;
+        // Vue nodes are DOM, so re-rendering the canvas at scale 1 gains nothing and makes the nodes jitter.
+        // forceDirectCapture (hotkey) trades detail for exact cursor alignment.
+        const vueNodes = !!(window as any).LiteGraph?.vueNodesMode;
+        const currentScale = lgCanvas.ds.scale;
+        const media = this.collectDomMedia(rect, vueNodes);
 
-        if (useDirectCapture) {
-            // Direct Capture: Full speed, no extra draws
-            this.cachedVirtualZoomResult = null; // Invalidate cache when switching modes
-            return this.renderDirectCapture(targetCanvas, renderSize, dpr);
-        } else {
-            // Virtual Zoom: Throttled to 60 FPS to prevent FPS counter inflation
-            const now = performance.now();
-            const elapsed = now - this.lastVirtualZoomTime;
-
-            if (elapsed < OffscreenRenderer.VIRTUAL_ZOOM_MIN_INTERVAL_MS && this.cachedVirtualZoomResult) {
-                // Return cached result if within throttle window
-                return this.cachedVirtualZoomResult;
-            }
-
-            // Perform the expensive virtual zoom render
-            const result = this.renderVirtualZoom(lgCanvas, targetCanvas, renderSize, currentScale, dpr);
-            this.lastVirtualZoomTime = now;
-            this.cachedVirtualZoomResult = result;
-            return result;
+        if (currentScale < 1.0 && !this.config.forceDirectCapture && !vueNodes) {
+            const domScale = 1 / currentScale;
+            const scaled = media.map(m => ({ ...m, box: scaleAbout(m.box, pivotX, pivotY, domScale) }));
+            return this.renderVirtualZoom(lgCanvas, targetCanvas, rect, dpr, pivotX, pivotY, cap, scaled);
         }
+        return this.renderDirectCapture(targetCanvas, dpr, cap, media, vueNodes);
     }
 
     /**
-     * Get a list of nodes visible within the source rectangle.
-     * This avoids iterating over all nodes multiple times per frame.
+     * Read phase: measure loaded, same-origin DOM images and videos (DOM widgets, or Vue node bodies)
+     * before any canvas draw. Boxes are CSS pixels relative to the canvas at the real zoom.
      */
-    private getVisibleNodes(
-        sourceCssX: number,
-        sourceCssY: number,
-        sourceCssWidth: number,
-        sourceCssHeight: number,
-        scale: number,
-        offset: [number, number]
-    ): any[] {
-        const graph = app?.graph;
-        if (!graph || !graph._nodes) return [];
+    private collectDomMedia(rect: DOMRect, vueNodes: boolean): DomMedia[] {
+        const selector = vueNodes ? '[data-node-id] img, [data-node-id] video' : '.dom-widget img, .dom-widget video';
+        const media: DomMedia[] = [];
+        for (const el of document.querySelectorAll<HTMLImageElement | HTMLVideoElement>(selector)) {
+            const loaded = el instanceof HTMLVideoElement ? el.readyState >= 2 : el.complete && el.naturalWidth > 0;
+            if (!loaded || !isSafeMediaSource(el)) continue;
+            const r = el.getBoundingClientRect();
+            if (r.width === 0 || r.height === 0) continue;
+            media.push({
+                el,
+                box: { x: r.left - rect.left, y: r.top - rect.top, w: r.width, h: r.height },
+                objectFit: getComputedStyle(el).objectFit
+            });
+        }
+        return media;
+    }
 
+    /**
+     * Nodes of the graph on screen (including subgraphs) that overlap the capture region,
+     * in canvas render order (back to front).
+     */
+    private getVisibleNodes(cap: CaptureRegion, scale: number, offset: [number, number]): any[] {
         const visibleNodes = [];
-        for (const node of graph._nodes) {
+        for (const node of app.canvas.visible_nodes) {
             if (!node.pos || !node.size) continue;
             if (node.flags?.collapsed) continue;
 
-            // Calculate node position in CSS pixels
-            const nodeCssX = node.pos[0] * scale + offset[0];
-            const nodeCssY = node.pos[1] * scale + offset[1];
-            const nodeCssWidth = node.size[0] * scale;
-            const nodeCssHeight = node.size[1] * scale;
-
-            // Check overlap
-            if (nodeCssX + nodeCssWidth < sourceCssX || nodeCssX > sourceCssX + sourceCssWidth) continue;
-            if (nodeCssY + nodeCssHeight < sourceCssY || nodeCssY > sourceCssY + sourceCssHeight) continue;
+            const box = graphBoxToCss({ x: 0, y: 0, w: node.size[0], h: node.size[1] }, node.pos, scale, offset);
+            if (box.x + box.w < cap.left || box.x > cap.left + cap.size) continue;
+            if (box.y + box.h < cap.top || box.y > cap.top + cap.size) continue;
 
             visibleNodes.push(node);
         }
         return visibleNodes;
     }
 
-    /**
-     * Detect if there are nodes with image previews in the capture region.
-     * These nodes (Save Image, Preview Image, etc.) have images that are drawn
-     * via onDrawBackground/onDrawForeground and cause artifacts during Virtual Zoom.
-     */
-    private detectImagePreviewNodes(dpr: number, scale: number, offset: number[]): boolean {
-        const graph = app?.graph;
-        if (!graph || !graph._nodes) return false;
+    private accessibilityFilter(): string {
+        if (this.config.invertColors) return 'invert(1)';
+        if (this.config.grayscaleMode) return 'grayscale(1)';
+        return 'none';
+    }
 
+    private drawCapture(targetCanvas: HTMLCanvasElement, dpr: number, cap: CaptureRegion): void {
         const renderSize = this.config.glassSize;
-        const sourceSizeCss = renderSize / this.config.zoomFactor;
-
-        // Mouse position in CSS pixels
-        const pivotCssX = this.state.x / dpr;
-        const pivotCssY = this.state.y / dpr;
-
-        // Capture region in CSS pixels
-        const captureLeft = pivotCssX - (sourceSizeCss / 2);
-        const captureTop = pivotCssY - (sourceSizeCss / 2);
-        const captureRight = captureLeft + sourceSizeCss;
-        const captureBottom = captureTop + sourceSizeCss;
-
-        // Node types that have image previews
-        const imagePreviewTypes = [
-            'SaveImage', 'PreviewImage', 'LoadImage', 'LoadImageMask',
-            'VHS_LoadVideo', 'VHS_VideoCombine', // Video nodes
-            'ImagePreview', 'ShowImage' // Common variants
-        ];
-
-        for (const node of graph._nodes) {
-            if (!node.pos || !node.size) continue;
-            if (node.flags?.collapsed) continue;
-
-            // Check if this node type has image previews
-            const nodeType = node.type || node.comfyClass || '';
-            const hasImagePreview = imagePreviewTypes.some(t =>
-                nodeType.toLowerCase().includes(t.toLowerCase())
-            ) || node.imgs?.length > 0; // Also check for imgs array directly
-
-            if (!hasImagePreview) continue;
-
-            // Calculate node position in CSS pixels
-            const nodeCssX = node.pos[0] * scale + offset[0];
-            const nodeCssY = node.pos[1] * scale + offset[1];
-            const nodeCssWidth = node.size[0] * scale;
-            const nodeCssHeight = node.size[1] * scale;
-
-            // Check if node overlaps with capture region
-            const nodeRight = nodeCssX + nodeCssWidth;
-            const nodeBottom = nodeCssY + nodeCssHeight;
-
-            const overlaps = !(nodeRight < captureLeft || nodeCssX > captureRight ||
-                nodeBottom < captureTop || nodeCssY > captureBottom);
-
-            if (overlaps) {
-                return true; // Found an image preview node in capture region
-            }
-        }
-
-        return false;
+        this.offscreenCtx!.save();
+        this.offscreenCtx!.filter = this.accessibilityFilter();
+        this.offscreenCtx!.drawImage(
+            targetCanvas,
+            cap.left * dpr, cap.top * dpr, cap.size * dpr, cap.size * dpr,
+            0, 0, renderSize, renderSize
+        );
+        this.offscreenCtx!.restore();
     }
 
     /**
      * Mode 1: Direct Capture (Nuclear Fix)
      * Copies pixels directly from screen. Zero drift.
      */
-    private renderDirectCapture(targetCanvas: HTMLCanvasElement, renderSize: number, dpr: number): HTMLCanvasElement | null {
+    private renderDirectCapture(targetCanvas: HTMLCanvasElement, dpr: number, cap: CaptureRegion, media: DomMedia[], vueNodes: boolean): HTMLCanvasElement | null {
         try {
             this.isCapturing = true;
-
-            // state.x/y are Backing Pixels. pivotCss is Backing / DPR.
-            const pivotCssX = this.state.x / dpr;
-            const pivotCssY = this.state.y / dpr;
-
-            const sourceSizeCss = renderSize / this.config.zoomFactor;
-
-            // sourceRect in Backing Pixels
-            const sourceWidth = sourceSizeCss * dpr;
-            const sourceHeight = sourceSizeCss * dpr;
-            const sourceX = (pivotCssX - (sourceSizeCss / 2)) * dpr;
-            const sourceY = (pivotCssY - (sourceSizeCss / 2)) * dpr;
+            const renderSize = this.config.glassSize;
 
             this.offscreenCtx!.clearRect(0, 0, renderSize, renderSize);
+            this.drawCapture(targetCanvas, dpr, cap);
 
-            // Apply accessibility filters
-            this.offscreenCtx!.save();
-            if (this.config.invertColors) {
-                this.offscreenCtx!.filter = 'invert(1)';
-            } else if (this.config.grayscaleMode) {
-                this.offscreenCtx!.filter = 'grayscale(1)';
-            }
+            const ds = app.canvas.ds;
+            const scale = ds.scale;
+            const offset: [number, number] = [ds.offset[0], ds.offset[1]];
+            // Vue nodes draw their own text and titles in the DOM
+            const visibleNodes = vueNodes ? [] : this.getVisibleNodes(cap, scale, offset);
 
-            this.offscreenCtx!.drawImage(
-                targetCanvas,
-                sourceX, sourceY, sourceWidth, sourceHeight,
-                0, 0, renderSize, renderSize
-            );
-            this.offscreenCtx!.restore();
+            this.drawMedia(targetCanvas, dpr, visibleNodes, media, cap, scale, offset);
 
-            // Draw native widget text on top of the captured canvas
-            const lgCanvas = app?.canvas;
-            const currentScale = lgCanvas?.ds?.scale ?? 1.0;
-            const currentOffset: [number, number] = lgCanvas?.ds?.offset ? [lgCanvas.ds.offset[0], lgCanvas.ds.offset[1]] : [0, 0];
+            this.drawWidgetTextNatively(visibleNodes, cap, scale, offset);
 
-            // OPTIMIZATION: Get visible nodes once
-            const sourceCssX = sourceX / dpr;
-            const sourceCssY = sourceY / dpr;
-            const sourceCssWidth = sourceWidth / dpr;
-            const sourceCssHeight = sourceHeight / dpr;
-            const visibleNodes = this.getVisibleNodes(sourceCssX, sourceCssY, sourceCssWidth, sourceCssHeight, currentScale, currentOffset);
-
-            this.drawWidgetTextNatively(visibleNodes, sourceX, sourceY, sourceWidth, sourceHeight, renderSize, currentScale, currentOffset);
-
-            // Draw node titles if emphasis is enabled
             if (this.config.accessibilityEnabled && this.config.nodeTitleEmphasis) {
-                this.drawNodeTitlesNatively(visibleNodes, sourceX, sourceY, sourceWidth, sourceHeight, renderSize, currentScale, currentOffset);
+                this.drawNodeTitlesNatively(visibleNodes, cap, scale, offset);
             }
 
-            // NOTE: We do NOT call drawImagePreviewsNatively() here.
-            // Direct Capture copies pixels from the screen which already has correctly-drawn images.
-            // Native image drawing is only needed during Virtual Zoom where ComfyUI's rendering fails.
-
-            // Draw cursor preview overlay if enabled
             if (this.config.showCursorPreview) {
                 this.drawCursorPreview(renderSize);
             }
@@ -264,217 +185,187 @@ export class OffscreenRenderer {
      * Temporarily sets scale to 1.0 to render details.
      * Uses LiteGraph's setZoom() API for correct pivot handling.
      */
-    private renderVirtualZoom(lgCanvas: any, targetCanvas: HTMLCanvasElement, renderSize: number, currentScale: number, dpr: number): HTMLCanvasElement | null {
+    private renderVirtualZoom(
+        lgCanvas: any,
+        targetCanvas: HTMLCanvasElement,
+        rect: DOMRect,
+        dpr: number,
+        pivotX: number,
+        pivotY: number,
+        cap: CaptureRegion,
+        media: DomMedia[]
+    ): HTMLCanvasElement | null {
+        const ds = lgCanvas.ds;
+        const origScale = ds.scale;
+        const origOffsetX = ds.offset[0];
+        const origOffsetY = ds.offset[1];
+        const renderSize = this.config.glassSize;
+
+        this.isCapturing = true;
+        // Set global flag so node renderers can check and skip expensive operations
+        (window as any).__magnifyGlassCapturing = true;
+
         try {
-            this.isCapturing = true;
-            // Set global flag so node renderers can check and skip expensive operations
-            (window as any).__magnifyGlassCapturing = true;
+            // setZoom expects the centre in client coordinates (changeScale subtracts the canvas rect)
+            lgCanvas.setZoom(1.0, [pivotX + rect.left, pivotY + rect.top]);
 
-            // Pivot = Mouse in CSS Pixels (relative to canvas element)
-            const pivotCssX = this.state.x / dpr;
-            const pivotCssY = this.state.y / dpr;
-
-            // Target Scale (1.0 for high-res capture)
-            const targetScale = Math.max(1.0, currentScale);
-
-            // Store original state for restoration
-            const origScale = lgCanvas.ds.scale;
-            const origOffsetX = lgCanvas.ds.offset[0];
-            const origOffsetY = lgCanvas.ds.offset[1];
-
-            // Use LiteGraph's setZoom API - this properly handles the pivot point
-            // The center parameter tells LiteGraph to zoom around that screen position
-            if (typeof lgCanvas.setZoom === 'function') {
-                lgCanvas.setZoom(targetScale, [pivotCssX, pivotCssY]);
-            } else {
-                // Fallback: manual calculation (legacy, may drift)
-                const pivotGraphX = (pivotCssX - origOffsetX) / currentScale;
-                const pivotGraphY = (pivotCssY - origOffsetY) / currentScale;
-                const newOffsetX = pivotCssX - (pivotGraphX * targetScale);
-                const newOffsetY = pivotCssY - (pivotGraphY * targetScale);
-                lgCanvas.ds.scale = targetScale;
-                lgCanvas.ds.offset[0] = newOffsetX;
-                lgCanvas.ds.offset[1] = newOffsetY;
-            }
-
-            // Hide images AND preview widgets from nodes to prevent them from being drawn on the captured canvas
-            // This prevents "ghosting" artifacts and crashes (since some custom widgets fail in Virtual Zoom)
+            // Hide images and preview widgets for the scale-1 draw. The frontend draws previews in a
+            // deferred microtask, so they would miss this capture and ghost onto the screen afterwards.
+            // drawMedia() draws them from their sources instead.
             const hiddenNodeImages = new Map<any, any>();
             const hiddenNodeWidgets = new Map<any, any[]>();
 
-            if (app?.graph?._nodes) {
-                for (const node of app.graph._nodes) {
-                    // 1. Hide node.imgs
-                    if (node.imgs) {
-                        hiddenNodeImages.set(node, node.imgs);
-                        node.imgs = null;
-                    }
+            for (const node of lgCanvas.graph._nodes) {
+                if (node.imgs) {
+                    hiddenNodeImages.set(node, node.imgs);
+                    node.imgs = null;
+                }
 
-                    // 2. Hide preview widgets
-                    if (node.widgets && Array.isArray(node.widgets)) {
-                        const hasPreviewWidget = node.widgets.some((w: any) => {
+                if (node.widgets && Array.isArray(node.widgets)) {
+                    const hasPreviewWidget = node.widgets.some((w: any) => {
+                        const wName = String(w.name || '').toLowerCase();
+                        const wType = String(w.type || '').toLowerCase();
+                        return wName.includes('preview') || wName.includes('image') || wName.includes('gallery') || wName.includes('upload') ||
+                            wType.includes('preview') || wType.includes('image');
+                    });
+
+                    if (hasPreviewWidget) {
+                        hiddenNodeWidgets.set(node, node.widgets);
+                        // Only hide explicit preview widgets. Inputs (image, upload) should remain visible.
+                        node.widgets = node.widgets.filter((w: any) => {
                             const wName = String(w.name || '').toLowerCase();
                             const wType = String(w.type || '').toLowerCase();
-                            return wName.includes('preview') || wName.includes('image') || wName.includes('gallery') || wName.includes('upload') ||
-                                wType.includes('preview') || wType.includes('image');
+                            const isPreview = wName.includes('preview') || wName.includes('gallery') ||
+                                wType.includes('preview');
+                            return !isPreview;
                         });
-
-                        if (hasPreviewWidget) {
-                            // Backup original widgets array
-                            hiddenNodeWidgets.set(node, node.widgets);
-                            // Filter out the preview widgets for this draw call
-                            node.widgets = node.widgets.filter((w: any) => {
-                                const wName = String(w.name || '').toLowerCase();
-                                const wType = String(w.type || '').toLowerCase();
-                                // Only hide explicit preview widgets. Inputs (image, upload) should remain visible.
-                                const isPreview = wName.includes('preview') || wName.includes('gallery') ||
-                                    wType.includes('preview');
-                                return !isPreview;
-                            });
-                        }
                     }
                 }
             }
 
-            const origUpdatePreviews = lgCanvas.updatePreviews;
             try {
-                // Temporarily disable ComfyUI's image preview updates during capture
-                // This prevents massive console spam if images are missing (404s)
-                if (typeof origUpdatePreviews === 'function') {
-                    lgCanvas.updatePreviews = () => { };
-                }
-
                 lgCanvas.draw(true, true);
             } finally {
-                // Restore immediately after draw (in finally to handle exceptions)
-                if (typeof origUpdatePreviews === 'function') {
-                    lgCanvas.updatePreviews = origUpdatePreviews;
-                }
-
-                // Restore images
                 for (const [node, imgs] of hiddenNodeImages.entries()) {
                     node.imgs = imgs;
                 }
-                // Restore widgets
                 for (const [node, widgets] of hiddenNodeWidgets.entries()) {
                     node.widgets = widgets;
                 }
             }
 
-            // Capture pixels around the pivot point
-            const sourceSizeCss = renderSize / this.config.zoomFactor;
-            const sourceWidth = sourceSizeCss * dpr;
-            const sourceHeight = sourceSizeCss * dpr;
-            const sourceX = (pivotCssX - (sourceSizeCss / 2)) * dpr;
-            const sourceY = (pivotCssY - (sourceSizeCss / 2)) * dpr;
-
             this.offscreenCtx!.clearRect(0, 0, renderSize, renderSize);
+            this.drawCapture(targetCanvas, dpr, cap);
 
-            // Apply accessibility filters
-            this.offscreenCtx!.save();
-            if (this.config.invertColors) {
-                this.offscreenCtx!.filter = 'invert(1)';
-            } else if (this.config.grayscaleMode) {
-                this.offscreenCtx!.filter = 'grayscale(1)';
-            }
+            // setZoom() moved the offset to zoom around the pivot; use the capture-time transform
+            const captureScale = ds.scale;
+            const captureOffset: [number, number] = [ds.offset[0], ds.offset[1]];
+            const visibleNodes = this.getVisibleNodes(cap, captureScale, captureOffset);
 
-            this.offscreenCtx!.drawImage(
-                targetCanvas,
-                sourceX, sourceY, sourceWidth, sourceHeight,
-                0, 0, renderSize, renderSize
-            );
-            this.offscreenCtx!.restore();
+            this.drawMedia(targetCanvas, dpr, visibleNodes, media, cap, captureScale, captureOffset);
 
-            // Draw native widget text on top of the captured canvas
-            // Note: For virtual zoom, we use targetScale and the CURRENT offset (after setZoom)
-            // because lgCanvas.setZoom() modified the offset to zoom around the pivot
-            const captureOffset: [number, number] = [lgCanvas.ds.offset[0], lgCanvas.ds.offset[1]];
+            this.drawWidgetTextNatively(visibleNodes, cap, captureScale, captureOffset);
 
-            // OPTIMIZATION: Get visible nodes once
-            const sourceCssX = sourceX / dpr;
-            const sourceCssY = sourceY / dpr;
-            const sourceCssWidth = sourceWidth / dpr;
-            const sourceCssHeight = sourceHeight / dpr;
-            const visibleNodes = this.getVisibleNodes(sourceCssX, sourceCssY, sourceCssWidth, sourceCssHeight, targetScale, captureOffset);
-
-            this.drawWidgetTextNatively(visibleNodes, sourceX, sourceY, sourceWidth, sourceHeight, renderSize, targetScale, captureOffset);
-
-            // Draw node titles if emphasis is enabled
             if (this.config.accessibilityEnabled && this.config.nodeTitleEmphasis) {
-                this.drawNodeTitlesNatively(visibleNodes, sourceX, sourceY, sourceWidth, sourceHeight, renderSize, targetScale, captureOffset);
+                this.drawNodeTitlesNatively(visibleNodes, cap, captureScale, captureOffset);
             }
 
-            // Draw image/video previews natively on top of the captured canvas
-            this.drawImagePreviewsNatively(visibleNodes, sourceX, sourceY, sourceWidth, sourceHeight, renderSize, targetScale, captureOffset);
-
-            // Draw cursor preview overlay if enabled
             if (this.config.showCursorPreview) {
                 this.drawCursorPreview(renderSize);
             }
 
-            // Restore original zoom state and draw one clean frame
-            lgCanvas.ds.scale = origScale;
-            lgCanvas.ds.offset[0] = origOffsetX;
-            lgCanvas.ds.offset[1] = origOffsetY;
-
-            const finalOrigUpdatePreviews = lgCanvas.updatePreviews;
-            try {
-                if (typeof finalOrigUpdatePreviews === 'function') {
-                    lgCanvas.updatePreviews = () => { };
-                }
-
-                lgCanvas.draw(true, true);
-            } finally {
-                if (typeof finalOrigUpdatePreviews === 'function') {
-                    lgCanvas.updatePreviews = finalOrigUpdatePreviews;
-                }
-            }
-
-            this.isCapturing = false;
-            (window as any).__magnifyGlassCapturing = false;
             return this.offscreenCanvas;
-
         } catch (e) {
             console.warn("VirtualZoom failed", e);
-            // Emergency restore
-            lgCanvas.ds.scale = currentScale;
-            lgCanvas.draw(true, true);
+            return null;
+        } finally {
+            // Restore original zoom state and draw one clean frame
+            ds.scale = origScale;
+            ds.offset[0] = origOffsetX;
+            ds.offset[1] = origOffsetY;
+
             this.isCapturing = false;
             (window as any).__magnifyGlassCapturing = false;
-            return null;
+            lgCanvas.draw(true, true);
         }
     }
 
+    /**
+     * Draw canvas image previews (from full-resolution node.imgs) and DOM images/videos
+     * into the glass. Video is redrawn every tick, so it plays.
+     */
+    private drawMedia(
+        targetCanvas: HTMLCanvasElement,
+        dpr: number,
+        visibleNodes: any[],
+        media: DomMedia[],
+        cap: CaptureRegion,
+        scale: number,
+        offset: [number, number]
+    ): void {
+        const ctx = this.offscreenCtx!;
+        const renderSize = this.config.glassSize;
+        const onGlass = (b: Box) => b.w > 0 && b.h > 0 && b.x < renderSize && b.y < renderSize && b.x + b.w > 0 && b.y + b.h > 0;
+        const overlaps = (a: Box, b: Box) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
+        ctx.save();
+        ctx.filter = this.accessibilityFilter();
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+
+        const sizeTextMargin = getSettingValue('Comfy.Node.AllowImageSizeDraw', true) ? 15 : 0;
+        for (const [i, node] of visibleNodes.entries()) {
+            const widget = node.imgs?.length && node.widgets?.find((w: any) => w.name === '$$canvas-image-preview');
+            if (!widget) continue;
+            for (const { img, box } of previewImageBoxes(node.imgs, widget, node, sizeTextMargin)) {
+                const g = toGlass(graphBoxToCss(box, node.pos, scale, offset), cap);
+                if (onGlass(g) && isSafeMediaSource(img)) ctx.drawImage(img, g.x, g.y, g.w, g.h);
+            }
+
+            // Nodes later in render order cover this preview on the canvas: put them back from the capture
+            const nodeBox = toGlass(graphBoxToCss({ x: 0, y: 0, w: node.size[0], h: node.size[1] }, node.pos, scale, offset), cap);
+            for (const front of visibleNodes.slice(i + 1)) {
+                const f = toGlass(graphBoxToCss({ x: 0, y: -TITLE_HEIGHT, w: front.size[0], h: front.size[1] + TITLE_HEIGHT }, front.pos, scale, offset), cap);
+                if (!overlaps(f, nodeBox)) continue;
+                ctx.save();
+                ctx.beginPath();
+                ctx.rect(f.x, f.y, f.w, f.h);
+                ctx.clip();
+                this.drawCapture(targetCanvas, dpr, cap);
+                ctx.restore();
+            }
+        }
+
+        for (const { el, box, objectFit } of media) {
+            const g = toGlass(box, cap);
+            if (!onGlass(g)) continue;
+            const content = el instanceof HTMLVideoElement
+                ? fitContent(g, el.videoWidth, el.videoHeight, objectFit)
+                : fitContent(g, el.naturalWidth, el.naturalHeight, objectFit);
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(g.x, g.y, g.w, g.h);
+            ctx.clip();
+            ctx.drawImage(el, content.x, content.y, content.w, content.h);
+            ctx.restore();
+        }
+
+        ctx.restore();
+    }
 
     /**
      * Draw node titles natively with accessibility styling.
      */
     private drawNodeTitlesNatively(
         visibleNodes: any[],
-        sourceX: number,
-        sourceY: number,
-        sourceWidth: number,
-        sourceHeight: number,
-        renderSize: number,
+        cap: CaptureRegion,
         scale: number,
         offset: [number, number]
     ): void {
         if (!this.offscreenCtx) return;
 
         const ctx = this.offscreenCtx;
-        const TITLE_HEIGHT = 30;
-
-        // Coordinate transforms
-        const sourceSizeCss = renderSize / this.config.zoomFactor;
-        const actualDpr = sourceWidth / sourceSizeCss;
-        const captureScale = renderSize / sourceWidth;
-
-        // Source region in CSS pixels
-        const sourceCssX = sourceX / actualDpr;
-        const sourceCssY = sourceY / actualDpr;
-        const sourceCssWidth = sourceWidth / actualDpr;
-        const sourceCssHeight = sourceHeight / actualDpr;
+        const renderSize = this.config.glassSize;
 
         for (const node of visibleNodes) {
             if (!node.pos || !node.size) continue;
@@ -483,20 +374,20 @@ export class OffscreenRenderer {
             const title = node.title || node.type || "Node";
 
             // Node position in CSS pixels
-            const nodeCssX = node.pos[0] * scale + offset[0];
-            const nodeCssY = node.pos[1] * scale + offset[1];
+            const nodeCssX = (node.pos[0] + offset[0]) * scale;
+            const nodeCssY = (node.pos[1] + offset[1]) * scale;
             const nodeCssWidth = node.size[0] * scale;
 
             // Check visibility
-            if (nodeCssX + nodeCssWidth < sourceCssX || nodeCssX > sourceCssX + sourceCssWidth) continue;
-            if (nodeCssY + (TITLE_HEIGHT * scale) < sourceCssY || nodeCssY > sourceCssY + sourceCssHeight) continue;
+            if (nodeCssX + nodeCssWidth < cap.left || nodeCssX > cap.left + cap.size) continue;
+            if (nodeCssY + (TITLE_HEIGHT * scale) < cap.top || nodeCssY > cap.top + cap.size) continue;
 
             // Draw
-            const canvasX = (nodeCssX - sourceCssX) * actualDpr * captureScale;
-            const canvasY = (nodeCssY - sourceCssY) * actualDpr * captureScale;
+            const canvasX = (nodeCssX - cap.left) * cap.k;
+            const canvasY = (nodeCssY - cap.top) * cap.k;
             // Limit width for title background
-            const canvasWidth = Math.min(nodeCssWidth, nodeCssWidth) * actualDpr * captureScale;
-            const canvasHeight = TITLE_HEIGHT * scale * actualDpr * captureScale;
+            const canvasWidth = Math.min(nodeCssWidth, nodeCssWidth) * cap.k;
+            const canvasHeight = TITLE_HEIGHT * scale * cap.k;
 
             if (canvasX + canvasWidth > 0 && canvasX < renderSize && canvasY + canvasHeight > 0 && canvasY < renderSize) {
                 ctx.save();
@@ -518,7 +409,7 @@ export class OffscreenRenderer {
                 // Boost title size a bit more
                 scaleFactor *= 1.1;
 
-                const fontSize = Math.max(12, Math.min(32, baseFontSize * scale * actualDpr * captureScale * scaleFactor));
+                const fontSize = Math.max(12, Math.min(32, baseFontSize * scale * cap.k * scaleFactor));
 
                 ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
                 ctx.textAlign = 'left';
@@ -536,7 +427,7 @@ export class OffscreenRenderer {
                     ctx.shadowColor = this.config.textGlowColor;
                 }
 
-                const padding = 10 * scale * actualDpr * captureScale;
+                const padding = 10 * scale * cap.k;
                 ctx.fillText(title, canvasX + padding, canvasY + (canvasHeight / 2) - (5 * scale));
 
                 ctx.restore();
@@ -549,69 +440,40 @@ export class OffscreenRenderer {
      * This renders text content that would otherwise be lost since widgets are DOM elements.
      * 
      * @param visibleNodes - List of nodes to check for text widgets
-     * @param sourceX - Source X position in backing pixels
-     * @param sourceY - Source Y position in backing pixels
-     * @param sourceWidth - Source width in backing pixels
-     * @param sourceHeight - Source height in backing pixels
-     * @param renderSize - Output render size in pixels
+     * @param cap - Capture region (CSS pixels) and glass scale
      * @param scale - Canvas scale used during capture
      * @param offset - Canvas offset [x, y] used during capture
      */
     private drawWidgetTextNatively(
         visibleNodes: any[],
-        sourceX: number,
-        sourceY: number,
-        sourceWidth: number,
-        sourceHeight: number,
-        renderSize: number,
+        cap: CaptureRegion,
         scale: number,
         offset: [number, number]
     ): void {
         if (!this.offscreenCtx) return;
 
         const ctx = this.offscreenCtx;
-        const lgCanvas = app?.canvas;
-        if (!lgCanvas || !lgCanvas.ds) return;
+        const renderSize = this.config.glassSize;
 
         // LiteGraph layout constants
-        const TITLE_HEIGHT = 30;
         const WIDGET_HEIGHT = 20;
         const WIDGET_MARGIN = 4;
         const PADDING = 15;
-
-        // Use the passed offset (capture-time offset), not current lgCanvas offset
-        // const ds = lgCanvas.ds;
-        // const offset = ds.offset || [0, 0]; // OLD: This was wrong
-
-        // The offset from LiteGraph is in CSS pixels
-        // The sourceX/Y/Width/Height are in backing pixels
-        // We need to convert properly
-
-        // Calculate DPR from the source parameters
-        const sourceSizeCss = renderSize / this.config.zoomFactor;
-        const actualDpr = sourceWidth / sourceSizeCss;
-        const captureScale = renderSize / sourceWidth;
-
-        // Source region in CSS pixels
-        const sourceCssX = sourceX / actualDpr;
-        const sourceCssY = sourceY / actualDpr;
-        const sourceCssWidth = sourceWidth / actualDpr;
-        const sourceCssHeight = sourceHeight / actualDpr;
 
         for (const node of visibleNodes) {
             if (!node.widgets || !node.pos || !node.size) continue;
             if (node.flags?.collapsed) continue;
 
             // Calculate node position in CSS pixels
-            // node.pos is in graph coordinates, transform: screenCss = graphPos * scale + offset
-            const nodeCssX = node.pos[0] * scale + offset[0];
-            const nodeCssY = node.pos[1] * scale + offset[1];
+            // node.pos is in graph coordinates, transform: screenCss = (graphPos + offset) * scale
+            const nodeCssX = (node.pos[0] + offset[0]) * scale;
+            const nodeCssY = (node.pos[1] + offset[1]) * scale;
             const nodeCssWidth = node.size[0] * scale;
             const nodeCssHeight = node.size[1] * scale;
 
             // Check if node is in captured region (CSS coordinates)
-            if (nodeCssX + nodeCssWidth < sourceCssX || nodeCssX > sourceCssX + sourceCssWidth) continue;
-            if (nodeCssY + nodeCssHeight < sourceCssY || nodeCssY > sourceCssY + sourceCssHeight) continue;
+            if (nodeCssX + nodeCssWidth < cap.left || nodeCssX > cap.left + cap.size) continue;
+            if (nodeCssY + nodeCssHeight < cap.top || nodeCssY > cap.top + cap.size) continue;
 
             // Calculate widget positions
             let widgetY = TITLE_HEIGHT;
@@ -644,9 +506,9 @@ export class OffscreenRenderer {
                 const widgetCssWidth = nodeCssWidth - (PADDING * 2 * scale);
 
                 // Convert from CSS to offscreen canvas coordinates
-                const canvasX = (widgetCssX - sourceCssX) * actualDpr * captureScale;
-                const canvasY = (widgetCssY - sourceCssY) * actualDpr * captureScale;
-                const widgetWidth = widgetCssWidth * actualDpr * captureScale;
+                const canvasX = (widgetCssX - cap.left) * cap.k;
+                const canvasY = (widgetCssY - cap.top) * cap.k;
+                const widgetWidth = widgetCssWidth * cap.k;
 
                 // Calculate font size
                 // Calculate font size with accessibility scaling
@@ -655,7 +517,7 @@ export class OffscreenRenderer {
                 if (this.config.accessibilityEnabled) {
                     scaleFactor = this.config.fontScaleFactor / 100;
                 }
-                const fontSize = Math.max(10, Math.min(28 * scaleFactor, baseFontSize * scale * actualDpr * captureScale * scaleFactor));
+                const fontSize = Math.max(10, Math.min(28 * scaleFactor, baseFontSize * scale * cap.k * scaleFactor));
                 const lineHeight = fontSize * 1.4;
 
                 // ----------------------------------------------------------------
@@ -700,13 +562,13 @@ export class OffscreenRenderer {
                         // Max height for this widget in CSS pixels (stay inside node, minus padding)
                         const maxWidgetHeightCss = Math.max(0, nodeBottomCss - widgetCssY - (PADDING * scale));
                         // Convert to canvas pixels
-                        const maxWidgetHeight = maxWidgetHeightCss * actualDpr * captureScale;
+                        const maxWidgetHeight = maxWidgetHeightCss * cap.k;
 
                         // Calculate widget height - Render full content for markdown up to node bounds
                         const widgetHeight = (isMarkdownWidget)
-                            ? Math.min(Math.max((widget as any).computedHeight * scale * captureScale || 0, contentHeight), maxWidgetHeight)
+                            ? Math.min(Math.max((widget as any).computedHeight * scale * cap.k || 0, contentHeight), maxWidgetHeight)
                             : ((widget as any).computedHeight
-                                ? (widget as any).computedHeight * scale * captureScale
+                                ? (widget as any).computedHeight * scale * cap.k
                                 : Math.max(80, fontSize * 5));
 
                         // Check if widget is at least partially visible (more lenient bounds check)
@@ -751,277 +613,6 @@ export class OffscreenRenderer {
 
                 widgetY += WIDGET_HEIGHT + WIDGET_MARGIN;
             }
-        }
-    }
-
-    /**
-     * Draw image and video previews natively on the offscreen canvas.
-     * This renders preview content that would otherwise cause errors during Virtual Zoom,
-     * because ComfyUI's ImagePreviewWidget fails when the canvas scale is manipulated.
-     * 
-     * Handles:
-     * - node.imgs[] array (standard ComfyUI SaveImage/PreviewImage nodes)
-     * - VHS-style DOM widget previews (video/image elements)
-     * 
-     * @param visibleNodes - List of nodes to check for image previews
-     * @param sourceX - Source X position in backing pixels
-     * @param sourceY - Source Y position in backing pixels
-     * @param sourceWidth - Source width in backing pixels
-     * @param sourceHeight - Source height in backing pixels
-     * @param renderSize - Output render size in pixels
-     * @param scale - Canvas scale used during capture
-     * @param offset - Canvas offset [x, y] used during capture
-     */
-    private drawImagePreviewsNatively(
-        visibleNodes: any[],
-        sourceX: number,
-        sourceY: number,
-        sourceWidth: number,
-        sourceHeight: number,
-        renderSize: number,
-        scale: number,
-        offset: [number, number]
-    ): void {
-        if (!this.offscreenCtx) return;
-
-        const ctx = this.offscreenCtx;
-
-        // Calculate coordinate transforms (same as drawWidgetTextNatively)
-        const sourceSizeCss = renderSize / this.config.zoomFactor;
-        const actualDpr = sourceWidth / sourceSizeCss;
-        const captureScale = renderSize / sourceWidth;
-
-        // Source region in CSS pixels
-        const sourceCssX = sourceX / actualDpr;
-        const sourceCssY = sourceY / actualDpr;
-        const sourceCssWidth = sourceWidth / actualDpr;
-        const sourceCssHeight = sourceHeight / actualDpr;
-
-        // LiteGraph constants
-        const TITLE_HEIGHT = 30;
-        const WIDGET_MARGIN = 4;
-
-        for (const node of visibleNodes) {
-            if (!node.pos || !node.size) continue;
-            if (node.flags?.collapsed) continue;
-
-            // Calculate node position in CSS pixels
-            const nodeCssX = node.pos[0] * scale + offset[0];
-            const nodeCssY = node.pos[1] * scale + offset[1];
-            const nodeCssWidth = node.size[0] * scale;
-            const nodeCssHeight = node.size[1] * scale;
-
-            // Check if node is in captured region
-            if (nodeCssX + nodeCssWidth < sourceCssX || nodeCssX > sourceCssX + sourceCssWidth) continue;
-            if (nodeCssY + nodeCssHeight < sourceCssY || nodeCssY > sourceCssY + sourceCssHeight) continue;
-
-            // Method 1: Handle node.imgs[] array (standard ComfyUI preview)
-            if (node.imgs && Array.isArray(node.imgs) && node.imgs.length > 0) {
-                this.drawNodeImages(
-                    ctx, node, nodeCssX, nodeCssY, nodeCssWidth, nodeCssHeight,
-                    sourceCssX, sourceCssY, actualDpr, captureScale, renderSize, scale
-                );
-            }
-
-            // Method 2: Handle VHS-style DOM widget previews
-            if (node.widgets) {
-                for (const widget of node.widgets) {
-                    const widgetName = String(widget.name || '').toLowerCase();
-                    if (widgetName === 'videopreview' || widgetName === 'audiopreview') {
-                        this.drawDomWidgetPreview(
-                            ctx, widget, node, nodeCssX, nodeCssY, nodeCssWidth,
-                            sourceCssX, sourceCssY, actualDpr, captureScale, renderSize, scale
-                        );
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Draw images from node.imgs[] array onto the offscreen canvas.
-     * Supports batch images by drawing them in a grid layout.
-     */
-    private drawNodeImages(
-        ctx: CanvasRenderingContext2D,
-        node: any,
-        nodeCssX: number,
-        nodeCssY: number,
-        nodeCssWidth: number,
-        nodeCssHeight: number,
-        sourceCssX: number,
-        sourceCssY: number,
-        actualDpr: number,
-        captureScale: number,
-        renderSize: number,
-        scale: number
-    ): void {
-        const TITLE_HEIGHT = 30;
-        const PADDING = 10;
-        const GAP = 4; // Gap between images in grid
-
-        // Calculate image area (below title, with padding)
-        const imageAreaX = nodeCssX + (PADDING * scale);
-        const imageAreaY = nodeCssY + (TITLE_HEIGHT * scale);
-        const imageAreaWidth = nodeCssWidth - (PADDING * 2 * scale);
-        const imageAreaHeight = nodeCssHeight - (TITLE_HEIGHT * scale) - (PADDING * scale);
-
-        if (imageAreaWidth <= 0 || imageAreaHeight <= 0) return;
-
-        const imgs = node.imgs.filter((img: any) =>
-            img && img instanceof HTMLImageElement && img.complete && img.naturalWidth > 0
-        );
-        const imgCount = imgs.length;
-
-        if (imgCount === 0) return;
-
-        // Calculate grid dimensions (match ComfyUI's layout)
-        // ComfyUI typically uses a square-ish grid
-        const cols = Math.ceil(Math.sqrt(imgCount));
-        const rows = Math.ceil(imgCount / cols);
-
-        // Calculate cell size with gap
-        const cellWidth = (imageAreaWidth - (GAP * scale * (cols - 1))) / cols;
-        const cellHeight = (imageAreaHeight - (GAP * scale * (rows - 1))) / rows;
-
-        if (cellWidth <= 0 || cellHeight <= 0) return;
-
-        // Draw each image in grid position
-        for (let i = 0; i < imgCount; i++) {
-            const img = imgs[i];
-            const col = i % cols;
-            const row = Math.floor(i / cols);
-
-            // Calculate cell position
-            const cellX = imageAreaX + col * (cellWidth + GAP * scale);
-            const cellY = imageAreaY + row * (cellHeight + GAP * scale);
-
-            try {
-                // Calculate aspect-ratio-preserving dimensions within cell
-                const imgAspect = img.naturalWidth / img.naturalHeight;
-                const cellAspect = cellWidth / cellHeight;
-
-                let drawWidth = cellWidth;
-                let drawHeight = cellHeight;
-
-                if (imgAspect > cellAspect) {
-                    // Image is wider - fit to width
-                    drawHeight = drawWidth / imgAspect;
-                } else {
-                    // Image is taller - fit to height
-                    drawWidth = drawHeight * imgAspect;
-                }
-
-                // Center the image in the cell
-                const drawX = cellX + (cellWidth - drawWidth) / 2;
-                const drawY = cellY + (cellHeight - drawHeight) / 2;
-
-                // Convert to offscreen canvas coordinates
-                const canvasX = (drawX - sourceCssX) * actualDpr * captureScale;
-                const canvasY = (drawY - sourceCssY) * actualDpr * captureScale;
-                const canvasWidth = drawWidth * actualDpr * captureScale;
-                const canvasHeight = drawHeight * actualDpr * captureScale;
-
-                // Check if at least partially visible
-                if (canvasX + canvasWidth > 0 && canvasX < renderSize &&
-                    canvasY + canvasHeight > 0 && canvasY < renderSize) {
-
-                    ctx.save();
-                    ctx.imageSmoothingEnabled = true;
-                    ctx.imageSmoothingQuality = 'high';
-                    ctx.drawImage(img, canvasX, canvasY, canvasWidth, canvasHeight);
-                    ctx.restore();
-                }
-            } catch (e) {
-                // Silently fail for individual images
-            }
-        }
-    }
-
-    /**
-     * Draw VHS-style DOM widget video/image preview onto the offscreen canvas.
-     */
-    private drawDomWidgetPreview(
-        ctx: CanvasRenderingContext2D,
-        widget: any,
-        node: any,
-        nodeCssX: number,
-        nodeCssY: number,
-        nodeCssWidth: number,
-        sourceCssX: number,
-        sourceCssY: number,
-        actualDpr: number,
-        captureScale: number,
-        renderSize: number,
-        scale: number
-    ): void {
-        // VHS widgets have videoEl and imgEl properties
-        const videoEl = widget.videoEl as HTMLVideoElement | undefined;
-        const imgEl = widget.imgEl as HTMLImageElement | undefined;
-
-        // Determine which element to draw
-        let sourceElement: HTMLVideoElement | HTMLImageElement | undefined;
-        let sourceWidth = 0;
-        let sourceHeight = 0;
-
-        if (videoEl && !videoEl.hidden && videoEl.videoWidth > 0) {
-            sourceElement = videoEl;
-            sourceWidth = videoEl.videoWidth;
-            sourceHeight = videoEl.videoHeight;
-        } else if (imgEl && !imgEl.hidden && imgEl.naturalWidth > 0) {
-            sourceElement = imgEl;
-            sourceWidth = imgEl.naturalWidth;
-            sourceHeight = imgEl.naturalHeight;
-        }
-
-        if (!sourceElement || sourceWidth === 0 || sourceHeight === 0) return;
-
-        try {
-            // Widget positioning - VHS uses computedHeight and last_y
-            const widgetY = (widget as any).last_y ?? 30;
-            const widgetHeight = widget.computedHeight ?? 100;
-
-            const widgetCssY = nodeCssY + (widgetY * scale);
-            const widgetCssWidth = nodeCssWidth - 20 * scale; // VHS padding
-            const widgetCssHeight = widgetHeight * scale;
-
-            if (widgetCssWidth <= 0 || widgetCssHeight <= 0) return;
-
-            // Calculate aspect-ratio-preserving dimensions
-            const srcAspect = sourceWidth / sourceHeight;
-            const areaAspect = widgetCssWidth / widgetCssHeight;
-
-            let drawWidth = widgetCssWidth;
-            let drawHeight = widgetCssHeight;
-
-            if (srcAspect > areaAspect) {
-                drawHeight = drawWidth / srcAspect;
-            } else {
-                drawWidth = drawHeight * srcAspect;
-            }
-
-            // Center in widget area
-            const drawX = nodeCssX + 10 * scale + (widgetCssWidth - drawWidth) / 2;
-            const drawY = widgetCssY + (widgetCssHeight - drawHeight) / 2;
-
-            // Convert to offscreen canvas coordinates
-            const canvasX = (drawX - sourceCssX) * actualDpr * captureScale;
-            const canvasY = (drawY - sourceCssY) * actualDpr * captureScale;
-            const canvasWidth = drawWidth * actualDpr * captureScale;
-            const canvasHeight = drawHeight * actualDpr * captureScale;
-
-            // Check if at least partially visible
-            if (canvasX + canvasWidth > 0 && canvasX < renderSize &&
-                canvasY + canvasHeight > 0 && canvasY < renderSize) {
-
-                ctx.save();
-                ctx.imageSmoothingEnabled = true;
-                ctx.imageSmoothingQuality = 'high';
-                ctx.drawImage(sourceElement, canvasX, canvasY, canvasWidth, canvasHeight);
-                ctx.restore();
-            }
-        } catch (e) {
-            // Silently fail for individual previews
         }
     }
 
@@ -1118,58 +709,6 @@ export class OffscreenRenderer {
         }
     }
 
-
-
-    /**
-     * Render a button widget.
-     * Draws a rounded rectangle with the label centered.
-     */
-    private drawButton(
-        ctx: CanvasRenderingContext2D,
-        label: string,
-        x: number,
-        y: number,
-        width: number,
-        height: number,
-        fontSize: number
-    ): void {
-        const radius = 6;
-
-        ctx.save();
-
-        // Button background
-        ctx.beginPath();
-        ctx.roundRect(x, y, width, height, radius);
-        ctx.fillStyle = '#222'; // Dark button background
-        ctx.fill();
-
-        // Button border
-        ctx.strokeStyle = '#555';
-        ctx.lineWidth = 1;
-        ctx.stroke();
-
-        // Button label
-        ctx.font = `600 ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-
-        let textColor = '#ccc'; // Light grey text
-        if (this.config.accessibilityEnabled && this.config.highContrastMode) {
-            textColor = '#ffffff';
-        }
-        ctx.fillStyle = textColor;
-
-        // Center text in button
-        const fileUploadLabel = "choose file to upload";
-        // If it's the long upload label, we might need smaller font or wrapping, 
-        // but typically buttons are single line.
-        // We'll just truncate if too long or let it clip via context clipping if we added any (we didn't yet).
-
-        this.drawAccessibleText(ctx, label, x + width / 2, y + height / 2);
-
-        ctx.restore();
-    }
-
     /**
      * Draw a mini cursor preview at the center of the glass.
      * The cursor is drawn as a classic arrow pointer with a contrasting outline.
@@ -1216,14 +755,6 @@ export class OffscreenRenderer {
         ctx.stroke();
 
         ctx.restore();
-    }
-
-    isAvailable(): boolean {
-        return this.offscreenCanvas !== null && this.offscreenCtx !== null;
-    }
-
-    getCanvas(): HTMLCanvasElement | null {
-        return this.offscreenCanvas;
     }
 
     /**

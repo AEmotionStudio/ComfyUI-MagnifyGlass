@@ -14,13 +14,6 @@ class WebGLRenderer {
     __publicField(this, "uniformLocations");
     __publicField(this, "attributeLocations");
     __publicField(this, "currentFilteringMode");
-    // Dirty flag optimization
-    __publicField(this, "lastCanvasVersion");
-    __publicField(this, "lastSourceX");
-    __publicField(this, "lastSourceY");
-    __publicField(this, "lastSourceWidth");
-    __publicField(this, "lastSourceHeight");
-    __publicField(this, "textureUploadSkipCount");
     __publicField(this, "vertexShaderSource");
     __publicField(this, "fragmentShaderSource");
     this.config = config;
@@ -34,12 +27,6 @@ class WebGLRenderer {
     this.uniformLocations = null;
     this.attributeLocations = null;
     this.currentFilteringMode = null;
-    this.lastCanvasVersion = -1;
-    this.lastSourceX = -1;
-    this.lastSourceY = -1;
-    this.lastSourceWidth = -1;
-    this.lastSourceHeight = -1;
-    this.textureUploadSkipCount = 0;
     this.vertexShaderSource = `
             attribute vec2 a_position;
             attribute vec2 a_texCoord;
@@ -190,29 +177,13 @@ class WebGLRenderer {
    * @param sourceCanvas - The source canvas to sample from
    */
   render(sourceCanvas) {
-    var _a;
     if (!this.gl || !this.program || !this.texture || !this.uniformLocations || !this.attributeLocations) return;
-    const app = window.app;
-    const currentCanvasVersion = ((_a = app == null ? void 0 : app.graph) == null ? void 0 : _a.change_counter) ?? -1;
-    const sourceChanged = this.lastSourceX !== this.state.sourceX || this.lastSourceY !== this.state.sourceY || this.lastSourceWidth !== this.state.sourceWidth || this.lastSourceHeight !== this.state.sourceHeight;
-    const canvasChanged = currentCanvasVersion !== this.lastCanvasVersion;
-    const needsTextureUpdate = canvasChanged || sourceChanged || this.lastCanvasVersion === -1;
     this.gl.bindTexture(this.gl.TEXTURE_2D, this.texture);
-    if (needsTextureUpdate) {
-      try {
-        this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, sourceCanvas);
-        this.lastCanvasVersion = currentCanvasVersion;
-        this.lastSourceX = this.state.sourceX;
-        this.lastSourceY = this.state.sourceY;
-        this.lastSourceWidth = this.state.sourceWidth;
-        this.lastSourceHeight = this.state.sourceHeight;
-        this.textureUploadSkipCount = 0;
-      } catch (e) {
-        console.error("ComfyUI Magnifying Glass ERROR: Error in texImage2D:", e);
-        return;
-      }
-    } else {
-      this.textureUploadSkipCount++;
+    try {
+      this.gl.texImage2D(this.gl.TEXTURE_2D, 0, this.gl.RGBA, this.gl.RGBA, this.gl.UNSIGNED_BYTE, sourceCanvas);
+    } catch (e) {
+      console.error("ComfyUI Magnifying Glass ERROR: Error in texImage2D:", e);
+      return;
     }
     const isOffscreenCanvas = sourceCanvas.width === this.config.glassSize && sourceCanvas.height === this.config.glassSize;
     let uvX, uvY, uvWidth, uvHeight;

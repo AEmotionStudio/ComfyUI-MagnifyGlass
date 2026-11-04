@@ -42,9 +42,6 @@ export class MagnifierState {
     /** Canvas translation Y */
     canvasOffsetY: number;
 
-    /** Flag to manage requestAnimationFrame */
-    isRenderScheduled: boolean;
-
     /** Whether glass drag mode is enabled (move icon on hover controls) */
     isDragModeEnabled: boolean;
 
@@ -75,7 +72,6 @@ export class MagnifierState {
         this.canvasScale = 1.0;
         this.canvasOffsetX = 0;
         this.canvasOffsetY = 0;
-        this.isRenderScheduled = false;
         this.isDragModeEnabled = false;
         this.isPreviewHidden = false;
 
@@ -104,6 +100,5 @@ export class MagnifierState {
         this.canvasScale = 1.0;
         this.canvasOffsetX = 0;
         this.canvasOffsetY = 0;
-        this.isRenderScheduled = false;
     }
 }

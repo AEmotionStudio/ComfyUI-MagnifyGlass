@@ -10,13 +10,11 @@ class UiManager {
     __publicField(this, "state");
     __publicField(this, "glassDiv");
     __publicField(this, "glassCanvas");
-    __publicField(this, "htmlOverlayContainer");
     __publicField(this, "onToggle");
     this.config = config;
     this.state = state;
     this.glassDiv = null;
     this.glassCanvas = null;
-    this.htmlOverlayContainer = null;
     this.onToggle = onToggle;
   }
   /**
@@ -44,18 +42,6 @@ class UiManager {
     this.glassCanvas.height = this.config.glassSize;
     this.glassCanvas.id = "comfyui-magnify-canvas";
     this.glassDiv.appendChild(this.glassCanvas);
-    this.htmlOverlayContainer = document.createElement("div");
-    this.htmlOverlayContainer.id = "comfyui-magnify-html-overlay";
-    this.htmlOverlayContainer.style.cssText = `
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            overflow: hidden; 
-        `;
-    this.glassDiv.appendChild(this.htmlOverlayContainer);
     document.body.appendChild(this.glassDiv);
     this.injectMenuButton();
   }
@@ -207,9 +193,6 @@ class UiManager {
   hide() {
     if (this.glassDiv) {
       this.glassDiv.style.display = "none";
-    }
-    if (this.htmlOverlayContainer) {
-      this.htmlOverlayContainer.innerHTML = "";
     }
   }
   /**

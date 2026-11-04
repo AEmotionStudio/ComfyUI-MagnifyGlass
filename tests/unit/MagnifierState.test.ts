@@ -39,10 +39,6 @@ describe('MagnifierState', () => {
             expect(state.canvasOffsetX).toBe(0);
             expect(state.canvasOffsetY).toBe(0);
         });
-
-        it('should not be scheduled for render initially', () => {
-            expect(state.isRenderScheduled).toBe(false);
-        });
     });
 
     describe('reset', () => {

@@ -19,7 +19,6 @@ export class UiManager {
     state: MagnifierState;
     glassDiv: HTMLDivElement | null;
     glassCanvas: HTMLCanvasElement | null;
-    htmlOverlayContainer: HTMLDivElement | null;
     onToggle: (() => void) | undefined;
 
     constructor(config: ConfigManager, state: MagnifierState, onToggle?: () => void) {
@@ -27,7 +26,6 @@ export class UiManager {
         this.state = state;
         this.glassDiv = null;
         this.glassCanvas = null;
-        this.htmlOverlayContainer = null;
         this.onToggle = onToggle;
     }
 
@@ -59,20 +57,6 @@ export class UiManager {
         this.glassCanvas.height = this.config.glassSize;
         this.glassCanvas.id = "comfyui-magnify-canvas";
         this.glassDiv.appendChild(this.glassCanvas);
-
-        // Create HTML overlay container
-        this.htmlOverlayContainer = document.createElement("div");
-        this.htmlOverlayContainer.id = "comfyui-magnify-html-overlay";
-        this.htmlOverlayContainer.style.cssText = `
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            pointer-events: none;
-            overflow: hidden; 
-        `;
-        this.glassDiv.appendChild(this.htmlOverlayContainer);
 
         document.body.appendChild(this.glassDiv);
 
@@ -282,10 +266,6 @@ export class UiManager {
     hide(): void {
         if (this.glassDiv) {
             this.glassDiv.style.display = 'none';
-        }
-        // Clear HTML overlays when hiding
-        if (this.htmlOverlayContainer) {
-            this.htmlOverlayContainer.innerHTML = '';
         }
     }
 

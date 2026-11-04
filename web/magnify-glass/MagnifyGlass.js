@@ -1,7 +1,7 @@
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-import { findLiteGraphCanvas, rectsOverlap } from "../shared/utils.js";
+import { findLiteGraphCanvas } from "../shared/utils.js";
 import { INFO_PANEL_ID, DEFAULT_PADDING, DEFAULT_GLASS_Y_OFFSET } from "../shared/constants.js";
 import { registerGlassSettings } from "../shared/settings/glassSettings.js";
 import "/scripts/app.js";
@@ -14,6 +14,7 @@ import { DebugManager } from "./DebugManager.js";
 import { EventHandler } from "./EventHandler.js";
 import { PopOutManager } from "./PopOutManager.js";
 import { OffscreenRenderer } from "./OffscreenRenderer.js";
+import { captureRegion } from "./mediaLayout.js";
 class MagnifyGlass {
   constructor() {
     __publicField(this, "config");
@@ -32,10 +33,8 @@ class MagnifyGlass {
     __publicField(this, "isOverMedia");
     /** Current media element under cursor */
     __publicField(this, "currentMediaElement");
-    /** Animation loop ID for continuous video rendering */
+    /** Render loop ID; the loop runs while the glass is active and visible */
     __publicField(this, "animationLoopId");
-    /** Whether videos are currently visible in magnified view */
-    __publicField(this, "hasVisibleVideos");
     this.config = new ConfigManager();
     this.state = new MagnifierState();
     this.popOutManager = new PopOutManager();
@@ -53,7 +52,6 @@ class MagnifyGlass {
     this.isOverMedia = false;
     this.currentMediaElement = null;
     this.animationLoopId = null;
-    this.hasVisibleVideos = false;
   }
   /**
    * Initialize the magnifying glass.
@@ -109,7 +107,6 @@ class MagnifyGlass {
   forceHideAllComponents() {
     this.state.active = false;
     this.stopAnimationLoop();
-    this.hasVisibleVideos = false;
     this.ui.hide();
     const panelEl = document.getElementById(INFO_PANEL_ID);
     if (panelEl) {
@@ -131,68 +128,25 @@ class MagnifyGlass {
   /**
    * Set glass preview visibility WITHOUT affecting info panel.
    * This is used by the toggle-glass hover control button.
-   * When hidden, the renderer stops completely to save performance.
-   * When shown, the renderer resumes.
+   * When hidden, the render loop stops completely to save performance.
+   * When shown, the render loop resumes.
    * 
    * @param visible - true to show and enable rendering, false to hide and disable
    */
   setGlassPreviewActive(visible) {
     this.state.isPreviewHidden = !visible;
-    if (visible) {
-      this.ui.setPreviewVisibility(true);
-    } else {
-      this.ui.setPreviewVisibility(false);
+    this.ui.setPreviewVisibility(visible);
+    if (visible && this.state.active) {
+      this.startAnimationLoop();
     }
   }
   /**
-   * Check if the glass preview is visible.
-   * Returns false if hidden via hover controls.
+   * Update the magnified view. Rendering happens in the animation loop,
+   * so this only makes sure the loop is running.
    */
-  isGlassPreviewVisible() {
-    var _a;
-    const extensions = window.comfyUIMagnifyGlassExtensions;
-    if (extensions && extensions.length > 0) {
-      const infoPanel = extensions[0];
-      if ((_a = infoPanel == null ? void 0 : infoPanel.stateManager) == null ? void 0 : _a.state) {
-        return infoPanel.stateManager.state.isGlassPreviewVisible !== false;
-      }
-    }
-    return true;
-  }
-  /**
-   * Update the magnified view.
-   * @param rect - Optional pre-calculated bounding rect of the canvas to avoid layout thrashing
-   */
-  updateMagnifiedView(rect) {
-    if (!this.state.active || !this.renderer || !this.litegraphCanvas) {
-      return;
-    }
-    if (this.state.isPreviewHidden) {
-      return;
-    }
-    this.updateCanvasTransformation();
-    this.calculateSourceRegion(rect);
-    if (!this.state.isRenderScheduled) {
-      this.state.isRenderScheduled = true;
-      requestAnimationFrame(() => {
-        if (!this.state.active || !this.renderer || !this.litegraphCanvas) {
-          this.state.isRenderScheduled = false;
-          return;
-        }
-        let sourceCanvas = this.litegraphCanvas;
-        if (this.offscreenRenderer && this.offscreenRenderer.isAvailable()) {
-          const highResCanvas = this.offscreenRenderer.renderHighResRegion(this.litegraphCanvas);
-          if (highResCanvas) {
-            sourceCanvas = highResCanvas;
-          }
-        }
-        this.renderer.render(sourceCanvas);
-        this.renderHtmlOverlays();
-        if (this.popOutManager.isPopOutOpen() && this.ui.glassCanvas) {
-          this.popOutManager.sendFrame(this.ui.glassCanvas);
-        }
-        this.state.isRenderScheduled = false;
-      });
+  updateMagnifiedView() {
+    if (this.state.active) {
+      this.startAnimationLoop();
     }
   }
   /**
@@ -216,288 +170,42 @@ class MagnifyGlass {
     }
   }
   /**
-   * Calculate the source region for magnification.
-   * @param cachedRect - Optional pre-calculated bounding rect of the canvas to avoid layout thrashing
+   * Calculate the source region (in canvas backing pixels) for magnification.
    */
-  calculateSourceRegion(cachedRect) {
-    const cursorPixelX = this.state.x;
-    const cursorPixelY = this.state.y;
-    const canvasScale = this.state.canvasScale;
-    const canvasOffsetX = this.state.canvasOffsetX;
-    const canvasOffsetY = this.state.canvasOffsetY;
-    if (canvasScale === 0) return;
+  calculateSourceRegion() {
     if (!this.litegraphCanvas) return;
-    const rect = cachedRect || this.litegraphCanvas.getBoundingClientRect();
-    const dpr = rect.width > 0 ? this.litegraphCanvas.width / rect.width : 1;
-    const cursorCssX = cursorPixelX / dpr;
-    const cursorCssY = cursorPixelY / dpr;
-    const cursorGraphX = (cursorCssX - canvasOffsetX) / canvasScale;
-    const cursorGraphY = (cursorCssY - canvasOffsetY) / canvasScale;
-    const targetGraphCenterX = cursorGraphX + this.config.offsetX;
-    const targetGraphCenterY = cursorGraphY + this.config.offsetY;
-    const sourceGraphWidth = this.config.glassSize / this.config.zoomFactor / canvasScale;
-    const sourceGraphHeight = this.config.glassSize / this.config.zoomFactor / canvasScale;
-    const sourceGraphX = targetGraphCenterX - sourceGraphWidth / 2;
-    const sourceGraphY = targetGraphCenterY - sourceGraphHeight / 2;
-    const sourceCssX = sourceGraphX * canvasScale + canvasOffsetX;
-    const sourceCssY = sourceGraphY * canvasScale + canvasOffsetY;
-    const sourceCssWidth = sourceGraphWidth * canvasScale;
-    const sourceCssHeight = sourceGraphHeight * canvasScale;
-    this.state.sourceX = sourceCssX * dpr;
-    this.state.sourceY = sourceCssY * dpr;
-    this.state.sourceWidth = sourceCssWidth * dpr;
-    this.state.sourceHeight = sourceCssHeight * dpr;
-  }
-  /**
-   * Render HTML overlays for text and media in the magnified view.
-   */
-  renderHtmlOverlays() {
-    const graph = app.graph;
-    if (!this.state.active || !this.ui.htmlOverlayContainer || !graph || !this.litegraphCanvas) {
-      if (this.ui.htmlOverlayContainer) this.ui.htmlOverlayContainer.innerHTML = "";
-      return;
-    }
-    let foundVideos = false;
-    const magnifyRect = {
-      x: this.state.sourceX,
-      y: this.state.sourceY,
-      width: this.state.sourceWidth,
-      height: this.state.sourceHeight
-    };
-    const nodes = graph._nodes;
-    if (!nodes) {
-      this.ui.htmlOverlayContainer.innerHTML = "";
-      return;
-    }
-    if (this.state.canvasScale === 0) {
-      this.ui.htmlOverlayContainer.innerHTML = "";
-      return;
-    }
     const rect = this.litegraphCanvas.getBoundingClientRect();
     const dpr = rect.width > 0 ? this.litegraphCanvas.width / rect.width : 1;
-    const currentScale = this.state.canvasScale;
-    const isVirtualZoomMode = currentScale < 0.7;
-    const canvasRect = rect;
-    const pivotCssX = this.state.x / dpr;
-    const pivotCssY = this.state.y / dpr;
-    const cursorCssX = pivotCssX;
-    const cursorCssY = pivotCssY;
-    const cursorGraphX = (cursorCssX - this.state.canvasOffsetX) / this.state.canvasScale;
-    const cursorGraphY = (cursorCssY - this.state.canvasOffsetY) / this.state.canvasScale;
-    const targetGraphCenterX = cursorGraphX + this.config.offsetX;
-    const targetGraphCenterY = cursorGraphY + this.config.offsetY;
-    const sourceGraphWidth = this.config.glassSize / this.config.zoomFactor / this.state.canvasScale;
-    const sourceGraphHeight = this.config.glassSize / this.config.zoomFactor / this.state.canvasScale;
-    const sourceGraphRect = {
-      x: targetGraphCenterX - sourceGraphWidth / 2,
-      y: targetGraphCenterY - sourceGraphHeight / 2,
-      width: sourceGraphWidth,
-      height: sourceGraphHeight
-    };
-    const renderTasks = [];
-    for (const node of nodes) {
-      if (node.pos && node.size) {
-        const nodeRect = {
-          x: node.pos[0],
-          y: node.pos[1],
-          width: node.size[0],
-          height: node.size[1]
-        };
-        if (!rectsOverlap(sourceGraphRect, nodeRect)) {
-          continue;
-        }
-      }
-      const widgets = node.widgets;
-      if (!widgets) continue;
-      for (const widget of widgets) {
-        let isVideoElement = false;
-        let isImageElement = false;
-        let elementToProcess = null;
-        const widgetName = String(widget.name || "").toLowerCase();
-        if (widgetName === "videopreview" || widgetName === "audiopreview") {
-          const videoEl = widget.videoEl;
-          if (videoEl && !videoEl.hidden && videoEl.videoWidth > 0) {
-            isVideoElement = true;
-            foundVideos = true;
-            elementToProcess = videoEl;
-          }
-        }
-        if (!elementToProcess && widget.element) {
-          const element = widget.element;
-          if (widget.type === "text" || widget.type === "string" || element.tagName === "TEXTAREA") ;
-          else if (element.tagName === "VIDEO") {
-            isVideoElement = true;
-            foundVideos = true;
-            elementToProcess = element;
-          } else if (element.tagName === "IMG") {
-            isImageElement = true;
-            elementToProcess = element;
-          } else {
-            const potentialVideo = element.querySelector("video");
-            if (potentialVideo) {
-              isVideoElement = true;
-              foundVideos = true;
-              elementToProcess = potentialVideo;
-            } else {
-              const potentialImage = element.querySelector("img");
-              if (potentialImage) {
-                isImageElement = true;
-                elementToProcess = potentialImage;
-              }
-            }
-          }
-        }
-        if (elementToProcess && (isVideoElement || isImageElement)) {
-          const widgetRect = elementToProcess.getBoundingClientRect();
-          const widgetCssX = widgetRect.left - canvasRect.left;
-          const widgetCssY = widgetRect.top - canvasRect.top;
-          const widgetCssWidth = widgetRect.width;
-          const widgetCssHeight = widgetRect.height;
-          let finalWidgetCssX;
-          let finalWidgetCssY;
-          let finalWidgetCssWidth;
-          let finalWidgetCssHeight;
-          if (isVirtualZoomMode) {
-            finalWidgetCssX = (widgetCssX - pivotCssX) / currentScale + pivotCssX;
-            finalWidgetCssY = (widgetCssY - pivotCssY) / currentScale + pivotCssY;
-            finalWidgetCssWidth = widgetCssWidth / currentScale;
-            finalWidgetCssHeight = widgetCssHeight / currentScale;
-          } else {
-            finalWidgetCssX = widgetCssX;
-            finalWidgetCssY = widgetCssY;
-            finalWidgetCssWidth = widgetCssWidth;
-            finalWidgetCssHeight = widgetCssHeight;
-          }
-          const widgetCanvasX = finalWidgetCssX * dpr;
-          const widgetCanvasY = finalWidgetCssY * dpr;
-          const widgetCanvasWidth = finalWidgetCssWidth * dpr;
-          const widgetCanvasHeight = finalWidgetCssHeight * dpr;
-          const widgetSourceRect = {
-            x: widgetCanvasX,
-            y: widgetCanvasY,
-            width: widgetCanvasWidth,
-            height: widgetCanvasHeight
-          };
-          if (rectsOverlap(magnifyRect, widgetSourceRect)) {
-            const task = {
-              element: elementToProcess,
-              type: isVideoElement ? "video" : "image",
-              overlayRect: widgetSourceRect,
-              // Store calculated rect
-              fontSize: void 0
-            };
-            if (isVideoElement) {
-              foundVideos = true;
-            }
-            renderTasks.push(task);
-          }
-        }
-      }
-    }
-    this.ui.htmlOverlayContainer.innerHTML = "";
-    const fragment = document.createDocumentFragment();
-    for (const task of renderTasks) {
-      const elementToProcess = task.element;
-      const widgetSourceRect = task.overlayRect;
-      const isTextElement = task.type === "text";
-      const isVideoElement = task.type === "video";
-      const isImageElement = task.type === "image";
-      const clonedElement = elementToProcess.cloneNode(true);
-      clonedElement.style.position = "absolute";
-      clonedElement.style.pointerEvents = "none";
-      if (isTextElement) {
-        clonedElement.style.backgroundColor = elementToProcess.style.backgroundColor || "#222";
-        clonedElement.style.color = elementToProcess.style.color || "#DDD";
-        clonedElement.style.border = elementToProcess.style.border || "1px solid #555";
-        clonedElement.style.overflow = "hidden";
-        clonedElement.disabled = true;
-        const canvasScale = this.state.canvasScale;
-        const originalFontSize = task.fontSize || 12;
-        const threshold = 0.5;
-        let adaptedFontSize;
-        if (canvasScale < threshold) {
-          const shrinkFactor = canvasScale / threshold;
-          adaptedFontSize = Math.max(6, originalFontSize * shrinkFactor * 0.8);
-        } else {
-          const growFactor = 1 + (canvasScale - threshold) / (1 - threshold) * 0.5;
-          adaptedFontSize = originalFontSize * Math.min(1.5, growFactor);
-        }
-        clonedElement.style.fontSize = `${adaptedFontSize}px`;
-        clonedElement.style.lineHeight = canvasScale < threshold ? "1.2" : "1.4";
-      } else if (isVideoElement) {
-        const video = clonedElement;
-        const originalVideo = elementToProcess;
-        video.src = originalVideo.src;
-        video.autoplay = originalVideo.autoplay;
-        video.loop = originalVideo.loop;
-        video.preload = originalVideo.preload;
-        video.crossOrigin = originalVideo.crossOrigin;
-        video.muted = true;
-        if (!originalVideo.paused) {
-          video.play().catch((e) => {
-            if (e.name !== "AbortError") {
-              console.warn("Magnify Glass: Cloned video play failed", e);
-            }
-          });
-        }
-        video.currentTime = originalVideo.currentTime;
-      } else if (isImageElement) {
-        const img = clonedElement;
-        const originalImg = elementToProcess;
-        img.src = originalImg.src;
-        img.alt = originalImg.alt;
-      }
-      const relativeX = widgetSourceRect.x - magnifyRect.x;
-      const relativeY = widgetSourceRect.y - magnifyRect.y;
-      const magnifiedX = relativeX * this.config.zoomFactor;
-      const magnifiedY = relativeY * this.config.zoomFactor;
-      clonedElement.style.left = `${magnifiedX}px`;
-      clonedElement.style.top = `${magnifiedY}px`;
-      clonedElement.style.width = `${widgetSourceRect.width}px`;
-      clonedElement.style.height = `${widgetSourceRect.height}px`;
-      clonedElement.style.transformOrigin = "top left";
-      clonedElement.style.transform = `scale(${this.config.zoomFactor})`;
-      fragment.appendChild(clonedElement);
-    }
-    this.ui.htmlOverlayContainer.appendChild(fragment);
-    if (foundVideos && !this.hasVisibleVideos) {
-      this.hasVisibleVideos = true;
-      this.startAnimationLoop();
-    } else if (!foundVideos && this.hasVisibleVideos) {
-      this.hasVisibleVideos = false;
+    const cap = captureRegion(this.state.x / dpr, this.state.y / dpr, this.config.glassSize, this.config.zoomFactor);
+    this.state.sourceX = cap.left * dpr;
+    this.state.sourceY = cap.top * dpr;
+    this.state.sourceWidth = cap.size * dpr;
+    this.state.sourceHeight = cap.size * dpr;
+  }
+  /**
+   * Render one frame of the glass and forward it to the pop-out.
+   */
+  renderFrame(renderer, canvas) {
+    var _a;
+    this.updateCanvasTransformation();
+    this.calculateSourceRegion();
+    renderer.render(((_a = this.offscreenRenderer) == null ? void 0 : _a.renderHighResRegion(canvas)) ?? canvas);
+    if (this.popOutManager.isPopOutOpen() && this.ui.glassCanvas) {
+      this.popOutManager.sendFrame(this.ui.glassCanvas);
     }
   }
   /**
-   * Start the animation loop for continuous video rendering.
-   * Only runs when videos are visible in the magnified view.
-   * This loop directly renders without going through updateMagnifiedView's
-   * scheduling logic to ensure continuous frame updates for video playback.
+   * Start the render loop. It is the only render path and keeps running without
+   * mouse movement, so latent previews and videos update in the glass.
    */
   startAnimationLoop() {
     if (this.animationLoopId !== null) return;
     const animate = () => {
-      if (!this.state.active || !this.renderer || !this.litegraphCanvas) {
-        this.stopAnimationLoop();
+      if (!this.state.active || this.state.isPreviewHidden || !this.renderer || !this.litegraphCanvas) {
+        this.animationLoopId = null;
         return;
       }
-      if (this.state.isPreviewHidden) {
-        this.animationLoopId = requestAnimationFrame(animate);
-        return;
-      }
-      this.updateCanvasTransformation();
-      this.calculateSourceRegion();
-      let sourceCanvas = this.litegraphCanvas;
-      if (this.offscreenRenderer && this.offscreenRenderer.isAvailable()) {
-        const highResCanvas = this.offscreenRenderer.renderHighResRegion(this.litegraphCanvas);
-        if (highResCanvas) {
-          sourceCanvas = highResCanvas;
-        }
-      }
-      this.renderer.render(sourceCanvas);
-      this.renderHtmlOverlays();
-      if (this.popOutManager.isPopOutOpen() && this.ui.glassCanvas) {
-        this.popOutManager.sendFrame(this.ui.glassCanvas);
-      }
+      this.renderFrame(this.renderer, this.litegraphCanvas);
       this.animationLoopId = requestAnimationFrame(animate);
     };
     this.animationLoopId = requestAnimationFrame(animate);

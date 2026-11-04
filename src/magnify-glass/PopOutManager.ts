@@ -8,6 +8,7 @@
 import { BROADCAST_CHANNEL_NAME } from '../shared/constants';
 import { Logger } from '../shared/logger';
 import type { NodeListEntry } from '../info-panel/NodeSelector';
+import type { SlotLinks } from '../info-panel/NodeDataExtractor';
 import type { ComfyApp, ComfyGraph, ComfyNode } from '../types/comfyui';
 
 declare const app: ComfyApp;
@@ -108,6 +109,8 @@ export interface PopOutInfo {
     rows: PopOutRow[];
     /** The node's images as /view or blob URLs: its live previews while it runs, otherwise its last results */
     outputs: string[];
+    /** The node's slots and the nodes they link to, which the viewer jumps to with node-select */
+    links: { inputs: SlotLinks[]; outputs: SlotLinks[] };
 }
 
 /**

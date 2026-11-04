@@ -8,7 +8,7 @@ import { PositionManager } from "./PositionManager.js";
 import { EventManager } from "./EventManager.js";
 import { InformationGatherer } from "./InformationGatherer.js";
 import { CanvasHighlighter } from "./CanvasHighlighter.js";
-import { getImportantNodeParameters } from "./NodeDataExtractor.js";
+import { getSlotLinks, getImportantNodeParameters } from "./NodeDataExtractor.js";
 import { WidgetSyncManager } from "./widget-editors/WidgetSyncManager.js";
 class InfoPanel {
   constructor(magnifyGlass) {
@@ -270,26 +270,29 @@ class InfoPanel {
       canEdit: this.uiManager.canEdit()
     };
     const node = info.hoveredNode;
+    const liveNode = node && this.uiManager.nodeSelector.getNodeById(node.id);
+    const links = liveNode ? getSlotLinks(liveNode) : { inputs: [], outputs: [] };
     const key = [
       ...this.uiManager.getRenderKey(info),
       ...Object.values(nav),
       app.lastNodeErrors,
       node && ((_a = app.nodeOutputs[node.locatorId]) == null ? void 0 : _a.images),
-      node && app.nodePreviewImages[node.locatorId]
+      node && app.nodePreviewImages[node.locatorId],
+      JSON.stringify(links)
     ];
     const sent = this.popOutKey;
     if (sent && key.length === sent.length && key.every((v, i) => Object.is(v, sent[i]))) return;
     this.popOutKey = key;
     this.popOutNodeId = (node == null ? void 0 : node.id) ?? null;
     this.popOutGraph = (_b = app.canvas) == null ? void 0 : _b.graph;
-    this.magnifyGlass.popOutManager.sendInfo(this.buildPopOutInfo(node, nav));
+    this.magnifyGlass.popOutManager.sendInfo(this.buildPopOutInfo(node, nav, links));
   }
   /**
-   * The pop-out payload: the node's identity and place, and its widget rows as plain data.
+   * The pop-out payload: the node's identity and place, its widget rows, outputs and links as plain data.
    */
-  buildPopOutInfo(node, nav) {
+  buildPopOutInfo(node, nav, links) {
     var _a, _b, _c;
-    if (!node) return { node: null, nav, rows: [], outputs: [] };
+    if (!node) return { node: null, nav, rows: [], outputs: [], links };
     const errors = /* @__PURE__ */ new Map();
     for (const error of ((_b = (_a = app.lastNodeErrors) == null ? void 0 : _a[node.executionId]) == null ? void 0 : _b.errors) ?? []) {
       const input = (_c = error.extra_info) == null ? void 0 : _c.input_name;
@@ -324,7 +327,8 @@ class InfoPanel {
           error: row.widgetName ? errors.get(row.widgetName) : void 0
         };
       }),
-      outputs: this.popOutOutputs(node.locatorId)
+      outputs: this.popOutOutputs(node.locatorId),
+      links
     };
   }
   /**

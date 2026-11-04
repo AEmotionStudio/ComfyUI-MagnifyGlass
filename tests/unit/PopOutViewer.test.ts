@@ -22,9 +22,10 @@ describe('Pop-out viewer editing', () => {
     });
     const node = (id: unknown = 5) => ({ id, title: 'Node', type: 'Node', mode: 'Always', executionId: String(id), graphPath: [], isSubgraph: false });
     const nav = (canEdit = true) => ({ source: 'locked', locked: canEdit, canBack: false, canForward: false, canEdit });
+    const links = { inputs: [], outputs: [] };
     const sendInfo = (list: any[], canEdit = true) => {
         rows = list;
-        channel.onmessage!({ data: { type: 'info', data: { node: node(), nav: nav(canEdit), rows } } });
+        channel.onmessage!({ data: { type: 'info', data: { node: node(), nav: nav(canEdit), rows, links } } });
     };
     const receive = (type: string, data?: unknown) => channel.onmessage!({ data: { type, data } });
     const navButton = (action: string) => document.querySelector(`.node-nav [data-action="${action}"]`) as HTMLButtonElement;
@@ -241,7 +242,7 @@ describe('Pop-out viewer editing', () => {
 
     it('node ids stay text, and navigation posts the shown node through delegated listeners', () => {
         const id = `1); window.__pwned = (1`;
-        channel.onmessage!({ data: { type: 'info', data: { node: node(id), nav: nav(false), rows: [] } } });
+        channel.onmessage!({ data: { type: 'info', data: { node: node(id), nav: nav(false), rows: [], links } } });
 
         expect(document.querySelector('[onclick]')).toBeNull();
         expect(document.querySelector('.node-id')!.textContent).toBe(`#${id}`);
@@ -259,7 +260,7 @@ describe('Pop-out viewer editing', () => {
 
         channel.onmessage!({ data: { type: 'info', data: {
             node: { ...node(), title: 'Sampler', type: 'KSampler', graphPath: ['<b>Refine</b>'], group: 'Sampling', isSubgraph: true },
-            nav: { source: 'hover', locked: false, canBack: true, canForward: false, canEdit: false }, rows: [row('seed', 'INT', 1)]
+            nav: { source: 'hover', locked: false, canBack: true, canForward: false, canEdit: false }, rows: [row('seed', 'INT', 1)], links
         } } });
         expect([title(), document.querySelector('.node-id')!.textContent, document.querySelector('.node-badge')!.textContent]).toEqual(['Sampler', '#5', 'KSampler']);
         expect([navButton('back').disabled, navButton('forward').disabled, navButton('lock-node').getAttribute('aria-pressed')]).toEqual([false, true, 'false']);
@@ -421,7 +422,7 @@ describe('Pop-out viewer editing', () => {
         expect([badge().textContent, bar()[0]]).toEqual(['Done', 'Idle']);
         // Another node shown takes its own state
         key(input!, 'Escape');
-        receive('info', { node: node(9), nav: nav(), rows: [] });
+        receive('info', { node: node(9), nav: nav(), rows: [], links });
         expect(badge().hidden).toBe(true);
     });
 
@@ -432,7 +433,7 @@ describe('Pop-out viewer editing', () => {
         const error = { nodeId: '7:5', title: '', type: 'KSampler', message: '<img src=x onerror="window.__pwned=1">', traceback: 'Traceback:\n  line 1\n' };
         expect(banner.hidden).toBe(true);
 
-        receive('info', { node: { ...node(5), executionId: '7:5' }, nav: nav(), rows: [] });
+        receive('info', { node: { ...node(5), executionId: '7:5' }, nav: nav(), rows: [], links });
         receive('run', { queue: 0, nodeId: null, title: '', value: 0, max: 0, cached: [], done: ['7:5'], error });
         expect(banner.hidden).toBe(false);
         expect(banner.querySelector('.error-text')!.textContent).toBe(`KSampler #7:5 ${error.message}`);
@@ -459,7 +460,7 @@ describe('Pop-out viewer editing', () => {
         const strip = document.querySelector('.node-outputs') as HTMLElement;
         const thumbs = () => [...strip.querySelectorAll('.output-thumb')] as HTMLButtonElement[];
         const large = document.querySelector('.output-image') as HTMLImageElement;
-        const outputs = (id: number, urls: string[]) => receive('info', { node: node(id), nav: nav(), rows: [], outputs: urls });
+        const outputs = (id: number, urls: string[]) => receive('info', { node: node(id), nav: nav(), rows: [], outputs: urls, links });
         receive('ping');
         (document.querySelector('[data-view="glass"]') as HTMLElement).click();
 
@@ -484,10 +485,10 @@ describe('Pop-out viewer editing', () => {
         expect(large.getAttribute('src')).toBe('blob:http://127.0.0.1/preview');
 
         // New previews leave the rows as they are
-        receive('info', { node: node(5), nav: nav(), rows: [row('seed', 'INT', 1)], outputs: ['blob:http://127.0.0.1/a'] });
+        receive('info', { node: node(5), nav: nav(), rows: [row('seed', 'INT', 1)], outputs: ['blob:http://127.0.0.1/a'], links });
         const rows = sidebar().innerHTML;
         const seed = valueOf('seed');
-        receive('info', { node: node(5), nav: nav(), rows: [row('seed', 'INT', 1)], outputs: ['blob:http://127.0.0.1/b'] });
+        receive('info', { node: node(5), nav: nav(), rows: [row('seed', 'INT', 1)], outputs: ['blob:http://127.0.0.1/b'], links });
         expect(valueOf('seed')).toBe(seed);
         expect(sidebar().innerHTML).toBe(rows);
         expect(large.getAttribute('src')).toBe('blob:http://127.0.0.1/b');
@@ -509,6 +510,42 @@ describe('Pop-out viewer editing', () => {
 
         (document.querySelector('[data-view="output"]') as HTMLElement).click();
         expect(main.dataset.view).toBe('output');
+    });
+
+    it('lists the inputs and outputs with a chip for each linked node, which jumps to it, and flags required inputs left unconnected', () => {
+        const section = (id: string) => sidebar().querySelector(`[data-section-id="${id}"]`);
+        const chips = (id: string) => [...section(id)!.querySelectorAll('.link-chip')] as HTMLButtonElement[];
+        receive('info', { node: node(5), nav: nav(), rows: [], outputs: [], links: {
+            inputs: [
+                { name: 'model', type: 'MODEL', linked: [{ id: 1, title: '<img src=x onerror="window.__pwned = 1">', slot: 'MODEL' }], missing: false },
+                { name: 'latent_image', type: 'LATENT', linked: [], missing: true },
+                { name: 'mask', type: 'MASK', linked: [], missing: false }
+            ],
+            outputs: [{ name: 'LATENT', type: 'LATENT', linked: [{ id: 8, title: 'Decode', slot: 'samples' }, { id: 9, title: 'Preview', slot: 'images' }, { title: 'Subgraph output', slot: 'latent' }] }]
+        } });
+
+        expect(chips('inputs').map(chip => chip.textContent)).toEqual(['<img src=x onerror="window.__pwned = 1"> #1 · MODEL']);
+        expect(sidebar().querySelector('img')).toBeNull();
+        expect(chips('outputs').map(chip => chip.textContent)).toEqual(['Decode #8 · samples', 'Preview #9 · images', 'Subgraph output · latent']);
+        expect(chips('outputs').map(chip => chip.tagName)).toEqual(['BUTTON', 'BUTTON', 'SPAN']);
+        const inputs = [...section('inputs')!.querySelectorAll('.info-row')];
+        expect(inputs.map(row => row.classList.contains('has-error'))).toEqual([false, true, false]);
+        expect(inputs[1].querySelector('.row-error')!.textContent).toBe('Required, but nothing is connected');
+        expect(inputs[2].querySelector('.value-empty')!.textContent).toBe('not connected');
+
+        // node-select locks and centres the node in ComfyUI
+        chips('outputs')[2].click();
+        chips('outputs')[1].click();
+        chips('inputs')[0].click();
+        expect(posted('node-select')).toEqual([9, 1]);
+        expect((window as any).__pwned).toBeUndefined();
+
+        (section('outputs')!.querySelector('.section-header') as HTMLElement).click();
+        expect(JSON.parse(localStorage.getItem('magnifyglass-viewer-layout')!).collapsed).toEqual(['outputs']);
+
+        // A node without slots has neither section
+        receive('info', { node: node(6), nav: nav(), rows: [], outputs: [], links });
+        expect([section('node'), section('inputs'), section('outputs')].map(Boolean)).toEqual([true, false, false]);
     });
 
     it('shows the empty state for no node, with no Cursor section', () => {

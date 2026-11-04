@@ -734,7 +734,9 @@ describe('Info Panel lifecycle', () => {
 
         beforeEach(() => {
             nodes = [makeNode(1, 'Loader'), makeNode(2, 'Sampler')];
-            graph = { _nodes: nodes, getNodeById: (id: number) => nodes.find(n => n.id === id) ?? null };
+            graph = { _nodes: nodes, links: new Map(), getNodeById: (id: number) => nodes.find(n => n.id === id) ?? null, getGroupOnPos: () => undefined };
+            graph.rootGraph = graph;
+            for (const node of nodes) Object.assign(node, { graph, getInputNode: () => null });
             Object.assign((window as any).app.canvas, { graph, node_over: nodes[0], selected_nodes: {}, centerOnNode: vi.fn() });
             Object.assign((window as any).app, { nodeOutputs: {}, nodePreviewImages: {} });
             (mg as any).state = { active: true, x: 0, y: 0, canvasScale: 1 };
@@ -941,6 +943,31 @@ describe('Info Panel lifecycle', () => {
             app.nodeOutputs['sub-uuid:1'] = { images: [{ filename: 'f.webp', subfolder: '', type: 'output' }], animated: [true] };
             vi.advanceTimersByTime(250);
             expect(last().outputs).toEqual(['/api/view?filename=f.webp&subfolder=&type=output&rand=4']);
+        });
+
+        it('sends the links of the node it shows, and again when a link or a linked node changes in place', () => {
+            // Sampler's output drives Loader's model widget
+            graph.links.set(4, { origin_id: 2, origin_slot: 0, target_id: 1, target_slot: 0 });
+            nodes[1].outputs = [{ name: 'MODEL', type: 'MODEL', links: [4] }];
+            nodes[0].outputs = [{ name: 'LATENT', type: 'LATENT', links: [] }];
+            nodes[0].getInputNode = () => nodes[1];
+            vi.advanceTimersByTime(250);
+            expect(last().links).toEqual({
+                inputs: [{ name: 'model', type: 'COMBO', linked: [{ id: 2, title: 'Sampler', slot: 'MODEL' }], missing: false }],
+                outputs: [{ name: 'LATENT', type: 'LATENT', linked: [] }]
+            });
+            const count = sent().length;
+
+            // LiteGraph adds links to an output's array, and renames nodes, without replacing anything
+            graph.links.set(5, { origin_id: 1, origin_slot: 0, target_id: 2, target_slot: 0 });
+            nodes[0].outputs[0].links.push(5);
+            vi.advanceTimersByTime(250);
+            expect(last().links.outputs).toEqual([{ name: 'LATENT', type: 'LATENT', linked: [{ id: 2, title: 'Sampler', slot: 'model' }] }]);
+            nodes[1].title = 'Refiner';
+            vi.advanceTimersByTime(250);
+            expect(last().links.inputs[0].linked[0].title).toBe('Refiner');
+            vi.advanceTimersByTime(1000);
+            expect(sent()).toHaveLength(count + 2);
         });
 
         it('searches nodes like the Go to node picker', () => {

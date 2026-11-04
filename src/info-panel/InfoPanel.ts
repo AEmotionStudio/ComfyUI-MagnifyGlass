@@ -14,7 +14,7 @@ import { PositionManager } from './PositionManager';
 import { EventManager } from './EventManager';
 import { InformationGatherer } from './InformationGatherer';
 import { CanvasHighlighter } from './CanvasHighlighter';
-import { getImportantNodeParameters, type ParameterItem } from './NodeDataExtractor';
+import { getImportantNodeParameters, getSlotLinks, type ParameterItem } from './NodeDataExtractor';
 import { WidgetSyncManager } from './widget-editors/WidgetSyncManager';
 
 type PopOutNav = PopOutInfo['nav'];
@@ -342,11 +342,15 @@ export class InfoPanel {
             ...this.uiManager.getHistoryNav(),
             canEdit: this.uiManager.canEdit()
         };
-        // A failed validation replaces lastNodeErrors; a run replaces the node's results and previews
+        // A failed validation replaces lastNodeErrors; a run replaces the node's results and previews.
+        // Links change in place, and so do the titles of the nodes they link to.
         const node = info.hoveredNode;
+        const liveNode = node && this.uiManager.nodeSelector.getNodeById(node.id);
+        const links = liveNode ? getSlotLinks(liveNode) : { inputs: [], outputs: [] };
         const key = [
             ...this.uiManager.getRenderKey(info), ...Object.values(nav), app.lastNodeErrors,
-            node && app.nodeOutputs[node.locatorId]?.images, node && app.nodePreviewImages[node.locatorId]
+            node && app.nodeOutputs[node.locatorId]?.images, node && app.nodePreviewImages[node.locatorId],
+            JSON.stringify(links)
         ];
         const sent = this.popOutKey;
         if (sent && key.length === sent.length && key.every((v, i) => Object.is(v, sent[i]))) return;
@@ -354,14 +358,14 @@ export class InfoPanel {
 
         this.popOutNodeId = node?.id ?? null;
         this.popOutGraph = app.canvas?.graph;
-        this.magnifyGlass.popOutManager!.sendInfo(this.buildPopOutInfo(node, nav));
+        this.magnifyGlass.popOutManager!.sendInfo(this.buildPopOutInfo(node, nav, links));
     }
 
     /**
-     * The pop-out payload: the node's identity and place, and its widget rows as plain data.
+     * The pop-out payload: the node's identity and place, its widget rows, outputs and links as plain data.
      */
-    private buildPopOutInfo(node: NodeInfo | null, nav: PopOutNav): PopOutInfo {
-        if (!node) return { node: null, nav, rows: [], outputs: [] };
+    private buildPopOutInfo(node: NodeInfo | null, nav: PopOutNav, links: PopOutInfo['links']): PopOutInfo {
+        if (!node) return { node: null, nav, rows: [], outputs: [], links };
 
         // The last queued prompt's validation errors, by the input they name
         const errors = new Map<string, string>();
@@ -400,7 +404,8 @@ export class InfoPanel {
                     error: row.widgetName ? errors.get(row.widgetName) : undefined
                 };
             }),
-            outputs: this.popOutOutputs(node.locatorId)
+            outputs: this.popOutOutputs(node.locatorId),
+            links
         };
     }
 

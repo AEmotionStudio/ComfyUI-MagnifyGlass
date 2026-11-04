@@ -169,6 +169,10 @@ export interface ComfyGraph {
     rootGraph: ComfyGraph;
     /** Subgraphs only */
     name?: string;
+    /** Subgraphs only: the slots of its own input and output nodes */
+    inputs?: ComfySlot[];
+    outputs?: ComfySlot[];
+    links: Map<number, ComfyLink>;
     getNodeById(id: number): ComfyNode | null;
     getNodeOnPos(x: number, y: number): ComfyNode | null;
     getGroupOnPos(x: number, y: number): { title: string } | undefined;
@@ -192,6 +196,7 @@ export interface ComfyNode {
     /** Subgraph nodes only */
     subgraph?: ComfyGraph;
     isSubgraphNode?(): boolean;
+    getInputNode(slot: number): ComfyNode | null;
 }
 
 export interface ComfyWidget {
@@ -206,9 +211,20 @@ export interface ComfyWidget {
 
 export interface ComfySlot {
     name: string;
+    label?: string;
+    localized_name?: string;
     type: string;
     link?: number | null;
     links?: number[];
+    /** Inputs a widget sets until they are linked */
+    widget?: { name: string };
+}
+
+export interface ComfyLink {
+    origin_id: number;
+    origin_slot: number;
+    target_id: number;
+    target_slot: number;
 }
 
 // ============================================================================

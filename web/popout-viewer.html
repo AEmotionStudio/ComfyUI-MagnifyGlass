@@ -894,6 +894,32 @@
             overflow-wrap: anywhere;
         }
 
+        .link-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25em;
+            min-width: 0;
+        }
+
+        .link-chip {
+            max-width: 100%;
+            padding: 0 0.375em;
+            overflow: hidden;
+            border: 1px solid var(--mg-stroke);
+            border-radius: 0.25rem;
+            background: transparent;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        span.link-chip {
+            color: var(--mg-muted);
+        }
+
+        button.link-chip:hover {
+            background: var(--mg-control-hover);
+        }
+
         .edit-hint {
             margin: 0.375em 0.75em;
             padding: 0.125em 0.5em;
@@ -1621,6 +1647,8 @@
                     toggleExpanded(action);
                 } else if (name === 'toggle-section') {
                     toggleSection(action);
+                } else if (name === 'jump-to-link') {
+                    channel.postMessage({ type: 'node-select', data: Number(action.dataset.nodeId) });
                 } else if (name === 'show-output') {
                     outputIndex = Number(action.dataset.output);
                     setView('output');
@@ -1908,28 +1936,53 @@
 
         function renderInfo(info) {
             const node = info.node;
-            const collapsed = collapsedSections.has('node');
             copyTexts = [];
 
-            sidebarContent.innerHTML = `
-                <section class="info-section${collapsed ? ' collapsed' : ''}" data-section-id="node">
-                    <button type="button" class="section-header" data-action="toggle-section" aria-expanded="${!collapsed}">
-                        <span class="section-title">Node</span>
-                        <span class="section-chevron">${ICONS.chevronDown}</span>
-                    </button>
-                    <div class="section-body">
-                        ${textRow('Mode', node.mode)}
-                        ${node.execOrder !== undefined ? textRow('Exec Order', String(node.execOrder)) : ''}
-                        ${renderRows(info)}
-                        ${!info.nav.canEdit && info.rows.some(row => row.isEditable) ? '<button type="button" class="edit-hint" data-action="lock-node" title="Lock to this node to edit its widgets">Lock to edit</button>' : ''}
-                    </div>
-                </section>
-            `;
+            sidebarContent.innerHTML = [
+                section('node', 'Node', `
+                    ${textRow('Mode', node.mode)}
+                    ${node.execOrder !== undefined ? textRow('Exec Order', String(node.execOrder)) : ''}
+                    ${renderRows(info)}
+                    ${!info.nav.canEdit && info.rows.some(row => row.isEditable) ? '<button type="button" class="edit-hint" data-action="lock-node" title="Lock to this node to edit its widgets">Lock to edit</button>' : ''}`),
+                info.links.inputs.length ? section('inputs', 'Inputs', renderSlots(info.links.inputs)) : '',
+                info.links.outputs.length ? section('outputs', 'Outputs', renderSlots(info.links.outputs)) : ''
+            ].join('');
             for (const holder of sidebarContent.querySelectorAll('.widget-image')) {
                 const img = document.createElement('img');
                 img.src = holder.dataset.src;
                 holder.appendChild(img);
             }
+        }
+
+        function section(id, title, body) {
+            const collapsed = collapsedSections.has(id);
+            return `
+                <section class="info-section${collapsed ? ' collapsed' : ''}" data-section-id="${id}">
+                    <button type="button" class="section-header" data-action="toggle-section" aria-expanded="${!collapsed}">
+                        <span class="section-title">${title}</span>
+                        <span class="section-chevron">${ICONS.chevronDown}</span>
+                    </button>
+                    <div class="section-body">${body}</div>
+                </section>`;
+        }
+
+        // A slot and a chip for each node at the other end of its links; a chip jumps to its node.
+        // A link to the subgraph's own input or output has no node to jump to.
+        function renderSlots(slots) {
+            return slots.map(slot => {
+                const chips = slot.linked.map(link => {
+                    if (link.id === undefined) return `<span class="link-chip">${escapeHtml(`${link.title} · ${link.slot}`)}</span>`;
+                    const text = `${link.title} #${link.id} · ${link.slot}`;
+                    return `<button type="button" class="link-chip" data-action="jump-to-link" data-node-id="${escapeHtml(link.id)}" title="Go to ${escapeHtml(text)}">${escapeHtml(text)}</button>`;
+                }).join('');
+                const value = chips ? `<div class="link-chips">${chips}</div>` : '<span class="value-empty">not connected</span>';
+                return `
+                    <div class="info-row${slot.missing ? ' has-error' : ''}">
+                        <span class="info-label">${escapeHtml(slot.name)}<span class="widget-type">${escapeHtml(slot.type)}</span></span>
+                        ${value}
+                        ${slot.missing ? '<span class="row-error">Required, but nothing is connected</span>' : ''}
+                    </div>`;
+            }).join('');
         }
 
         function toggleSection(header) {

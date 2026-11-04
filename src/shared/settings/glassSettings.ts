@@ -16,6 +16,7 @@ import {
     DIRECT_CAPTURE_KEYS
 } from '../constants';
 import { DEFAULT_GLASS_SETTINGS } from './defaults';
+import { resetAllSettings } from './reset';
 
 /**
  * Register all magnify glass settings with ComfyUI.
@@ -365,60 +366,7 @@ export function registerGlassSettings(magnifyGlass: any): void {
         onChange: (value: any) => {
             if (value) {
                 if (confirm("Reset ALL Magnify Glass settings?")) {
-                    // Glass Defaults
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.ZoomFactor', 300);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.GlassSize', 300);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.GlassShape', 'Rounded Square');
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.GlassPosition', 'Top-Right');
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.TextureFiltering', 'Linear');
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.BorderWidth', 1);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.BorderColor', '#6b7280');
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.BorderEnabled', true);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.FollowCursor', false);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.AlwaysActiveMode', true);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.ActivationKey', 'x');
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.ResetKey', 'o');
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.ToggleFollowCursorKey', 'h');
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.AltRequired', false);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.OffsetStep', 5);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.ShowCursorPreview', false);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.ForceDirectCapture', false);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.ForceDirectCaptureKey', 'd');
-
-                    // Panel Defaults
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.InfoPanelEnabled', true);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.InfoPanelPosition', 'Bottom');
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.InfoPanelWidth', 300);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.InfoPanelMaxHeight', 300);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.InfoPanelOpacity', 100);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.InfoPanelTextColor', '#6b7280');
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.InfoPanelAccentColor', '#3b82f6');
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.InfoPanelAnimations', false);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.ShowHoveringControls', true);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.ControlsPosition', 'left');
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.ToggleHotkey', 'i');
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.GlassPreviewToggleHotkey', 'g');
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.PinPanelHotkey', 'u');
-
-                    // Accessibility Defaults
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.AccessibilityEnabled', false);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.HighContrastMode', false);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.TextGlowEnabled', false);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.TextGlowColor', '#ffff00');
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.TextGlowIntensity', 5);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.FontScaleFactor', 100);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.BoldTextEnabled', false);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.TextOutlineEnabled', false);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.TextOutlineColor', '#000000');
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.NodeTitleEmphasis', false);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.InvertColors', false);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.GrayscaleMode', false);
-                    app.ui.settings.setSettingValue('🔍MagnifyGlass.ReduceMotion', false);
-
-                    // Also force position reset
-                    if (magnifyGlass?.resetOffsets) {
-                        magnifyGlass.resetOffsets();
-                    }
+                    resetAllSettings();
                 }
 
                 setTimeout(() => {

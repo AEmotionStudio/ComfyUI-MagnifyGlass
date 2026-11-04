@@ -7,11 +7,7 @@
 // @ts-ignore
 import { app } from "/scripts/app.js";
 import { renderSettingsPanel } from './SidebarSettings';
-
-/**
- * Magnify glass icon SVG
- */
-const MAGNIFY_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>`;
+import { renderAbout } from './SidebarAbout';
 
 /** Track if sidebar has been registered */
 let sidebarRegistered = false;
@@ -60,18 +56,24 @@ function renderSidebar(container: HTMLElement): void {
     sidebar.style.visibility = 'hidden';
     sidebar.style.opacity = '0';
 
-    // Header
-    const header = document.createElement('div');
+    const header = document.createElement('header');
     header.className = 'magnify-sidebar-header';
-    header.innerHTML = `${MAGNIFY_ICON}<h2>Magnify</h2>`;
+    const mark = document.createElement('i');
+    mark.className = 'pi pi-search magnify-mark';
+    mark.setAttribute('aria-hidden', 'true');
+    const title = document.createElement('h2');
+    title.className = 'magnify-sidebar-title';
+    title.textContent = 'MagnifyGlass';
+    header.append(mark, title);
     sidebar.appendChild(header);
 
-    // Content area
+    // Settings get their own container: Reset All empties and re-renders it, which must leave About alone
     const content = document.createElement('div');
     content.className = 'magnify-sidebar-content';
-
-    // Render settings panel (contains all settings)
-    renderSettingsPanel(content);
+    const settings = document.createElement('div');
+    settings.className = 'magnify-settings';
+    renderSettingsPanel(settings);
+    content.append(settings, renderAbout());
 
     sidebar.appendChild(content);
     container.appendChild(sidebar);

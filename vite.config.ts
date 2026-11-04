@@ -1,8 +1,10 @@
 /// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
+import { version } from './package.json';
 
 export default defineConfig({
+    define: { __MAGNIFY_VERSION__: JSON.stringify(version) },
     build: {
         lib: {
             entry: {

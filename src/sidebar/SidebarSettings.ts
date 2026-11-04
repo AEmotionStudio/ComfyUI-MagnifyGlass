@@ -4,8 +4,6 @@
  * All settings controls for the sidebar.
  */
 
-// @ts-ignore
-import { app } from "/scripts/app.js";
 import {
     GLASS_POSITIONS,
     GLASS_SHAPES,
@@ -19,14 +17,15 @@ import {
     getSettingValue,
     setSettingValue
 } from '../shared/utils';
+import { DEFAULT_SETTINGS } from '../shared/settings/defaults';
+import { resetAllSettings } from '../shared/settings/reset';
 
 /**
- * Icons for the settings panel
+ * Current value of a setting, or its default when it has never been saved
  */
-const Icons = {
-    chevronDown: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`,
-    reset: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>`,
-};
+function settingValue<K extends keyof typeof DEFAULT_SETTINGS & string>(id: K): (typeof DEFAULT_SETTINGS)[K] {
+    return getSettingValue(id, DEFAULT_SETTINGS[id]);
+}
 
 /**
  * Create a slider control with tooltip
@@ -269,9 +268,6 @@ export function createColorPicker(
     };
 
     colorPreview.addEventListener('change', updateFromText);
-    // Blur is handled by change for most cases, but keeping it as a fallback isn't harmful
-    // However, since change covers commit actions (Enter/Blur), the explicit blur handler is redundant if updateFromText handles reversion.
-    // Removing explicit blur handler to avoid double-handling, as change event suffices for committing value.
 
     colorInput.addEventListener('input', () => {
         colorPreview.value = colorInput.value;
@@ -292,106 +288,42 @@ export function createColorPicker(
 }
 
 
-/** Storage key for section states */
-const SECTION_STATE_KEY = 'magnifyglass-sidebar-sections';
-
 /**
- * Get saved section states from localStorage
+ * Create a collapsible section, collapsed to start with
  */
-function getSectionStates(): Record<string, boolean> {
-    try {
-        const saved = localStorage.getItem(SECTION_STATE_KEY);
-        return saved ? JSON.parse(saved) : {};
-    } catch {
-        return {};
-    }
-}
-
-/**
- * Save section state to localStorage
- */
-function saveSectionState(title: string, collapsed: boolean): void {
-    try {
-        const states = getSectionStates();
-        states[title] = collapsed;
-        localStorage.setItem(SECTION_STATE_KEY, JSON.stringify(states));
-    } catch {
-        // Ignore storage errors
-    }
-}
-
-/**
- * Create a collapsible section with persistent state
- */
-function createSection(title: string, defaultCollapsed: boolean = false): { section: HTMLElement; body: HTMLElement } {
+function createSection(title: string): { section: HTMLElement; body: HTMLElement } {
     const section = document.createElement('div');
     section.className = 'magnify-sidebar-section';
 
-    // Check if we have a saved state for this section
-    // User requested to disable persistence: "tabs should refresh, so they don't remain all opened"
-    // const savedStates = getSectionStates();
-    // const collapsed = savedStates[title] !== undefined ? savedStates[title] : defaultCollapsed;
-    const collapsed = defaultCollapsed;
-
-    const header = document.createElement('div');
-    header.className = `magnify-sidebar-section-header${collapsed ? ' collapsed' : ''}`;
-
-    // Generate unique ID for accessibility
     const sectionId = `magnify-section-${Math.random().toString(36).substr(2, 9)}`;
     const headerId = `${sectionId}-header`;
     const bodyId = `${sectionId}-body`;
 
-    // Accessibility attributes
-    header.setAttribute('role', 'button');
-    header.setAttribute('tabindex', '0');
-    header.setAttribute('aria-expanded', String(!collapsed));
-    header.setAttribute('aria-controls', bodyId);
+    const header = document.createElement('button');
+    header.type = 'button';
     header.id = headerId;
+    header.className = 'magnify-sidebar-section-header';
+    header.setAttribute('aria-expanded', 'false');
+    header.setAttribute('aria-controls', bodyId);
 
-    // Securely construct header: Icon (HTML) + Title (Text)
-    // Use innerHTML only for the trusted icon SVG
-    header.innerHTML = Icons.chevronDown;
-    const titleSpan = document.createElement('span');
-    titleSpan.textContent = title;
-    header.appendChild(titleSpan);
+    const chevron = document.createElement('i');
+    chevron.className = 'pi pi-chevron-down';
+    chevron.setAttribute('aria-hidden', 'true');
+    header.append(chevron, title);
 
     const body = document.createElement('div');
-    body.className = `magnify-sidebar-section-body${collapsed ? ' collapsed' : ''}`;
+    body.className = 'magnify-sidebar-section-body';
     body.id = bodyId;
+    body.hidden = true;
     body.setAttribute('role', 'region');
     body.setAttribute('aria-labelledby', headerId);
 
-    // Apply inline style to prevent flash before CSS loads
-    if (collapsed) {
-        body.style.display = 'none';
-    }
-
-    const toggleSection = () => {
-        const isCollapsed = header.classList.toggle('collapsed');
-        body.classList.toggle('collapsed');
-        // Also toggle inline style for immediate effect
-        body.style.display = isCollapsed ? 'none' : '';
-
-        // Update ARIA state
-        header.setAttribute('aria-expanded', String(!isCollapsed));
-
-        // Save the new state
-        // User requested to disable persistence
-        // saveSectionState(title, isCollapsed);
-    };
-
-    header.addEventListener('click', toggleSection);
-
-    // Keyboard support
-    header.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            toggleSection();
-        }
+    header.addEventListener('click', () => {
+        body.hidden = !body.hidden;
+        header.setAttribute('aria-expanded', String(!body.hidden));
     });
 
-    section.appendChild(header);
-    section.appendChild(body);
+    section.append(header, body);
 
     return { section, body };
 }
@@ -401,13 +333,13 @@ function createSection(title: string, defaultCollapsed: boolean = false): { sect
  */
 export function renderSettingsPanel(container: HTMLElement): void {
     // Get current hotkey values for tooltips
-    const activationKey = getSettingValue('🔍MagnifyGlass.ActivationKey', 'x').toUpperCase();
-    const resetKey = getSettingValue('🔍MagnifyGlass.ResetKey', 'o').toUpperCase();
-    const toggleFollowKey = getSettingValue('🔍MagnifyGlass.ToggleFollowCursorKey', 'h').toUpperCase();
+    const activationKey = settingValue('🔍MagnifyGlass.ActivationKey').toUpperCase();
+    const resetKey = settingValue('🔍MagnifyGlass.ResetKey').toUpperCase();
+    const toggleFollowKey = settingValue('🔍MagnifyGlass.ToggleFollowCursorKey').toUpperCase();
 
     // ===== Inspector Panel On/Off =====
     // Off leaves only the glass, so the panel's own sections are hidden too
-    const inspectorEnabled = getSettingValue('🔍MagnifyGlass.InfoPanelEnabled', true);
+    const inspectorEnabled = settingValue('🔍MagnifyGlass.InfoPanelEnabled');
     const inspectorToggle = createToggle('Inspector panel', inspectorEnabled,
         (checked) => {
             setSettingValue('🔍MagnifyGlass.InfoPanelEnabled', checked);
@@ -420,11 +352,10 @@ export function renderSettingsPanel(container: HTMLElement): void {
     container.appendChild(inspectorToggle);
 
     // ===== Glass Settings Section =====
-    // Use true (collapsed) by default as requested
-    const glassSection = createSection('Glass Settings', true);
+    const glassSection = createSection('Glass Settings');
 
     glassSection.body.appendChild(createSlider('Zoom Factor',
-        getSettingValue('🔍MagnifyGlass.ZoomFactor', 300), 100, 1000, 25, '%',
+        settingValue('🔍MagnifyGlass.ZoomFactor'), 100, 1000, 25, '%',
         (value) => setSettingValue('🔍MagnifyGlass.ZoomFactor', value),
         'Magnification level of the glass (100-1000%)',
         (value) => {
@@ -437,7 +368,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     glassSection.body.appendChild(createSlider('Glass Size',
-        getSettingValue('🔍MagnifyGlass.GlassSize', 250), 50, 500, 10, 'px',
+        settingValue('🔍MagnifyGlass.GlassSize'), 50, 500, 10, 'px',
         (value) => setSettingValue('🔍MagnifyGlass.GlassSize', value),
         'Size of the magnifying glass in pixels',
         (value) => {
@@ -451,25 +382,25 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     glassSection.body.appendChild(createSelect('Shape',
-        getSettingValue('🔍MagnifyGlass.GlassShape', 'Rounded Square'), GLASS_SHAPES,
+        settingValue('🔍MagnifyGlass.GlassShape'), GLASS_SHAPES,
         (value) => setSettingValue('🔍MagnifyGlass.GlassShape', value),
         'Shape of the magnifying glass'
     ));
 
     glassSection.body.appendChild(createSelect('Position',
-        getSettingValue('🔍MagnifyGlass.GlassPosition', 'Top-Right'), GLASS_POSITIONS,
+        settingValue('🔍MagnifyGlass.GlassPosition'), GLASS_POSITIONS,
         (value) => setSettingValue('🔍MagnifyGlass.GlassPosition', value),
         'Position of the glass relative to the cursor'
     ));
 
     glassSection.body.appendChild(createSelect('Filtering',
-        getSettingValue('🔍MagnifyGlass.TextureFiltering', 'Linear'), ['Linear', 'Nearest'],
+        settingValue('🔍MagnifyGlass.TextureFiltering'), ['Linear', 'Nearest'],
         (value) => setSettingValue('🔍MagnifyGlass.TextureFiltering', value),
         'Texture filtering: Linear (smooth) or Nearest (pixelated)'
     ));
 
     glassSection.body.appendChild(createSlider('Border Width',
-        getSettingValue('🔍MagnifyGlass.BorderWidth', 2), 0, 10, 0.5, 'px',
+        settingValue('🔍MagnifyGlass.BorderWidth'), 0, 10, 0.5, 'px',
         (value) => setSettingValue('🔍MagnifyGlass.BorderWidth', value),
         'Width of the glass border in pixels',
         (value) => {
@@ -482,7 +413,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     glassSection.body.appendChild(createColorPicker('Border Color',
-        getSettingValue('🔍MagnifyGlass.BorderColor', '#ffffff'),
+        settingValue('🔍MagnifyGlass.BorderColor'),
         (value) => setSettingValue('🔍MagnifyGlass.BorderColor', value),
         'Color of the glass border',
         (value) => {
@@ -495,80 +426,72 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     glassSection.body.appendChild(createToggle('Show Border',
-        getSettingValue('🔍MagnifyGlass.BorderEnabled', true),
+        settingValue('🔍MagnifyGlass.BorderEnabled'),
         (checked) => setSettingValue('🔍MagnifyGlass.BorderEnabled', checked),
         'Show or hide the glass border'
     ));
 
     glassSection.body.appendChild(createToggle('Follow Cursor',
-        getSettingValue('🔍MagnifyGlass.FollowCursor', false),
+        settingValue('🔍MagnifyGlass.FollowCursor'),
         (checked) => setSettingValue('🔍MagnifyGlass.FollowCursor', checked),
         `Glass follows the cursor. Hotkey: ${toggleFollowKey}`
     ));
 
     glassSection.body.appendChild(createToggle('Always Active Mode',
-        getSettingValue('🔍MagnifyGlass.AlwaysActiveMode', true),
+        settingValue('🔍MagnifyGlass.AlwaysActiveMode'),
         (checked) => setSettingValue('🔍MagnifyGlass.AlwaysActiveMode', checked),
         `When enabled, glass stays visible. Toggle with ${activationKey}`
     ));
 
     glassSection.body.appendChild(createToggle('Force Direct Capture',
-        getSettingValue('🔍MagnifyGlass.ForceDirectCapture', false),
+        settingValue('🔍MagnifyGlass.ForceDirectCapture'),
         (checked) => setSettingValue('🔍MagnifyGlass.ForceDirectCapture', checked),
-        `Force Direct Capture mode (accurate, pixel-perfect). Hotkey: ${getSettingValue('🔍MagnifyGlass.ForceDirectCaptureKey', 'd').toUpperCase()}`
+        `Force Direct Capture mode (accurate, pixel-perfect). Hotkey: ${settingValue('🔍MagnifyGlass.ForceDirectCaptureKey').toUpperCase()}`
     ));
 
     glassSection.body.appendChild(createToggle('Show Mini Cursor',
-        getSettingValue('🔍MagnifyGlass.ShowCursorPreview', false),
+        settingValue('🔍MagnifyGlass.ShowCursorPreview'),
         (checked) => setSettingValue('🔍MagnifyGlass.ShowCursorPreview', checked),
         'Display a mini cursor in the glass preview'
     ));
 
-    // The instruction implies this should be in glassSection, but the content suggests info panel.
-    // Placing it in glassSection as per instruction, assuming createToggle is intended.
-    // The condition `if (getSettingValue("🔍MagnifyGlass.InfoPanelEnabled", true))` is removed
-    // as it doesn't make sense for a glass setting to depend on info panel being enabled.
-    // The tooltip and callback logic are kept as provided.
-    // Moved to panel settings section
-    // glassSection.body.appendChild(createToggle('Persist Info'...));
-
     container.appendChild(glassSection.section);
 
     // ===== Glass Hotkeys Section =====
-    const hotkeySection = createSection('Glass Hotkeys', true);
+    const hotkeySection = createSection('Glass Hotkeys');
 
     hotkeySection.body.appendChild(createSelect('Activation Key',
-        getSettingValue('🔍MagnifyGlass.ActivationKey', 'x'), ACTIVATION_KEYS,
+        settingValue('🔍MagnifyGlass.ActivationKey'), ACTIVATION_KEYS,
         (value) => setSettingValue('🔍MagnifyGlass.ActivationKey', value),
         'Key to toggle or hold to activate the magnifying glass'
     ));
 
     hotkeySection.body.appendChild(createSelect('Reset Key',
-        getSettingValue('🔍MagnifyGlass.ResetKey', 'o'), RESET_KEYS,
+        settingValue('🔍MagnifyGlass.ResetKey'), RESET_KEYS,
         (value) => setSettingValue('🔍MagnifyGlass.ResetKey', value),
         'Key to reset glass position and disable follow cursor'
     ));
 
     hotkeySection.body.appendChild(createSelect('Toggle Follow Key',
-        getSettingValue('🔍MagnifyGlass.ToggleFollowCursorKey', 'h'), TOGGLE_FOLLOW_KEYS,
+        settingValue('🔍MagnifyGlass.ToggleFollowCursorKey'), TOGGLE_FOLLOW_KEYS,
         (value) => setSettingValue('🔍MagnifyGlass.ToggleFollowCursorKey', value),
         'Key to toggle follow cursor mode'
     ));
 
     hotkeySection.body.appendChild(createSelect('Direct Capture Key',
-        getSettingValue('🔍MagnifyGlass.ForceDirectCaptureKey', 'd'), DIRECT_CAPTURE_KEYS,
+        settingValue('🔍MagnifyGlass.ForceDirectCaptureKey'), DIRECT_CAPTURE_KEYS,
         (value) => setSettingValue('🔍MagnifyGlass.ForceDirectCaptureKey', value),
         'Key for Force Direct Capture mode'
     ));
 
     hotkeySection.body.appendChild(createSelect('Glass Toggle Key',
-        getSettingValue('🔍MagnifyGlass.GlassPreviewToggleHotkey', 'g'), ['g', 'f', 'v', 'b'],
+        settingValue('🔍MagnifyGlass.GlassPreviewToggleHotkey'), ['g', 'f', 'v', 'b'],
         (value) => setSettingValue('🔍MagnifyGlass.GlassPreviewToggleHotkey', value),
         'Key to show or hide the glass preview'
     ));
 
     const glassAltToggle = createToggle('Require Alt Key',
-        getSettingValue('🔍MagnifyGlass.AltRequired', false),
+        settingValue('🔍MagnifyGlass.AltRequired'),
         (checked) => {
             setSettingValue('🔍MagnifyGlass.AltRequired', checked);
             // Sync all alt toggles
@@ -583,11 +506,8 @@ export function renderSettingsPanel(container: HTMLElement): void {
     glassAltToggle.classList.add('magnify-alt-toggle');
     hotkeySection.body.appendChild(glassAltToggle);
 
-    // Moved to Panel Hotkeys section
-    // hotkeySection.body.appendChild(createToggle('Require Alt Key'...));
-
     hotkeySection.body.appendChild(createSlider('Offset Step',
-        getSettingValue('🔍MagnifyGlass.OffsetStep', 10), 1, 50, 1, 'px',
+        settingValue('🔍MagnifyGlass.OffsetStep'), 1, 50, 1, 'px',
         (value) => setSettingValue('🔍MagnifyGlass.OffsetStep', value),
         'Amount to move glass per arrow key press (pixels)'
     ));
@@ -595,10 +515,10 @@ export function renderSettingsPanel(container: HTMLElement): void {
     container.appendChild(hotkeySection.section);
 
     // ===== Accessibility Section =====
-    const accessibilitySection = createSection('Accessibility', true);
+    const accessibilitySection = createSection('Accessibility');
 
     accessibilitySection.body.appendChild(createToggle('Enable Accessibility',
-        getSettingValue('🔍MagnifyGlass.AccessibilityEnabled', false),
+        settingValue('🔍MagnifyGlass.AccessibilityEnabled'),
         (checked) => {
             setSettingValue('🔍MagnifyGlass.AccessibilityEnabled', checked);
             const mg = (window as any).comfyUIMagnifyGlass;
@@ -611,7 +531,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     accessibilitySection.body.appendChild(createToggle('High Contrast',
-        getSettingValue('🔍MagnifyGlass.HighContrastMode', false),
+        settingValue('🔍MagnifyGlass.HighContrastMode'),
         (checked) => {
             setSettingValue('🔍MagnifyGlass.HighContrastMode', checked);
             const mg = (window as any).comfyUIMagnifyGlass;
@@ -624,7 +544,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     accessibilitySection.body.appendChild(createToggle('Text Glow',
-        getSettingValue('🔍MagnifyGlass.TextGlowEnabled', false),
+        settingValue('🔍MagnifyGlass.TextGlowEnabled'),
         (checked) => {
             setSettingValue('🔍MagnifyGlass.TextGlowEnabled', checked);
             const mg = (window as any).comfyUIMagnifyGlass;
@@ -637,7 +557,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     accessibilitySection.body.appendChild(createColorPicker('Glow Color',
-        getSettingValue('🔍MagnifyGlass.TextGlowColor', '#ffff00'),
+        settingValue('🔍MagnifyGlass.TextGlowColor'),
         (value) => {
             setSettingValue('🔍MagnifyGlass.TextGlowColor', value);
             const mg = (window as any).comfyUIMagnifyGlass;
@@ -650,7 +570,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     accessibilitySection.body.appendChild(createSlider('Glow Intensity',
-        getSettingValue('🔍MagnifyGlass.TextGlowIntensity', 5), 1, 15, 1, 'px',
+        settingValue('🔍MagnifyGlass.TextGlowIntensity'), 1, 15, 1, 'px',
         (value) => setSettingValue('🔍MagnifyGlass.TextGlowIntensity', value),
         'Blur radius of the text glow',
         (value) => {
@@ -663,7 +583,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     accessibilitySection.body.appendChild(createSlider('Font Scale',
-        getSettingValue('🔍MagnifyGlass.FontScaleFactor', 100), 100, 200, 10, '%',
+        settingValue('🔍MagnifyGlass.FontScaleFactor'), 100, 200, 10, '%',
         (value) => setSettingValue('🔍MagnifyGlass.FontScaleFactor', value),
         'Increase text size in the glass',
         (value) => {
@@ -676,7 +596,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     accessibilitySection.body.appendChild(createToggle('Bold Text',
-        getSettingValue('🔍MagnifyGlass.BoldTextEnabled', false),
+        settingValue('🔍MagnifyGlass.BoldTextEnabled'),
         (checked) => {
             setSettingValue('🔍MagnifyGlass.BoldTextEnabled', checked);
             const mg = (window as any).comfyUIMagnifyGlass;
@@ -689,7 +609,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     accessibilitySection.body.appendChild(createToggle('Text Outline',
-        getSettingValue('🔍MagnifyGlass.TextOutlineEnabled', false),
+        settingValue('🔍MagnifyGlass.TextOutlineEnabled'),
         (checked) => {
             setSettingValue('🔍MagnifyGlass.TextOutlineEnabled', checked);
             const mg = (window as any).comfyUIMagnifyGlass;
@@ -702,7 +622,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     accessibilitySection.body.appendChild(createColorPicker('Outline Color',
-        getSettingValue('🔍MagnifyGlass.TextOutlineColor', '#000000'),
+        settingValue('🔍MagnifyGlass.TextOutlineColor'),
         (value) => {
             setSettingValue('🔍MagnifyGlass.TextOutlineColor', value);
             const mg = (window as any).comfyUIMagnifyGlass;
@@ -715,7 +635,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     accessibilitySection.body.appendChild(createToggle('Node Emphasis',
-        getSettingValue('🔍MagnifyGlass.NodeTitleEmphasis', false),
+        settingValue('🔍MagnifyGlass.NodeTitleEmphasis'),
         (checked) => {
             setSettingValue('🔍MagnifyGlass.NodeTitleEmphasis', checked);
             const mg = (window as any).comfyUIMagnifyGlass;
@@ -728,7 +648,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     accessibilitySection.body.appendChild(createToggle('Invert Colors',
-        getSettingValue('🔍MagnifyGlass.InvertColors', false),
+        settingValue('🔍MagnifyGlass.InvertColors'),
         (checked) => {
             setSettingValue('🔍MagnifyGlass.InvertColors', checked);
             const mg = (window as any).comfyUIMagnifyGlass;
@@ -741,7 +661,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     accessibilitySection.body.appendChild(createToggle('Grayscale Mode',
-        getSettingValue('🔍MagnifyGlass.GrayscaleMode', false),
+        settingValue('🔍MagnifyGlass.GrayscaleMode'),
         (checked) => {
             setSettingValue('🔍MagnifyGlass.GrayscaleMode', checked);
             const mg = (window as any).comfyUIMagnifyGlass;
@@ -754,7 +674,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     accessibilitySection.body.appendChild(createToggle('Reduce Motion',
-        getSettingValue('🔍MagnifyGlass.ReduceMotion', false),
+        settingValue('🔍MagnifyGlass.ReduceMotion'),
         (checked) => {
             setSettingValue('🔍MagnifyGlass.ReduceMotion', checked);
             const mg = (window as any).comfyUIMagnifyGlass;
@@ -769,11 +689,11 @@ export function renderSettingsPanel(container: HTMLElement): void {
     container.appendChild(accessibilitySection.section);
 
     // ===== Info Panel Section =====
-    const panelSection = createSection('Info Panel', true);
+    const panelSection = createSection('Info Panel');
     panelSection.section.hidden = !inspectorEnabled;
 
     panelSection.body.appendChild(createToggle('Persist Info',
-        getSettingValue('🔍MagnifyGlass.InfoPanelPersist', false),
+        settingValue('🔍MagnifyGlass.InfoPanelPersist'),
         (checked) => {
             setSettingValue('🔍MagnifyGlass.InfoPanelPersist', checked);
             // Sync with UI controls if needed
@@ -786,7 +706,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     panelSection.body.appendChild(createToggle('Node Highlight Border',
-        getSettingValue('🔍MagnifyGlass.NodeHighlightEnabled', true),
+        settingValue('🔍MagnifyGlass.NodeHighlightEnabled'),
         (checked) => {
             setSettingValue('🔍MagnifyGlass.NodeHighlightEnabled', checked);
             // Force canvas redraw to update highlight visibility
@@ -799,13 +719,13 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     panelSection.body.appendChild(createSelect('Position',
-        getSettingValue('🔍MagnifyGlass.InfoPanelPosition', 'Bottom'), PANEL_POSITIONS,
+        settingValue('🔍MagnifyGlass.InfoPanelPosition'), PANEL_POSITIONS,
         (value) => setSettingValue('🔍MagnifyGlass.InfoPanelPosition', value),
         'Position of the info panel relative to the glass'
     ));
 
     panelSection.body.appendChild(createSlider('Width',
-        getSettingValue('🔍MagnifyGlass.InfoPanelWidth', 300), 200, 600, 20, 'px',
+        settingValue('🔍MagnifyGlass.InfoPanelWidth'), 200, 600, 20, 'px',
         (value) => setSettingValue('🔍MagnifyGlass.InfoPanelWidth', value),
         'Width of the info panel',
         (value) => {
@@ -824,7 +744,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     panelSection.body.appendChild(createSlider('Max Height',
-        getSettingValue('🔍MagnifyGlass.InfoPanelMaxHeight', 300), 200, 1500, 50, 'px',
+        settingValue('🔍MagnifyGlass.InfoPanelMaxHeight'), 200, 1500, 50, 'px',
         (value) => setSettingValue('🔍MagnifyGlass.InfoPanelMaxHeight', value),
         'Maximum height of the info panel',
         (value) => {
@@ -843,7 +763,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     panelSection.body.appendChild(createSlider('Font Size',
-        getSettingValue('🔍MagnifyGlass.InfoPanelFontSize', 14), 8, 24, 1, 'px',
+        settingValue('🔍MagnifyGlass.InfoPanelFontSize'), 8, 24, 1, 'px',
         (value) => setSettingValue('🔍MagnifyGlass.InfoPanelFontSize', value),
         'Font size of text in the info panel',
         (value) => {
@@ -856,7 +776,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     panelSection.body.appendChild(createSlider('Opacity',
-        getSettingValue('🔍MagnifyGlass.InfoPanelOpacity', 95), 10, 100, 5, '%',
+        settingValue('🔍MagnifyGlass.InfoPanelOpacity'), 10, 100, 5, '%',
         (value) => setSettingValue('🔍MagnifyGlass.InfoPanelOpacity', value),
         'Background opacity of the info panel',
         (value) => {
@@ -876,7 +796,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
         'monospace'
     ];
     panelSection.body.appendChild(createSelect('Font Family',
-        getSettingValue('🔍MagnifyGlass.InfoPanelFontFamily', 'System Default'), fontFamilyOptions,
+        settingValue('🔍MagnifyGlass.InfoPanelFontFamily'), fontFamilyOptions,
         (value) => setSettingValue('🔍MagnifyGlass.InfoPanelFontFamily', value),
         'Font family for the info panel text',
         (value) => {
@@ -889,7 +809,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     panelSection.body.appendChild(createColorPicker('Text Color',
-        getSettingValue('🔍MagnifyGlass.InfoPanelTextColor', '#6b7280'),
+        settingValue('🔍MagnifyGlass.InfoPanelTextColor'),
         (value) => setSettingValue('🔍MagnifyGlass.InfoPanelTextColor', value),
         'Text color in the info panel',
         (value) => {
@@ -902,7 +822,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     panelSection.body.appendChild(createColorPicker('Accent Color',
-        getSettingValue('🔍MagnifyGlass.InfoPanelAccentColor', '#3b82f6'),
+        settingValue('🔍MagnifyGlass.InfoPanelAccentColor'),
         (value) => setSettingValue('🔍MagnifyGlass.InfoPanelAccentColor', value),
         'Accent color for highlights',
         (value) => {
@@ -915,7 +835,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     panelSection.body.appendChild(createToggle('High Contrast Text',
-        getSettingValue('🔍MagnifyGlass.HighContrastText', false),
+        settingValue('🔍MagnifyGlass.HighContrastText'),
         (checked) => {
             setSettingValue('🔍MagnifyGlass.HighContrastText', checked);
             const infoPanel = (window as any).infoPanelManager;
@@ -928,13 +848,13 @@ export function renderSettingsPanel(container: HTMLElement): void {
     ));
 
     panelSection.body.appendChild(createToggle('Hover Controls',
-        getSettingValue('🔍MagnifyGlass.ShowHoveringControls', true),
+        settingValue('🔍MagnifyGlass.ShowHoveringControls'),
         (checked) => setSettingValue('🔍MagnifyGlass.ShowHoveringControls', checked),
         'Show floating control buttons near the panel'
     ));
 
     panelSection.body.appendChild(createSelect('Controls Position',
-        getSettingValue('🔍MagnifyGlass.ControlsPosition', 'left'),
+        settingValue('🔍MagnifyGlass.ControlsPosition'),
         ['top', 'bottom', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right'],
         (value) => setSettingValue('🔍MagnifyGlass.ControlsPosition', value),
         'Position of floating control buttons',
@@ -945,7 +865,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
                 infoPanel.stateManager.state.settings['🔍MagnifyGlass.ControlsPosition'] = value;
                 infoPanel.uiManager.updateControlsLayout(value);
                 if (infoPanel.magnifyGlass.state.active) {
-                    infoPanel.positionManager.positionFloatingControls();
+                    infoPanel.positionManager.positionFloatingControls(infoPanel.uiManager.elements.controls);
                 }
             }
         }
@@ -954,23 +874,23 @@ export function renderSettingsPanel(container: HTMLElement): void {
     container.appendChild(panelSection.section);
 
     // ===== Panel Hotkeys Section =====
-    const panelHotkeySection = createSection('Panel Hotkeys', true);
+    const panelHotkeySection = createSection('Panel Hotkeys');
     panelHotkeySection.section.hidden = !inspectorEnabled;
 
     panelHotkeySection.body.appendChild(createSelect('Toggle Key',
-        getSettingValue('🔍MagnifyGlass.ToggleHotkey', 'i'), ['i', 'j', 'k', 'l', 'n', 'm'],
+        settingValue('🔍MagnifyGlass.ToggleHotkey'), ['i', 'j', 'k', 'l', 'n', 'm'],
         (value) => setSettingValue('🔍MagnifyGlass.ToggleHotkey', value),
         'Key to toggle info panel visibility'
     ));
 
     panelHotkeySection.body.appendChild(createSelect('Pin Key',
-        getSettingValue('🔍MagnifyGlass.PinPanelHotkey', 'u'), ['u', 'p', 'y', 't'],
+        settingValue('🔍MagnifyGlass.PinPanelHotkey'), ['u', 'p', 'y', 't'],
         (value) => setSettingValue('🔍MagnifyGlass.PinPanelHotkey', value),
         'Key to pin/unpin the info panel position'
     ));
 
     const panelAltToggle = createToggle('Require Alt Key',
-        getSettingValue('🔍MagnifyGlass.AltRequired', false),
+        settingValue('🔍MagnifyGlass.AltRequired'),
         (checked) => {
             setSettingValue('🔍MagnifyGlass.AltRequired', checked);
             // Sync all alt toggles
@@ -987,27 +907,15 @@ export function renderSettingsPanel(container: HTMLElement): void {
 
     container.appendChild(panelHotkeySection.section);
 
-
-
     // ===== Button Row =====
     const buttonRow = document.createElement('div');
-    buttonRow.style.padding = '16px';
-    buttonRow.style.borderTop = '1px solid var(--border-color, #333)';
-    buttonRow.style.display = 'flex';
-    buttonRow.style.flexDirection = 'column';
-    buttonRow.style.gap = '8px';
+    buttonRow.className = 'magnify-sidebar-actions';
 
-    // Reset Position Button
-    const resetBtn = document.createElement('button');
-    resetBtn.className = 'magnify-btn';
-    resetBtn.style.width = '100%';
-    resetBtn.innerHTML = `${Icons.reset} Reset Position`;
-    resetBtn.title = `Reset glass position and disable follow cursor. Hotkey: ${resetKey}`;
-
+    const resetBtn = createButton('Reset Position', `Reset glass position and disable follow cursor. Hotkey: ${resetKey}`);
     resetBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         const magnifyGlass = window.comfyUIMagnifyGlass;
-        if (magnifyGlass && magnifyGlass.resetOffsets) {
+        if (magnifyGlass) {
             magnifyGlass.resetOffsets();
             // Update follow cursor toggle in UI
             const followToggles = container.querySelectorAll('.magnify-toggle-row');
@@ -1024,101 +932,45 @@ export function renderSettingsPanel(container: HTMLElement): void {
         }
     });
 
-    buttonRow.appendChild(resetBtn);
-
-    // Reset All Settings Button
-    const resetAllBtn = document.createElement('button');
-    resetAllBtn.className = 'magnify-btn magnify-btn-secondary';
-    resetAllBtn.style.width = '100%';
-    resetAllBtn.innerHTML = `${Icons.reset} Reset All Settings`;
-    resetAllBtn.title = 'Reset all settings to their default values';
-
+    const resetAllBtn = createButton('Reset All Settings', 'Reset all settings to their default values');
+    resetAllBtn.classList.add('magnify-btn-secondary');
     resetAllBtn.addEventListener('click', (e) => {
         e.stopPropagation();
 
-        // Confirm with user
         if (!confirm('Reset all MagnifyGlass settings to defaults?')) {
             return;
         }
 
-        // Default glass settings
-        setSettingValue('🔍MagnifyGlass.ZoomFactor', 300);
-        setSettingValue('🔍MagnifyGlass.GlassSize', 300);
-        setSettingValue('🔍MagnifyGlass.GlassShape', 'Rounded Square');
-        setSettingValue('🔍MagnifyGlass.GlassPosition', 'Top-Right');
-        setSettingValue('🔍MagnifyGlass.TextureFiltering', 'Linear');
-        setSettingValue('🔍MagnifyGlass.BorderWidth', 1);
-        setSettingValue('🔍MagnifyGlass.BorderColor', '#6b7280');
-        setSettingValue('🔍MagnifyGlass.BorderEnabled', true);
-        setSettingValue('🔍MagnifyGlass.FollowCursor', false);
-        setSettingValue('🔍MagnifyGlass.AlwaysActiveMode', true);
-        setSettingValue('🔍MagnifyGlass.ActivationKey', 'x');
-        setSettingValue('🔍MagnifyGlass.ResetKey', 'o');
-        setSettingValue('🔍MagnifyGlass.ToggleFollowCursorKey', 'h');
-        setSettingValue('🔍MagnifyGlass.AltRequired', false);
-        setSettingValue('🔍MagnifyGlass.OffsetStep', 5);
-        setSettingValue('🔍MagnifyGlass.ShowCursorPreview', false);
+        resetAllSettings();
 
-        setSettingValue('🔍MagnifyGlass.ForceDirectCapture', false);
-        setSettingValue('🔍MagnifyGlass.ForceDirectCaptureKey', 'd');
-
-        // Default panel settings
-        setSettingValue('🔍MagnifyGlass.InfoPanelEnabled', true);
-        setSettingValue('🔍MagnifyGlass.InfoPanelPosition', 'Bottom');
-        setSettingValue('🔍MagnifyGlass.InfoPanelWidth', 300);
-        setSettingValue('🔍MagnifyGlass.InfoPanelMaxHeight', 300);
-        setSettingValue('🔍MagnifyGlass.InfoPanelOpacity', 100);
-        setSettingValue('🔍MagnifyGlass.InfoPanelFontSize', 14);
-        setSettingValue('🔍MagnifyGlass.InfoPanelFontFamily', 'System Default');
-        setSettingValue('🔍MagnifyGlass.InfoPanelPersist', false);
-        setSettingValue('🔍MagnifyGlass.InfoPanelTextColor', '#6b7280');
-        setSettingValue('🔍MagnifyGlass.InfoPanelAccentColor', '#3b82f6');
-        setSettingValue('🔍MagnifyGlass.InfoPanelAnimations', false);
-        setSettingValue('🔍MagnifyGlass.ShowHoveringControls', true);
-        setSettingValue('🔍MagnifyGlass.ControlsPosition', 'left');
-
-        // Force update info panel controls position
-        const infoPanel = (window as any).infoPanelManager;
-        if (infoPanel?.stateManager?.state?.settings) {
-            infoPanel.stateManager.state.settings['🔍MagnifyGlass.ControlsPosition'] = 'left';
-            if (infoPanel.uiManager && infoPanel.uiManager.updateControlsLayout) {
-                infoPanel.uiManager.updateControlsLayout('left');
-            }
-            if (infoPanel.magnifyGlass?.state?.active && infoPanel.positionManager) {
-                infoPanel.positionManager.positionFloatingControls();
+        // Controls Position has no registered setting whose onChange would move the live controls
+        const infoPanel = window.infoPanelManager;
+        if (infoPanel) {
+            const controlsPosition = DEFAULT_SETTINGS['🔍MagnifyGlass.ControlsPosition'];
+            infoPanel.stateManager.state.settings['🔍MagnifyGlass.ControlsPosition'] = controlsPosition;
+            infoPanel.uiManager.updateControlsLayout(controlsPosition);
+            if (infoPanel.magnifyGlass.state.active) {
+                infoPanel.positionManager.positionFloatingControls(infoPanel.uiManager.elements.controls);
             }
         }
-        setSettingValue('🔍MagnifyGlass.ToggleHotkey', 'i');
-        setSettingValue('🔍MagnifyGlass.GlassPreviewToggleHotkey', 'g');
-        setSettingValue('🔍MagnifyGlass.PinPanelHotkey', 'u');
 
-        // Accessibility Settings
-        setSettingValue('🔍MagnifyGlass.AccessibilityEnabled', false);
-        setSettingValue('🔍MagnifyGlass.HighContrastMode', false);
-        setSettingValue('🔍MagnifyGlass.TextGlowEnabled', false);
-        setSettingValue('🔍MagnifyGlass.TextGlowColor', '#ffff00');
-        setSettingValue('🔍MagnifyGlass.TextGlowIntensity', 5);
-        setSettingValue('🔍MagnifyGlass.FontScaleFactor', 100);
-        setSettingValue('🔍MagnifyGlass.BoldTextEnabled', false);
-        setSettingValue('🔍MagnifyGlass.TextOutlineEnabled', false);
-        setSettingValue('🔍MagnifyGlass.TextOutlineColor', '#000000');
-        setSettingValue('🔍MagnifyGlass.NodeTitleEmphasis', false);
-        setSettingValue('🔍MagnifyGlass.InvertColors', false);
-        setSettingValue('🔍MagnifyGlass.GrayscaleMode', false);
-        setSettingValue('🔍MagnifyGlass.ReduceMotion', false);
-
-        // Also reset position
-        const magnifyGlass = window.comfyUIMagnifyGlass;
-        if (magnifyGlass && magnifyGlass.resetOffsets) {
-            magnifyGlass.resetOffsets();
-        }
-
-        // Refresh the UI to show the new default values
-        // We clear the container and re-render the entire panel
+        // Re-render to show the defaults
         container.innerHTML = '';
         renderSettingsPanel(container);
     });
 
-    buttonRow.appendChild(resetAllBtn);
+    buttonRow.append(resetBtn, resetAllBtn);
     container.appendChild(buttonRow);
+}
+
+function createButton(text: string, title: string): HTMLButtonElement {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'magnify-btn';
+    button.title = title;
+    const icon = document.createElement('i');
+    icon.className = 'pi pi-refresh';
+    icon.setAttribute('aria-hidden', 'true');
+    button.append(icon, text);
+    return button;
 }

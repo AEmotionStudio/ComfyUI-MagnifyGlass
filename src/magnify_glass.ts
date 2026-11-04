@@ -7,6 +7,7 @@
 import { MagnifyGlass } from './magnify-glass';
 import { Logger } from './shared/logger';
 import { initSidebar } from './sidebar';
+import { ABOUT_BADGES } from './sidebar/SidebarAbout';
 // @ts-ignore
 import { app } from "/scripts/app.js";
 
@@ -16,6 +17,7 @@ import { app } from "/scripts/app.js";
 // Register extension
 app.registerExtension({
     name: "comfyui.magnify.glass",
+    aboutPageBadges: ABOUT_BADGES,
     init() {
         // Initialize the magnify glass
         const magnifyGlass = new MagnifyGlass();

@@ -1,9 +1,10 @@
 import { GLASS_SHAPES, GLASS_POSITIONS, ACTIVATION_KEYS, RESET_KEYS, TOGGLE_FOLLOW_KEYS, DIRECT_CAPTURE_KEYS, PANEL_POSITIONS } from "../shared/constants.js";
-import { getSettingValue, setSettingValue } from "../shared/utils.js";
-const Icons = {
-  chevronDown: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`,
-  reset: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>`
-};
+import { setSettingValue, getSettingValue } from "../shared/utils.js";
+import { DEFAULT_SETTINGS } from "../shared/settings/defaults.js";
+import { resetAllSettings } from "../shared/settings/reset.js";
+function settingValue(id) {
+  return getSettingValue(id, DEFAULT_SETTINGS[id]);
+}
 function createSlider(label, value, min, max, step, unit, onChange, tooltip, onInput) {
   const row = document.createElement("div");
   row.className = "magnify-control-row";
@@ -163,54 +164,40 @@ function createColorPicker(label, value, onChange, tooltip, onInput) {
   row.appendChild(colorWrapper);
   return row;
 }
-function createSection(title, defaultCollapsed = false) {
+function createSection(title) {
   const section = document.createElement("div");
   section.className = "magnify-sidebar-section";
-  const collapsed = defaultCollapsed;
-  const header = document.createElement("div");
-  header.className = `magnify-sidebar-section-header${collapsed ? " collapsed" : ""}`;
   const sectionId = `magnify-section-${Math.random().toString(36).substr(2, 9)}`;
   const headerId = `${sectionId}-header`;
   const bodyId = `${sectionId}-body`;
-  header.setAttribute("role", "button");
-  header.setAttribute("tabindex", "0");
-  header.setAttribute("aria-expanded", String(!collapsed));
-  header.setAttribute("aria-controls", bodyId);
+  const header = document.createElement("button");
+  header.type = "button";
   header.id = headerId;
-  header.innerHTML = Icons.chevronDown;
-  const titleSpan = document.createElement("span");
-  titleSpan.textContent = title;
-  header.appendChild(titleSpan);
+  header.className = "magnify-sidebar-section-header";
+  header.setAttribute("aria-expanded", "false");
+  header.setAttribute("aria-controls", bodyId);
+  const chevron = document.createElement("i");
+  chevron.className = "pi pi-chevron-down";
+  chevron.setAttribute("aria-hidden", "true");
+  header.append(chevron, title);
   const body = document.createElement("div");
-  body.className = `magnify-sidebar-section-body${collapsed ? " collapsed" : ""}`;
+  body.className = "magnify-sidebar-section-body";
   body.id = bodyId;
+  body.hidden = true;
   body.setAttribute("role", "region");
   body.setAttribute("aria-labelledby", headerId);
-  if (collapsed) {
-    body.style.display = "none";
-  }
-  const toggleSection = () => {
-    const isCollapsed = header.classList.toggle("collapsed");
-    body.classList.toggle("collapsed");
-    body.style.display = isCollapsed ? "none" : "";
-    header.setAttribute("aria-expanded", String(!isCollapsed));
-  };
-  header.addEventListener("click", toggleSection);
-  header.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      toggleSection();
-    }
+  header.addEventListener("click", () => {
+    body.hidden = !body.hidden;
+    header.setAttribute("aria-expanded", String(!body.hidden));
   });
-  section.appendChild(header);
-  section.appendChild(body);
+  section.append(header, body);
   return { section, body };
 }
 function renderSettingsPanel(container) {
-  const activationKey = getSettingValue("🔍MagnifyGlass.ActivationKey", "x").toUpperCase();
-  const resetKey = getSettingValue("🔍MagnifyGlass.ResetKey", "o").toUpperCase();
-  const toggleFollowKey = getSettingValue("🔍MagnifyGlass.ToggleFollowCursorKey", "h").toUpperCase();
-  const inspectorEnabled = getSettingValue("🔍MagnifyGlass.InfoPanelEnabled", true);
+  const activationKey = settingValue("🔍MagnifyGlass.ActivationKey").toUpperCase();
+  const resetKey = settingValue("🔍MagnifyGlass.ResetKey").toUpperCase();
+  const toggleFollowKey = settingValue("🔍MagnifyGlass.ToggleFollowCursorKey").toUpperCase();
+  const inspectorEnabled = settingValue("🔍MagnifyGlass.InfoPanelEnabled");
   const inspectorToggle = createToggle(
     "Inspector panel",
     inspectorEnabled,
@@ -223,10 +210,10 @@ function renderSettingsPanel(container) {
   );
   inspectorToggle.classList.add("magnify-inspector-toggle");
   container.appendChild(inspectorToggle);
-  const glassSection = createSection("Glass Settings", true);
+  const glassSection = createSection("Glass Settings");
   glassSection.body.appendChild(createSlider(
     "Zoom Factor",
-    getSettingValue("🔍MagnifyGlass.ZoomFactor", 300),
+    settingValue("🔍MagnifyGlass.ZoomFactor"),
     100,
     1e3,
     25,
@@ -243,7 +230,7 @@ function renderSettingsPanel(container) {
   ));
   glassSection.body.appendChild(createSlider(
     "Glass Size",
-    getSettingValue("🔍MagnifyGlass.GlassSize", 250),
+    settingValue("🔍MagnifyGlass.GlassSize"),
     50,
     500,
     10,
@@ -261,28 +248,28 @@ function renderSettingsPanel(container) {
   ));
   glassSection.body.appendChild(createSelect(
     "Shape",
-    getSettingValue("🔍MagnifyGlass.GlassShape", "Rounded Square"),
+    settingValue("🔍MagnifyGlass.GlassShape"),
     GLASS_SHAPES,
     (value) => setSettingValue("🔍MagnifyGlass.GlassShape", value),
     "Shape of the magnifying glass"
   ));
   glassSection.body.appendChild(createSelect(
     "Position",
-    getSettingValue("🔍MagnifyGlass.GlassPosition", "Top-Right"),
+    settingValue("🔍MagnifyGlass.GlassPosition"),
     GLASS_POSITIONS,
     (value) => setSettingValue("🔍MagnifyGlass.GlassPosition", value),
     "Position of the glass relative to the cursor"
   ));
   glassSection.body.appendChild(createSelect(
     "Filtering",
-    getSettingValue("🔍MagnifyGlass.TextureFiltering", "Linear"),
+    settingValue("🔍MagnifyGlass.TextureFiltering"),
     ["Linear", "Nearest"],
     (value) => setSettingValue("🔍MagnifyGlass.TextureFiltering", value),
     "Texture filtering: Linear (smooth) or Nearest (pixelated)"
   ));
   glassSection.body.appendChild(createSlider(
     "Border Width",
-    getSettingValue("🔍MagnifyGlass.BorderWidth", 2),
+    settingValue("🔍MagnifyGlass.BorderWidth"),
     0,
     10,
     0.5,
@@ -299,7 +286,7 @@ function renderSettingsPanel(container) {
   ));
   glassSection.body.appendChild(createColorPicker(
     "Border Color",
-    getSettingValue("🔍MagnifyGlass.BorderColor", "#ffffff"),
+    settingValue("🔍MagnifyGlass.BorderColor"),
     (value) => setSettingValue("🔍MagnifyGlass.BorderColor", value),
     "Color of the glass border",
     (value) => {
@@ -312,74 +299,74 @@ function renderSettingsPanel(container) {
   ));
   glassSection.body.appendChild(createToggle(
     "Show Border",
-    getSettingValue("🔍MagnifyGlass.BorderEnabled", true),
+    settingValue("🔍MagnifyGlass.BorderEnabled"),
     (checked) => setSettingValue("🔍MagnifyGlass.BorderEnabled", checked),
     "Show or hide the glass border"
   ));
   glassSection.body.appendChild(createToggle(
     "Follow Cursor",
-    getSettingValue("🔍MagnifyGlass.FollowCursor", false),
+    settingValue("🔍MagnifyGlass.FollowCursor"),
     (checked) => setSettingValue("🔍MagnifyGlass.FollowCursor", checked),
     `Glass follows the cursor. Hotkey: ${toggleFollowKey}`
   ));
   glassSection.body.appendChild(createToggle(
     "Always Active Mode",
-    getSettingValue("🔍MagnifyGlass.AlwaysActiveMode", true),
+    settingValue("🔍MagnifyGlass.AlwaysActiveMode"),
     (checked) => setSettingValue("🔍MagnifyGlass.AlwaysActiveMode", checked),
     `When enabled, glass stays visible. Toggle with ${activationKey}`
   ));
   glassSection.body.appendChild(createToggle(
     "Force Direct Capture",
-    getSettingValue("🔍MagnifyGlass.ForceDirectCapture", false),
+    settingValue("🔍MagnifyGlass.ForceDirectCapture"),
     (checked) => setSettingValue("🔍MagnifyGlass.ForceDirectCapture", checked),
-    `Force Direct Capture mode (accurate, pixel-perfect). Hotkey: ${getSettingValue("🔍MagnifyGlass.ForceDirectCaptureKey", "d").toUpperCase()}`
+    `Force Direct Capture mode (accurate, pixel-perfect). Hotkey: ${settingValue("🔍MagnifyGlass.ForceDirectCaptureKey").toUpperCase()}`
   ));
   glassSection.body.appendChild(createToggle(
     "Show Mini Cursor",
-    getSettingValue("🔍MagnifyGlass.ShowCursorPreview", false),
+    settingValue("🔍MagnifyGlass.ShowCursorPreview"),
     (checked) => setSettingValue("🔍MagnifyGlass.ShowCursorPreview", checked),
     "Display a mini cursor in the glass preview"
   ));
   container.appendChild(glassSection.section);
-  const hotkeySection = createSection("Glass Hotkeys", true);
+  const hotkeySection = createSection("Glass Hotkeys");
   hotkeySection.body.appendChild(createSelect(
     "Activation Key",
-    getSettingValue("🔍MagnifyGlass.ActivationKey", "x"),
+    settingValue("🔍MagnifyGlass.ActivationKey"),
     ACTIVATION_KEYS,
     (value) => setSettingValue("🔍MagnifyGlass.ActivationKey", value),
     "Key to toggle or hold to activate the magnifying glass"
   ));
   hotkeySection.body.appendChild(createSelect(
     "Reset Key",
-    getSettingValue("🔍MagnifyGlass.ResetKey", "o"),
+    settingValue("🔍MagnifyGlass.ResetKey"),
     RESET_KEYS,
     (value) => setSettingValue("🔍MagnifyGlass.ResetKey", value),
     "Key to reset glass position and disable follow cursor"
   ));
   hotkeySection.body.appendChild(createSelect(
     "Toggle Follow Key",
-    getSettingValue("🔍MagnifyGlass.ToggleFollowCursorKey", "h"),
+    settingValue("🔍MagnifyGlass.ToggleFollowCursorKey"),
     TOGGLE_FOLLOW_KEYS,
     (value) => setSettingValue("🔍MagnifyGlass.ToggleFollowCursorKey", value),
     "Key to toggle follow cursor mode"
   ));
   hotkeySection.body.appendChild(createSelect(
     "Direct Capture Key",
-    getSettingValue("🔍MagnifyGlass.ForceDirectCaptureKey", "d"),
+    settingValue("🔍MagnifyGlass.ForceDirectCaptureKey"),
     DIRECT_CAPTURE_KEYS,
     (value) => setSettingValue("🔍MagnifyGlass.ForceDirectCaptureKey", value),
     "Key for Force Direct Capture mode"
   ));
   hotkeySection.body.appendChild(createSelect(
     "Glass Toggle Key",
-    getSettingValue("🔍MagnifyGlass.GlassPreviewToggleHotkey", "g"),
+    settingValue("🔍MagnifyGlass.GlassPreviewToggleHotkey"),
     ["g", "f", "v", "b"],
     (value) => setSettingValue("🔍MagnifyGlass.GlassPreviewToggleHotkey", value),
     "Key to show or hide the glass preview"
   ));
   const glassAltToggle = createToggle(
     "Require Alt Key",
-    getSettingValue("🔍MagnifyGlass.AltRequired", false),
+    settingValue("🔍MagnifyGlass.AltRequired"),
     (checked) => {
       setSettingValue("🔍MagnifyGlass.AltRequired", checked);
       container.querySelectorAll(".magnify-alt-toggle .magnify-toggle").forEach((t) => {
@@ -394,7 +381,7 @@ function renderSettingsPanel(container) {
   hotkeySection.body.appendChild(glassAltToggle);
   hotkeySection.body.appendChild(createSlider(
     "Offset Step",
-    getSettingValue("🔍MagnifyGlass.OffsetStep", 10),
+    settingValue("🔍MagnifyGlass.OffsetStep"),
     1,
     50,
     1,
@@ -403,10 +390,10 @@ function renderSettingsPanel(container) {
     "Amount to move glass per arrow key press (pixels)"
   ));
   container.appendChild(hotkeySection.section);
-  const accessibilitySection = createSection("Accessibility", true);
+  const accessibilitySection = createSection("Accessibility");
   accessibilitySection.body.appendChild(createToggle(
     "Enable Accessibility",
-    getSettingValue("🔍MagnifyGlass.AccessibilityEnabled", false),
+    settingValue("🔍MagnifyGlass.AccessibilityEnabled"),
     (checked) => {
       setSettingValue("🔍MagnifyGlass.AccessibilityEnabled", checked);
       const mg = window.comfyUIMagnifyGlass;
@@ -419,7 +406,7 @@ function renderSettingsPanel(container) {
   ));
   accessibilitySection.body.appendChild(createToggle(
     "High Contrast",
-    getSettingValue("🔍MagnifyGlass.HighContrastMode", false),
+    settingValue("🔍MagnifyGlass.HighContrastMode"),
     (checked) => {
       setSettingValue("🔍MagnifyGlass.HighContrastMode", checked);
       const mg = window.comfyUIMagnifyGlass;
@@ -432,7 +419,7 @@ function renderSettingsPanel(container) {
   ));
   accessibilitySection.body.appendChild(createToggle(
     "Text Glow",
-    getSettingValue("🔍MagnifyGlass.TextGlowEnabled", false),
+    settingValue("🔍MagnifyGlass.TextGlowEnabled"),
     (checked) => {
       setSettingValue("🔍MagnifyGlass.TextGlowEnabled", checked);
       const mg = window.comfyUIMagnifyGlass;
@@ -445,7 +432,7 @@ function renderSettingsPanel(container) {
   ));
   accessibilitySection.body.appendChild(createColorPicker(
     "Glow Color",
-    getSettingValue("🔍MagnifyGlass.TextGlowColor", "#ffff00"),
+    settingValue("🔍MagnifyGlass.TextGlowColor"),
     (value) => {
       setSettingValue("🔍MagnifyGlass.TextGlowColor", value);
       const mg = window.comfyUIMagnifyGlass;
@@ -458,7 +445,7 @@ function renderSettingsPanel(container) {
   ));
   accessibilitySection.body.appendChild(createSlider(
     "Glow Intensity",
-    getSettingValue("🔍MagnifyGlass.TextGlowIntensity", 5),
+    settingValue("🔍MagnifyGlass.TextGlowIntensity"),
     1,
     15,
     1,
@@ -475,7 +462,7 @@ function renderSettingsPanel(container) {
   ));
   accessibilitySection.body.appendChild(createSlider(
     "Font Scale",
-    getSettingValue("🔍MagnifyGlass.FontScaleFactor", 100),
+    settingValue("🔍MagnifyGlass.FontScaleFactor"),
     100,
     200,
     10,
@@ -492,7 +479,7 @@ function renderSettingsPanel(container) {
   ));
   accessibilitySection.body.appendChild(createToggle(
     "Bold Text",
-    getSettingValue("🔍MagnifyGlass.BoldTextEnabled", false),
+    settingValue("🔍MagnifyGlass.BoldTextEnabled"),
     (checked) => {
       setSettingValue("🔍MagnifyGlass.BoldTextEnabled", checked);
       const mg = window.comfyUIMagnifyGlass;
@@ -505,7 +492,7 @@ function renderSettingsPanel(container) {
   ));
   accessibilitySection.body.appendChild(createToggle(
     "Text Outline",
-    getSettingValue("🔍MagnifyGlass.TextOutlineEnabled", false),
+    settingValue("🔍MagnifyGlass.TextOutlineEnabled"),
     (checked) => {
       setSettingValue("🔍MagnifyGlass.TextOutlineEnabled", checked);
       const mg = window.comfyUIMagnifyGlass;
@@ -518,7 +505,7 @@ function renderSettingsPanel(container) {
   ));
   accessibilitySection.body.appendChild(createColorPicker(
     "Outline Color",
-    getSettingValue("🔍MagnifyGlass.TextOutlineColor", "#000000"),
+    settingValue("🔍MagnifyGlass.TextOutlineColor"),
     (value) => {
       setSettingValue("🔍MagnifyGlass.TextOutlineColor", value);
       const mg = window.comfyUIMagnifyGlass;
@@ -531,7 +518,7 @@ function renderSettingsPanel(container) {
   ));
   accessibilitySection.body.appendChild(createToggle(
     "Node Emphasis",
-    getSettingValue("🔍MagnifyGlass.NodeTitleEmphasis", false),
+    settingValue("🔍MagnifyGlass.NodeTitleEmphasis"),
     (checked) => {
       setSettingValue("🔍MagnifyGlass.NodeTitleEmphasis", checked);
       const mg = window.comfyUIMagnifyGlass;
@@ -544,7 +531,7 @@ function renderSettingsPanel(container) {
   ));
   accessibilitySection.body.appendChild(createToggle(
     "Invert Colors",
-    getSettingValue("🔍MagnifyGlass.InvertColors", false),
+    settingValue("🔍MagnifyGlass.InvertColors"),
     (checked) => {
       setSettingValue("🔍MagnifyGlass.InvertColors", checked);
       const mg = window.comfyUIMagnifyGlass;
@@ -557,7 +544,7 @@ function renderSettingsPanel(container) {
   ));
   accessibilitySection.body.appendChild(createToggle(
     "Grayscale Mode",
-    getSettingValue("🔍MagnifyGlass.GrayscaleMode", false),
+    settingValue("🔍MagnifyGlass.GrayscaleMode"),
     (checked) => {
       setSettingValue("🔍MagnifyGlass.GrayscaleMode", checked);
       const mg = window.comfyUIMagnifyGlass;
@@ -570,7 +557,7 @@ function renderSettingsPanel(container) {
   ));
   accessibilitySection.body.appendChild(createToggle(
     "Reduce Motion",
-    getSettingValue("🔍MagnifyGlass.ReduceMotion", false),
+    settingValue("🔍MagnifyGlass.ReduceMotion"),
     (checked) => {
       setSettingValue("🔍MagnifyGlass.ReduceMotion", checked);
       const mg = window.comfyUIMagnifyGlass;
@@ -582,11 +569,11 @@ function renderSettingsPanel(container) {
     "Disable smooth animations"
   ));
   container.appendChild(accessibilitySection.section);
-  const panelSection = createSection("Info Panel", true);
+  const panelSection = createSection("Info Panel");
   panelSection.section.hidden = !inspectorEnabled;
   panelSection.body.appendChild(createToggle(
     "Persist Info",
-    getSettingValue("🔍MagnifyGlass.InfoPanelPersist", false),
+    settingValue("🔍MagnifyGlass.InfoPanelPersist"),
     (checked) => {
       setSettingValue("🔍MagnifyGlass.InfoPanelPersist", checked);
       const infoPanel = window.infoPanelManager;
@@ -598,26 +585,26 @@ function renderSettingsPanel(container) {
   ));
   panelSection.body.appendChild(createToggle(
     "Node Highlight Border",
-    getSettingValue("🔍MagnifyGlass.NodeHighlightEnabled", true),
+    settingValue("🔍MagnifyGlass.NodeHighlightEnabled"),
     (checked) => {
       setSettingValue("🔍MagnifyGlass.NodeHighlightEnabled", checked);
-      const app2 = window.app;
-      if (app2 && app2.canvas) {
-        app2.canvas.setDirty(true, true);
+      const app = window.app;
+      if (app && app.canvas) {
+        app.canvas.setDirty(true, true);
       }
     },
     "Show a blue highlight border around the currently inspected node"
   ));
   panelSection.body.appendChild(createSelect(
     "Position",
-    getSettingValue("🔍MagnifyGlass.InfoPanelPosition", "Bottom"),
+    settingValue("🔍MagnifyGlass.InfoPanelPosition"),
     PANEL_POSITIONS,
     (value) => setSettingValue("🔍MagnifyGlass.InfoPanelPosition", value),
     "Position of the info panel relative to the glass"
   ));
   panelSection.body.appendChild(createSlider(
     "Width",
-    getSettingValue("🔍MagnifyGlass.InfoPanelWidth", 300),
+    settingValue("🔍MagnifyGlass.InfoPanelWidth"),
     200,
     600,
     20,
@@ -639,7 +626,7 @@ function renderSettingsPanel(container) {
   ));
   panelSection.body.appendChild(createSlider(
     "Max Height",
-    getSettingValue("🔍MagnifyGlass.InfoPanelMaxHeight", 300),
+    settingValue("🔍MagnifyGlass.InfoPanelMaxHeight"),
     200,
     1500,
     50,
@@ -661,7 +648,7 @@ function renderSettingsPanel(container) {
   ));
   panelSection.body.appendChild(createSlider(
     "Font Size",
-    getSettingValue("🔍MagnifyGlass.InfoPanelFontSize", 14),
+    settingValue("🔍MagnifyGlass.InfoPanelFontSize"),
     8,
     24,
     1,
@@ -679,7 +666,7 @@ function renderSettingsPanel(container) {
   ));
   panelSection.body.appendChild(createSlider(
     "Opacity",
-    getSettingValue("🔍MagnifyGlass.InfoPanelOpacity", 95),
+    settingValue("🔍MagnifyGlass.InfoPanelOpacity"),
     10,
     100,
     5,
@@ -719,7 +706,7 @@ function renderSettingsPanel(container) {
   ];
   panelSection.body.appendChild(createSelect(
     "Font Family",
-    getSettingValue("🔍MagnifyGlass.InfoPanelFontFamily", "System Default"),
+    settingValue("🔍MagnifyGlass.InfoPanelFontFamily"),
     fontFamilyOptions,
     (value) => setSettingValue("🔍MagnifyGlass.InfoPanelFontFamily", value),
     "Font family for the info panel text",
@@ -734,7 +721,7 @@ function renderSettingsPanel(container) {
   ));
   panelSection.body.appendChild(createColorPicker(
     "Text Color",
-    getSettingValue("🔍MagnifyGlass.InfoPanelTextColor", "#6b7280"),
+    settingValue("🔍MagnifyGlass.InfoPanelTextColor"),
     (value) => setSettingValue("🔍MagnifyGlass.InfoPanelTextColor", value),
     "Text color in the info panel",
     (value) => {
@@ -748,7 +735,7 @@ function renderSettingsPanel(container) {
   ));
   panelSection.body.appendChild(createColorPicker(
     "Accent Color",
-    getSettingValue("🔍MagnifyGlass.InfoPanelAccentColor", "#3b82f6"),
+    settingValue("🔍MagnifyGlass.InfoPanelAccentColor"),
     (value) => setSettingValue("🔍MagnifyGlass.InfoPanelAccentColor", value),
     "Accent color for highlights",
     (value) => {
@@ -762,7 +749,7 @@ function renderSettingsPanel(container) {
   ));
   panelSection.body.appendChild(createToggle(
     "High Contrast Text",
-    getSettingValue("🔍MagnifyGlass.HighContrastText", false),
+    settingValue("🔍MagnifyGlass.HighContrastText"),
     (checked) => {
       var _a, _b;
       setSettingValue("🔍MagnifyGlass.HighContrastText", checked);
@@ -776,13 +763,13 @@ function renderSettingsPanel(container) {
   ));
   panelSection.body.appendChild(createToggle(
     "Hover Controls",
-    getSettingValue("🔍MagnifyGlass.ShowHoveringControls", true),
+    settingValue("🔍MagnifyGlass.ShowHoveringControls"),
     (checked) => setSettingValue("🔍MagnifyGlass.ShowHoveringControls", checked),
     "Show floating control buttons near the panel"
   ));
   panelSection.body.appendChild(createSelect(
     "Controls Position",
-    getSettingValue("🔍MagnifyGlass.ControlsPosition", "left"),
+    settingValue("🔍MagnifyGlass.ControlsPosition"),
     ["top", "bottom", "left", "right", "top-left", "top-right", "bottom-left", "bottom-right"],
     (value) => setSettingValue("🔍MagnifyGlass.ControlsPosition", value),
     "Position of floating control buttons",
@@ -793,31 +780,31 @@ function renderSettingsPanel(container) {
         infoPanel.stateManager.state.settings["🔍MagnifyGlass.ControlsPosition"] = value;
         infoPanel.uiManager.updateControlsLayout(value);
         if (infoPanel.magnifyGlass.state.active) {
-          infoPanel.positionManager.positionFloatingControls();
+          infoPanel.positionManager.positionFloatingControls(infoPanel.uiManager.elements.controls);
         }
       }
     }
   ));
   container.appendChild(panelSection.section);
-  const panelHotkeySection = createSection("Panel Hotkeys", true);
+  const panelHotkeySection = createSection("Panel Hotkeys");
   panelHotkeySection.section.hidden = !inspectorEnabled;
   panelHotkeySection.body.appendChild(createSelect(
     "Toggle Key",
-    getSettingValue("🔍MagnifyGlass.ToggleHotkey", "i"),
+    settingValue("🔍MagnifyGlass.ToggleHotkey"),
     ["i", "j", "k", "l", "n", "m"],
     (value) => setSettingValue("🔍MagnifyGlass.ToggleHotkey", value),
     "Key to toggle info panel visibility"
   ));
   panelHotkeySection.body.appendChild(createSelect(
     "Pin Key",
-    getSettingValue("🔍MagnifyGlass.PinPanelHotkey", "u"),
+    settingValue("🔍MagnifyGlass.PinPanelHotkey"),
     ["u", "p", "y", "t"],
     (value) => setSettingValue("🔍MagnifyGlass.PinPanelHotkey", value),
     "Key to pin/unpin the info panel position"
   ));
   const panelAltToggle = createToggle(
     "Require Alt Key",
-    getSettingValue("🔍MagnifyGlass.AltRequired", false),
+    settingValue("🔍MagnifyGlass.AltRequired"),
     (checked) => {
       setSettingValue("🔍MagnifyGlass.AltRequired", checked);
       container.querySelectorAll(".magnify-alt-toggle .magnify-toggle").forEach((t) => {
@@ -832,20 +819,12 @@ function renderSettingsPanel(container) {
   panelHotkeySection.body.appendChild(panelAltToggle);
   container.appendChild(panelHotkeySection.section);
   const buttonRow = document.createElement("div");
-  buttonRow.style.padding = "16px";
-  buttonRow.style.borderTop = "1px solid var(--border-color, #333)";
-  buttonRow.style.display = "flex";
-  buttonRow.style.flexDirection = "column";
-  buttonRow.style.gap = "8px";
-  const resetBtn = document.createElement("button");
-  resetBtn.className = "magnify-btn";
-  resetBtn.style.width = "100%";
-  resetBtn.innerHTML = `${Icons.reset} Reset Position`;
-  resetBtn.title = `Reset glass position and disable follow cursor. Hotkey: ${resetKey}`;
+  buttonRow.className = "magnify-sidebar-actions";
+  const resetBtn = createButton("Reset Position", `Reset glass position and disable follow cursor. Hotkey: ${resetKey}`);
   resetBtn.addEventListener("click", (e) => {
     e.stopPropagation();
     const magnifyGlass = window.comfyUIMagnifyGlass;
-    if (magnifyGlass && magnifyGlass.resetOffsets) {
+    if (magnifyGlass) {
       magnifyGlass.resetOffsets();
       const followToggles = container.querySelectorAll(".magnify-toggle-row");
       followToggles.forEach((row) => {
@@ -860,84 +839,39 @@ function renderSettingsPanel(container) {
       });
     }
   });
-  buttonRow.appendChild(resetBtn);
-  const resetAllBtn = document.createElement("button");
-  resetAllBtn.className = "magnify-btn magnify-btn-secondary";
-  resetAllBtn.style.width = "100%";
-  resetAllBtn.innerHTML = `${Icons.reset} Reset All Settings`;
-  resetAllBtn.title = "Reset all settings to their default values";
+  const resetAllBtn = createButton("Reset All Settings", "Reset all settings to their default values");
+  resetAllBtn.classList.add("magnify-btn-secondary");
   resetAllBtn.addEventListener("click", (e) => {
-    var _a, _b, _c, _d;
     e.stopPropagation();
     if (!confirm("Reset all MagnifyGlass settings to defaults?")) {
       return;
     }
-    setSettingValue("🔍MagnifyGlass.ZoomFactor", 300);
-    setSettingValue("🔍MagnifyGlass.GlassSize", 300);
-    setSettingValue("🔍MagnifyGlass.GlassShape", "Rounded Square");
-    setSettingValue("🔍MagnifyGlass.GlassPosition", "Top-Right");
-    setSettingValue("🔍MagnifyGlass.TextureFiltering", "Linear");
-    setSettingValue("🔍MagnifyGlass.BorderWidth", 1);
-    setSettingValue("🔍MagnifyGlass.BorderColor", "#6b7280");
-    setSettingValue("🔍MagnifyGlass.BorderEnabled", true);
-    setSettingValue("🔍MagnifyGlass.FollowCursor", false);
-    setSettingValue("🔍MagnifyGlass.AlwaysActiveMode", true);
-    setSettingValue("🔍MagnifyGlass.ActivationKey", "x");
-    setSettingValue("🔍MagnifyGlass.ResetKey", "o");
-    setSettingValue("🔍MagnifyGlass.ToggleFollowCursorKey", "h");
-    setSettingValue("🔍MagnifyGlass.AltRequired", false);
-    setSettingValue("🔍MagnifyGlass.OffsetStep", 5);
-    setSettingValue("🔍MagnifyGlass.ShowCursorPreview", false);
-    setSettingValue("🔍MagnifyGlass.ForceDirectCapture", false);
-    setSettingValue("🔍MagnifyGlass.ForceDirectCaptureKey", "d");
-    setSettingValue("🔍MagnifyGlass.InfoPanelEnabled", true);
-    setSettingValue("🔍MagnifyGlass.InfoPanelPosition", "Bottom");
-    setSettingValue("🔍MagnifyGlass.InfoPanelWidth", 300);
-    setSettingValue("🔍MagnifyGlass.InfoPanelMaxHeight", 300);
-    setSettingValue("🔍MagnifyGlass.InfoPanelOpacity", 100);
-    setSettingValue("🔍MagnifyGlass.InfoPanelFontSize", 14);
-    setSettingValue("🔍MagnifyGlass.InfoPanelFontFamily", "System Default");
-    setSettingValue("🔍MagnifyGlass.InfoPanelPersist", false);
-    setSettingValue("🔍MagnifyGlass.InfoPanelTextColor", "#6b7280");
-    setSettingValue("🔍MagnifyGlass.InfoPanelAccentColor", "#3b82f6");
-    setSettingValue("🔍MagnifyGlass.InfoPanelAnimations", false);
-    setSettingValue("🔍MagnifyGlass.ShowHoveringControls", true);
-    setSettingValue("🔍MagnifyGlass.ControlsPosition", "left");
+    resetAllSettings();
     const infoPanel = window.infoPanelManager;
-    if ((_b = (_a = infoPanel == null ? void 0 : infoPanel.stateManager) == null ? void 0 : _a.state) == null ? void 0 : _b.settings) {
-      infoPanel.stateManager.state.settings["🔍MagnifyGlass.ControlsPosition"] = "left";
-      if (infoPanel.uiManager && infoPanel.uiManager.updateControlsLayout) {
-        infoPanel.uiManager.updateControlsLayout("left");
+    if (infoPanel) {
+      const controlsPosition = DEFAULT_SETTINGS["🔍MagnifyGlass.ControlsPosition"];
+      infoPanel.stateManager.state.settings["🔍MagnifyGlass.ControlsPosition"] = controlsPosition;
+      infoPanel.uiManager.updateControlsLayout(controlsPosition);
+      if (infoPanel.magnifyGlass.state.active) {
+        infoPanel.positionManager.positionFloatingControls(infoPanel.uiManager.elements.controls);
       }
-      if (((_d = (_c = infoPanel.magnifyGlass) == null ? void 0 : _c.state) == null ? void 0 : _d.active) && infoPanel.positionManager) {
-        infoPanel.positionManager.positionFloatingControls();
-      }
-    }
-    setSettingValue("🔍MagnifyGlass.ToggleHotkey", "i");
-    setSettingValue("🔍MagnifyGlass.GlassPreviewToggleHotkey", "g");
-    setSettingValue("🔍MagnifyGlass.PinPanelHotkey", "u");
-    setSettingValue("🔍MagnifyGlass.AccessibilityEnabled", false);
-    setSettingValue("🔍MagnifyGlass.HighContrastMode", false);
-    setSettingValue("🔍MagnifyGlass.TextGlowEnabled", false);
-    setSettingValue("🔍MagnifyGlass.TextGlowColor", "#ffff00");
-    setSettingValue("🔍MagnifyGlass.TextGlowIntensity", 5);
-    setSettingValue("🔍MagnifyGlass.FontScaleFactor", 100);
-    setSettingValue("🔍MagnifyGlass.BoldTextEnabled", false);
-    setSettingValue("🔍MagnifyGlass.TextOutlineEnabled", false);
-    setSettingValue("🔍MagnifyGlass.TextOutlineColor", "#000000");
-    setSettingValue("🔍MagnifyGlass.NodeTitleEmphasis", false);
-    setSettingValue("🔍MagnifyGlass.InvertColors", false);
-    setSettingValue("🔍MagnifyGlass.GrayscaleMode", false);
-    setSettingValue("🔍MagnifyGlass.ReduceMotion", false);
-    const magnifyGlass = window.comfyUIMagnifyGlass;
-    if (magnifyGlass && magnifyGlass.resetOffsets) {
-      magnifyGlass.resetOffsets();
     }
     container.innerHTML = "";
     renderSettingsPanel(container);
   });
-  buttonRow.appendChild(resetAllBtn);
+  buttonRow.append(resetBtn, resetAllBtn);
   container.appendChild(buttonRow);
+}
+function createButton(text, title) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "magnify-btn";
+  button.title = title;
+  const icon = document.createElement("i");
+  icon.className = "pi pi-refresh";
+  icon.setAttribute("aria-hidden", "true");
+  button.append(icon, text);
+  return button;
 }
 export {
   createColorPicker,

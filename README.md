@@ -5,7 +5,7 @@
 **A powerful, customizable magnifying glass extension for ComfyUI.**
 
 [![ComfyUI](https://img.shields.io/badge/ComfyUI-Extension-green?style=for-the-badge)](https://github.com/comfyanonymous/ComfyUI)
-[![Version](https://img.shields.io/badge/Version-1.13.1-orange?style=for-the-badge)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases)
+[![Version](https://img.shields.io/badge/Version-1.14.0-orange?style=for-the-badge)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases)
 [![License](https://img.shields.io/badge/License-GPLv3-red?style=for-the-badge)](LICENSE)
 [![Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen?style=for-the-badge&color=blue)](package.json)
 
@@ -25,13 +25,14 @@
 
 ---
 
-## 🚀 What's New in v1.13.1 (February 7, 2026)
+## 🚀 What's New in v1.14.0 (November 3, 2026)
 
-**Stability & Cross-Browser Fixes**
+**Images and Videos in the Glass, Glass-Only Mode, New Sidebar**
 
-*   **🐛 Glass Drag Fixed**: Resolved an issue where dragging the magnify glass would corrupt LiteGraph canvas state, leaving the cursor stuck in grab/pan mode and all canvas clicks non-functional. Now works reliably across Chromium, Firefox, and Brave.
-*   **🐛 Ghost Interactions Fixed**: Fixed cursor actions (grab, text-input, pointer) persisting after hiding the info panel via the X key toggle.
-*   **🔧 Cross-Browser Compatibility**: Glass drag now uses pointer events to match LiteGraph's event model, ensuring consistent behavior across all browsers.
+*   **🖼️ Media in the Glass**: Image previews, videos and animated images now show in the glass at their real position, at any canvas zoom. Images are drawn at full resolution, videos play smoothly, and both reach the pop-out and the Invert/Grayscale filters.
+*   **🔍 Glass-Only Mode**: Turn off **Inspector panel** at the top of the sidebar to remove the panel, its hotkeys and its highlight entirely. Turn it back on without a reload.
+*   **🎨 Sidebar Redesign**: Follows your ComfyUI palette (light or dark), with an About section for links, version and the studio's other packs.
+*   **🧩 Nodes 2.0**: Basic support for the Vue nodes mode.
 
 > 📄 **See [CHANGELOG.md](CHANGELOG.md) for the complete version history.**
 
@@ -131,7 +132,7 @@ git clone https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass.git
 | **`X`** | **Activate / Toggle Tool** (Master Switch) |
 | **`H`** | Toggle Follow Cursor Mode |
 | **`I`** | Toggle Inspector Panel Visibility |
-| **`G`** | Toggle Glass Preview (Enters "Inspector Only" Mode) |
+| **`G`** | Toggle Glass Preview (with the Inspector panel on, keeps the panel and hides the glass) |
 | **`Shift+P`** | Open Pop-Out Viewer in New Tab |
 | **`U`** | Pin/Unpin Inspector Panel |
 | **`O`** | Reset Offsets |
@@ -140,7 +141,7 @@ git clone https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass.git
 | **`D`** | Force Direct Capture (Optional after v1.11.0 improvements) |
 | **Arrows** | Nudge Glass Position (When not navigating nodes) |
 
-> **Pro Tip:** Toggle the **Glass Preview (`G`)** off to keep the Inspector Panel active but hide the magnifying preview.
+> **Pro Tip:** Press **`G`** to hide the magnifying preview and keep only the Inspector Panel. For the glass alone, turn off **Inspector panel** in the sidebar.
 
 ---
 
@@ -158,13 +159,15 @@ Access settings via the **new Sidebar Panel** or the ComfyUI Settings (⚙️) m
 | **Shape** | `Rounded Square` | Circle, Square, or Rounded Square. |
 | **Position** | `Top-Right` | Offset position relative to cursor. |
 | **Filtering** | `Linear` | Texture filtering: Linear (smooth) or Nearest (pixelated). |
-| **Border Width** | `2px` | Width of the glass border. |
-| **Border Color** | `#FFFFFF` | Color of the glass border. |
+| **Border Width** | `1px` | Width of the glass border. |
+| **Border Color** | `#6B7280` | Color of the glass border. |
 | **Show Border** | `On` | Toggle the glass border visibility. |
 | **Follow Cursor** | `Off` | If On, glass moves with your mouse. |
 | **Always Active** | `On` | Keep the glass visible after activation. |
 | **Force Direct Capture**| `Off` | High-accuracy mode for low zoom levels. |
 | **Show Mini Cursor** | `Off` | Displays a cursor preview inside the glass. |
+
+> Image previews, videos and animated images show in the glass in both capture modes. In Nodes 2.0 (Vue nodes) mode the glass always uses Direct Capture.
 
 </details>
 
@@ -173,7 +176,7 @@ Access settings via the **new Sidebar Panel** or the ComfyUI Settings (⚙️) m
 
 | Setting | Default | Description |
 | :--- | :--- | :--- |
-| **Enable Panel** | `On` | Toggle the visibility of the node inspector. |
+| **Inspector panel** | `On` | Off leaves only the glass: the panel, its hotkeys (`I`, `U`, `S`, `*`) and its highlight are removed. |
 | **Persist Info** | `Off` | Keep last node info visible when not hovering a node. |
 | **Node Highlight** | `On` | Show high-contrast border around inspected node. |
 | **Position** | `Bottom` | Position relative to the glass (Top/Bottom/Left/Right). |
@@ -186,6 +189,8 @@ Access settings via the **new Sidebar Panel** or the ComfyUI Settings (⚙️) m
 | **Accent Color** | `#3B82F6` | Color for headers and highlights. |
 | **Hover Controls** | `On` | Show floating quick-action buttons. |
 | **Controls Position** | `Left` | Anchor point for the floating controls. |
+
+> **Move Glass Position** (drag-glass mode) is one of the panel's floating controls, so it is unavailable while the Inspector panel is off. Use Follow Cursor (`H`) or the arrow keys instead.
 
 </details>
 
@@ -206,7 +211,7 @@ Access settings via the **new Sidebar Panel** or the ComfyUI Settings (⚙️) m
 | **Node Emphasis** | `Off` | Apply extra styling/weight to node titles. |
 | **Invert Colors** | `Off` | Invert all colors in the glass view. |
 | **Grayscale Mode** | `Off` | Remove all color saturation from the view. |
-| **Reduce Motion** | `Off` | Disable smooth animations for instant feedback. |
+| **Reduce Motion** | `On` | Disable smooth animations for instant feedback. |
 
 </details>
 

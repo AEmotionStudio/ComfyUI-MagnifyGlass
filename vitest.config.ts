@@ -1,7 +1,9 @@
 import { defineConfig } from 'vitest/config';
 import path from 'path';
+import { version } from './package.json';
 
 export default defineConfig({
+    define: { __MAGNIFY_VERSION__: JSON.stringify(version) },
     test: {
         globals: true,
         environment: 'happy-dom',

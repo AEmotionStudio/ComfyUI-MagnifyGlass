@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderSettingsPanel } from '../../src/sidebar/SidebarSettings';
+import { DEFAULT_SETTINGS } from '../../src/shared/settings/defaults';
 // @ts-ignore
 import { app } from '/scripts/app.js';
 
@@ -25,6 +26,7 @@ vi.mock('/scripts/app.js', () => ({
 };
 
 (global as any).infoPanelManager = {
+    magnifyGlass: (global as any).comfyUIMagnifyGlass,
     stateManager: { state: { settings: {} } },
     uiManager: {
         updateControlStates: vi.fn(),
@@ -41,6 +43,9 @@ vi.mock('/scripts/app.js', () => ({
 const sectionByTitle = (container: HTMLElement, title: string) =>
     Array.from(container.querySelectorAll<HTMLElement>('.magnify-sidebar-section'))
         .find(section => section.firstElementChild?.textContent?.trim() === title)!;
+
+const buttonByText = (root: HTMLElement, text: string) =>
+    Array.from(root.querySelectorAll('button')).find(btn => btn.textContent?.includes(text))!;
 
 const toggleByLabel = (root: HTMLElement, label: string) =>
     Array.from(root.querySelectorAll('.magnify-toggle-row'))
@@ -166,6 +171,75 @@ describe('Sidebar Interactions', () => {
                 Array.from(sectionByTitle(container, title).querySelectorAll('label')).map(l => l.textContent);
             expect(labels('Glass Hotkeys')).toContain('Glass Toggle Key');
             expect(labels('Panel Hotkeys')).not.toContain('Glass Toggle Key');
+        });
+    });
+
+    it('expands a section from its header button', () => {
+        const container = document.createElement('div');
+        renderSettingsPanel(container);
+
+        const section = sectionByTitle(container, 'Glass Settings');
+        const header = section.firstElementChild as HTMLButtonElement;
+        const body = section.lastElementChild as HTMLElement;
+        expect(body.id).toBe(header.getAttribute('aria-controls'));
+        expect(header.tagName).toBe('BUTTON');
+        expect(header.getAttribute('aria-expanded')).toBe('false');
+        expect(body.hidden).toBe(true);
+
+        header.click();
+        expect(header.getAttribute('aria-expanded')).toBe('true');
+        expect(body.hidden).toBe(false);
+    });
+
+    describe('defaults', () => {
+        it('shows the registered defaults when nothing is saved', () => {
+            const container = document.createElement('div');
+            renderSettingsPanel(container);
+
+            const slider = (label: string) =>
+                Array.from(container.querySelectorAll<HTMLInputElement>('input[type="range"]'))
+                    .find(input => container.querySelector(`label[for="${input.id}"]`)?.textContent === label)!;
+            const color = (label: string) =>
+                Array.from(container.querySelectorAll<HTMLInputElement>('input[type="color"]'))
+                    .find(input => container.querySelector(`label[for="${input.id}"]`)?.textContent === label)!;
+
+            expect(slider('Glass Size').value).toBe(String(DEFAULT_SETTINGS['🔍MagnifyGlass.GlassSize']));
+            expect(slider('Border Width').value).toBe(String(DEFAULT_SETTINGS['🔍MagnifyGlass.BorderWidth']));
+            expect(slider('Offset Step').value).toBe(String(DEFAULT_SETTINGS['🔍MagnifyGlass.OffsetStep']));
+            expect(slider('Opacity').value).toBe(String(DEFAULT_SETTINGS['🔍MagnifyGlass.InfoPanelOpacity']));
+            expect(color('Border Color').value).toBe(DEFAULT_SETTINGS['🔍MagnifyGlass.BorderColor']);
+        });
+
+        it('Reset All writes every default and re-renders', () => {
+            vi.stubGlobal('confirm', vi.fn(() => true));
+            vi.mocked(app.ui.settings.setSettingValue).mockClear();
+            const resetOffsets = (global as any).comfyUIMagnifyGlass.resetOffsets;
+            resetOffsets.mockClear();
+            const container = document.createElement('div');
+            renderSettingsPanel(container);
+
+            const resetAll = buttonByText(container, 'Reset All Settings');
+            resetAll.click();
+
+            for (const [id, value] of Object.entries(DEFAULT_SETTINGS)) {
+                expect(app.ui.settings.setSettingValue).toHaveBeenCalledWith(id, value);
+            }
+            expect(app.ui.settings.setSettingValue).toHaveBeenCalledWith('🔍MagnifyGlass.ReduceMotion', true);
+            expect(resetOffsets).toHaveBeenCalled();
+            expect(container.contains(resetAll)).toBe(false);
+            expect(buttonByText(container, 'Reset All Settings')).toBeTruthy();
+            vi.unstubAllGlobals();
+        });
+
+        it('Reset All does nothing when not confirmed', () => {
+            vi.stubGlobal('confirm', vi.fn(() => false));
+            vi.mocked(app.ui.settings.setSettingValue).mockClear();
+            const container = document.createElement('div');
+            renderSettingsPanel(container);
+
+            buttonByText(container, 'Reset All Settings').click();
+            expect(app.ui.settings.setSettingValue).not.toHaveBeenCalled();
+            vi.unstubAllGlobals();
         });
     });
 });

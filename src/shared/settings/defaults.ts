@@ -84,3 +84,13 @@ export const DEFAULT_ACCESSIBILITY_SETTINGS: AccessibilitySettings = {
     "🔍MagnifyGlass.GrayscaleMode": false,
     "🔍MagnifyGlass.ReduceMotion": true,
 };
+
+/**
+ * Every setting the sidebar and Reset All know, at its registered default.
+ */
+export const DEFAULT_SETTINGS = {
+    ...DEFAULT_GLASS_SETTINGS,
+    ...DEFAULT_PANEL_SETTINGS,
+    ...DEFAULT_ACCESSIBILITY_SETTINGS,
+    "🔍MagnifyGlass.HighContrastText": false,
+};

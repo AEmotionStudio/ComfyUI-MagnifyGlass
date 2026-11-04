@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.0] - 2026-11-03
+
+### Fixed
+- **Images and videos in the glass**: Image previews, videos and animated images now show in the glass at their real position and size, at any canvas zoom and in both capture modes.
+  - Image previews are drawn from the full-resolution image, so they stay sharp when magnified. Batches show as the frontend's grid, or as the selected image.
+  - Videos and animated images (DOM widgets) are drawn into the glass every frame, so they play smoothly, show in the pop-out and take the Invert and Grayscale filters. HiDPI screens no longer misplace them.
+  - Cross-origin media that would taint the canvas is skipped.
+  - The glass keeps rendering without mouse movement, so latent previews and video update live.
+- **Glass alignment**: Node text, titles and culling now use the frontend's `(pos + offset) * scale` placement, and Virtual Zoom zooms about the right point when the canvas is not at the page's top-left (for example with the left sidebar open).
+- **Inspector panel toggle**: Turning off "Inspector panel" now removes the panel completely: its DOM, observers, timers, hotkeys (I, U, S, `*`) and the highlight border. Turning it back on rebuilds it without a reload. `G` still toggles the glass.
+- **Sidebar defaults**: Sidebar controls fell back to values that differed from the registered defaults (Glass Size, Border Width, Border Color, Offset Step, Info Panel Opacity). They now share one set of defaults.
+- **Reset All**: The sidebar and settings-dialog resets now write the same values. Reduce Motion resets to On, as on a fresh install.
+
+### Added
+- **Basic Nodes 2.0 (Vue nodes) support**: The glass captures directly and draws media from Vue nodes.
+- **About in the sidebar**: Version, links to GitHub, issues, Discord, YouTube, Ko-fi and the studio website, and the studio's other packs. ComfyUI's Settings › About page shows a MagnifyGlass badge.
+
+### Changed
+- **Sidebar redesign**: Built on ComfyUI's palette tokens, so it follows light and dark themes, with native section buttons, the Inspector panel switch at the top, and Glass Toggle Key under Glass Hotkeys.
+
+### Removed
+- The per-frame HTML overlay copies of videos, the Virtual Zoom frame throttle, and the unused sidebar Inspector module.
+
+### Known Issues
+- With the Inspector panel off, "Move Glass Position" (drag-glass mode) is unavailable, as it lives on the panel's floating controls. Follow Cursor (`H`) and the arrow keys still move the glass.
+- Not yet shown in the glass: previews promoted from subgraphs, DOM widgets hidden below the low-quality zoom threshold, and the clip paths of `DOMClippedNodes`. The full-resolution image also covers the grid's hover tint and the image navigation buttons.
+
+---
+
 ## [1.13.1] - 2026-02-07
 
 ### Fixed

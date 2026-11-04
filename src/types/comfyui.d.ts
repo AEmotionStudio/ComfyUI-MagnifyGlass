@@ -204,6 +204,8 @@ declare global {
     }
 
     var app: ComfyApp;
+    /** package.json's version, set by vite at build time */
+    const __MAGNIFY_VERSION__: string;
 }
 
 export interface MagnifyGlassInstance {

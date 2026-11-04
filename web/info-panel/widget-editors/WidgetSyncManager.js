@@ -42,6 +42,23 @@ class WidgetSyncManager {
     }
   }
   /**
+   * Run a button widget's callback on a node in the graph on screen
+   */
+  static clickButton(nodeId, widgetName) {
+    var _a, _b, _c;
+    const node = (_b = (_a = app == null ? void 0 : app.canvas) == null ? void 0 : _a.graph) == null ? void 0 : _b.getNodeById(nodeId);
+    const widget = (_c = node == null ? void 0 : node.widgets) == null ? void 0 : _c.find((w) => w.name === widgetName);
+    if (typeof (widget == null ? void 0 : widget.callback) !== "function") {
+      Logger.warn(`[WidgetSync] Button ${widgetName} not found on node ${nodeId}`);
+      return;
+    }
+    try {
+      widget.callback(widget.value, app.canvas, node, [0, 0], null);
+    } catch (error) {
+      Logger.warn(`[WidgetSync] Button callback failed:`, error);
+    }
+  }
+  /**
    * Let ComfyUI's change tracker pick up the edit as an undo step
    */
   static recordUndo() {

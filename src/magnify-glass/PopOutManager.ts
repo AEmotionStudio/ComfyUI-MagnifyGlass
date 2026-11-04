@@ -7,16 +7,21 @@
 
 import { BROADCAST_CHANNEL_NAME } from '../shared/constants';
 import { Logger } from '../shared/logger';
-import { WidgetSyncManager } from '../info-panel/widget-editors/WidgetSyncManager';
 
 /**
- * Widget edit command data from pop-out viewer
+ * A widget of a node, as the viewer names it in edits and requests
  */
-interface WidgetEditData {
+export interface WidgetRef {
     nodeId: number;
     widgetName: string;
+}
+
+export interface WidgetEditData extends WidgetRef {
     value: unknown;
 }
+
+/** Inspector actions the viewer may ask for */
+export type PanelAction = 'focus-node';
 
 /**
  * Node list data sent to popout for dropdown
@@ -36,33 +41,44 @@ interface PopOutConfig extends PopOutStatus {
 }
 
 /**
- * Inspector info data structure for pop-out viewer
+ * A widget row as the Inspector computes it. Combo options are sent when an editor asks for them.
  */
-interface PopOutInfo {
-    hoveredNode?: {
+export interface PopOutRow {
+    label: string;
+    widgetName?: string;
+    widgetType?: string;
+    /** Formatted for display */
+    value: string;
+    /** Primitive values only; an object value is shown but never edited */
+    rawValue?: string | number | boolean | null;
+    isEditable: boolean;
+    isLinked: boolean;
+    isActionable: boolean;
+    constraints: { min?: number; max?: number; step?: number; round?: number; precision?: number };
+}
+
+/**
+ * The shown node, how it came to be shown, and its rows, built by the Inspector.
+ */
+export interface PopOutInfo {
+    node: {
+        id: number;
         title: string;
         type: string;
-        id?: number;
-        mode?: string | number;
-        pos?: { x: number; y: number } | string;
-        size?: { w: number; h: number } | string;
-        executionOrder?: number;
-        category?: string;
-        pythonModule?: string;
-        widgets?: any[];
-        inputs?: any[];
-        outputs?: any[];
-        properties?: Record<string, unknown>;
+        mode: string;
+        execOrder?: number;
+        graphPath: string[];
+        group?: string;
+        isSubgraph: boolean;
+    } | null;
+    nav: {
+        source: 'hover' | 'locked' | 'sticky' | 'selection';
+        locked: boolean;
+        canBack: boolean;
+        canForward: boolean;
+        canEdit: boolean;
     };
-    cursor?: {
-        canvas?: { x: number; y: number };
-    };
-    canvas?: {
-        scale: number;
-    };
-    magnifier?: {
-        zoomFactor: number;
-    };
+    rows: PopOutRow[];
 }
 
 /** Messages on the session's channel, in both directions */
@@ -73,13 +89,15 @@ type PopOutMessage =
     | { type: 'visibility'; data: boolean }
     | { type: 'frame'; data: string }
     | { type: 'config'; data: PopOutConfig }
-    | { type: 'info'; data?: PopOutInfo }
+    | { type: 'info'; data: PopOutInfo }
     | { type: 'nodes-list'; data: NodeListData }
     | { type: 'request-nodes'; data: NodeListData['sortBy'] }
     | { type: 'node-select'; data: number }
-    | { type: 'zoom-node'; data: number }
+    | { type: 'panel-action'; data: { name: PanelAction; nodeId?: number } }
     | { type: 'widget-edit'; data: WidgetEditData }
-    | { type: 'button-click'; data: { nodeId: number; widgetName: string } };
+    | { type: 'button-click'; data: WidgetRef }
+    | { type: 'request-options'; data: WidgetRef }
+    | { type: 'options'; data: WidgetRef & { options: unknown[] } };
 
 const SESSION_KEY = 'magnifyglass-popout-session';
 
@@ -92,8 +110,12 @@ export class PopOutManager {
     private isOpen: boolean = false;
     private popOutWindow: Window | null = null;
     public onStateChange: ((isOpen: boolean) => void) | null = null;
+    // The Inspector owns the info and decides what the viewer may change
     public onNodeSelect: ((nodeId: number) => void) | null = null;
-    public onWidgetEdit: (() => void) | null = null;
+    public onWidgetEdit: ((data: WidgetEditData) => void) | null = null;
+    public onButtonClick: ((data: WidgetRef) => void) | null = null;
+    public onPanelAction: ((name: PanelAction, nodeId?: number) => void) | null = null;
+    public onRequestOptions: ((data: WidgetRef) => unknown[]) | null = null;
     private pingInterval: number | null = null;
     // Pings since the last pong
     private pendingPings: number = 0;
@@ -178,86 +200,22 @@ export class PopOutManager {
                 this.handleNodeListRequest(message.data);
                 break;
             case 'node-select':
-                // Popout selected a node, notify main window
-                if (this.onNodeSelect && typeof message.data === 'number') {
-                    this.onNodeSelect(message.data);
-                }
+                this.onNodeSelect?.(message.data);
                 break;
-            case 'zoom-node':
-                // Popout requested to zoom to a node
-                if (typeof message.data === 'number') {
-                    const app = (window as any).app;
-                    const node = app.canvas?.graph?.getNodeById(message.data);
-                    if (node) {
-                        app.canvas.centerOnNode(node);
-                    }
-                }
+            case 'panel-action':
+                this.onPanelAction?.(message.data.name, message.data.nodeId);
                 break;
             case 'widget-edit':
-                // Popout is sending a widget value edit
-                this.handleWidgetEdit(message.data);
+                this.onWidgetEdit?.(message.data);
                 break;
             case 'button-click':
-                // Popout is requesting a button widget callback invocation
-                this.handleButtonClick(message.data);
+                this.onButtonClick?.(message.data);
                 break;
-        }
-    }
-
-    /**
-     * Handle widget edit command from pop-out viewer.
-     * Syncs the edit to the actual node widget on the canvas.
-     */
-    private handleWidgetEdit(editData: WidgetEditData): void {
-        if (!editData || typeof editData.nodeId !== 'number' || !editData.widgetName) {
-            Logger.warn('[PopOut] Invalid widget edit data:', editData);
-            return;
-        }
-
-        const result = WidgetSyncManager.syncWidgetValue(
-            editData.nodeId,
-            editData.widgetName,
-            editData.value
-        );
-
-        if (result.success) {
-            Logger.debug(`[PopOut] Widget edit synced: ${editData.widgetName} = ${editData.value}`);
-            // Notify listeners (InfoPanel) that a widget was edited, to force an immediate refresh
-            if (this.onWidgetEdit) {
-                this.onWidgetEdit();
-            }
-        } else {
-            Logger.warn(`[PopOut] Widget edit failed: ${result.error}`);
-        }
-    }
-
-    /**
-     * Handle button click command from pop-out viewer.
-     * Invokes the widget's callback function.
-     */
-    private handleButtonClick(buttonData: { nodeId: number; widgetName: string }): void {
-        if (!buttonData || typeof buttonData.nodeId !== 'number' || !buttonData.widgetName) {
-            Logger.warn('[PopOut] Invalid button click data:', buttonData);
-            return;
-        }
-
-        const app = (window as any).app;
-        const node = app?.canvas?.graph?.getNodeById(buttonData.nodeId);
-        if (!node?.widgets) {
-            Logger.warn(`[PopOut] Node ${buttonData.nodeId} not found or has no widgets`);
-            return;
-        }
-
-        const widget = node.widgets.find((w: any) => w.name === buttonData.widgetName);
-        if (widget && typeof widget.callback === 'function') {
-            try {
-                widget.callback(widget.value, app.canvas, node, [0, 0], null);
-                Logger.debug(`[PopOut] Button ${buttonData.widgetName} clicked successfully`);
-            } catch (error) {
-                Logger.warn(`[PopOut] Button callback failed:`, error);
-            }
-        } else {
-            Logger.warn(`[PopOut] Widget ${buttonData.widgetName} not found or has no callback`);
+            case 'request-options':
+                if (this.onRequestOptions) {
+                    this.sendMessage({ type: 'options', data: { ...message.data, options: this.onRequestOptions(message.data) } });
+                }
+                break;
         }
     }
 
@@ -363,19 +321,11 @@ export class PopOutManager {
     }
 
     /**
-     * Send inspector info to the pop-out viewer.
-     * @param info - Inspector panel information
+     * Send the Inspector's info to the pop-out viewer.
      */
-    sendInfo(info: PopOutInfo | null): void {
-        if (!this.isOpen || !this.channel) return;
-
-        // Sanitize the info object to remove non-serializable data
-        const sanitizedInfo = this.sanitizeInfo(info);
-
-        this.sendMessage({
-            type: 'info',
-            data: sanitizedInfo || undefined
-        });
+    sendInfo(info: PopOutInfo): void {
+        if (!this.isOpen) return;
+        this.sendMessage({ type: 'info', data: info });
     }
 
     /**
@@ -429,145 +379,6 @@ export class PopOutManager {
         } catch (e) {
             Logger.error('[PopOut] Failed to get node list:', e);
         }
-    }
-
-    /**
-     * Sanitize info object for BroadcastChannel transfer.
-     * Removes functions, circular references, and non-serializable data.
-     * Handles both GatheredInfo and PopOutInfo formats.
-     */
-    private sanitizeInfo(info: any): PopOutInfo | null {
-        if (!info) return null;
-
-        try {
-            // Extract only the serializable parts we need
-            const sanitized: PopOutInfo = {};
-
-            // Handle hoveredNode
-            if (info.hoveredNode) {
-                sanitized.hoveredNode = {
-                    title: String(info.hoveredNode.title || ''),
-                    type: String(info.hoveredNode.type || ''),
-                    id: info.hoveredNode.id,
-                    mode: info.hoveredNode.mode,
-                    executionOrder: info.hoveredNode.executionOrder,
-                    category: info.hoveredNode.category ? String(info.hoveredNode.category) : undefined,
-                    pythonModule: info.hoveredNode.pythonModule ? String(info.hoveredNode.pythonModule) : undefined,
-                    // Map formatting or raw values
-                    pos: info.hoveredNode.position && typeof info.hoveredNode.position === 'object'
-                        ? { x: info.hoveredNode.position.x, y: info.hoveredNode.position.y }
-                        : String(info.hoveredNode.position || ''),
-                    size: info.hoveredNode.size && typeof info.hoveredNode.size === 'object'
-                        ? { w: info.hoveredNode.size.width, h: info.hoveredNode.size.height }
-                        : String(info.hoveredNode.size || ''),
-                    widgets: this.extractSafeData(info.hoveredNode.widgets),
-                    inputs: this.extractSafeData(info.hoveredNode.inputs),
-                    outputs: this.extractSafeData(info.hoveredNode.outputs),
-                    properties: this.sanitizeOptions(info.hoveredNode.properties) || {}
-                };
-            }
-
-            // Handle cursor - map from GatheredInfo format (canvasX/canvasY)
-            if (info.cursor) {
-                sanitized.cursor = {
-                    canvas: {
-                        x: Number(info.cursor.canvasX || info.cursor.canvas?.x || 0),
-                        y: Number(info.cursor.canvasY || info.cursor.canvas?.y || 0)
-                    }
-                };
-            }
-
-            // Handle canvas/zoom - map from GatheredInfo (zoom) to canvas.scale
-            if (info.zoom !== undefined || info.canvas) {
-                sanitized.canvas = {
-                    scale: Number(info.zoom || info.canvas?.scale || 1)
-                };
-            }
-
-            // Handle magnifier
-            const magnifyGlass = (window as any).comfyUIMagnifyGlass;
-            if (magnifyGlass?.config) {
-                sanitized.magnifier = {
-                    zoomFactor: Number(magnifyGlass.config.zoomFactor || 1)
-                };
-            }
-
-            return sanitized;
-        } catch (e) {
-            Logger.error('[PopOut] Failed to sanitize info:', e);
-            return null;
-        }
-    }
-
-    /**
-     * Extract specific safe fields from node lists (widgets, inputs, outputs).
-     * Removes functions like onFloatValueChange which cause cloning errors.
-     */
-    private extractSafeData(list: any[] | undefined): any[] {
-        if (!list || !Array.isArray(list)) return [];
-        return list.map(item => {
-            if (!item || typeof item !== 'object') return {};
-
-            // Only extract known safe identifiers and values
-            const safeItem: any = {
-                name: item.name,
-                type: item.type,
-                label: item.label
-            };
-
-            // Safely copy value if it's not a function
-            if (item.value !== undefined && typeof item.value !== 'function') {
-                safeItem.value = item.value;
-            }
-
-            // Handle widget options - preserve arrays for combo dropdowns
-            if (item.options !== undefined) {
-                if (Array.isArray(item.options)) {
-                    // For combo widgets, options is an array of values - keep it as is
-                    safeItem.options = item.options.filter(
-                        (opt: any) => typeof opt !== 'function'
-                    );
-                } else if (typeof item.options === 'object' && item.options !== null) {
-                    // Check for options.values (ComfyUI nested format for combo widgets)
-                    if (Array.isArray(item.options.values)) {
-                        safeItem.options = item.options.values.filter(
-                            (opt: any) => typeof opt !== 'function'
-                        );
-                    } else {
-                        // For other widgets, options is an object with config (min, max, step, etc)
-                        safeItem.options = this.sanitizeOptions(item.options);
-                    }
-                }
-            }
-
-            return safeItem;
-        });
-    }
-
-    /**
-     * Shallow copy object removing functions.
-     */
-    private sanitizeOptions(options: any): any {
-        if (!options || typeof options !== 'object') return {};
-        const clean: any = {};
-        for (const key in options) {
-            const val = options[key];
-            if (typeof val !== 'function' && !key.startsWith('_')) {
-                // Determine if value is simple enough to copy
-                if (typeof val === 'object' && val !== null) {
-                    try {
-                        // Simple check if it's a plain object/array without cycles
-                        JSON.stringify(val);
-                        clean[key] = val;
-                    } catch (e) {
-                        // Skip complex objects
-                    }
-                } else {
-                    clean[key] = val;
-                }
-            }
-        }
-        return clean;
     }
 
     /**

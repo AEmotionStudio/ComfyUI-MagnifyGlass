@@ -660,7 +660,14 @@
             border-color: var(--accent-blue);
         }
 
+        .widget-list {
+            margin-top: 12px;
+        }
+
         .widget-card {
+            padding: 10px 12px;
+            margin-bottom: 6px;
+            border-radius: 6px;
             background: var(--bg-secondary);
             border: 1px solid var(--border-subtle);
         }
@@ -670,16 +677,79 @@
             border-color: var(--border-default);
         }
 
-        .widget-button:hover {
-            transform: translateY(-1px);
+        .widget-head {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 6px;
         }
 
-        .widget-button[data-kind="action"] {
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        .widget-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
         }
 
-        .widget-button[data-kind="action"]:hover {
-            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+        .widget-type {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
+        .widget-value {
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+            font-size: 12px;
+            line-height: 1.4;
+            color: var(--accent-blue);
+            background: var(--bg-tertiary);
+            padding: 8px 10px;
+            border-radius: 4px;
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+
+        .value-empty {
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .widget-button {
+            width: 100%;
+            padding: 8px 16px;
+            font: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--bg-primary);
+            background: var(--accent-blue);
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+
+        .widget-slider {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .widget-editor-slider {
+            flex: 1;
+            accent-color: var(--accent-blue);
+        }
+
+        .widget-slider-value {
+            min-width: 50px;
+            text-align: right;
+            font-family: monospace;
+            color: var(--accent-blue);
+        }
+
+        .widget-image {
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            padding: 8px;
+            text-align: center;
+            overflow: hidden;
         }
 
         .widget-image img {
@@ -881,6 +951,9 @@
                 case 'nodes-list':
                     handleNodesList(message.data);
                     break;
+                case 'options':
+                    handleOptions(message.data);
+                    break;
             }
         };
 
@@ -911,15 +984,16 @@
             if (inspectorChanged) handleInfo(currentInfo);
         }
 
-        // The latest info, and the node the sidebar was last rendered from
+        // The latest info, the info the sidebar was last rendered from, and the combo editor waiting for its options
         let currentInfo = null;
-        let renderedNode = null;
+        let renderedInfo = null;
+        let pendingOptions = null;
 
         function handleInfo(info) {
             currentInfo = info;
             // Re-rendering would drop an open editor; closing it renders the latest info
             if (sidebarContent.querySelector('.widget-editor-inline')) return;
-            if (!info || !config.inspector) {
+            if (!info || !info.node || !config.inspector) {
                 showEmptyState();
                 return;
             }
@@ -928,38 +1002,14 @@
             renderInfo(info);
         }
 
-        /**
-         * Send widget edit to main window via BroadcastChannel
-         */
-        function sendWidgetEdit(nodeId, widgetName, value) {
-            channel.postMessage({
-                type: 'widget-edit',
-                data: {
-                    nodeId: nodeId,
-                    widgetName: widgetName,
-                    value: value
-                }
-            });
+        function sendWidgetEdit(row, value) {
+            channel.postMessage({ type: 'widget-edit', data: { nodeId: renderedInfo.node.id, widgetName: row.widgetName, value } });
         }
 
-        /**
-         * Send button click to main window via BroadcastChannel
-         * This invokes the widget's callback function on the main canvas
-         */
-        function sendButtonClick(nodeId, widgetName) {
-            channel.postMessage({
-                type: 'button-click',
-                data: {
-                    nodeId: nodeId,
-                    widgetName: widgetName
-                }
-            });
-        }
-
-        // Widget rows carry their index into renderedNode.widgets; names never go into inline handlers
-        function widgetFor(element) {
+        // Rows carry their index into renderedInfo.rows; names never go into inline handlers
+        function rowFor(element) {
             const index = element.dataset.widget;
-            return renderedNode && index !== undefined ? renderedNode.widgets[Number(index)] : null;
+            return renderedInfo && index !== undefined ? renderedInfo.rows[Number(index)] : null;
         }
 
         sidebarContent.addEventListener('click', (e) => {
@@ -967,21 +1017,18 @@
             if (action) {
                 if (action.dataset.action === 'toggle-section') toggleSection(action);
                 else if (action.dataset.action === 'node-dropdown') requestNodeDropdown(action.dataset.sort, action);
-                else if (action.dataset.action === 'zoom-node' && renderedNode) requestZoomToNode(renderedNode.id);
+                else if (action.dataset.action === 'focus-node' && renderedInfo) {
+                    channel.postMessage({ type: 'panel-action', data: { name: 'focus-node', nodeId: renderedInfo.node.id } });
+                }
                 return;
             }
             const element = e.target.closest('[data-widget]');
-            const widget = element && widgetFor(element);
-            if (!widget) return;
-            const kind = element.dataset.kind;
-            if (kind === 'toggle') {
-                toggleButtonWidget(element, renderedNode.id, widget.name);
-            } else if (kind === 'action') {
-                sendButtonClick(renderedNode.id, widget.name);
-                element.style.transform = 'scale(0.95)';
-                setTimeout(() => element.style.transform = '', 100);
-            } else if (kind === 'value') {
-                editWidgetValue(element, renderedNode.id, widget);
+            const row = element && rowFor(element);
+            if (!row) return;
+            if (element.dataset.kind === 'action') {
+                channel.postMessage({ type: 'button-click', data: { nodeId: renderedInfo.node.id, widgetName: row.widgetName } });
+            } else if (element.dataset.kind === 'value') {
+                editWidgetValue(element, row);
             }
         });
 
@@ -992,77 +1039,77 @@
 
         sidebarContent.addEventListener('change', (e) => {
             const slider = e.target.closest('.widget-editor-slider');
-            const widget = slider && widgetFor(slider);
-            if (widget) sendWidgetEdit(renderedNode.id, widget.name, parseFloat(slider.value));
+            const row = slider && rowFor(slider);
+            if (row) sendWidgetEdit(row, parseFloat(slider.value));
         });
 
-        function toggleButtonWidget(button, nodeId, widgetName) {
-            const newState = button.dataset.state !== 'true';
-            button.dataset.state = String(newState);
-            sendWidgetEdit(nodeId, widgetName, newState);
-            button.textContent = newState ? '✓ ON' : '○ OFF';
-            button.style.background = newState ? 'var(--accent-green, #22c55e)' : 'var(--bg-tertiary, #333)';
-            button.style.color = newState ? 'var(--bg-primary, #1a1a1a)' : 'var(--text-secondary, #aaa)';
-            button.style.borderColor = newState ? 'var(--accent-green, #22c55e)' : 'var(--border-default, #555)';
-            button.style.transform = 'scale(0.95)';
-            setTimeout(() => button.style.transform = '', 100);
-        }
-
-        // The real step: ComfyUI keeps a 10x legacy value in step and the actual one in step2
-        function stepFor(opts) {
-            if (opts.step2 !== undefined) return opts.step2;
-            return opts.step !== undefined ? opts.step / 10 : 'any';
+        function handleOptions(data) {
+            const pending = pendingOptions;
+            if (!pending || pending.nodeId !== data.nodeId || pending.widgetName !== data.widgetName) return;
+            pendingOptions = null;
+            pending.fill(data.options);
         }
 
         /**
          * Start editing a widget value inline. Enter or blur commits, Escape cancels;
          * a textarea commits on Ctrl/Cmd+Enter so its newlines survive.
          */
-        function editWidgetValue(element, nodeId, widget) {
+        function editWidgetValue(element, row) {
             if (element.querySelector('.widget-editor-inline')) return;
 
-            const options = widget.options;
-            const opts = options && !Array.isArray(options) ? options : {};
-            const type = (widget.type || 'text').toLowerCase();
-            const currentValue = widget.value;
+            const type = row.widgetType;
+            const constraints = row.constraints;
 
-            if (type === 'toggle' || type === 'boolean') {
-                // Read the CURRENT displayed value from the element text, not the stale parameter
-                const newValue = element.textContent.trim().toLowerCase() !== 'true';
-                sendWidgetEdit(nodeId, widget.name, newValue);
-                element.textContent = newValue ? 'true' : 'false';
-                element.style.color = newValue ? 'var(--accent-green)' : 'var(--text-tertiary)';
+            if (type === 'boolean') {
+                const newValue = !row.rawValue;
+                sendWidgetEdit(row, newValue);
+                element.textContent = String(newValue);
                 return;
             }
 
             let editor;
             let readValue;
-            if (Array.isArray(options) && options.length > 0) {
+            if (type === 'combo') {
                 editor = document.createElement('select');
                 editor.className = 'widget-editor-select';
                 // A hidden placeholder, so picking the current value again still fires change
-                for (const label of ['Select...', ...options]) {
+                const addOption = (label) => {
                     const option = document.createElement('option');
                     option.textContent = String(label);
                     editor.appendChild(option);
-                }
+                };
+                addOption('Loading…');
                 editor.options[0].disabled = true;
-                editor.options[0].hidden = true;
-                editor.selectedIndex = 0;
+                let options = [];
                 // The option itself, so numeric combo values stay numbers
                 readValue = () => editor.selectedIndex > 0 ? options[editor.selectedIndex - 1] : undefined;
-            } else if (type === 'number' || type === 'knob' || type === 'int' || type === 'float') {
+                // ComfyUI sends the list only for an open editor, as it can be long
+                pendingOptions = {
+                    nodeId: renderedInfo.node.id,
+                    widgetName: row.widgetName,
+                    editor,
+                    fill(list) {
+                        if (!list.length) return finish(false);
+                        options = list;
+                        editor.options[0].textContent = 'Select...';
+                        editor.options[0].hidden = true;
+                        list.forEach(addOption);
+                        editor.selectedIndex = 0;
+                    }
+                };
+                channel.postMessage({ type: 'request-options', data: { nodeId: pendingOptions.nodeId, widgetName: row.widgetName } });
+            } else if (type === 'INT' || type === 'FLOAT') {
                 editor = document.createElement('input');
                 editor.type = 'number';
                 editor.className = 'widget-editor-input';
-                if (opts.min !== undefined) editor.min = String(opts.min);
-                if (opts.max !== undefined) editor.max = String(opts.max);
-                editor.step = String(stepFor(opts));
-                editor.value = String(currentValue);
+                if (constraints.min !== undefined) editor.min = String(constraints.min);
+                if (constraints.max !== undefined) editor.max = String(constraints.max);
+                editor.step = String(constraints.step ?? (type === 'INT' ? 1 : 'any'));
+                editor.value = String(row.rawValue);
                 readValue = () => editor.value === '' || isNaN(parseFloat(editor.value)) ? undefined : parseFloat(editor.value);
             } else {
-                const text = String(currentValue ?? '');
-                const multiline = type === 'customtext' || opts.multiline || text.includes('\n');
+                const text = String(row.rawValue ?? '');
+                const multiline = type === 'multiline' || text.includes('\n');
                 editor = document.createElement(multiline ? 'textarea' : 'input');
                 editor.className = 'widget-editor-input';
                 if (multiline) {
@@ -1075,22 +1122,20 @@
             }
 
             let done = false;
-            const finish = (commit) => {
+            function finish(commit) {
                 if (done) return;
                 done = true;
+                if (pendingOptions?.editor === editor) pendingOptions = null;
                 const value = readValue();
+                element.innerHTML = '';
                 if (commit && value !== undefined) {
-                    sendWidgetEdit(nodeId, widget.name, value);
-                    element.innerHTML = '';
-                    const shown = document.createElement('span');
-                    shown.style.color = 'var(--accent-blue)';
-                    shown.textContent = String(value);
-                    element.appendChild(shown);
+                    // Shown until ComfyUI sends the value it kept
+                    sendWidgetEdit(row, value);
+                    element.textContent = String(value);
                 } else {
-                    element.innerHTML = '';
                     handleInfo(currentInfo);
                 }
-            };
+            }
 
             if (editor.tagName === 'SELECT') {
                 editor.addEventListener('change', () => finish(true));
@@ -1118,118 +1163,45 @@
         }
 
         function renderInfo(info) {
-            let html = '';
-            renderedNode = info.hoveredNode || null;
+            renderedInfo = info;
+            const node = info.node;
+            const isCollapsed = window.collapsedSections?.has('node');
 
-            // Cursor section (Now First)
-            if (info.cursor && info.canvas) {
-                // Check collapsed state
-                const isCollapsed = window.collapsedSections?.has('cursor');
-
-                html += `
-                    <div class="info-section ${isCollapsed ? 'collapsed' : ''}" data-section-id="cursor">
-                        <div class="section-header" data-action="toggle-section">
-                            <svg class="section-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <circle cx="12" cy="12" r="10"/>
-                                <circle cx="12" cy="12" r="6"/>
-                                <circle cx="12" cy="12" r="2"/>
-                                <line x1="12" y1="2" x2="12" y2="4"/>
-                                <line x1="12" y1="20" x2="12" y2="22"/>
-                                <line x1="2" y1="12" x2="4" y2="12"/>
-                                <line x1="20" y1="12" x2="22" y2="12"/>
-                            </svg>
-                            <span class="section-title">Cursor</span>
-                        </div>
-                        <div class="section-body">
-                            <div class="info-row">
-                                <span class="info-label">Canvas X</span>
-                                <span class="info-value">${Math.round(info.cursor.canvas.x)}</span>
-                            </div>
-                            <div class="info-row">
-                                <span class="info-label">Canvas Y</span>
-                                <span class="info-value">${Math.round(info.cursor.canvas.y)}</span>
-                            </div>
-                        </div>
+            sidebarContent.innerHTML = `
+                <div class="info-section ${isCollapsed ? 'collapsed' : ''}" data-section-id="node">
+                    <div class="section-header" data-action="toggle-section">
+                        <svg class="section-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                        </svg>
+                        <span class="section-title">Node</span>
+                        <span class="section-badge">${escapeHtml(node.type)}</span>
                     </div>
-                `;
-            }
-
-            // Node section (Now Second)
-            if (info.hoveredNode) {
-                // Check collapsed state
-                const isCollapsed = window.collapsedSections?.has('node');
-
-                html += `
-                    <div class="info-section ${isCollapsed ? 'collapsed' : ''}" data-section-id="node">
-                        <div class="section-header" data-action="toggle-section">
-                            <svg class="section-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-                            </svg>
-                            <span class="section-title">Node</span>
-                            <span class="section-badge">${escapeHtml(info.hoveredNode.type || 'Unknown')}</span>
+                    <div class="section-body">
+                        <div class="info-row clickable-row" data-action="node-dropdown" data-sort="title">
+                            <span class="info-label">Title</span>
+                            <span class="info-value clickable-value">${escapeHtml(node.title)} (#${escapeHtml(node.id)})<span class="dropdown-indicator">▼</span></span>
                         </div>
-                        <div class="section-body">
-                            <div class="info-row clickable-row" data-action="node-dropdown" data-sort="title">
-                                <span class="info-label">Title</span>
-                                <span class="info-value clickable-value">${escapeHtml(info.hoveredNode.title || 'Untitled')} (#${escapeHtml(info.hoveredNode.id)})<span class="dropdown-indicator">▼</span></span>
-                            </div>
-                            
-                            ${info.hoveredNode.executionOrder !== undefined ? `
-                            <div class="info-row clickable-row" data-action="node-dropdown" data-sort="execOrder">
-                                <span class="info-label">Exec Order</span>
-                                <span class="info-value">${escapeHtml(info.hoveredNode.executionOrder)}<span class="dropdown-indicator">▼</span></span>
-                            </div>` : ''}
-
-                            <div class="info-row clickable-row" data-action="zoom-node">
-                                <span class="info-label">Location</span>
-                                <span class="info-value"><span style="display: inline-flex; align-items: center; gap: 6px; vertical-align: middle;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg> Focus Node</span></span>
-                            </div>
-                            ${info.hoveredNode.category ? `
-                            <div class="info-row">
-                                <span class="info-label">Category</span>
-                                <span class="info-value">${escapeHtml(info.hoveredNode.category)}</span>
-                            </div>` : ''}
-                            ${info.hoveredNode.pythonModule ? `
-                            <div class="info-row">
-                                <span class="info-label">Path</span>
-                                <span class="info-value">${escapeHtml(info.hoveredNode.pythonModule)}</span>
-                            </div>` : ''}
-                            
-                            <!-- Extended Node Properties -->
-                            ${info.hoveredNode.mode !== undefined ? `
-                            <div class="info-row">
-                                <span class="info-label">Mode</span>
-                                <span class="info-value">${escapeHtml(String(info.hoveredNode.mode))}</span>
-                            </div>` : ''}
-                            ${info.hoveredNode.size ? `
-                            <div class="info-row">
-                                <span class="info-label">Size</span>
-                                <span class="info-value">${escapeHtml(formatSize(info.hoveredNode.size))}</span>
-                            </div>` : ''}
-                            ${info.hoveredNode.pos ? `
-                            <div class="info-row">
-                                <span class="info-label">Pos</span>
-                                <span class="info-value">${escapeHtml(formatPos(info.hoveredNode.pos))}</span>
-                            </div>` : ''}
-
-                            <!-- Dynamic Lists (Inputs/Outputs/Widgets) -->
-                            ${renderList('Inputs', info.hoveredNode.inputs)}
-                            ${renderList('Outputs', info.hoveredNode.outputs)}
-                            ${renderList('Widgets', info.hoveredNode.widgets, info.hoveredNode.id)}
+                        ${node.execOrder !== undefined ? `
+                        <div class="info-row clickable-row" data-action="node-dropdown" data-sort="execOrder">
+                            <span class="info-label">Exec Order</span>
+                            <span class="info-value">${escapeHtml(node.execOrder)}<span class="dropdown-indicator">▼</span></span>
+                        </div>` : ''}
+                        <div class="info-row clickable-row" data-action="focus-node">
+                            <span class="info-label">Location</span>
+                            <span class="info-value">Focus Node</span>
                         </div>
+                        <div class="info-row">
+                            <span class="info-label">Mode</span>
+                            <span class="info-value">${escapeHtml(node.mode)}</span>
+                        </div>
+                        ${renderRows(info)}
                     </div>
-                `;
-            }
-
-            if (html) {
-                sidebarContent.innerHTML = html;
-                for (const holder of sidebarContent.querySelectorAll('.widget-image')) {
-                    const img = document.createElement('img');
-                    img.src = holder.dataset.src;
-                    holder.appendChild(img);
-                }
-            } else {
-                showEmptyState();
+                </div>
+            `;
+            for (const holder of sidebarContent.querySelectorAll('.widget-image')) {
+                const img = document.createElement('img');
+                img.src = holder.dataset.src;
+                holder.appendChild(img);
             }
         }
 
@@ -1248,360 +1220,44 @@
             }
         }
 
-        function formatSize(size) {
-            if (typeof size === 'object') return `${Math.round(size.w)}×${Math.round(size.h)}`;
-            return String(size);
-        }
+        // The widget rows as ComfyUI's Inspector computed them; it also decides which can be edited
+        function renderRows(info) {
+            if (!info.rows.length) return '';
 
-        function formatPos(pos) {
-            if (typeof pos === 'object') return `${Math.round(pos.x)}, ${Math.round(pos.y)}`;
-            return String(pos);
-        }
-
-        function renderList(title, items, nodeId = null) {
-            if (!items || items.length === 0) return '';
-
-            // Icon mapping for different list types
-            const icons = {
-                'Inputs': `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>`,
-                'Outputs': `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>`,
-                'Widgets': `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>`
-            };
-            const icon = icons[title] || '';
-
-            // Gradient colors for different types
-            const gradients = {
-                'Inputs': 'linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.05))',
-                'Outputs': 'linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(34, 197, 94, 0.05))',
-                'Widgets': 'linear-gradient(135deg, rgba(168, 85, 247, 0.15), rgba(168, 85, 247, 0.05))'
-            };
-            const gradient = gradients[title] || 'linear-gradient(135deg, rgba(100, 100, 100, 0.15), rgba(100, 100, 100, 0.05))';
-
-            // Badge colors for different types
-            const badgeColors = {
-                'Inputs': '#3b82f6',
-                'Outputs': '#22c55e',
-                'Widgets': '#a855f7'
-            };
-            const badgeColor = badgeColors[title] || '#888';
-
-            // Check if this is the Widgets section and we have a nodeId for editing
-            const isEditable = title === 'Widgets' && nodeId != null;
-
-            const listHtml = items.map((item, index) => {
-                const name = escapeHtml(item.name || item.label || 'Unknown');
-                const type = item.type ? escapeHtml(item.type) : null;
-                const isObjectValue = typeof item.value === 'object' && item.value !== null;
-                const rawValue = item.value === undefined ? null : isObjectValue ? JSON.stringify(item.value) : String(item.value);
-                const itemId = `${title.toLowerCase()}-${index}`;
-
-                // Detect toggle-style "button" widgets (have boolean values)
-                // These are buttons that toggle on/off state
-                const isButtonType = type && type.toLowerCase() === 'button';
-                const hasBooleanValue = rawValue === 'true' || rawValue === 'false';
-                const isToggleButton = isButtonType && hasBooleanValue;
-
-                // True action buttons are any button that doesn't have a boolean value
-                // (button callbacks may set any value, so we can't rely on value being null)
-                const isActionButton = isButtonType && !hasBooleanValue;
-
-                // Check for slider (widgets explicitly typed as 'slider')
-                const isSlider = type && type.toLowerCase() === 'slider';
-
+            return `<div class="widget-list">${info.rows.map((row, index) => {
+                const label = escapeHtml(row.label);
+                // Values without a primitive raw value, like objects, have no editor that keeps them intact
+                const editable = row.isEditable && info.nav.canEdit && row.rawValue !== undefined;
                 // Plot nodes send an <img> with a data URI; only the URI itself is used
-                const imageSrc = rawValue && rawValue.match(IMAGE_DATA_URI)?.[0];
-                const value = rawValue ? escapeHtml(rawValue) : null;
-
-                // For toggle-style button widgets, render a toggle button with on/off visual indication
-                if (isToggleButton && nodeId != null) {
-                    const isOn = rawValue === 'true';
-                    const toggleColor = isOn ? 'var(--accent-green, #22c55e)' : 'var(--text-tertiary, #666)';
-                    const toggleBg = isOn ? 'var(--accent-green, #22c55e)' : 'var(--bg-tertiary, #333)';
-                    const toggleText = isOn ? 'ON' : 'OFF';
-
-                    return `
-                        <div style="
-                            padding: 10px 12px;
-                            background: var(--bg-secondary);
-                            border-radius: 6px;
-                            margin-bottom: 6px;
-                            border: 1px solid var(--border-subtle);
-                        ">
-                            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px;">
-                                <span style="
-                                    font-size: 12px;
-                                    font-weight: 600;
-                                    color: var(--text-primary);
-                                ">${name}</span>
-                                <span style="
-                                    font-size: 8px;
-                                    padding: 2px 5px;
-                                    background: ${badgeColor}22;
-                                    color: ${badgeColor};
-                                    border-radius: 3px;
-                                    font-weight: 500;
-                                    text-transform: uppercase;
-                                ">TOGGLE</span>
-                            </div>
-                            <button 
-                                id="${itemId}"
-                                class="widget-button"
-                                data-widget="${index}"
-                                data-kind="toggle"
-                                data-state="${isOn}"
-                                style="
-                                    display: flex;
-                                    align-items: center;
-                                    justify-content: center;
-                                    gap: 6px;
-                                    width: 100%;
-                                    padding: 8px 16px;
-                                    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-                                    font-size: 13px;
-                                    background: ${toggleBg};
-                                    color: ${isOn ? 'var(--bg-primary, #1a1a1a)' : 'var(--text-secondary, #aaa)'};
-                                    border: 2px solid ${isOn ? 'var(--accent-green, #22c55e)' : 'var(--border-default, #555)'};
-                                    border-radius: 6px;
-                                    cursor: pointer;
-                                    font-weight: 600;
-                                    transition: all 0.2s ease;
-                                "
-                            >${isOn ? '✓ ON' : '○ OFF'}</button>
+                const imageSrc = row.value.match(IMAGE_DATA_URI)?.[0];
+                let body;
+                if (row.isActionable) {
+                    body = `<button class="widget-button" data-widget="${index}" data-kind="action">${label}</button>`;
+                } else if (imageSrc) {
+                    body = `<div class="widget-image" data-src="${imageSrc}"></div>`;
+                } else if (editable && row.widgetType === 'slider') {
+                    const { min = 0, max = 100, step = 0.01 } = row.constraints;
+                    body = `
+                        <div class="widget-slider">
+                            <input type="range" class="widget-editor-slider" min="${escapeHtml(min)}" max="${escapeHtml(max)}" step="${escapeHtml(step)}" value="${escapeHtml(row.rawValue)}" data-widget="${index}">
+                            <span class="widget-slider-value">${escapeHtml(row.value)}</span>
                         </div>`;
+                } else {
+                    const shown = row.value === '' ? '<span class="value-empty">empty</span>' : escapeHtml(row.value);
+                    const attrs = editable ? ` data-widget="${index}" data-kind="value" title="Click to edit"`
+                        : row.isEditable && !info.nav.canEdit ? ' title="Lock the node in ComfyUI to edit"' : '';
+                    body = `<div class="widget-value${editable ? ' widget-value-editable' : ''}"${attrs}>${shown}</div>`;
                 }
-
-                // For true action button widgets, render a clickable styled button
-                if (isActionButton && nodeId != null) {
-                    return `
-                        <div style="
-                            padding: 10px 12px;
-                            background: var(--bg-secondary);
-                            border-radius: 6px;
-                            margin-bottom: 6px;
-                            border: 1px solid var(--border-subtle);
-                        ">
-                            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px;">
-                                <span style="
-                                    font-size: 12px;
-                                    font-weight: 600;
-                                    color: var(--text-primary);
-                                ">${name}</span>
-                                <span style="
-                                    font-size: 8px;
-                                    padding: 2px 5px;
-                                    background: ${badgeColor}22;
-                                    color: ${badgeColor};
-                                    border-radius: 3px;
-                                    font-weight: 500;
-                                    text-transform: uppercase;
-                                ">ACTION</span>
-                            </div>
-                            <button 
-                                class="widget-button"
-                                data-widget="${index}"
-                                data-kind="action"
-                                style="
-                                    display: flex;
-                                    align-items: center;
-                                    justify-content: center;
-                                    gap: 6px;
-                                    width: 100%;
-                                    padding: 8px 16px;
-                                    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-                                    font-size: 13px;
-                                    background: var(--accent-purple, #a855f7);
-                                    color: var(--bg-primary, #1a1a1a);
-                                    border: none;
-                                    border-radius: 6px;
-                                    cursor: pointer;
-                                    font-weight: 600;
-                                    transition: all 0.2s ease;
-                                "
-                            >▶ Click</button>
-                        </div>`;
-                }
-
-                // For slider widgets, render inline range control
-                if (isSlider && nodeId != null) {
-                    const opts = item.options && typeof item.options === 'object' ? item.options : {};
-                    const min = opts.min !== undefined ? opts.min : 0;
-                    const max = opts.max !== undefined ? opts.max : 100;
-                    const step = opts.step2 !== undefined || opts.step !== undefined ? stepFor(opts) : 0.01;
-
-                    return `
-                        <div style="
-                            padding: 10px 12px;
-                            background: var(--bg-secondary);
-                            border-radius: 6px;
-                            margin-bottom: 6px;
-                            border: 1px solid var(--border-subtle);
-                        ">
-                            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px;">
-                                <span style="
-                                    font-size: 12px;
-                                    font-weight: 600;
-                                    color: var(--text-primary);
-                                ">${name}</span>
-                                ${type ? `<span style="
-                                    font-size: 8px;
-                                    padding: 2px 5px;
-                                    background: ${badgeColor}22;
-                                    color: ${badgeColor};
-                                    border-radius: 3px;
-                                    font-weight: 500;
-                                    text-transform: uppercase;
-                                ">${type}</span>` : ''}
-                            </div>
-                            <div class="widget-slider-container" style="display: flex; align-items: center; gap: 8px; width: 100%;">
-                                <input type="range" 
-                                    class="widget-editor-slider" 
-                                    min="${escapeHtml(min)}"
-                                    max="${escapeHtml(max)}"
-                                    step="${escapeHtml(step)}"
-                                    value="${value}"
-                                    style="flex: 1; accent-color: var(--accent-purple); cursor: pointer;"
-                                    data-widget="${index}"
-                                />
-                                <span class="widget-slider-value" style="
-                                    min-width: 50px; 
-                                    text-align: right; 
-                                    font-family: monospace;
-                                    color: var(--accent-blue);
-                                    font-weight: 600;
-                                ">${value}</span>
-                            </div>
-                        </div>`;
-                }
-
-                if (imageSrc) {
-                    return `
-                        <div style="
-                            padding: 10px 12px;
-                            background: var(--bg-secondary);
-                            border-radius: 6px;
-                            margin-bottom: 6px;
-                            border: 1px solid var(--border-subtle);
-                        ">
-                            <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 8px;">
-                                <span style="
-                                    font-size: 12px;
-                                    font-weight: 600;
-                                    color: var(--text-primary);
-                                ">${name}</span>
-                                ${type ? `<span style="
-                                    font-size: 8px;
-                                    padding: 2px 5px;
-                                    background: ${badgeColor}22;
-                                    color: ${badgeColor};
-                                    border-radius: 3px;
-                                    font-weight: 500;
-                                    text-transform: uppercase;
-                                ">${type}</span>` : ''}
-                            </div>
-                            <div style="
-                                background: var(--bg-tertiary);
-                                border-radius: 4px;
-                                padding: 8px;
-                                text-align: center;
-                                overflow: hidden;
-                            " class="widget-image" data-src="${imageSrc}"></div>
-                        </div>`;
-                }
-
-                // Object values have no editor that keeps them intact
-                const canEditValue = isEditable && rawValue != null && !isObjectValue;
-                const editableClass = canEditValue ? 'widget-value-editable' : '';
-                const editableClick = canEditValue ? `data-widget="${index}" data-kind="value"` : '';
-                const editableStyle = canEditValue ? 'cursor: pointer;' : '';
-                const editableTitle = canEditValue ? 'title="Click to edit"' : '';
-
                 return `
-                    <div class="widget-card" style="
-                        padding: 10px 12px;
-                        border-radius: 6px;
-                        margin-bottom: 6px;
-                        transition: all 0.15s ease;
-                    ">
-                        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: ${value ? '6px' : '0'};">
-                            <span style="
-                                font-size: 12px;
-                                font-weight: 600;
-                                color: var(--text-primary);
-                            ">${name}</span>
-                            ${type ? `<span style="
-                                font-size: 8px;
-                                padding: 2px 5px;
-                                background: ${badgeColor}22;
-                                color: ${badgeColor};
-                                border-radius: 3px;
-                                font-weight: 500;
-                                text-transform: uppercase;
-                                letter-spacing: 0.2px;
-                                word-break: break-all;
-                                max-width: 100%;
-                            ">${type}</span>` : ''}
-                            ${canEditValue ? `<span style="
-                                font-size: 9px;
-                                color: var(--accent-amber);
-                                margin-left: auto;
-                                opacity: 0.7;
-                            ">✏️ editable</span>` : ''}
+                    <div class="widget-card">
+                        <div class="widget-head">
+                            <span class="widget-name">${label}</span>
+                            ${row.widgetType ? `<span class="widget-type">${escapeHtml(row.widgetType)}</span>` : ''}
+                            ${row.isLinked ? '<span class="widget-type" title="Set by a link">linked</span>' : ''}
                         </div>
-                        ${value ? `<div style="position: relative;">
-                            <div id="${itemId}" class="${editableClass}" ${editableClick} ${editableTitle} style="
-                                font-size: 11px;
-                                color: var(--accent-blue);
-                                font-weight: 500;
-                                background: var(--bg-tertiary);
-                                padding: 8px 10px;
-                                border-radius: 4px;
-                                word-break: break-word;
-                                white-space: pre-wrap;
-                                font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
-                                line-height: 1.4;
-                                ${editableStyle}
-                            ">${value}</div>
-                        </div>` : ''}
+                        ${body}
                     </div>`;
-            }).join('');
-
-            return `
-                <div style="
-                    margin-top: 12px;
-                    border-radius: 8px;
-                    overflow: hidden;
-                    border: 1px solid var(--border-default);
-                    background: var(--bg-primary);
-                ">
-                    <div style="
-                        display: flex;
-                        align-items: center;
-                        gap: 8px;
-                        padding: 10px 12px;
-                        background: ${gradient};
-                        border-bottom: 1px solid var(--border-subtle);
-                    ">
-                        <span style="color: ${badgeColor}; display: flex; align-items: center;">${icon}</span>
-                        <span style="
-                            font-weight: 600;
-                            font-size: 12px;
-                            color: var(--text-primary);
-                        ">${title}</span>
-                        <span style="
-                            font-size: 10px;
-                            padding: 2px 8px;
-                            background: ${badgeColor}33;
-                            color: ${badgeColor};
-                            border-radius: 10px;
-                            font-weight: 600;
-                            margin-left: auto;
-                        ">${items.length}</span>
-                    </div>
-                    <div style="padding: 8px;">
-                        ${listHtml}
-                    </div>
-                </div>
-            `;
+            }).join('')}</div>`;
         }
 
         const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
@@ -1634,12 +1290,6 @@
 
             if (channel) {
                 channel.postMessage({ type: 'request-nodes', data: type });
-            }
-        }
-
-        function requestZoomToNode(nodeId) {
-            if (channel) {
-                channel.postMessage({ type: 'zoom-node', data: nodeId });
             }
         }
 

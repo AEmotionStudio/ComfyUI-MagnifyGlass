@@ -42,12 +42,15 @@ class FakeGlass {
     renderer = null;
     lastKnownMousePosition = { x: 0, y: 0 };
     popOutManager = {
-        isPopOutOpen: () => false,
+        isPopOutOpen: vi.fn(() => false),
         sendInfo: vi.fn(),
         toggle: vi.fn(),
         onStateChange: null as unknown,
         onNodeSelect: null as unknown,
-        onWidgetEdit: null as unknown
+        onWidgetEdit: null as unknown,
+        onButtonClick: null as unknown,
+        onPanelAction: null as unknown,
+        onRequestOptions: null as unknown
     };
     setGlassPreviewActive = vi.fn();
     updateMagnifiedView() { }
@@ -149,6 +152,9 @@ describe('Info Panel lifecycle', () => {
         expect(mg.popOutManager.onStateChange).toBeNull();
         expect(mg.popOutManager.onNodeSelect).toBeNull();
         expect(mg.popOutManager.onWidgetEdit).toBeNull();
+        expect(mg.popOutManager.onButtonClick).toBeNull();
+        expect(mg.popOutManager.onPanelAction).toBeNull();
+        expect(mg.popOutManager.onRequestOptions).toBeNull();
         expect(mg.setGlassPreviewActive).toHaveBeenCalledWith(true);
 
         for (const [type, handler, options] of docAdd.mock.calls) {
@@ -701,6 +707,141 @@ describe('Info Panel lifecycle', () => {
             expect(panel().classList.contains('panel-minimized')).toBe(true);
             button('minimize').click();
             expect(panel().classList.contains('panel-minimized')).toBe(false);
+        });
+    });
+
+    describe('pop-out', () => {
+        let nodes: any[];
+        let graph: any;
+        const panelManager = () => window.infoPanelManager!;
+        const popOut = () => mg.popOutManager as any;
+        const sent = () => popOut().sendInfo.mock.calls.map(([info]: any[]) => info);
+        const last = () => sent().at(-1);
+        const edit = (widgetName: string, value: unknown, nodeId = 1) => popOut().onWidgetEdit({ nodeId, widgetName, value });
+        const makeNode = (id: number, title: string) => ({
+            id, title, type: 'KSampler', order: id, mode: 0, pos: [0, 0], size: [200, 100],
+            widgets: [
+                { name: 'steps', type: 'number', value: 20, options: { precision: 0, min: 1, max: 100, step: 10, step2: 1 } },
+                { name: 'sampler_name', type: 'combo', value: 'euler', options: { values: ['euler', 'dpmpp_2m'] } },
+                { name: 'model', type: 'combo', value: 'a', options: { values: ['a', 'b'] } },
+                { name: 'data', type: 'custom', value: { a: 1 } },
+                { name: 'run', type: 'button', value: null, callback: vi.fn() }
+            ],
+            inputs: [{ name: 'model', type: 'COMBO', widget: { name: 'model' }, link: 4 }], outputs: [], properties: {}
+        });
+
+        beforeEach(() => {
+            nodes = [makeNode(1, 'Loader'), makeNode(2, 'Sampler')];
+            graph = { _nodes: nodes, getNodeById: (id: number) => nodes.find(n => n.id === id) ?? null };
+            Object.assign((window as any).app.canvas, { graph, node_over: nodes[0], selected_nodes: {}, centerOnNode: vi.fn() });
+            (mg as any).state = { active: true, x: 0, y: 0, canvasScale: 1 };
+            window.comfyUIMagnifyGlass = mg as any;
+            // Already connected when the Inspector mounts
+            popOut().isPopOutOpen.mockReturnValue(true);
+            mountInfoPanel(asInstance(mg));
+        });
+
+        afterEach(() => {
+            window.comfyUIMagnifyGlass = undefined;
+        });
+
+        it('sends the header, navigation and Inspector rows as plain data, without combo lists', () => {
+            const info = last();
+            expect(sent()).toHaveLength(1);
+            expect(info.node).toEqual({ id: 1, title: 'Loader', type: 'KSampler', mode: 'Always', execOrder: 1, graphPath: [], isSubgraph: false });
+            expect(info.nav).toEqual({ source: 'hover', locked: false, canBack: false, canForward: false, canEdit: false });
+            expect(info.rows.map((row: any) => [row.widgetName, row.widgetType, row.rawValue, row.isEditable, row.isLinked, row.isActionable])).toEqual([
+                ['steps', 'INT', 20, true, false, false],
+                ['sampler_name', 'combo', 'euler', true, false, false],
+                ['model', 'combo', 'a', false, true, false],
+                ['data', 'text', undefined, false, false, false],
+                ['run', 'button', null, false, false, true]
+            ]);
+            expect(info.rows[0].constraints).toEqual({ min: 1, max: 100, step: 1, precision: 0 });
+            expect(info.rows[1].constraints).toEqual({});
+            expect(info.rows[3].value).toContain('"a": 1');
+            expect(() => structuredClone(info)).not.toThrow();
+        });
+
+        it('sends only when something shown changes, and looks again a few times a second while connected', () => {
+            panelManager().updateInfo();
+            panelManager().updateInfo();
+            expect(sent()).toHaveLength(1);
+
+            // A run changes a value without any input in ComfyUI
+            nodes[0].widgets[0].value = 25;
+            vi.advanceTimersByTime(250);
+            expect(sent()).toHaveLength(2);
+            expect(last().rows[0].value).toBe('25');
+            vi.advanceTimersByTime(1000);
+            expect(sent()).toHaveLength(2);
+
+            // A connect sends at once, even unchanged
+            popOut().onStateChange(true);
+            expect(sent()).toHaveLength(3);
+
+            popOut().onStateChange(false);
+            expect(vi.getTimerCount()).toBe(0);
+        });
+
+        it('with the glass off it still sends the locked node, and nothing hovered', () => {
+            panelManager().uiManager.jumpToNode(2);
+            mg.state.active = false;
+            nodes[1].widgets[0].value = 30;
+            vi.advanceTimersByTime(250);
+            expect(last().node.id).toBe(2);
+            expect(last().nav.source).toBe('locked');
+            expect(last().rows[0].value).toBe('30');
+            expect(panelManager().uiManager.elements.panel!.style.display).toBe('none');
+
+            panelManager().stateManager.state.lockedNodeId = null;
+            vi.advanceTimersByTime(250);
+            expect(last().node).toBeNull();
+        });
+
+        it('edits apply only to editable rows of the node it shows, under the Inspector lock rule', () => {
+            const count = sent().length;
+            // Hovered only: the node could change under the cursor
+            edit('steps', 30);
+            expect(nodes[0].widgets[0].value).toBe(20);
+            // A rejected edit is answered too, so the viewer drops the value it shows
+            expect(sent()).toHaveLength(count + 1);
+
+            panelManager().uiManager.jumpToNode(1);
+            edit('steps', 30);
+            expect(nodes[0].widgets[0].value).toBe(30);
+            expect(last().rows[0].value).toBe('30');
+
+            edit('model', 'b');
+            expect(nodes[0].widgets[2].value).toBe('a');
+            edit('data', 'x');
+            expect(nodes[0].widgets[3].value).toEqual({ a: 1 });
+            edit('steps', 40, 2);
+            expect(nodes[1].widgets[0].value).toBe(20);
+
+            // Another graph on screen, where id 1 is another node
+            (window as any).app.canvas.graph = { ...graph };
+            edit('steps', 50);
+            expect(nodes[0].widgets[0].value).toBe(30);
+        });
+
+        it('buttons run their callback like the Inspector, and options come only for the node it shows', () => {
+            popOut().onButtonClick({ nodeId: 1, widgetName: 'run' });
+            popOut().onButtonClick({ nodeId: 2, widgetName: 'run' });
+            expect(nodes[0].widgets[4].callback).toHaveBeenCalledTimes(1);
+            expect(nodes[1].widgets[4].callback).not.toHaveBeenCalled();
+
+            expect(popOut().onRequestOptions({ nodeId: 1, widgetName: 'sampler_name' })).toEqual(['euler', 'dpmpp_2m']);
+            expect(popOut().onRequestOptions({ nodeId: 2, widgetName: 'sampler_name' })).toEqual([]);
+        });
+
+        it('Focus node centres on and locks the node it shows', () => {
+            popOut().onPanelAction('focus-node', 2);
+            expect((window as any).app.canvas.centerOnNode).not.toHaveBeenCalled();
+
+            popOut().onPanelAction('focus-node', 1);
+            expect((window as any).app.canvas.centerOnNode).toHaveBeenCalledWith(nodes[0]);
+            expect(last().nav).toMatchObject({ source: 'locked', locked: true, canEdit: true });
         });
     });
 

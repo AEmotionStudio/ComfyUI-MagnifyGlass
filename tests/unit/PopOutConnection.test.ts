@@ -144,4 +144,31 @@ describe('Pop-out connection', () => {
         manager.sendFrame(canvas);
         expect(frames()).toBe(1);
     });
+
+    it('hands viewer requests to the Inspector and sends its info as it is', () => {
+        const calls: unknown[][] = [];
+        manager.onWidgetEdit = (data) => calls.push(['edit', data]);
+        manager.onButtonClick = (data) => calls.push(['click', data]);
+        manager.onPanelAction = (name, nodeId) => calls.push(['action', name, nodeId]);
+        manager.onRequestOptions = (data) => data.widgetName === 'size' ? [512, 768] : [];
+        const info = { node: null, nav: { source: 'hover', locked: false, canBack: false, canForward: false, canEdit: false }, rows: [] } as const;
+
+        manager.sendInfo(info);
+        expect(posted()).toEqual([]);
+        receive({ type: 'pong' });
+
+        receive({ type: 'widget-edit', data: { nodeId: 5, widgetName: 'seed', value: 1 } });
+        receive({ type: 'button-click', data: { nodeId: 5, widgetName: 'run' } });
+        receive({ type: 'panel-action', data: { name: 'focus-node', nodeId: 5 } });
+        receive({ type: 'request-options', data: { nodeId: 5, widgetName: 'size' } });
+        manager.sendInfo(info);
+
+        expect(calls).toEqual([
+            ['edit', { nodeId: 5, widgetName: 'seed', value: 1 }],
+            ['click', { nodeId: 5, widgetName: 'run' }],
+            ['action', 'focus-node', 5]
+        ]);
+        expect(posted().filter(m => m.type === 'options')).toEqual([{ type: 'options', data: { nodeId: 5, widgetName: 'size', options: [512, 768] } }]);
+        expect(posted().at(-1)).toEqual({ type: 'info', data: info });
+    });
 });

@@ -215,25 +215,7 @@ export class InlineControlFactory {
             e.stopPropagation();
             e.preventDefault();
 
-            // Access the widget callback through the node
-            const app = (window as any).app;
-            const node = app?.canvas?.graph?.getNodeById(config.nodeId);
-            if (!node?.widgets) {
-                Logger.warn(`[InlineControl] Node ${config.nodeId} not found or has no widgets`);
-                return;
-            }
-
-            const widget = node.widgets.find((w: any) => w.name === config.widgetName);
-            if (widget && typeof widget.callback === 'function') {
-                try {
-                    widget.callback(widget.value, app.canvas, node, [0, 0], null);
-                    Logger.debug(`[InlineControl] Button ${config.widgetName} clicked successfully`);
-                } catch (error) {
-                    Logger.warn(`[InlineControl] Button callback failed:`, error);
-                }
-            } else {
-                Logger.warn(`[InlineControl] Widget ${config.widgetName} not found or has no callback`);
-            }
+            WidgetSyncManager.clickButton(config.nodeId, config.widgetName);
         });
 
         container.appendChild(button);

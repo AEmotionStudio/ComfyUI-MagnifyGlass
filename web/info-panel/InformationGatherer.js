@@ -1,29 +1,6 @@
 class InformationGatherer {
   constructor() {
   }
-  gatherInformation() {
-    const magnifyGlass = window.comfyUIMagnifyGlass;
-    if (!magnifyGlass) {
-      return {
-        cursor: { canvasX: 0, canvasY: 0 },
-        zoom: 1,
-        hoveredNode: null
-      };
-    }
-    const info = {
-      cursor: {
-        canvasX: magnifyGlass.state.x,
-        canvasY: magnifyGlass.state.y
-      },
-      zoom: magnifyGlass.state.canvasScale,
-      hoveredNode: null
-    };
-    const nodeUnderCursor = this.getNodeUnderCursor();
-    if (nodeUnderCursor) {
-      info.hoveredNode = this.getDetailedNodeInfo(nodeUnderCursor);
-    }
-    return info;
-  }
   getNodeUnderCursor() {
     var _a, _b;
     const magnifyGlass = window.comfyUIMagnifyGlass;

@@ -146,26 +146,9 @@ class InlineControlFactory {
     container.addEventListener("mousedown", (e) => e.stopPropagation());
     container.addEventListener("mouseup", (e) => e.stopPropagation());
     button.addEventListener("click", (e) => {
-      var _a, _b;
       e.stopPropagation();
       e.preventDefault();
-      const app = window.app;
-      const node = (_b = (_a = app == null ? void 0 : app.canvas) == null ? void 0 : _a.graph) == null ? void 0 : _b.getNodeById(config.nodeId);
-      if (!(node == null ? void 0 : node.widgets)) {
-        Logger.warn(`[InlineControl] Node ${config.nodeId} not found or has no widgets`);
-        return;
-      }
-      const widget = node.widgets.find((w) => w.name === config.widgetName);
-      if (widget && typeof widget.callback === "function") {
-        try {
-          widget.callback(widget.value, app.canvas, node, [0, 0], null);
-          Logger.debug(`[InlineControl] Button ${config.widgetName} clicked successfully`);
-        } catch (error) {
-          Logger.warn(`[InlineControl] Button callback failed:`, error);
-        }
-      } else {
-        Logger.warn(`[InlineControl] Widget ${config.widgetName} not found or has no callback`);
-      }
+      WidgetSyncManager.clickButton(config.nodeId, config.widgetName);
     });
     container.appendChild(button);
     return {

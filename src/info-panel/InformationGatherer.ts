@@ -5,7 +5,7 @@
  * Responsible for collecting information about nodes, widgets, and canvas state.
  */
 
-import type { ComfyApp, ComfyGraph, ComfyNode, GatheredInfo, NodeInfo } from '../types/comfyui';
+import type { ComfyApp, ComfyGraph, ComfyNode, NodeInfo } from '../types/comfyui';
 
 declare const app: ComfyApp;
 declare const LiteGraph: any;
@@ -16,33 +16,6 @@ declare const LiteGraph: any;
  */
 export class InformationGatherer {
     constructor() { }
-
-    gatherInformation(): GatheredInfo {
-        const magnifyGlass = window.comfyUIMagnifyGlass;
-        if (!magnifyGlass) {
-            return {
-                cursor: { canvasX: 0, canvasY: 0 },
-                zoom: 1,
-                hoveredNode: null
-            };
-        }
-
-        const info: GatheredInfo = {
-            cursor: {
-                canvasX: magnifyGlass.state.x,
-                canvasY: magnifyGlass.state.y
-            },
-            zoom: magnifyGlass.state.canvasScale,
-            hoveredNode: null
-        };
-
-        const nodeUnderCursor = this.getNodeUnderCursor();
-        if (nodeUnderCursor) {
-            info.hoveredNode = this.getDetailedNodeInfo(nodeUnderCursor);
-        }
-
-        return info;
-    }
 
     getNodeUnderCursor(): ComfyNode | null {
         const magnifyGlass = window.comfyUIMagnifyGlass;

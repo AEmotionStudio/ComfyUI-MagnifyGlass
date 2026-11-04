@@ -453,7 +453,6 @@ class UIManager {
    * The header is built once and only updated, so focus stays on its buttons.
    */
   renderHeader(node) {
-    var _a;
     const panel = this.elements.panel;
     const state = this.stateManager.state;
     const find = (selector) => panel.querySelector(selector);
@@ -479,11 +478,9 @@ class UIManager {
     lock.title = locked ? "Unlock: show the hovered node" : "Lock to this node";
     lock.setAttribute("aria-label", lock.title);
     find('[data-action="focus-node"]').disabled = !node;
-    const history = this.history;
-    const inHistory = history.ids.length > 0 && history.graph === ((_a = app.canvas) == null ? void 0 : _a.graph);
-    const atEntry = history.ids[history.index] === state.currentNodeId;
-    find('[data-action="back"]').disabled = !inHistory || history.index < (atEntry ? 1 : 0);
-    find('[data-action="forward"]').disabled = !inHistory || !atEntry || history.index >= history.ids.length - 1;
+    const { canBack, canForward } = this.getHistoryNav();
+    find('[data-action="back"]').disabled = !canBack;
+    find('[data-action="forward"]').disabled = !canForward;
     const breadcrumb = find(".panel-breadcrumb");
     const path = (node == null ? void 0 : node.graphPath.length) ? ["Root", ...node.graphPath] : [];
     breadcrumb.innerHTML = [
@@ -492,6 +489,19 @@ class UIManager {
       (node == null ? void 0 : node.isSubgraph) ? '<button class="crumb-action" data-action="enter-subgraph">Enter subgraph</button>' : ""
     ].join("");
     breadcrumb.hidden = !breadcrumb.innerHTML;
+  }
+  /**
+   * Whether Back and Forward have a jump to go to in the graph on screen.
+   */
+  getHistoryNav() {
+    var _a;
+    const history = this.history;
+    const inHistory = history.ids.length > 0 && history.graph === ((_a = app.canvas) == null ? void 0 : _a.graph);
+    const atEntry = history.ids[history.index] === this.stateManager.state.currentNodeId;
+    return {
+      canBack: inHistory && history.index >= (atEntry ? 1 : 0),
+      canForward: inHistory && atEntry && history.index < history.ids.length - 1
+    };
   }
   /**
    * Everything the rendered content depends on, compared value by value.

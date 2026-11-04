@@ -66,31 +66,6 @@ describe('InformationGatherer', () => {
         });
     });
 
-    describe('gatherInformation', () => {
-        it('should return a GatheredInfo object with required fields', () => {
-            const info = gatherer.gatherInformation();
-
-            expect(Object.keys(info).sort()).toEqual(['cursor', 'hoveredNode', 'zoom']);
-        });
-
-        it('should return cursor position from magnifyGlass state', () => {
-            const info = gatherer.gatherInformation();
-
-            expect(info.cursor.canvasX).toBe(100);
-            expect(info.cursor.canvasY).toBe(100);
-        });
-
-        it('should return zoom from canvas scale', () => {
-            const info = gatherer.gatherInformation();
-            expect(info.zoom).toBe(1);
-        });
-
-        it('should return null for hoveredNode when no node is hovered', () => {
-            const info = gatherer.gatherInformation();
-            expect(info.hoveredNode).toBeNull();
-        });
-    });
-
     describe('getNodeUnderCursor', () => {
         it('should hit-test the graph on screen, title bar and collapsed nodes included', () => {
             // A collapsed node in a subgraph: only its title pill sits above pos

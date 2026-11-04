@@ -6,6 +6,7 @@
  */
 
 import type { InfoPanel } from '../info-panel/InfoPanel';
+import type { PanelAction, PopOutInfo, WidgetEditData, WidgetRef } from '../magnify-glass/PopOutManager';
 
 // ============================================================================
 // ComfyUI App
@@ -231,11 +232,14 @@ export interface MagnifyGlassInstance {
     renderer: MagnifyGlassRenderer | null;
     popOutManager?: {
         isPopOutOpen(): boolean;
-        sendInfo(info: unknown): void;
+        sendInfo(info: PopOutInfo): void;
         toggle(): void;
         onStateChange?: ((isOpen: boolean) => void) | null;
         onNodeSelect?: ((nodeId: number) => void) | null;
-        onWidgetEdit?: (() => void) | null;
+        onWidgetEdit?: ((data: WidgetEditData) => void) | null;
+        onButtonClick?: ((data: WidgetRef) => void) | null;
+        onPanelAction?: ((name: PanelAction, nodeId?: number) => void) | null;
+        onRequestOptions?: ((data: WidgetRef) => unknown[]) | null;
     };
     lastKnownMousePosition: { x: number; y: number };
     updateMagnifiedView(): void;
@@ -292,19 +296,6 @@ export interface MagnifyGlassRenderer {
 // ============================================================================
 // Info Panel Types
 // ============================================================================
-
-/**
- * Information gathered about the current cursor position.
- * Returned by InformationGatherer.gatherInformation()
- */
-export interface GatheredInfo {
-    cursor: {
-        canvasX: number;
-        canvasY: number;
-    };
-    zoom: number;
-    hoveredNode: NodeInfo | null;
-}
 
 /**
  * Detailed information about a node.

@@ -561,11 +561,9 @@ export class UIManager {
         lock.setAttribute('aria-label', lock.title);
         find<HTMLButtonElement>('[data-action="focus-node"]').disabled = !node;
 
-        const history = this.history;
-        const inHistory = history.ids.length > 0 && history.graph === app.canvas?.graph;
-        const atEntry = history.ids[history.index] === state.currentNodeId;
-        find<HTMLButtonElement>('[data-action="back"]').disabled = !inHistory || history.index < (atEntry ? 1 : 0);
-        find<HTMLButtonElement>('[data-action="forward"]').disabled = !inHistory || !atEntry || history.index >= history.ids.length - 1;
+        const { canBack, canForward } = this.getHistoryNav();
+        find<HTMLButtonElement>('[data-action="back"]').disabled = !canBack;
+        find<HTMLButtonElement>('[data-action="forward"]').disabled = !canForward;
 
         const breadcrumb = find('.panel-breadcrumb');
         const path = node?.graphPath.length ? ['Root', ...node.graphPath] : [];
@@ -578,9 +576,22 @@ export class UIManager {
     }
 
     /**
+     * Whether Back and Forward have a jump to go to in the graph on screen.
+     */
+    getHistoryNav(): { canBack: boolean; canForward: boolean } {
+        const history = this.history;
+        const inHistory = history.ids.length > 0 && history.graph === app.canvas?.graph;
+        const atEntry = history.ids[history.index] === this.stateManager.state.currentNodeId;
+        return {
+            canBack: inHistory && history.index >= (atEntry ? 1 : 0),
+            canForward: inHistory && atEntry && history.index < history.ids.length - 1
+        };
+    }
+
+    /**
      * Everything the rendered content depends on, compared value by value.
      */
-    private getRenderKey(info: any): unknown[] {
+    getRenderKey(info: any): unknown[] {
         const state = this.stateManager.state;
         const key: unknown[] = [
             app.canvas?.graph,
@@ -601,7 +612,7 @@ export class UIManager {
     /**
      * Widgets are editable when the shown node cannot change under the cursor on its way to the panel.
      */
-    private canEdit(): boolean {
+    canEdit(): boolean {
         const state = this.stateManager.state;
         return !!state.settings["🔍MagnifyGlass.InfoPanelPersist"] || state.lockedNodeId !== null || state.showsSelection;
     }

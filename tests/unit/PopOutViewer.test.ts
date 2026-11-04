@@ -9,13 +9,21 @@ const script = html.slice(html.indexOf('<script>') + 8, html.indexOf('</script>'
 
 describe('Pop-out viewer editing', () => {
     let channel: { name: string; onmessage: ((e: { data: unknown }) => void) | null; postMessage: ReturnType<typeof vi.fn> };
-    const edits = () => channel.postMessage.mock.calls.map(([m]) => m).filter((m: any) => m.type === 'widget-edit').map((m: any) => m.data);
+    let rows: any[];
+    const posted = (type: string) => channel.postMessage.mock.calls.map(([m]) => m).filter((m: any) => m.type === type).map((m: any) => m.data);
+    const edits = () => posted('widget-edit');
     const sidebar = () => document.getElementById('sidebar-content')!;
     const valueOf = (name: string) => [...sidebar().querySelectorAll('[data-kind="value"]')]
-        .find(el => (window as any).__widgets[Number((el as HTMLElement).dataset.widget)].name === name) as HTMLElement;
-    const sendInfo = (widgets: any[]) => {
-        (window as any).__widgets = widgets;
-        channel.onmessage!({ data: { type: 'info', data: { hoveredNode: { id: 5, title: 'Node', type: 'Node', widgets, inputs: [], outputs: [] } } } });
+        .find(el => rows[Number((el as HTMLElement).dataset.widget)].widgetName === name) as HTMLElement;
+    // A row as the Inspector builds it
+    const row = (widgetName: string, widgetType: string, rawValue: unknown, extra: object = {}) => ({
+        label: widgetName, widgetName, widgetType, value: String(rawValue), rawValue,
+        isEditable: true, isLinked: false, isActionable: false, constraints: {}, ...extra
+    });
+    const node = (id: unknown = 5) => ({ id, title: 'Node', type: 'Node', mode: 'Always', graphPath: [], isSubgraph: false });
+    const sendInfo = (list: any[], canEdit = true) => {
+        rows = list;
+        channel.onmessage!({ data: { type: 'info', data: { node: node(), nav: { source: 'locked', locked: true, canBack: false, canForward: false, canEdit }, rows } } });
     };
     const key = (el: Element, k: string, init: KeyboardEventInit = {}) =>
         el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...init }));
@@ -45,7 +53,7 @@ describe('Pop-out viewer editing', () => {
     });
 
     it('edits names with quotes, and text keeps its newlines in a textarea', () => {
-        sendInfo([{ name: `it's "quoted"`, type: 'customtext', value: 'line one\nline two' }]);
+        sendInfo([row(`it's "quoted"`, 'multiline', 'line one\nline two')]);
 
         valueOf(`it's "quoted"`).click();
         const textarea = sidebar().querySelector('textarea')!;
@@ -58,8 +66,8 @@ describe('Pop-out viewer editing', () => {
         expect(edits()).toEqual([{ nodeId: 5, widgetName: `it's "quoted"`, value: 'line one\nline three' }]);
     });
 
-    it('number inputs carry min, max and the real step, and Escape cancels without closing', () => {
-        sendInfo([{ name: 'denoise', type: 'number', value: 0.5, options: { min: 0, max: 1, step: 0.1, step2: 0.01 } }]);
+    it('number inputs take min, max and step from the Inspector, and Escape cancels without closing', () => {
+        sendInfo([row('denoise', 'FLOAT', 0.5, { constraints: { min: 0, max: 1, step: 0.01 } }), row('seed', 'INT', 3), row('cfg', 'FLOAT', 8)]);
 
         valueOf('denoise').click();
         const input = sidebar().querySelector('input[type="number"]') as HTMLInputElement;
@@ -76,51 +84,87 @@ describe('Pop-out viewer editing', () => {
         again.value = '0.7';
         key(again, 'Enter');
         expect(edits()).toEqual([{ nodeId: 5, widgetName: 'denoise', value: 0.7 }]);
+
+        // INT steps by whole numbers without a step of its own; FLOAT takes any value
+        valueOf('seed').click();
+        expect((sidebar().querySelector('input[type="number"]') as HTMLInputElement).step).toBe('1');
+        key(sidebar().querySelector('input[type="number"]')!, 'Escape');
+        valueOf('cfg').click();
+        expect((sidebar().querySelector('input[type="number"]') as HTMLInputElement).step).toBe('any');
     });
 
-    it('a combo blurred without a pick cancels, and a pick keeps the option type', () => {
-        sendInfo([{ name: 'size', type: 'combo', value: 512, options: [512, 768] }]);
+    it('a combo asks for its options, drops a reply for another widget, and a pick keeps the option type', () => {
+        sendInfo([row('size', 'combo', 512)]);
 
         valueOf('size').click();
+        expect(posted('request-options')).toEqual([{ nodeId: 5, widgetName: 'size' }]);
         let select = sidebar().querySelector('select')!;
+        // An info push leaves the waiting editor open
+        sendInfo(rows);
+        expect(sidebar().querySelector('select')).toBe(select);
+        channel.onmessage!({ data: { type: 'options', data: { nodeId: 5, widgetName: 'other', options: ['a'] } } });
+        expect(select.options).toHaveLength(1);
+
+        channel.onmessage!({ data: { type: 'options', data: { nodeId: 5, widgetName: 'size', options: [512, 768] } } });
+        expect([...select.options].map(o => o.textContent)).toEqual(['Select...', '512', '768']);
         select.dispatchEvent(new Event('blur'));
         expect(edits()).toEqual([]);
         expect(sidebar().querySelector('select')).toBeNull();
 
         valueOf('size').click();
         select = sidebar().querySelector('select')!;
+        channel.onmessage!({ data: { type: 'options', data: { nodeId: 5, widgetName: 'size', options: [512, 768] } } });
         select.selectedIndex = 2;
         select.dispatchEvent(new Event('change'));
         expect(edits()).toEqual([{ nodeId: 5, widgetName: 'size', value: 768 }]);
     });
 
-    it('keeps an open editor while info arrives, and object values are not editable', () => {
-        const widgets = [{ name: 'seed', type: 'number', value: 1 }, { name: 'data', type: 'custom', value: { a: 1 } }];
-        sendInfo(widgets);
+    it('keeps an open editor while info arrives, and values without a primitive raw value are not editable', () => {
+        sendInfo([row('seed', 'INT', 1), row('data', 'text', undefined, { value: '{"a": 1}' })]);
         expect(valueOf('data')).toBeUndefined();
 
         valueOf('seed').click();
         const input = sidebar().querySelector('input[type="number"]');
-        sendInfo(widgets);
+        sendInfo(rows);
         expect(sidebar().querySelector('input[type="number"]')).toBe(input);
     });
 
-    it('toggle and action buttons send their widget name', () => {
-        sendInfo([{ name: `o'clock`, type: 'button', value: false }, { name: `run "now"`, type: 'button' }]);
+    it('edits only rows the Inspector allows, and shows an empty string as an editable empty value', () => {
+        sendInfo([row('model', 'combo', 'a', { isLinked: true, isEditable: false }), row('prompt', 'text', '')]);
+        expect(valueOf('model')).toBeUndefined();
+        expect(sidebar().textContent).toContain('linked');
+        const empty = valueOf('prompt');
+        expect(empty.querySelector('.value-empty')!.textContent).toBe('empty');
+        empty.click();
+        expect((sidebar().querySelector('input[type="text"]') as HTMLInputElement).value).toBe('');
+        key(sidebar().querySelector('input[type="text"]')!, 'Escape');
 
-        (sidebar().querySelector('[data-kind="toggle"]') as HTMLElement).click();
-        expect(edits()).toEqual([{ nodeId: 5, widgetName: `o'clock`, value: true }]);
+        // Without a lock, Sticky or the selection nothing is editable
+        sendInfo(rows, false);
+        expect(sidebar().querySelector('[data-kind="value"]')).toBeNull();
+        expect(sidebar().querySelector('.value-empty')).not.toBeNull();
+    });
 
-        (sidebar().querySelector('[data-kind="action"]') as HTMLElement).click();
-        const clicks = channel.postMessage.mock.calls.map(([m]) => m).filter((m: any) => m.type === 'button-click');
-        expect(clicks.map((m: any) => m.data)).toEqual([{ nodeId: 5, widgetName: `run "now"` }]);
+    it('buttons send their widget name, booleans flip, and a button with a boolean value is still a button', () => {
+        sendInfo([
+            row(`o'clock`, 'button', false, { isActionable: true, isEditable: false }),
+            row(`run "now"`, 'button', null, { isActionable: true, isEditable: false }),
+            row('enabled', 'boolean', false)
+        ]);
+
+        expect(sidebar().querySelector('[data-kind="toggle"]')).toBeNull();
+        for (const button of sidebar().querySelectorAll<HTMLElement>('[data-kind="action"]')) button.click();
+        expect(posted('button-click')).toEqual([{ nodeId: 5, widgetName: `o'clock` }, { nodeId: 5, widgetName: `run "now"` }]);
+
+        valueOf('enabled').click();
+        expect(edits()).toEqual([{ nodeId: 5, widgetName: 'enabled', value: true }]);
     });
 
     it('a data:image value renders only the image, never its markup', () => {
         const png = 'data:image/png;base64,iVBORw0KGgo=';
         sendInfo([
-            { name: 'evil', type: 'text', value: `<img src=x onerror="window.__pwned=1"> data:image/png;base64,AAAA` },
-            { name: 'plot', type: 'text', value: `<img src="${png}" style="width:100%">` },
+            row('evil', 'text', `<img src=x onerror="window.__pwned=1"> data:image/png;base64,AAAA`),
+            row('plot', 'text', `<img src="${png}" style="width:100%">`),
         ]);
 
         expect(sidebar().querySelector('[onerror]')).toBeNull();
@@ -131,15 +175,21 @@ describe('Pop-out viewer editing', () => {
 
     it('node ids stay text, and node actions post through delegated listeners', () => {
         const id = `1); window.__pwned = (1`;
-        channel.onmessage!({ data: { type: 'info', data: { hoveredNode: { id, title: 'Node', type: 'Node', widgets: [], inputs: [], outputs: [] } } } });
+        channel.onmessage!({ data: { type: 'info', data: { node: node(id), nav: { canEdit: false }, rows: [] } } });
 
         expect(sidebar().querySelector('[onclick]')).toBeNull();
         expect(sidebar().textContent).toContain(`(#${id})`);
-        (sidebar().querySelector('[data-action="zoom-node"]') as HTMLElement).click();
+        (sidebar().querySelector('[data-action="focus-node"]') as HTMLElement).click();
         (sidebar().querySelector('[data-action="node-dropdown"]') as HTMLElement).click();
-        const posted = channel.postMessage.mock.calls.map(([m]) => m).filter((m: any) => m.type !== 'pong');
-        expect(posted).toEqual([{ type: 'zoom-node', data: id }, { type: 'request-nodes', data: 'title' }]);
+        const sent = channel.postMessage.mock.calls.map(([m]) => m).filter((m: any) => m.type !== 'pong');
+        expect(sent).toEqual([{ type: 'panel-action', data: { name: 'focus-node', nodeId: id } }, { type: 'request-nodes', data: 'title' }]);
         expect((window as any).__pwned).toBeUndefined();
+    });
+
+    it('shows the empty state for no node, with no Cursor section', () => {
+        channel.onmessage!({ data: { type: 'info', data: { node: null, nav: { canEdit: false }, rows: [] } } });
+        expect(sidebar().querySelector('.empty-state')).not.toBeNull();
+        expect(sidebar().textContent).not.toContain('Cursor');
     });
 
     it('listens on the channel of the session in its URL, and announces itself until pinged', () => {
@@ -161,7 +211,7 @@ describe('Pop-out viewer editing', () => {
         const config = (glass: string) => channel.onmessage!({ data: { type: 'config', data: { theme: 'dark', glass, inspector: true } } });
         ping();
         config('off');
-        sendInfo([{ name: 'seed', type: 'number', value: 1 }]);
+        sendInfo([row('seed', 'INT', 1)]);
         valueOf('seed').click();
         const input = sidebar().querySelector('input[type="number"]');
         expect(label()).toBe('Glass off');
@@ -185,7 +235,7 @@ describe('Pop-out viewer editing', () => {
     });
 
     it('says when the Inspector is off in ComfyUI', () => {
-        sendInfo([{ name: 'seed', type: 'number', value: 1 }]);
+        sendInfo([row('seed', 'INT', 1)]);
         channel.onmessage!({ data: { type: 'config', data: { theme: 'dark', glass: 'on', inspector: false } } });
         expect(sidebar().textContent).toContain('The Inspector is off in ComfyUI');
         channel.onmessage!({ data: { type: 'config', data: { theme: 'dark', glass: 'on', inspector: true } } });
@@ -193,7 +243,7 @@ describe('Pop-out viewer editing', () => {
     });
 
     it('Escape closes the node list, never the window', () => {
-        channel.onmessage!({ data: { type: 'info', data: { hoveredNode: { id: 5, title: 'Node', type: 'Node', widgets: [], inputs: [], outputs: [] } } } });
+        sendInfo([]);
         (sidebar().querySelector('[data-action="node-dropdown"]') as HTMLElement).click();
         channel.onmessage!({ data: { type: 'nodes-list', data: { nodes: [{ id: 5, title: 'Node', type: 'Node' }], sortBy: 'title' } } });
         expect(document.getElementById('node-dropdown')).not.toBeNull();

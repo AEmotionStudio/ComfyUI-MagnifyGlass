@@ -83,9 +83,9 @@
 ### 🖥️ Multi-Monitor Pop-Out
 ![Multi-Monitor Pop-Out](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/MagnifyGlass_Popout_v1.webp)
 
-*   **Detachable Viewer**: Open the magnified view in a separate browser tab.
-*   **Inspector Sidebar**: Real-time node details, cursor position, and canvas scale.
-*   **Resizable Canvas**: Drag to resize, size persists across sessions.
+*   **Detachable Viewer**: Open the glass in a popup window for a second monitor; it keeps updating while the glass is hidden and follows your palette.
+*   **Inspector Sidebar**: The Inspector's rows, navigation and editing, plus the node's links, outputs and run progress, with the last error and its traceback.
+*   **Controls**: Zoom, Lock, and Split, Glass, Info and Output views with a resizable frame and divider.
 
 </td>
 </tr>
@@ -133,7 +133,7 @@ git clone https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass.git
 | **`H`** | Toggle Follow Cursor Mode |
 | **`I`** | Toggle Inspector Panel Visibility |
 | **`G`** | Toggle Glass Preview (with the Inspector panel on, keeps the panel and hides the glass) |
-| **`Shift+P`** | Open Pop-Out Viewer in New Tab |
+| **`Shift+P`** | Open / Close the Pop-Out Viewer (popup window) |
 | **`U`** | Inspector: Follow the Glass / Float |
 | **`S`** | Inspector: Toggle Sticky |
 | **`O`** | Reset Offsets |

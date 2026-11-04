@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - **Sidebar header buttons**: Open or close the pop-out viewer, and close the sidebar with the X.
+- **Pop-out controls**: Zoom with −/+ or the mouse wheel over the frame (writes the Zoom Factor setting), and Split, Glass, Info and Output views with a draggable divider. The view, the divider and collapsed sections are kept per browser.
+- **Pop-out progress and errors**: A run bar shows the queue, the running node and its progress. The shown node gets a Running, Cached, Done or Error badge. The last error shows as a banner with Go to node and Copy traceback, and inputs that failed validation are marked with the reason.
+- **Pop-out outputs**: The shown node's live previews or last results as thumbnails; click one to show it large in the Output view (Esc returns).
+- **Pop-out links**: Inputs and Outputs list each linked node as a chip that jumps to it, and flag required inputs left unconnected.
 
 ### Changed
 - **Inspector look**: The panel, its toolbar and its menus follow your ComfyUI palette (any palette, light or dark) with a flat, denser layout. Text and Accent Color override the palette only when changed from their defaults. Max Height and Opacity now apply in every mode.
@@ -19,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Toolbar**: A fixed set of grouped buttons; ones that can't act are disabled. All eight Controls Positions work, and the toolbar flips sides instead of covering the panel.
 - **Hotkeys**: Panel keys act only while the glass is on and never with Ctrl or Meta. `*` and ←/→ act only while the panel is hovered or focused, so the arrow keys nudge the glass otherwise. Rebinding applies at once.
 - Max Height now defaults to 600px.
+- **Pop-out look**: The viewer opens in a popup window and follows your ComfyUI palette with the Inspector's flat layout, SVG icons and focus styles. It stacks below 720 px.
+- **Pop-out navigation and editing**: The viewer shows the Inspector's header, rows, breadcrumb and navigation (Back/Forward, Previous/Next, Centre, Lock, Go to node; ←/→, L and Ctrl+K). Edits go through the Inspector's rules: "Lock to edit", read-only linked widgets, the canvas's number steps, and combos opened on the current value. Status shows Connected, Glass hidden, Glass off, ComfyUI tab inactive or Disconnected.
 
 ### Fixed
 - **Nodes 2.0 (Vue nodes)**: The glass shows the nodes, painted from the page: boxes, borders, text, widget values and prompts (icons are left out). The Inspector finds the node under the cursor, also in pan mode, and the highlight fits collapsed nodes.
@@ -31,12 +37,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Saved fonts no longer reset on reload, and High Contrast Text applies on load.
 - Node modes read Mute and Bypass instead of Never and On Request.
 - The pop-out editor keeps newlines, handles widget names with quotes, and Escape no longer closes the window.
+- **Pop-out viewer**: It no longer returns 404 when the folder is named `ComfyUI-MagnifyGlass`, and it keeps updating while the glass preview is hidden. Values are escaped, so a workflow string can no longer run script in the viewer. Each ComfyUI tab pairs with its own viewer, so edits no longer land in every tab. The status no longer flickers or wipes the sidebar, and the viewer reconnects after a timeout, a close or a ComfyUI reload. Frames are sent as Blobs.
 
 ### Removed
 - The built-in panel themes and their palette detection.
 - Hold (P); use Lock.
 - Loading fonts from Google Fonts. Font Family uses fonts installed locally.
 - The Inspector and Media sections, the Show Inspector Tab setting, the guessed Model/Image/Text rows, and the unused Animations setting.
+- From the pop-out: Keep Alive, the Cursor section, Esc-to-close, and the Title and Exec-order node lists.
+
+### Known Issues
+- After switching workflow tabs during a run, the pop-out's run badges match nodes by execution id, so a node in the other tab with the same id can show one.
 
 ---
 

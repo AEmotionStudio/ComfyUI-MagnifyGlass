@@ -10,6 +10,22 @@ import { InformationGatherer } from "./InformationGatherer.js";
 import { CanvasHighlighter } from "./CanvasHighlighter.js";
 import { getSlotLinks, getImportantNodeParameters } from "./NodeDataExtractor.js";
 import { WidgetSyncManager } from "./widget-editors/WidgetSyncManager.js";
+const AIM_REST_MS = 300;
+function rayHitsRect(x, y, dx, dy, rect, margin = 12) {
+  let near = 0;
+  let far = Infinity;
+  for (const [origin, step, low, high] of [[x, dx, rect.left - margin, rect.right + margin], [y, dy, rect.top - margin, rect.bottom + margin]]) {
+    if (step === 0) {
+      if (origin < low || origin > high) return false;
+      continue;
+    }
+    const a = (low - origin) / step;
+    const b = (high - origin) / step;
+    near = Math.max(near, Math.min(a, b));
+    far = Math.min(far, Math.max(a, b));
+  }
+  return near <= far;
+}
 class InfoPanel {
   constructor(magnifyGlass) {
     __publicField(this, "magnifyGlass");
@@ -22,6 +38,7 @@ class InfoPanel {
     __publicField(this, "originalUpdateMagnifiedView");
     __publicField(this, "originalShow");
     __publicField(this, "originalHide");
+    __publicField(this, "originalPositionGlass");
     __publicField(this, "updateFrameId", null);
     __publicField(this, "boundScheduleSelectionUpdate");
     // Refreshes the pop-out while it is connected, since it gets no input of its own here
@@ -34,6 +51,14 @@ class InfoPanel {
     // The results the pop-out's /view URLs were built from; each build gets a new rand param, which loads every image again
     __publicField(this, "popOutImages", null);
     __publicField(this, "popOutImageUrls", []);
+    // The hovered node, kept while the pointer is over other UI or heads for the panel
+    __publicField(this, "hoverNodeId", null);
+    __publicField(this, "hoverGraph", null);
+    // Where the pointer last was over that node, where it is and when it last moved
+    __publicField(this, "hoverAnchor", null);
+    __publicField(this, "pointer", { x: 0, y: 0, movedAt: 0 });
+    __publicField(this, "aiming", false);
+    __publicField(this, "aimTimer", null);
     // The node Sticky keeps, looked up again on each update like the locked one
     __publicField(this, "stickyNodeId", null);
     __publicField(this, "stickyGraph", null);
@@ -71,6 +96,7 @@ class InfoPanel {
     this.originalUpdateMagnifiedView = magnifyGlass.updateMagnifiedView;
     this.originalShow = magnifyGlass.ui.show;
     this.originalHide = magnifyGlass.ui.hide;
+    this.originalPositionGlass = magnifyGlass.ui.positionGlass;
     this.hookIntoMagnifyGlass();
     const popOut = this.magnifyGlass.popOutManager;
     if (popOut) {
@@ -142,6 +168,10 @@ class InfoPanel {
         }, 10);
       }
     };
+    mg.ui.positionGlass = (x, y) => {
+      if (this.aiming || this.isPointerOnPanel()) return;
+      this.originalPositionGlass.call(mg.ui, x, y);
+    };
     mg.ui.hide = () => {
       this.stateManager.state.wasPanelVisibleBeforeHide = this.stateManager.state.isPanelVisible;
       this.originalHide.call(mg.ui);
@@ -169,6 +199,7 @@ class InfoPanel {
     mg.updateMagnifiedView = this.originalUpdateMagnifiedView;
     mg.ui.show = this.originalShow;
     mg.ui.hide = this.originalHide;
+    mg.ui.positionGlass = this.originalPositionGlass;
     if (mg.popOutManager) {
       mg.popOutManager.onStateChange = null;
       mg.popOutManager.onNodeSelect = null;
@@ -182,6 +213,10 @@ class InfoPanel {
     if (this.updateFrameId !== null) {
       cancelAnimationFrame(this.updateFrameId);
       this.updateFrameId = null;
+    }
+    if (this.aimTimer !== null) {
+      clearTimeout(this.aimTimer);
+      this.aimTimer = null;
     }
     document.removeEventListener("pointerup", this.boundScheduleSelectionUpdate, true);
     document.removeEventListener("keyup", this.boundScheduleSelectionUpdate, true);
@@ -217,7 +252,7 @@ class InfoPanel {
       this.canvasHighlighter.setHighlightedNode(null);
       if (!popOutOpen) return;
     }
-    const hovered = isActive ? this.informationGatherer.getNodeUnderCursor() : null;
+    const hovered = isActive ? this.resolveHover() : null;
     let node = hovered ? this.informationGatherer.getDetailedNodeInfo(hovered) : null;
     let source = "hover";
     const state = this.stateManager.state;
@@ -252,7 +287,7 @@ class InfoPanel {
     if (isActive) {
       this.uiManager.displayInfo(info);
       this.canvasHighlighter.setHighlightedNode(node ? node.id : null);
-      if (!fromTick) {
+      if (!fromTick && !this.aiming && !this.isPointerOnPanel()) {
         this.positionManager.positionPanel();
         this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
       }
@@ -260,6 +295,55 @@ class InfoPanel {
     if (popOutOpen) {
       this.sendPopOutInfo(info, source);
     }
+  }
+  /**
+   * The node under the pointer. Over other UI (the sidebar, a menu, this panel) the last one stays, and so it
+   * does while the pointer heads from it for the panel, crossing canvas and other nodes, until the pointer rests.
+   */
+  resolveHover() {
+    var _a;
+    const { x, y } = this.magnifyGlass.lastKnownMousePosition;
+    const now = performance.now();
+    if (x !== this.pointer.x || y !== this.pointer.y) this.pointer = { x, y, movedAt: now };
+    const graph = (_a = app.canvas) == null ? void 0 : _a.graph;
+    const kept = this.hoverNodeId !== null && this.hoverGraph === graph ? this.uiManager.nodeSelector.getNodeById(this.hoverNodeId) : null;
+    this.aiming = false;
+    if (!this.informationGatherer.isPointerOverGraph(x, y)) return kept;
+    const node = this.informationGatherer.getNodeUnderCursor();
+    if (node !== kept && kept && now - this.pointer.movedAt < AIM_REST_MS && this.headsForPanel(x, y)) {
+      this.aiming = true;
+      this.aimTimer ?? (this.aimTimer = window.setTimeout(() => {
+        this.aimTimer = null;
+        this.scheduleInfoUpdate();
+      }, AIM_REST_MS));
+      return kept;
+    }
+    this.hoverAnchor = node ? { x, y } : null;
+    this.hoverNodeId = (node == null ? void 0 : node.id) ?? null;
+    this.hoverGraph = graph;
+    return node;
+  }
+  /**
+   * Whether the pointer moves from where it left the shown node toward the panel or its controls.
+   */
+  headsForPanel(x, y) {
+    const anchor = this.hoverAnchor;
+    if (!anchor || !this.stateManager.state.isPanelVisible) return false;
+    const dx = x - anchor.x;
+    const dy = y - anchor.y;
+    if (dx === 0 && dy === 0) return false;
+    const { panel, controls } = this.uiManager.elements;
+    return [panel, controls].some((element) => {
+      const rect = element == null ? void 0 : element.getBoundingClientRect();
+      const covers = !!rect && anchor.x >= rect.left && anchor.x <= rect.right && anchor.y >= rect.top && anchor.y <= rect.bottom;
+      return !!rect && rect.width > 0 && !covers && rayHitsRect(anchor.x, anchor.y, dx, dy, rect);
+    });
+  }
+  isPointerOnPanel() {
+    const { x, y } = this.magnifyGlass.lastKnownMousePosition;
+    const element = document.elementFromPoint(x, y);
+    const { panel, controls } = this.uiManager.elements;
+    return !!element && (!!(panel == null ? void 0 : panel.contains(element)) || !!(controls == null ? void 0 : controls.contains(element)));
   }
   /**
    * Send the pop-out what the Inspector shows, when it changed since the last send.

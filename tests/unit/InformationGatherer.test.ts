@@ -70,6 +70,32 @@ describe('InformationGatherer', () => {
         });
     });
 
+    describe('isPointerOverGraph', () => {
+        it('counts the canvas, DOM widgets and Vue nodes, not the side panels in the same container', () => {
+            const canvas = document.createElement('canvas');
+            const widget = document.createElement('div');
+            widget.className = 'dom-widget';
+            const textarea = widget.appendChild(document.createElement('textarea'));
+            const vueNode = document.createElement('div');
+            vueNode.className = 'lg-node';
+            const slot = vueNode.appendChild(document.createElement('span'));
+            const sidebarButton = document.createElement('button');
+            const savedCanvas = mockApp.canvas.canvas;
+            mockApp.canvas.canvas = canvas;
+            const elementFromPoint = vi.fn();
+            (document as any).elementFromPoint = elementFromPoint;
+
+            for (const [element, over] of [[canvas, true], [textarea, true], [slot, true], [sidebarButton, false], [null, false]] as const) {
+                elementFromPoint.mockReturnValue(element);
+                expect(gatherer.isPointerOverGraph(10, 20)).toBe(over);
+            }
+            expect(elementFromPoint).toHaveBeenCalledWith(10, 20);
+
+            delete (document as any).elementFromPoint;
+            mockApp.canvas.canvas = savedCanvas;
+        });
+    });
+
     describe('getNodeUnderCursor', () => {
         it('should hit-test the graph on screen, title bar and collapsed nodes included', () => {
             // A collapsed node in a subgraph: only its title pill sits above pos

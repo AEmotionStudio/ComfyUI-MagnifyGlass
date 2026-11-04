@@ -5,7 +5,7 @@
  * Main class that orchestrates all info panel components.
  */
 
-import type { MagnifyGlassInstance, NodeInfo } from '../types/comfyui';
+import type { ComfyNode, MagnifyGlassInstance, NodeInfo } from '../types/comfyui';
 import type { PopOutInfo, WidgetRef } from '../magnify-glass/PopOutManager';
 import { Logger } from '../shared/logger';
 import { StateManager } from './StateManager';
@@ -18,6 +18,28 @@ import { getImportantNodeParameters, getSlotLinks, type ParameterItem } from './
 import { WidgetSyncManager } from './widget-editors/WidgetSyncManager';
 
 type PopOutNav = PopOutInfo['nav'];
+
+// A pointer still for this long has arrived; hover follows it again
+const AIM_REST_MS = 300;
+
+/**
+ * Whether the ray from (x, y) along (dx, dy) passes through the rect, grown by a margin.
+ */
+function rayHitsRect(x: number, y: number, dx: number, dy: number, rect: DOMRect, margin = 12): boolean {
+    let near = 0;
+    let far = Infinity;
+    for (const [origin, step, low, high] of [[x, dx, rect.left - margin, rect.right + margin], [y, dy, rect.top - margin, rect.bottom + margin]]) {
+        if (step === 0) {
+            if (origin < low || origin > high) return false;
+            continue;
+        }
+        const a = (low - origin) / step;
+        const b = (high - origin) / step;
+        near = Math.max(near, Math.min(a, b));
+        far = Math.min(far, Math.max(a, b));
+    }
+    return near <= far;
+}
 
 /**
  * Professional Info Panel Manager.
@@ -34,6 +56,7 @@ export class InfoPanel {
     private originalUpdateMagnifiedView: () => void;
     private originalShow: () => void;
     private originalHide: () => void;
+    private originalPositionGlass: (x: number, y: number) => void;
     private updateFrameId: number | null = null;
     private boundScheduleSelectionUpdate: () => void;
     // Refreshes the pop-out while it is connected, since it gets no input of its own here
@@ -46,6 +69,14 @@ export class InfoPanel {
     // The results the pop-out's /view URLs were built from; each build gets a new rand param, which loads every image again
     private popOutImages: Record<string, string>[] | null = null;
     private popOutImageUrls: string[] = [];
+    // The hovered node, kept while the pointer is over other UI or heads for the panel
+    private hoverNodeId: number | null = null;
+    private hoverGraph: unknown = null;
+    // Where the pointer last was over that node, where it is and when it last moved
+    private hoverAnchor: { x: number; y: number } | null = null;
+    private pointer = { x: 0, y: 0, movedAt: 0 };
+    private aiming = false;
+    private aimTimer: number | null = null;
 
     constructor(magnifyGlass: MagnifyGlassInstance) {
         this.magnifyGlass = magnifyGlass;
@@ -91,6 +122,7 @@ export class InfoPanel {
         this.originalUpdateMagnifiedView = magnifyGlass.updateMagnifiedView;
         this.originalShow = magnifyGlass.ui.show;
         this.originalHide = magnifyGlass.ui.hide;
+        this.originalPositionGlass = magnifyGlass.ui.positionGlass;
         this.hookIntoMagnifyGlass();
 
         const popOut = this.magnifyGlass.popOutManager;
@@ -182,6 +214,12 @@ export class InfoPanel {
             }
         };
 
+        // With Follow Cursor the panel moves with the glass; it holds still while the pointer heads for it or is on it
+        mg.ui.positionGlass = (x: number, y: number) => {
+            if (this.aiming || this.isPointerOnPanel()) return;
+            this.originalPositionGlass.call(mg.ui, x, y);
+        };
+
         mg.ui.hide = () => {
             // Save state before hiding
             this.stateManager.state.wasPanelVisibleBeforeHide = this.stateManager.state.isPanelVisible;
@@ -218,6 +256,7 @@ export class InfoPanel {
         mg.updateMagnifiedView = this.originalUpdateMagnifiedView;
         mg.ui.show = this.originalShow;
         mg.ui.hide = this.originalHide;
+        mg.ui.positionGlass = this.originalPositionGlass;
 
         if (mg.popOutManager) {
             mg.popOutManager.onStateChange = null;
@@ -233,6 +272,10 @@ export class InfoPanel {
         if (this.updateFrameId !== null) {
             cancelAnimationFrame(this.updateFrameId);
             this.updateFrameId = null;
+        }
+        if (this.aimTimer !== null) {
+            clearTimeout(this.aimTimer);
+            this.aimTimer = null;
         }
         document.removeEventListener('pointerup', this.boundScheduleSelectionUpdate, true);
         document.removeEventListener('keyup', this.boundScheduleSelectionUpdate, true);
@@ -280,7 +323,7 @@ export class InfoPanel {
         }
 
         // Nothing is hovered while the glass is off
-        const hovered = isActive ? this.informationGatherer.getNodeUnderCursor() : null;
+        const hovered = isActive ? this.resolveHover() : null;
         let node = hovered ? this.informationGatherer.getDetailedNodeInfo(hovered) : null;
         let source: PopOutNav['source'] = 'hover';
         const state = this.stateManager.state;
@@ -324,7 +367,8 @@ export class InfoPanel {
         if (isActive) {
             this.uiManager.displayInfo(info);
             this.canvasHighlighter.setHighlightedNode(node ? node.id : null);
-            if (!fromTick) {
+            // The panel stays put while the pointer heads for it or is on it
+            if (!fromTick && !this.aiming && !this.isPointerOnPanel()) {
                 this.positionManager.positionPanel();
                 this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
             }
@@ -333,6 +377,60 @@ export class InfoPanel {
         if (popOutOpen) {
             this.sendPopOutInfo(info, source);
         }
+    }
+
+    /**
+     * The node under the pointer. Over other UI (the sidebar, a menu, this panel) the last one stays, and so it
+     * does while the pointer heads from it for the panel, crossing canvas and other nodes, until the pointer rests.
+     */
+    private resolveHover(): ComfyNode | null {
+        const { x, y } = this.magnifyGlass.lastKnownMousePosition;
+        const now = performance.now();
+        if (x !== this.pointer.x || y !== this.pointer.y) this.pointer = { x, y, movedAt: now };
+        const graph = app.canvas?.graph;
+        const kept = this.hoverNodeId !== null && this.hoverGraph === graph ? this.uiManager.nodeSelector.getNodeById(this.hoverNodeId) : null;
+        this.aiming = false;
+        if (!this.informationGatherer.isPointerOverGraph(x, y)) return kept;
+
+        const node = this.informationGatherer.getNodeUnderCursor();
+        if (node !== kept && kept && now - this.pointer.movedAt < AIM_REST_MS && this.headsForPanel(x, y)) {
+            this.aiming = true;
+            // Look again once the pointer may have come to rest
+            this.aimTimer ??= window.setTimeout(() => {
+                this.aimTimer = null;
+                this.scheduleInfoUpdate();
+            }, AIM_REST_MS);
+            return kept;
+        }
+        this.hoverAnchor = node ? { x, y } : null;
+        this.hoverNodeId = node?.id ?? null;
+        this.hoverGraph = graph;
+        return node;
+    }
+
+    /**
+     * Whether the pointer moves from where it left the shown node toward the panel or its controls.
+     */
+    private headsForPanel(x: number, y: number): boolean {
+        const anchor = this.hoverAnchor;
+        if (!anchor || !this.stateManager.state.isPanelVisible) return false;
+        const dx = x - anchor.x;
+        const dy = y - anchor.y;
+        if (dx === 0 && dy === 0) return false;
+        const { panel, controls } = this.uiManager.elements;
+        return [panel, controls].some(element => {
+            const rect = element?.getBoundingClientRect();
+            // A panel moved over the spot the pointer left from is not one it heads for
+            const covers = !!rect && anchor.x >= rect.left && anchor.x <= rect.right && anchor.y >= rect.top && anchor.y <= rect.bottom;
+            return !!rect && rect.width > 0 && !covers && rayHitsRect(anchor.x, anchor.y, dx, dy, rect);
+        });
+    }
+
+    private isPointerOnPanel(): boolean {
+        const { x, y } = this.magnifyGlass.lastKnownMousePosition;
+        const element = document.elementFromPoint(x, y);
+        const { panel, controls } = this.uiManager.elements;
+        return !!element && (!!panel?.contains(element) || !!controls?.contains(element));
     }
 
     /**

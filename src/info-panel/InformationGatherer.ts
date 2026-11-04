@@ -17,6 +17,15 @@ declare const LiteGraph: any;
 export class InformationGatherer {
     constructor() { }
 
+    /**
+     * Whether the pointer is over the graph: the canvas, a DOM widget or a Vue node, not other UI such as the
+     * sidebar, a menu or the panel. The frontend keeps its side panels in the canvas's container, so that is no test.
+     */
+    isPointerOverGraph(x: number, y: number): boolean {
+        const element = document.elementFromPoint(x, y);
+        return !!element && (element === app.canvas.canvas || !!element.closest('.dom-widget, .lg-node'));
+    }
+
     getNodeUnderCursor(): ComfyNode | null {
         const magnifyGlass = window.comfyUIMagnifyGlass;
         const graph = app.canvas?.graph;

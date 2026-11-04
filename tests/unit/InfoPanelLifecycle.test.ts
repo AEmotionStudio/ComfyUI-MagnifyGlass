@@ -32,7 +32,8 @@ class FakeUi {
     glassDiv = document.createElement('div');
     show() { this.glassDiv.style.display = 'block'; }
     hide() { this.glassDiv.style.display = 'none'; }
-    positionGlass() { }
+    moves: [number, number][] = [];
+    positionGlass(x: number, y: number) { this.moves.push([x, y]); }
 }
 
 class FakeGlass {
@@ -79,8 +80,11 @@ describe('Info Panel lifecycle', () => {
         // Node's own localStorage global hides happy-dom's
         vi.stubGlobal('localStorage', new Storage());
         addSetting.mockClear();
+        // The pointer is over the graph's canvas unless a test says otherwise
+        const graphCanvas = document.createElement('canvas');
+        vi.spyOn(document, 'elementFromPoint').mockReturnValue(graphCanvas);
         const ds = { convertCanvasToOffset: (pos: [number, number]) => pos };
-        (window as any).app = { canvas: { canvas: document.createElement('canvas'), ds, onDrawForeground: null, setDirty: vi.fn() }, graph: null };
+        (window as any).app = { canvas: { canvas: graphCanvas, ds, onDrawForeground: null, setDirty: vi.fn() }, graph: null };
         mg = new FakeGlass();
     });
 
@@ -377,6 +381,62 @@ describe('Info Panel lifecycle', () => {
             panelManager().updateInfo();
 
             expect(render).toHaveBeenCalledTimes(2);
+        });
+
+        describe('reaching the panel', () => {
+            let other: any;
+            const shown = () => panelManager().stateManager.state.currentNodeId;
+            const pointAt = (x: number, y: number, over: any = null) => {
+                mg.lastKnownMousePosition = { x, y };
+                (window as any).app.canvas.node_over = over;
+                panelManager().updateInfo();
+            };
+
+            beforeEach(() => {
+                other = { ...node, id: 8, title: 'VAE Decode' };
+                (window as any).app.canvas.graph = { _nodes: [node, other], getNodeById: (id: number) => [node, other].find(n => n.id === id) ?? null, getNodeOnPos: () => null };
+                panelManager().uiManager.show();
+                vi.spyOn(panelManager().uiManager.elements.panel!, 'getBoundingClientRect').mockReturnValue(
+                    { left: 500, right: 800, top: 100, bottom: 400, width: 300, height: 300 } as DOMRect);
+                pointAt(100, 200, node);
+            });
+
+            it('keeps the node while the pointer is over other UI, even with a node behind it', () => {
+                vi.mocked(document.elementFromPoint).mockReturnValue(document.body);
+                pointAt(150, 600, other);
+                expect(shown()).toBe(7);
+            });
+
+            it('keeps the node while the pointer heads for the panel, until it rests or turns away', () => {
+                pointAt(250, 210, other);
+                pointAt(350, 220, null);
+                expect(shown()).toBe(7);
+
+                // At rest, hover follows the pointer again
+                vi.advanceTimersByTime(400);
+                pointAt(350, 220, null);
+                expect(shown()).toBeNull();
+
+                pointAt(100, 200, node);
+                pointAt(60, 600, other);
+                expect(shown()).toBe(8);
+            });
+
+            it('holds a Follow Cursor glass still while the pointer heads for the panel or is on it', () => {
+                pointAt(250, 210, null);
+                mg.ui.positionGlass(260, 212);
+                expect(mg.ui.moves).toEqual([]);
+
+                vi.mocked(document.elementFromPoint).mockReturnValue(panelManager().uiManager.elements.panel);
+                pointAt(520, 230, null);
+                mg.ui.positionGlass(520, 230);
+                expect(mg.ui.moves).toEqual([]);
+
+                vi.mocked(document.elementFromPoint).mockReturnValue((window as any).app.canvas.canvas);
+                pointAt(90, 600, other);
+                mg.ui.positionGlass(90, 600);
+                expect(mg.ui.moves).toEqual([[90, 600]]);
+            });
         });
 
         it('shows each widget once, without guessed Model, Image or Text rows', () => {

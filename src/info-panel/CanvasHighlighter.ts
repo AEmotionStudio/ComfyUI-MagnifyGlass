@@ -10,7 +10,10 @@ import { ComfyApp, ComfyNode } from '../types/comfyui';
 declare const app: ComfyApp;
 
 export class CanvasHighlighter {
-    private originalOnDrawForeground: ((ctx: CanvasRenderingContext2D, visible_nodes: any) => void) | null = null;
+    // Each onDrawForeground this hook replaced, oldest first. The frontend wraps the hook again whenever its
+    // DOM widgets mount (e.g. on a Nodes 2.0 toggle), so a later one calls back here, and each call goes a level down.
+    private originals: (((ctx: CanvasRenderingContext2D, visible_nodes: any) => void) | undefined)[] = [];
+    private depth = 0;
     private highlightedNodeId: number | null = null;
 
     private highlightEl: HTMLDivElement | null = null;
@@ -62,17 +65,23 @@ export class CanvasHighlighter {
 
         // If our hook was overwritten (e.g. by another extension), re-hook
         if (app.canvas.onDrawForeground !== this.boundOnDrawForeground) {
-            this.originalOnDrawForeground = app.canvas.onDrawForeground;
+            this.originals.push(app.canvas.onDrawForeground);
             app.canvas.onDrawForeground = this.boundOnDrawForeground;
         }
     }
 
     // Bound method to preserve 'this' and allow equality check
     private boundOnDrawForeground = (ctx: CanvasRenderingContext2D, visible_nodes: any) => {
-        // Call original first
-        if (this.originalOnDrawForeground) {
-            this.originalOnDrawForeground.call((window as any).app.canvas, ctx, visible_nodes);
+        const original = this.originals[this.originals.length - 1 - this.depth];
+        if (original) {
+            this.depth++;
+            try {
+                original.call((window as any).app.canvas, ctx, visible_nodes);
+            } finally {
+                this.depth--;
+            }
         }
+        if (this.depth > 0) return;
 
         // Update DOM Highlight Position
         this.updateHighlightPosition();
@@ -153,8 +162,9 @@ export class CanvasHighlighter {
      */
     cleanup(): void {
         const app = (window as any).app;
+        // A wrapper of this hook that is still in the chain keeps reaching the ones below it through here
         if (app && app.canvas && app.canvas.onDrawForeground === this.boundOnDrawForeground) {
-            app.canvas.onDrawForeground = this.originalOnDrawForeground;
+            app.canvas.onDrawForeground = this.originals.pop();
         }
 
         if (this.highlightEl) {

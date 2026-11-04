@@ -3,7 +3,10 @@ var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { en
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 class CanvasHighlighter {
   constructor(settings) {
-    __publicField(this, "originalOnDrawForeground", null);
+    // Each onDrawForeground this hook replaced, oldest first. The frontend wraps the hook again whenever its
+    // DOM widgets mount (e.g. on a Nodes 2.0 toggle), so a later one calls back here, and each call goes a level down.
+    __publicField(this, "originals", []);
+    __publicField(this, "depth", 0);
     __publicField(this, "highlightedNodeId", null);
     __publicField(this, "highlightEl", null);
     // Cache for DOM updates to minimize thrashing
@@ -12,9 +15,16 @@ class CanvasHighlighter {
     __publicField(this, "settings");
     // Bound method to preserve 'this' and allow equality check
     __publicField(this, "boundOnDrawForeground", (ctx, visible_nodes) => {
-      if (this.originalOnDrawForeground) {
-        this.originalOnDrawForeground.call(window.app.canvas, ctx, visible_nodes);
+      const original = this.originals[this.originals.length - 1 - this.depth];
+      if (original) {
+        this.depth++;
+        try {
+          original.call(window.app.canvas, ctx, visible_nodes);
+        } finally {
+          this.depth--;
+        }
       }
+      if (this.depth > 0) return;
       this.updateHighlightPosition();
     });
     this.settings = settings;
@@ -48,7 +58,7 @@ class CanvasHighlighter {
     const app = window.app;
     if (!app || !app.canvas) return;
     if (app.canvas.onDrawForeground !== this.boundOnDrawForeground) {
-      this.originalOnDrawForeground = app.canvas.onDrawForeground;
+      this.originals.push(app.canvas.onDrawForeground);
       app.canvas.onDrawForeground = this.boundOnDrawForeground;
     }
   }
@@ -107,7 +117,7 @@ class CanvasHighlighter {
   cleanup() {
     const app = window.app;
     if (app && app.canvas && app.canvas.onDrawForeground === this.boundOnDrawForeground) {
-      app.canvas.onDrawForeground = this.originalOnDrawForeground;
+      app.canvas.onDrawForeground = this.originals.pop();
     }
     if (this.highlightEl) {
       this.highlightEl.remove();

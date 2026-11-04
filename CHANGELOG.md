@@ -27,7 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Pop-out navigation and editing**: The viewer shows the Inspector's header, rows, breadcrumb and navigation (Back/Forward, Previous/Next, Centre, Lock, Go to node; ←/→, L and Ctrl+K). Edits go through the Inspector's rules: "Lock to edit", read-only linked widgets, the canvas's number steps, and combos opened on the current value. Status shows Connected, Glass hidden, Glass off, ComfyUI tab inactive or Disconnected.
 
 ### Fixed
-- **Nodes 2.0 (Vue nodes)**: The glass shows the nodes, painted from the page: boxes, borders, text, widget values and prompts (icons are left out). The Inspector finds the node under the cursor, also in pan mode, and the highlight fits collapsed nodes.
+- **Nodes 2.0 (Vue nodes)**: The glass shows the nodes, painted from the page: boxes, borders, text, widget values and prompts (icons are left out). The Inspector finds the node under the cursor, also in pan mode, and the highlight fits collapsed nodes. Turning Nodes 2.0 on and off no longer makes the highlight recurse without end.
 - **Node Title Emphasis** sits on the title bar instead of the first slot row, and is not drawn on nodes without a title bar such as Reroute.
 - The glass background matches the page past the canvas edge and at canvas zoom of 1.5 and above.
 - **Subgraphs**: The panel, picker, highlight and editing use the graph on screen, so they work inside subgraphs. Title bars and collapsed nodes are hit.

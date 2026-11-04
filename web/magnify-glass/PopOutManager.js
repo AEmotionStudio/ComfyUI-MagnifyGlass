@@ -114,7 +114,7 @@ class PopOutManager {
       "../popout-viewer.html",
       import.meta.url
     );
-    url.searchParams.set("v", "1.15.0");
+    url.searchParams.set("v", "1.15.1");
     url.searchParams.set("session", this.session);
     return url.href;
   }

@@ -20,7 +20,7 @@ const PACKS = [
   ["Chat2Me", "Chat with a character that replies in video.", "https://github.com/aemotion-studio/ComfyUI-Chat2Me"]
 ];
 const ABOUT_BADGES = [
-  { label: `MagnifyGlass ${"1.15.0"}`, url: REPO, icon: "pi pi-github" }
+  { label: `MagnifyGlass ${"1.15.1"}`, url: REPO, icon: "pi pi-github" }
 ];
 const STUDIO = "Developed by Æmotion Studio, MagnifyGlass brings a customizable magnifying glass and node inspector to your ComfyUI workflow. Contributions are welcome!";
 function link(href, text) {
@@ -44,7 +44,7 @@ function renderAbout() {
   brand.className = "magnify-brand";
   const heading = document.createElement("h3");
   heading.className = "magnify-heading";
-  heading.textContent = `MagnifyGlass ${"1.15.0"}`;
+  heading.textContent = `MagnifyGlass ${"1.15.1"}`;
   const byline = document.createElement("p");
   byline.className = "magnify-hint";
   byline.textContent = "by Æmotion Studio · GPL-3.0";

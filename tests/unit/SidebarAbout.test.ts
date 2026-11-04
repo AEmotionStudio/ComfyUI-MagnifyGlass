@@ -74,4 +74,13 @@ describe('Sidebar About', () => {
         expect(el.querySelectorAll('.magnify-about')).toHaveLength(1);
         vi.unstubAllGlobals();
     });
+
+    it('makes the tab wrapper fill the panel so the content does not collapse', () => {
+        registerSidebar();
+        const tab = vi.mocked(app.extensionManager.registerSidebarTab).mock.calls[0][0];
+        const el = document.createElement('div');
+        tab.render(el);
+
+        expect(el.style.height).toBe('100%');
+    });
 });

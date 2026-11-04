@@ -34,6 +34,10 @@ import { OffscreenRenderer } from '../../src/magnify-glass/OffscreenRenderer';
 import { ConfigManager } from '../../src/magnify-glass/ConfigManager';
 import { MagnifierState } from '../../src/magnify-glass/MagnifierState';
 
+// LiteGraph keeps boundingRect up to date for visible nodes: the body plus the 30px title above it
+const lgNode = (pos: number[], size: number[], extra: Record<string, unknown> = {}) =>
+    ({ pos, size, boundingRect: [pos[0], pos[1] - 30, size[0], size[1] + 30], ...extra });
+
 describe('OffscreenRenderer Optimization', () => {
     let renderer: OffscreenRenderer;
     let configMock: ConfigManager;
@@ -111,21 +115,17 @@ describe('OffscreenRenderer Optimization', () => {
         // Cursor at 100, 100. Glass size 200, zoom 2. Source size 100.
         // Capture region: 50 to 150.
         // Node 1 overlaps.
-        const visibleNode = {
-            pos: [50, 50], // Graph coords
-            size: [100, 100],
+        const visibleNode = lgNode([50, 50], [100, 100], {
             widgets: [
                 { type: 'text', name: 'visible_widget', value: 'Visible Text', computedHeight: 50, last_y: 40 }
             ]
-        };
+        });
         // Node 2: Not Visible (far away)
-        const invisibleNode = {
-            pos: [1000, 1000],
-            size: [100, 100],
+        const invisibleNode = lgNode([1000, 1000], [100, 100], {
             widgets: [
                 { type: 'text', name: 'invisible_widget', value: 'Invisible Text', computedHeight: 50, last_y: 40 }
             ]
-        };
+        });
 
         appMock.canvas.visible_nodes = [visibleNode, invisibleNode];
 
@@ -205,12 +205,23 @@ describe('OffscreenRenderer Optimization', () => {
         const drawsOf = (el: unknown) =>
             ((renderer as any).offscreenCtx.drawImage as ReturnType<typeof vi.fn>).mock.calls.filter(c => c[0] === el);
 
-        const previewNode = (img: HTMLImageElement) => ({
-            pos: [150, 100],
-            size: [200, 300],
+        const previewNode = (img: HTMLImageElement, extra: Record<string, unknown> = {}) => lgNode([150, 100], [200, 300], {
             imgs: [img],
-            widgets: [{ name: PREVIEW_WIDGET, type: 'custom', y: 40, computedHeight: 215 }]
+            widgets: [{ name: PREVIEW_WIDGET, type: 'custom', y: 40, computedHeight: 215 }],
+            ...extra
         });
+
+        const domImage = (left: number, top: number) => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'dom-widget';
+            const img = image('/view?filename=b.png&type=output', 40, 30);
+            vi.spyOn(img, 'getBoundingClientRect').mockReturnValue({
+                x: left, y: top, left, top, width: 40, height: 30, right: left + 40, bottom: top + 30, toJSON: () => {}
+            } as DOMRect);
+            wrapper.appendChild(img);
+            document.body.appendChild(wrapper);
+            return img;
+        };
 
         afterEach(() => {
             document.body.innerHTML = '';
@@ -233,8 +244,8 @@ describe('OffscreenRenderer Optimization', () => {
 
         it('puts a node in front of a preview back over it from the capture', () => {
             const img = image('/view?filename=a.png&type=output', 100, 50);
-            const front = { pos: [200, 250], size: [100, 100], widgets: [] };
-            const behind = { pos: [190, 190], size: [40, 40], widgets: [] };
+            const front = lgNode([200, 250], [100, 100], { widgets: [] });
+            const behind = lgNode([190, 190], [40, 40], { widgets: [] });
             appMock.canvas.visible_nodes = [behind, previewNode(img), front];
             stateMock.x = 250;
             stateMock.y = 250;
@@ -247,6 +258,51 @@ describe('OffscreenRenderer Optimization', () => {
             // with its title (200, 220, 100x130) -> glass (0, 40, 200x260)
             expect(ctx.drawImage.mock.calls.map((c: unknown[]) => c[0])).toEqual([canvas, img, canvas]);
             expect(ctx.rect.mock.calls).toEqual([[0, 40, 200, 260]]);
+        });
+
+        it('puts a collapsed node in front back over a preview, and draws no preview for a collapsed node', () => {
+            const img = image('/view?filename=a.png&type=output', 100, 50);
+            const hidden = image('/view?filename=c.png&type=output', 100, 50);
+            // Collapsed: LiteGraph draws only the title pill, so boundingRect is the collapsed width by the title height
+            const front = previewNode(hidden, { pos: [220, 260], flags: { collapsed: true }, boundingRect: [220, 230, 60, 30] });
+            appMock.canvas.visible_nodes = [previewNode(img), front];
+            stateMock.x = 250;
+            stateMock.y = 250;
+            const canvas = targetCanvas(0, 0, 1);
+
+            renderer.renderHighResRegion(canvas);
+
+            const ctx = (renderer as any).offscreenCtx;
+            // Pill (220, 230, 60x30) -> glass (40, 60, 120x60)
+            expect(ctx.drawImage.mock.calls.map((c: unknown[]) => c[0])).toEqual([canvas, img, canvas]);
+            expect(ctx.rect.mock.calls).toEqual([[40, 60, 120, 60]]);
+        });
+
+        it('puts a node back whose title alone reaches into the glass', () => {
+            const img = image('/view?filename=a.png&type=output', 100, 50);
+            // Capture region is y 200-300; this body starts at 310, its title at 280
+            const front = lgNode([200, 310], [100, 100], { widgets: [] });
+            appMock.canvas.visible_nodes = [previewNode(img), front];
+            stateMock.x = 250;
+            stateMock.y = 250;
+
+            renderer.renderHighResRegion(targetCanvas(0, 0, 1));
+
+            expect((renderer as any).offscreenCtx.rect.mock.calls).toEqual([[0, 160, 200, 260]]);
+        });
+
+        it('only measures DOM media under the glass', () => {
+            const near = domImage(280, 180);
+            const far = domImage(900, 700);
+            const style = vi.spyOn(globalThis, 'getComputedStyle');
+            stateMock.x = 300;
+            stateMock.y = 200;
+
+            renderer.renderHighResRegion(targetCanvas(0, 0, 1));
+
+            expect(style.mock.calls.map(c => c[0])).toEqual([near]);
+            expect(drawsOf(near)).toHaveLength(1);
+            expect(drawsOf(far)).toHaveLength(0);
         });
 
         it('passes client coordinates to setZoom', () => {
@@ -330,18 +386,27 @@ describe('OffscreenRenderer Optimization', () => {
             expect(drawsOf(img)).toEqual([[img, 60, 60, 80, 60]]);
         });
 
-        it('draws the video on every call in Virtual Zoom (no throttle)', () => {
+        it('caps Virtual Zoom near 60 fps and draws the video on each rendered frame', () => {
             appMock.canvas.ds = { scale: 0.5, offset: [0, 0] };
-            appMock.canvas.setZoom = vi.fn((s: number) => { appMock.canvas.ds.scale = s; });
-            appMock.canvas.draw = vi.fn();
+            appMock.canvas.setZoom = vi.fn((s: number) => {
+                appMock.canvas.ds.scale = s;
+                appMock.canvas.ds.offset = [0, 0];
+            });
+            appMock.canvas.draw = vi.fn(() => { appMock.canvas.ds.scale = 0.5; });
             const video = domVideo(4);
             stateMock.x = 300;
             stateMock.y = 200;
             const canvas = targetCanvas(0, 0, 1);
+            const now = vi.spyOn(performance, 'now').mockReturnValue(1000);
 
-            renderer.renderHighResRegion(canvas);
+            const first = renderer.renderHighResRegion(canvas);
+            now.mockReturnValue(1007); // next frame on a 144 Hz display
+            const skipped = renderer.renderHighResRegion(canvas);
+            now.mockReturnValue(1017); // next frame on a 60 Hz display
             renderer.renderHighResRegion(canvas);
 
+            expect(skipped).toBe(first);
+            expect(appMock.canvas.draw).toHaveBeenCalledTimes(4);
             // Measured at 0.5, scaled x2 about the pivot (300, 200) -> (260, 160, 80x60) -> glass (20, 20, 160x120)
             expect(drawsOf(video)).toEqual([[video, 20, 20, 160, 120], [video, 20, 20, 160, 120]]);
         });

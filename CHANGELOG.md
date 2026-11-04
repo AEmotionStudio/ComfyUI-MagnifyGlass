@@ -26,7 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Sidebar redesign**: Built on ComfyUI's palette tokens, so it follows light and dark themes, with native section buttons, the Inspector panel switch at the top, and Glass Toggle Key under Glass Hotkeys.
 
 ### Removed
-- The per-frame HTML overlay copies of videos, the Virtual Zoom frame throttle, and the unused sidebar Inspector module.
+- The per-frame HTML overlay copies of videos and the unused sidebar Inspector module.
 
 ### Known Issues
 - With the Inspector panel off, "Move Glass Position" (drag-glass mode) is unavailable, as it lives on the panel's floating controls. Follow Cursor (`H`) and the arrow keys still move the glass.

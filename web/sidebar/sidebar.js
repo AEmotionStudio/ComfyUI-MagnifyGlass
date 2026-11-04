@@ -24,6 +24,7 @@ function renderSidebar(container) {
     return;
   }
   container.innerHTML = "";
+  container.style.height = "100%";
   const sidebar = document.createElement("div");
   sidebar.className = "magnify-sidebar";
   sidebar.style.visibility = "hidden";

@@ -4,6 +4,11 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
 import { getSettingValue } from "../shared/utils.js";
 import { captureRegion, scaleAbout, isSafeMediaSource, graphBoxToCss, previewImageBoxes, toGlass, fitContent } from "./mediaLayout.js";
 const TITLE_HEIGHT = 30;
+const VIRTUAL_ZOOM_MIN_INTERVAL_MS = 14;
+function boundingBox(node) {
+  const [x, y, w, h] = node.boundingRect;
+  return { x, y, w, h };
+}
 class OffscreenRenderer {
   constructor(config, state) {
     __publicField(this, "config");
@@ -13,6 +18,7 @@ class OffscreenRenderer {
     __publicField(this, "lastRenderWidth", 0);
     __publicField(this, "lastRenderHeight", 0);
     __publicField(this, "isCapturing", false);
+    __publicField(this, "lastVirtualZoomTime", 0);
     this.config = config;
     this.state = state;
     this.initOffscreenCanvas();
@@ -41,45 +47,47 @@ class OffscreenRenderer {
     const cap = captureRegion(pivotX, pivotY, renderSize, this.config.zoomFactor);
     const vueNodes = !!((_a = window.LiteGraph) == null ? void 0 : _a.vueNodesMode);
     const currentScale = lgCanvas.ds.scale;
-    const media = this.collectDomMedia(rect, vueNodes);
-    if (currentScale < 1 && !this.config.forceDirectCapture && !vueNodes) {
-      const domScale = 1 / currentScale;
-      const scaled = media.map((m) => ({ ...m, box: scaleAbout(m.box, pivotX, pivotY, domScale) }));
-      return this.renderVirtualZoom(lgCanvas, targetCanvas, rect, dpr, pivotX, pivotY, cap, scaled);
+    const virtualZoom = currentScale < 1 && !this.config.forceDirectCapture && !vueNodes;
+    if (virtualZoom) {
+      const now = performance.now();
+      if (now - this.lastVirtualZoomTime < VIRTUAL_ZOOM_MIN_INTERVAL_MS) return this.offscreenCanvas;
+      this.lastVirtualZoomTime = now;
+    }
+    const media = this.collectDomMedia(rect, vueNodes, cap, pivotX, pivotY, virtualZoom ? 1 / currentScale : 1);
+    if (virtualZoom) {
+      return this.renderVirtualZoom(lgCanvas, targetCanvas, rect, dpr, pivotX, pivotY, cap, media);
     }
     return this.renderDirectCapture(targetCanvas, dpr, cap, media, vueNodes);
   }
   /**
    * Read phase: measure loaded, same-origin DOM images and videos (DOM widgets, or Vue node bodies)
-   * before any canvas draw. Boxes are CSS pixels relative to the canvas at the real zoom.
+   * under the glass before any canvas draw. Boxes are CSS pixels relative to the canvas, scaled by
+   * domScale about the pivot into the capture frame.
    */
-  collectDomMedia(rect, vueNodes) {
+  collectDomMedia(rect, vueNodes, cap, pivotX, pivotY, domScale) {
     const selector = vueNodes ? "[data-node-id] img, [data-node-id] video" : ".dom-widget img, .dom-widget video";
     const media = [];
     for (const el of document.querySelectorAll(selector)) {
       const loaded = el instanceof HTMLVideoElement ? el.readyState >= 2 : el.complete && el.naturalWidth > 0;
-      if (!loaded || !isSafeMediaSource(el)) continue;
+      if (!loaded) continue;
       const r = el.getBoundingClientRect();
       if (r.width === 0 || r.height === 0) continue;
-      media.push({
-        el,
-        box: { x: r.left - rect.left, y: r.top - rect.top, w: r.width, h: r.height },
-        objectFit: getComputedStyle(el).objectFit
-      });
+      const box = scaleAbout({ x: r.left - rect.left, y: r.top - rect.top, w: r.width, h: r.height }, pivotX, pivotY, domScale);
+      if (box.x + box.w <= cap.left || box.x >= cap.left + cap.size) continue;
+      if (box.y + box.h <= cap.top || box.y >= cap.top + cap.size) continue;
+      if (!isSafeMediaSource(el)) continue;
+      media.push({ el, box, objectFit: getComputedStyle(el).objectFit });
     }
     return media;
   }
   /**
-   * Nodes of the graph on screen (including subgraphs) that overlap the capture region,
-   * in canvas render order (back to front).
+   * Nodes of the graph on screen (including subgraphs and collapsed nodes) whose title or body
+   * overlaps the capture region, in canvas render order (back to front).
    */
   getVisibleNodes(cap, scale, offset) {
-    var _a;
     const visibleNodes = [];
     for (const node of app.canvas.visible_nodes) {
-      if (!node.pos || !node.size) continue;
-      if ((_a = node.flags) == null ? void 0 : _a.collapsed) continue;
-      const box = graphBoxToCss({ x: 0, y: 0, w: node.size[0], h: node.size[1] }, node.pos, scale, offset);
+      const box = graphBoxToCss(boundingBox(node), [0, 0], scale, offset);
       if (box.x + box.w < cap.left || box.x > cap.left + cap.size) continue;
       if (box.y + box.h < cap.top || box.y > cap.top + cap.size) continue;
       visibleNodes.push(node);
@@ -218,7 +226,7 @@ class OffscreenRenderer {
    * into the glass. Video is redrawn every tick, so it plays.
    */
   drawMedia(targetCanvas, dpr, visibleNodes, media, cap, scale, offset) {
-    var _a, _b;
+    var _a, _b, _c;
     const ctx = this.offscreenCtx;
     const renderSize = this.config.glassSize;
     const onGlass = (b) => b.w > 0 && b.h > 0 && b.x < renderSize && b.y < renderSize && b.x + b.w > 0 && b.y + b.h > 0;
@@ -229,7 +237,7 @@ class OffscreenRenderer {
     ctx.imageSmoothingQuality = "high";
     const sizeTextMargin = getSettingValue("Comfy.Node.AllowImageSizeDraw", true) ? 15 : 0;
     for (const [i, node] of visibleNodes.entries()) {
-      const widget = ((_a = node.imgs) == null ? void 0 : _a.length) && ((_b = node.widgets) == null ? void 0 : _b.find((w) => w.name === "$$canvas-image-preview"));
+      const widget = !((_a = node.flags) == null ? void 0 : _a.collapsed) && ((_b = node.imgs) == null ? void 0 : _b.length) && ((_c = node.widgets) == null ? void 0 : _c.find((w) => w.name === "$$canvas-image-preview"));
       if (!widget) continue;
       for (const { img, box } of previewImageBoxes(node.imgs, widget, node, sizeTextMargin)) {
         const g = toGlass(graphBoxToCss(box, node.pos, scale, offset), cap);
@@ -237,7 +245,7 @@ class OffscreenRenderer {
       }
       const nodeBox = toGlass(graphBoxToCss({ x: 0, y: 0, w: node.size[0], h: node.size[1] }, node.pos, scale, offset), cap);
       for (const front of visibleNodes.slice(i + 1)) {
-        const f = toGlass(graphBoxToCss({ x: 0, y: -TITLE_HEIGHT, w: front.size[0], h: front.size[1] + TITLE_HEIGHT }, front.pos, scale, offset), cap);
+        const f = toGlass(graphBoxToCss(boundingBox(front), [0, 0], scale, offset), cap);
         if (!overlaps(f, nodeBox)) continue;
         ctx.save();
         ctx.beginPath();
@@ -269,7 +277,6 @@ class OffscreenRenderer {
     const ctx = this.offscreenCtx;
     const renderSize = this.config.glassSize;
     for (const node of visibleNodes) {
-      if (!node.pos || !node.size) continue;
       if ((_a = node.flags) == null ? void 0 : _a.collapsed) continue;
       const title = node.title || node.type || "Node";
       const nodeCssX = (node.pos[0] + offset[0]) * scale;
@@ -279,7 +286,7 @@ class OffscreenRenderer {
       if (nodeCssY + TITLE_HEIGHT * scale < cap.top || nodeCssY > cap.top + cap.size) continue;
       const canvasX = (nodeCssX - cap.left) * cap.k;
       const canvasY = (nodeCssY - cap.top) * cap.k;
-      const canvasWidth = Math.min(nodeCssWidth, nodeCssWidth) * cap.k;
+      const canvasWidth = nodeCssWidth * cap.k;
       const canvasHeight = TITLE_HEIGHT * scale * cap.k;
       if (canvasX + canvasWidth > 0 && canvasX < renderSize && canvasY + canvasHeight > 0 && canvasY < renderSize) {
         ctx.save();
@@ -328,7 +335,7 @@ class OffscreenRenderer {
     const WIDGET_MARGIN = 4;
     const PADDING = 15;
     for (const node of visibleNodes) {
-      if (!node.widgets || !node.pos || !node.size) continue;
+      if (!node.widgets) continue;
       if ((_a = node.flags) == null ? void 0 : _a.collapsed) continue;
       const nodeCssX = (node.pos[0] + offset[0]) * scale;
       const nodeCssY = (node.pos[1] + offset[1]) * scale;

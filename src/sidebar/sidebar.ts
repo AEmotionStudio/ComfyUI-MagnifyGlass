@@ -49,6 +49,8 @@ function renderSidebar(container: HTMLElement): void {
 
     // Clear existing content to prevent duplicates
     container.innerHTML = '';
+    // The frontend's custom-tab wrapper has no height of its own; fill the panel so the content scrolls under the header
+    container.style.height = '100%';
 
     // Create main container (hidden initially to prevent flash of unstyled content)
     const sidebar = document.createElement('div');

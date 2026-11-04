@@ -17,11 +17,19 @@ import type { Box, CaptureRegion } from './mediaLayout';
 declare const app: any;
 
 const TITLE_HEIGHT = 30;
+// Each Virtual Zoom frame is two full graph draws: cap it near 60 fps, with slack for rAF jitter at 60 Hz
+const VIRTUAL_ZOOM_MIN_INTERVAL_MS = 14;
 
 interface DomMedia {
     el: HTMLImageElement | HTMLVideoElement;
     box: Box;
     objectFit: string;
+}
+
+/** LiteGraph's node bounds in graph space: title included, collapsed width when collapsed. */
+function boundingBox(node: any): Box {
+    const [x, y, w, h] = node.boundingRect;
+    return { x, y, w, h };
 }
 
 export class OffscreenRenderer {
@@ -32,6 +40,7 @@ export class OffscreenRenderer {
     private lastRenderWidth: number = 0;
     private lastRenderHeight: number = 0;
     private isCapturing: boolean = false;
+    private lastVirtualZoomTime: number = 0;
 
     constructor(config: ConfigManager, state: MagnifierState) {
         this.config = config;
@@ -73,48 +82,51 @@ export class OffscreenRenderer {
         // forceDirectCapture (hotkey) trades detail for exact cursor alignment.
         const vueNodes = !!(window as any).LiteGraph?.vueNodesMode;
         const currentScale = lgCanvas.ds.scale;
-        const media = this.collectDomMedia(rect, vueNodes);
+        const virtualZoom = currentScale < 1.0 && !this.config.forceDirectCapture && !vueNodes;
 
-        if (currentScale < 1.0 && !this.config.forceDirectCapture && !vueNodes) {
-            const domScale = 1 / currentScale;
-            const scaled = media.map(m => ({ ...m, box: scaleAbout(m.box, pivotX, pivotY, domScale) }));
-            return this.renderVirtualZoom(lgCanvas, targetCanvas, rect, dpr, pivotX, pivotY, cap, scaled);
+        if (virtualZoom) {
+            const now = performance.now();
+            if (now - this.lastVirtualZoomTime < VIRTUAL_ZOOM_MIN_INTERVAL_MS) return this.offscreenCanvas;
+            this.lastVirtualZoomTime = now;
+        }
+
+        const media = this.collectDomMedia(rect, vueNodes, cap, pivotX, pivotY, virtualZoom ? 1 / currentScale : 1);
+        if (virtualZoom) {
+            return this.renderVirtualZoom(lgCanvas, targetCanvas, rect, dpr, pivotX, pivotY, cap, media);
         }
         return this.renderDirectCapture(targetCanvas, dpr, cap, media, vueNodes);
     }
 
     /**
      * Read phase: measure loaded, same-origin DOM images and videos (DOM widgets, or Vue node bodies)
-     * before any canvas draw. Boxes are CSS pixels relative to the canvas at the real zoom.
+     * under the glass before any canvas draw. Boxes are CSS pixels relative to the canvas, scaled by
+     * domScale about the pivot into the capture frame.
      */
-    private collectDomMedia(rect: DOMRect, vueNodes: boolean): DomMedia[] {
+    private collectDomMedia(rect: DOMRect, vueNodes: boolean, cap: CaptureRegion, pivotX: number, pivotY: number, domScale: number): DomMedia[] {
         const selector = vueNodes ? '[data-node-id] img, [data-node-id] video' : '.dom-widget img, .dom-widget video';
         const media: DomMedia[] = [];
         for (const el of document.querySelectorAll<HTMLImageElement | HTMLVideoElement>(selector)) {
             const loaded = el instanceof HTMLVideoElement ? el.readyState >= 2 : el.complete && el.naturalWidth > 0;
-            if (!loaded || !isSafeMediaSource(el)) continue;
+            if (!loaded) continue;
             const r = el.getBoundingClientRect();
             if (r.width === 0 || r.height === 0) continue;
-            media.push({
-                el,
-                box: { x: r.left - rect.left, y: r.top - rect.top, w: r.width, h: r.height },
-                objectFit: getComputedStyle(el).objectFit
-            });
+            const box = scaleAbout({ x: r.left - rect.left, y: r.top - rect.top, w: r.width, h: r.height }, pivotX, pivotY, domScale);
+            if (box.x + box.w <= cap.left || box.x >= cap.left + cap.size) continue;
+            if (box.y + box.h <= cap.top || box.y >= cap.top + cap.size) continue;
+            if (!isSafeMediaSource(el)) continue;
+            media.push({ el, box, objectFit: getComputedStyle(el).objectFit });
         }
         return media;
     }
 
     /**
-     * Nodes of the graph on screen (including subgraphs) that overlap the capture region,
-     * in canvas render order (back to front).
+     * Nodes of the graph on screen (including subgraphs and collapsed nodes) whose title or body
+     * overlaps the capture region, in canvas render order (back to front).
      */
     private getVisibleNodes(cap: CaptureRegion, scale: number, offset: [number, number]): any[] {
         const visibleNodes = [];
         for (const node of app.canvas.visible_nodes) {
-            if (!node.pos || !node.size) continue;
-            if (node.flags?.collapsed) continue;
-
-            const box = graphBoxToCss({ x: 0, y: 0, w: node.size[0], h: node.size[1] }, node.pos, scale, offset);
+            const box = graphBoxToCss(boundingBox(node), [0, 0], scale, offset);
             if (box.x + box.w < cap.left || box.x > cap.left + cap.size) continue;
             if (box.y + box.h < cap.top || box.y > cap.top + cap.size) continue;
 
@@ -315,7 +327,7 @@ export class OffscreenRenderer {
 
         const sizeTextMargin = getSettingValue('Comfy.Node.AllowImageSizeDraw', true) ? 15 : 0;
         for (const [i, node] of visibleNodes.entries()) {
-            const widget = node.imgs?.length && node.widgets?.find((w: any) => w.name === '$$canvas-image-preview');
+            const widget = !node.flags?.collapsed && node.imgs?.length && node.widgets?.find((w: any) => w.name === '$$canvas-image-preview');
             if (!widget) continue;
             for (const { img, box } of previewImageBoxes(node.imgs, widget, node, sizeTextMargin)) {
                 const g = toGlass(graphBoxToCss(box, node.pos, scale, offset), cap);
@@ -325,7 +337,7 @@ export class OffscreenRenderer {
             // Nodes later in render order cover this preview on the canvas: put them back from the capture
             const nodeBox = toGlass(graphBoxToCss({ x: 0, y: 0, w: node.size[0], h: node.size[1] }, node.pos, scale, offset), cap);
             for (const front of visibleNodes.slice(i + 1)) {
-                const f = toGlass(graphBoxToCss({ x: 0, y: -TITLE_HEIGHT, w: front.size[0], h: front.size[1] + TITLE_HEIGHT }, front.pos, scale, offset), cap);
+                const f = toGlass(graphBoxToCss(boundingBox(front), [0, 0], scale, offset), cap);
                 if (!overlaps(f, nodeBox)) continue;
                 ctx.save();
                 ctx.beginPath();
@@ -368,7 +380,6 @@ export class OffscreenRenderer {
         const renderSize = this.config.glassSize;
 
         for (const node of visibleNodes) {
-            if (!node.pos || !node.size) continue;
             if (node.flags?.collapsed) continue;
 
             const title = node.title || node.type || "Node";
@@ -385,8 +396,7 @@ export class OffscreenRenderer {
             // Draw
             const canvasX = (nodeCssX - cap.left) * cap.k;
             const canvasY = (nodeCssY - cap.top) * cap.k;
-            // Limit width for title background
-            const canvasWidth = Math.min(nodeCssWidth, nodeCssWidth) * cap.k;
+            const canvasWidth = nodeCssWidth * cap.k;
             const canvasHeight = TITLE_HEIGHT * scale * cap.k;
 
             if (canvasX + canvasWidth > 0 && canvasX < renderSize && canvasY + canvasHeight > 0 && canvasY < renderSize) {
@@ -461,7 +471,7 @@ export class OffscreenRenderer {
         const PADDING = 15;
 
         for (const node of visibleNodes) {
-            if (!node.widgets || !node.pos || !node.size) continue;
+            if (!node.widgets) continue;
             if (node.flags?.collapsed) continue;
 
             // Calculate node position in CSS pixels

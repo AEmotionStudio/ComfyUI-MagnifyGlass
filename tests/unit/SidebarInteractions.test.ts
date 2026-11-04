@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { renderSettingsPanel } from '../../src/sidebar/SidebarSettings';
+// @ts-ignore
+import { app } from '/scripts/app.js';
 
 // Mock the app module imported by utils.ts
 vi.mock('/scripts/app.js', () => ({
@@ -35,6 +37,15 @@ vi.mock('/scripts/app.js', () => ({
         positionFloatingControls: vi.fn()
     }
 };
+
+const sectionByTitle = (container: HTMLElement, title: string) =>
+    Array.from(container.querySelectorAll<HTMLElement>('.magnify-sidebar-section'))
+        .find(section => section.firstElementChild?.textContent?.trim() === title)!;
+
+const toggleByLabel = (root: HTMLElement, label: string) =>
+    Array.from(root.querySelectorAll('.magnify-toggle-row'))
+        .find(row => row.querySelector('label')?.textContent === label)
+        ?.querySelector('.magnify-toggle') as HTMLElement | undefined;
 
 describe('Sidebar Interactions', () => {
     it('should sync aria-checked when Require Alt Key is toggled', () => {
@@ -103,5 +114,58 @@ describe('Sidebar Interactions', () => {
         // Verify Follow Cursor toggle is deactivated and aria-checked is false
         expect(followToggle.classList.contains('active')).toBe(false);
         expect(followToggle.getAttribute('aria-checked')).toBe('false');
+    });
+
+    describe('Inspector panel toggle', () => {
+        it('sits at the top and switches the panel setting and sections', () => {
+            vi.mocked(app.ui.settings.setSettingValue).mockClear();
+            const container = document.createElement('div');
+            renderSettingsPanel(container);
+
+            const toggle = container.firstElementChild!.querySelector('.magnify-toggle') as HTMLElement;
+            expect(container.firstElementChild!.querySelector('label')!.textContent).toBe('Inspector panel');
+            expect(toggle.getAttribute('aria-checked')).toBe('true');
+
+            const panelSection = sectionByTitle(container, 'Info Panel');
+            const panelHotkeys = sectionByTitle(container, 'Panel Hotkeys');
+            expect(panelSection.hidden).toBe(false);
+            expect(panelHotkeys.hidden).toBe(false);
+
+            toggle.click();
+            expect(app.ui.settings.setSettingValue).toHaveBeenLastCalledWith('🔍MagnifyGlass.InfoPanelEnabled', false);
+            expect(panelSection.hidden).toBe(true);
+            expect(panelHotkeys.hidden).toBe(true);
+            expect(sectionByTitle(container, 'Glass Hotkeys').hidden).toBe(false);
+
+            toggle.click();
+            expect(app.ui.settings.setSettingValue).toHaveBeenLastCalledWith('🔍MagnifyGlass.InfoPanelEnabled', true);
+            expect(panelSection.hidden).toBe(false);
+            expect(panelHotkeys.hidden).toBe(false);
+        });
+
+        it('hides the panel sections when the panel is off', () => {
+            vi.mocked(app.ui.settings.getSettingValue).mockImplementation(
+                (key: string) => key === '🔍MagnifyGlass.InfoPanelEnabled' ? false : undefined
+            );
+            const container = document.createElement('div');
+            renderSettingsPanel(container);
+            vi.mocked(app.ui.settings.getSettingValue).mockReset();
+
+            const toggle = container.firstElementChild!.querySelector('.magnify-toggle') as HTMLElement;
+            expect(toggle.getAttribute('aria-checked')).toBe('false');
+            expect(sectionByTitle(container, 'Info Panel').hidden).toBe(true);
+            expect(sectionByTitle(container, 'Panel Hotkeys').hidden).toBe(true);
+        });
+
+        it('replaces the old Enable Panel toggle and keeps Glass Toggle Key with the glass hotkeys', () => {
+            const container = document.createElement('div');
+            renderSettingsPanel(container);
+
+            expect(toggleByLabel(container, 'Enable Panel')).toBeUndefined();
+            const labels = (title: string) =>
+                Array.from(sectionByTitle(container, title).querySelectorAll('label')).map(l => l.textContent);
+            expect(labels('Glass Hotkeys')).toContain('Glass Toggle Key');
+            expect(labels('Panel Hotkeys')).not.toContain('Glass Toggle Key');
+        });
     });
 });

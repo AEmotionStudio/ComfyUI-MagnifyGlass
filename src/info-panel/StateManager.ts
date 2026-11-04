@@ -4,7 +4,7 @@
  * Centralized state management for the information panel.
  */
 
-import type { GatheredInfo, SettingsChange } from '../types/comfyui';
+import type { GatheredInfo } from '../types/comfyui';
 import { getSettingValue, clamp } from '../shared/utils';
 import { DEFAULT_PANEL_SETTINGS } from '../shared/settings';
 
@@ -36,10 +36,6 @@ export interface InfoPanelStateData {
     autoExpandTimer: ReturnType<typeof setTimeout> | null;
     lastNodeId: string | number | null;
 
-    // Update scheduling
-    updateScheduled: boolean;
-    isInitialLoading: boolean;
-
     // Current data
     currentInfo: GatheredInfo | null;
 
@@ -59,6 +55,11 @@ export interface InfoPanelStateData {
  */
 export class StateManager {
     state: InfoPanelStateData;
+    private themeObserver!: MutationObserver;
+    private themeInterval!: ReturnType<typeof setInterval>;
+    private themeTimeout!: ReturnType<typeof setTimeout>;
+    private colorSchemeQuery!: MediaQueryList;
+    private readonly onColorSchemeChange = () => this.detectCurrentTheme();
 
     constructor() {
         this.state = {
@@ -87,10 +88,6 @@ export class StateManager {
             autoExpandTimer: null,
             lastNodeId: null,
 
-            // Update scheduling
-            updateScheduled: false,
-            isInitialLoading: false,
-
             // Current data
             currentInfo: null,
 
@@ -113,7 +110,7 @@ export class StateManager {
         this.detectCurrentTheme();
 
         // Force an immediate check in case we missed the initial state
-        setTimeout(() => {
+        this.themeTimeout = setTimeout(() => {
             if (this.detectCurrentTheme()) {
                 this.notifyThemeChange();
             }
@@ -123,14 +120,8 @@ export class StateManager {
         this.setupThemeObserver();
 
         // Listen for system theme changes as fallback
-        if (window.matchMedia) {
-            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
-            if (prefersDark.addListener) {
-                prefersDark.addListener(() => this.detectCurrentTheme());
-            } else if (prefersDark.addEventListener) {
-                prefersDark.addEventListener('change', () => this.detectCurrentTheme());
-            }
-        }
+        this.colorSchemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        this.colorSchemeQuery.addEventListener('change', this.onColorSchemeChange);
 
         // Add click listener to theme toggle buttons for immediate detection
         this.setupThemeButtonListeners();
@@ -238,7 +229,7 @@ export class StateManager {
 
     setupThemeObserver(): void {
         // Watch for changes to body/html classes and attributes
-        const observer = new MutationObserver((mutations) => {
+        const observer = this.themeObserver = new MutationObserver((mutations) => {
             let shouldCheck = false;
             mutations.forEach((mutation) => {
                 if (mutation.type === 'attributes' &&
@@ -271,7 +262,7 @@ export class StateManager {
         });
 
         // Periodic fallback check every 2 seconds
-        setInterval(() => {
+        this.themeInterval = setInterval(() => {
             if (this.detectCurrentTheme()) {
                 this.notifyThemeChange();
             }
@@ -279,25 +270,26 @@ export class StateManager {
     }
 
     setupThemeButtonListeners(): void {
-        // Listen for clicks on theme toggle buttons
-        document.addEventListener('click', (e) => {
-            // Check if clicked element might be a theme toggle
-            const target = e.target as HTMLElement;
-            const isThemeButton = target.textContent?.toLowerCase().includes('theme') ||
-                target.textContent?.toLowerCase().includes('light') ||
-                target.textContent?.toLowerCase().includes('dark') ||
-                target.title?.toLowerCase().includes('theme') ||
-                (typeof target.className === 'string' && target.className.toLowerCase().includes('theme'));
-
-            if (isThemeButton) {
-                setTimeout(() => {
-                    if (this.detectCurrentTheme()) {
-                        this.notifyThemeChange();
-                    }
-                }, 100);
-            }
-        });
+        document.addEventListener('click', this.onDocumentClick);
     }
+
+    // Clicks on theme toggle buttons trigger an immediate re-detection
+    private readonly onDocumentClick = (e: MouseEvent) => {
+        const target = e.target as HTMLElement;
+        const isThemeButton = target.textContent?.toLowerCase().includes('theme') ||
+            target.textContent?.toLowerCase().includes('light') ||
+            target.textContent?.toLowerCase().includes('dark') ||
+            target.title?.toLowerCase().includes('theme') ||
+            (typeof target.className === 'string' && target.className.toLowerCase().includes('theme'));
+
+        if (isThemeButton) {
+            setTimeout(() => {
+                if (this.detectCurrentTheme()) {
+                    this.notifyThemeChange();
+                }
+            }, 100);
+        }
+    };
 
     notifyThemeChange(): void {
         // Update settings to reflect new theme
@@ -401,24 +393,6 @@ export class StateManager {
     private validateStringOption(value: unknown, options: string[], fallback: string): string {
         if (typeof value !== 'string') return fallback;
         return options.includes(value) ? value : fallback;
-    }
-
-    updateSettings(): Record<string, SettingsChange> {
-        const oldSettings = { ...this.state.settings };
-        this.loadSettings();
-
-        // Return what changed for reactive updates
-        const changes: Record<string, SettingsChange> = {};
-        Object.keys(this.state.settings).forEach(key => {
-            if (oldSettings[key] !== this.state.settings[key]) {
-                changes[key] = {
-                    old: oldSettings[key],
-                    new: this.state.settings[key]
-                };
-            }
-        });
-
-        return changes;
     }
 
     togglePanelVisibility(): boolean {
@@ -546,5 +520,10 @@ export class StateManager {
 
     cleanup(): void {
         this.clearAutoExpandTimer();
+        clearTimeout(this.themeTimeout);
+        clearInterval(this.themeInterval);
+        this.themeObserver.disconnect();
+        this.colorSchemeQuery.removeEventListener('change', this.onColorSchemeChange);
+        document.removeEventListener('click', this.onDocumentClick);
     }
 }

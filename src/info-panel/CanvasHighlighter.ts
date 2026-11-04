@@ -191,10 +191,8 @@ export class CanvasHighlighter {
      */
     cleanup(): void {
         const app = (window as any).app;
-        if (app && app.canvas && this.originalOnDrawForeground) {
-            if (app.canvas.onDrawForeground === this.boundOnDrawForeground) {
-                app.canvas.onDrawForeground = this.originalOnDrawForeground;
-            }
+        if (app && app.canvas && app.canvas.onDrawForeground === this.boundOnDrawForeground) {
+            app.canvas.onDrawForeground = this.originalOnDrawForeground;
         }
 
         if (this.highlightEl) {

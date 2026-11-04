@@ -1,24 +1,8 @@
 import { app } from "/scripts/app.js";
 import { PANEL_POSITIONS } from "../constants.js";
 import { DEFAULT_PANEL_SETTINGS } from "./defaults.js";
-function registerPanelSettings(stateManager, uiManager, positionManager) {
+function registerPanelSettings(setEnabled) {
   const settings = DEFAULT_PANEL_SETTINGS;
-  app.ui.settings.addSetting({
-    id: "🔍MagnifyGlass.InfoPanelEnabled",
-    name: "🔍 [4] Info Panel: Enable",
-    type: "combo",
-    options: [{ value: true, text: "Yes" }, { value: false, text: "No" }],
-    defaultValue: settings["🔍MagnifyGlass.InfoPanelEnabled"],
-    tooltip: "Enable or disable the information panel.",
-    onChange: (value) => {
-      if (stateManager) {
-        stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"] = !!value;
-        if (!value && uiManager) {
-          uiManager.hide();
-        }
-      }
-    }
-  });
   app.ui.settings.addSetting({
     id: "🔍MagnifyGlass.InfoPanelPosition",
     name: "🔍 [4] Info Panel: Position",
@@ -27,12 +11,10 @@ function registerPanelSettings(stateManager, uiManager, positionManager) {
     defaultValue: settings["🔍MagnifyGlass.InfoPanelPosition"],
     tooltip: "Position of the info panel relative to the magnifying glass.",
     onChange: (value) => {
-      if (stateManager) {
-        stateManager.state.settings["🔍MagnifyGlass.InfoPanelPosition"] = String(value);
-        if (positionManager) {
-          positionManager.positionPanel();
-        }
-      }
+      const panel = window.infoPanelManager;
+      if (!panel) return;
+      panel.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPosition"] = String(value);
+      panel.positionManager.positionPanel();
     }
   });
   app.ui.settings.addSetting({
@@ -42,12 +24,10 @@ function registerPanelSettings(stateManager, uiManager, positionManager) {
     defaultValue: settings["🔍MagnifyGlass.InfoPanelPersist"],
     tooltip: "Keep displaying the last node's info until you hover over another node.",
     onChange: (value) => {
-      if (stateManager) {
-        stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"] = !!value;
-        if (uiManager) {
-          uiManager.updateControlStates();
-        }
-      }
+      const panel = window.infoPanelManager;
+      if (!panel) return;
+      panel.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"] = !!value;
+      panel.uiManager.updateControlStates();
     }
   });
   app.ui.settings.addSetting({
@@ -57,12 +37,12 @@ function registerPanelSettings(stateManager, uiManager, positionManager) {
     defaultValue: settings["🔍MagnifyGlass.NodeHighlightEnabled"],
     tooltip: "Show a blue highlight border around the currently inspected node.",
     onChange: (value) => {
-      if (stateManager) {
-        stateManager.state.settings["🔍MagnifyGlass.NodeHighlightEnabled"] = !!value;
-        const app2 = window.app;
-        if (app2 && app2.canvas) {
-          app2.canvas.setDirty(true, true);
-        }
+      const panel = window.infoPanelManager;
+      if (!panel) return;
+      panel.stateManager.state.settings["🔍MagnifyGlass.NodeHighlightEnabled"] = !!value;
+      const app2 = window.app;
+      if (app2 && app2.canvas) {
+        app2.canvas.setDirty(true, true);
       }
     }
   });
@@ -74,9 +54,9 @@ function registerPanelSettings(stateManager, uiManager, positionManager) {
     defaultValue: settings["🔍MagnifyGlass.ShowInspectorTab"],
     tooltip: "Show or hide the Inspector tab with cursor and canvas information.",
     onChange: (value) => {
-      if (stateManager) {
-        stateManager.state.settings["🔍MagnifyGlass.ShowInspectorTab"] = !!value;
-      }
+      const panel = window.infoPanelManager;
+      if (!panel) return;
+      panel.stateManager.state.settings["🔍MagnifyGlass.ShowInspectorTab"] = !!value;
     }
   });
   app.ui.settings.addSetting({
@@ -87,11 +67,11 @@ function registerPanelSettings(stateManager, uiManager, positionManager) {
     defaultValue: settings["🔍MagnifyGlass.ShowHoveringControls"],
     tooltip: "Show or hide hovering UI controls above the info panel.",
     onChange: (value) => {
-      if (stateManager) {
-        stateManager.state.settings["🔍MagnifyGlass.ShowHoveringControls"] = !!value;
-        if (uiManager && uiManager.elements.controls) {
-          uiManager.elements.controls.style.display = value ? "flex" : "none";
-        }
+      const panel = window.infoPanelManager;
+      if (!panel) return;
+      panel.stateManager.state.settings["🔍MagnifyGlass.ShowHoveringControls"] = !!value;
+      if (panel.uiManager.elements.controls) {
+        panel.uiManager.elements.controls.style.display = value ? "flex" : "none";
       }
     }
   });
@@ -105,12 +85,10 @@ function registerPanelSettings(stateManager, uiManager, positionManager) {
     step: 20,
     tooltip: "Width of the information panel in pixels.",
     onChange: (value) => {
-      if (stateManager) {
-        stateManager.state.settings["🔍MagnifyGlass.InfoPanelWidth"] = parseInt(String(value), 10);
-        if (uiManager) {
-          uiManager.applyStyles();
-        }
-      }
+      const panel = window.infoPanelManager;
+      if (!panel) return;
+      panel.stateManager.state.settings["🔍MagnifyGlass.InfoPanelWidth"] = parseInt(String(value), 10);
+      panel.uiManager.applyStyles();
     }
   });
   app.ui.settings.addSetting({
@@ -123,12 +101,10 @@ function registerPanelSettings(stateManager, uiManager, positionManager) {
     step: 50,
     tooltip: "Maximum height of the information panel in pixels.",
     onChange: (value) => {
-      if (stateManager) {
-        stateManager.state.settings["🔍MagnifyGlass.InfoPanelMaxHeight"] = parseInt(String(value), 10);
-        if (uiManager) {
-          uiManager.applyStyles();
-        }
-      }
+      const panel = window.infoPanelManager;
+      if (!panel) return;
+      panel.stateManager.state.settings["🔍MagnifyGlass.InfoPanelMaxHeight"] = parseInt(String(value), 10);
+      panel.uiManager.applyStyles();
     }
   });
   app.ui.settings.addSetting({
@@ -141,12 +117,10 @@ function registerPanelSettings(stateManager, uiManager, positionManager) {
     step: 5,
     tooltip: "Opacity of the information panel background.",
     onChange: (value) => {
-      if (stateManager) {
-        stateManager.state.settings["🔍MagnifyGlass.InfoPanelOpacity"] = parseInt(String(value), 10);
-        if (uiManager) {
-          uiManager.applyStyles();
-        }
-      }
+      const panel = window.infoPanelManager;
+      if (!panel) return;
+      panel.stateManager.state.settings["🔍MagnifyGlass.InfoPanelOpacity"] = parseInt(String(value), 10);
+      panel.uiManager.applyStyles();
     }
   });
   app.ui.settings.addSetting({
@@ -159,12 +133,10 @@ function registerPanelSettings(stateManager, uiManager, positionManager) {
     step: 1,
     tooltip: "Font size of the information panel text.",
     onChange: (value) => {
-      if (stateManager) {
-        stateManager.state.settings["🔍MagnifyGlass.InfoPanelFontSize"] = parseInt(String(value), 10);
-        if (uiManager) {
-          uiManager.applyStyles();
-        }
-      }
+      const panel = window.infoPanelManager;
+      if (!panel) return;
+      panel.stateManager.state.settings["🔍MagnifyGlass.InfoPanelFontSize"] = parseInt(String(value), 10);
+      panel.uiManager.applyStyles();
     }
   });
   app.ui.settings.addSetting({
@@ -196,12 +168,10 @@ function registerPanelSettings(stateManager, uiManager, positionManager) {
     defaultValue: settings["🔍MagnifyGlass.InfoPanelFontFamily"],
     tooltip: "Font family for the info panel text.",
     onChange: (value) => {
-      if (stateManager) {
-        stateManager.state.settings["🔍MagnifyGlass.InfoPanelFontFamily"] = String(value);
-        if (uiManager) {
-          uiManager.applyStyles();
-        }
-      }
+      const panel = window.infoPanelManager;
+      if (!panel) return;
+      panel.stateManager.state.settings["🔍MagnifyGlass.InfoPanelFontFamily"] = String(value);
+      panel.uiManager.applyStyles();
     }
   });
   app.ui.settings.addSetting({
@@ -211,14 +181,12 @@ function registerPanelSettings(stateManager, uiManager, positionManager) {
     defaultValue: settings["🔍MagnifyGlass.InfoPanelTextColor"],
     tooltip: "Custom text color for the info panel.",
     onChange: (value) => {
-      if (stateManager) {
-        const strValue = String(value);
-        const normalizedColor = strValue && !strValue.startsWith("#") ? `#${strValue}` : strValue;
-        stateManager.state.settings["🔍MagnifyGlass.InfoPanelTextColor"] = normalizedColor;
-        if (uiManager) {
-          uiManager.applyStyles();
-        }
-      }
+      const panel = window.infoPanelManager;
+      if (!panel) return;
+      const strValue = String(value);
+      const normalizedColor = strValue && !strValue.startsWith("#") ? `#${strValue}` : strValue;
+      panel.stateManager.state.settings["🔍MagnifyGlass.InfoPanelTextColor"] = normalizedColor;
+      panel.uiManager.applyStyles();
     }
   });
   app.ui.settings.addSetting({
@@ -228,14 +196,12 @@ function registerPanelSettings(stateManager, uiManager, positionManager) {
     defaultValue: settings["🔍MagnifyGlass.InfoPanelAccentColor"],
     tooltip: "Custom accent color for the info panel.",
     onChange: (value) => {
-      if (stateManager) {
-        const strValue = String(value);
-        const normalizedColor = strValue && !strValue.startsWith("#") ? `#${strValue}` : strValue;
-        stateManager.state.settings["🔍MagnifyGlass.InfoPanelAccentColor"] = normalizedColor;
-        if (uiManager) {
-          uiManager.applyStyles();
-        }
-      }
+      const panel = window.infoPanelManager;
+      if (!panel) return;
+      const strValue = String(value);
+      const normalizedColor = strValue && !strValue.startsWith("#") ? `#${strValue}` : strValue;
+      panel.stateManager.state.settings["🔍MagnifyGlass.InfoPanelAccentColor"] = normalizedColor;
+      panel.uiManager.applyStyles();
     }
   });
   app.ui.settings.addSetting({
@@ -245,13 +211,20 @@ function registerPanelSettings(stateManager, uiManager, positionManager) {
     defaultValue: settings["🔍MagnifyGlass.HighContrastText"] ?? false,
     tooltip: "Increase contrast for text in input fields for better legibility.",
     onChange: (value) => {
-      if (stateManager) {
-        stateManager.state.settings["🔍MagnifyGlass.HighContrastText"] = !!value;
-        if (uiManager) {
-          uiManager.applyStyles();
-        }
-      }
+      const panel = window.infoPanelManager;
+      if (!panel) return;
+      panel.stateManager.state.settings["🔍MagnifyGlass.HighContrastText"] = !!value;
+      panel.uiManager.applyStyles();
     }
+  });
+  app.ui.settings.addSetting({
+    id: "🔍MagnifyGlass.InfoPanelEnabled",
+    name: "🔍 [4] Info Panel: Enable",
+    type: "combo",
+    options: [{ value: true, text: "Yes" }, { value: false, text: "No" }],
+    defaultValue: settings["🔍MagnifyGlass.InfoPanelEnabled"],
+    tooltip: "Show the Inspector panel next to the glass. Off: glass only, with no panel or panel hotkeys.",
+    onChange: (value) => setEnabled(!!value)
   });
 }
 export {

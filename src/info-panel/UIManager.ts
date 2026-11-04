@@ -671,25 +671,23 @@ export class UIManager {
     show(): void {
         if (!this.elements.panel) return;
 
-        if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"]) {
-            // Re-enable pointer events (disabled by hide())
-            this.elements.panel.style.pointerEvents = 'auto';
-            this.elements.panel.style.display = "block";
-            // Restore persist-active class if sticky mode is enabled
-            // (removed by hide() to prevent CSS !important display override)
-            if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"]) {
-                this.elements.panel.classList.add('persist-active');
-            }
-            // Controls are shown by positionFloatingControls() after proper positioning
-            // Apply user's opacity setting when showing (convert percentage to decimal)
-            const opacityPercent = Number(this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelOpacity"]) || 100;
-            this.elements.panel.style.opacity = (opacityPercent / 100).toString();
-            // Trigger reflow
-            this.elements.panel.offsetHeight;
-            this.elements.panel.classList.add('visible');
-            this.stateManager.state.isPanelVisible = true;
-            this.updateControlStates();
+        // Re-enable pointer events (disabled by hide())
+        this.elements.panel.style.pointerEvents = 'auto';
+        this.elements.panel.style.display = "block";
+        // Restore persist-active class if sticky mode is enabled
+        // (removed by hide() to prevent CSS !important display override)
+        if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"]) {
+            this.elements.panel.classList.add('persist-active');
         }
+        // Controls are shown by positionFloatingControls() after proper positioning
+        // Apply user's opacity setting when showing (convert percentage to decimal)
+        const opacityPercent = Number(this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelOpacity"]) || 100;
+        this.elements.panel.style.opacity = (opacityPercent / 100).toString();
+        // Trigger reflow
+        this.elements.panel.offsetHeight;
+        this.elements.panel.classList.add('visible');
+        this.stateManager.state.isPanelVisible = true;
+        this.updateControlStates();
     }
 
     /**
@@ -1919,6 +1917,7 @@ export class UIManager {
     cleanup(): void {
         // Clean up active editors to prevent memory leaks
         this.cleanupEditors();
+        this.hideDropdown();
 
         // Clean up hotkey listeners
         this.cleanupHotkeys();

@@ -1,8 +1,6 @@
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-import "/scripts/app.js";
-import { registerPanelSettings } from "../shared/settings/panelSettings.js";
 import { Logger } from "../shared/logger.js";
 import { StateManager } from "./StateManager.js";
 import { UIManager } from "./UIManager.js";
@@ -19,6 +17,10 @@ class InfoPanel {
     __publicField(this, "eventManager");
     __publicField(this, "informationGatherer");
     __publicField(this, "canvasHighlighter");
+    __publicField(this, "originalUpdateMagnifiedView");
+    __publicField(this, "originalShow");
+    __publicField(this, "originalHide");
+    __publicField(this, "updateFrameId", null);
     // State for persistence
     __publicField(this, "lastValidNodeInfo", null);
     this.magnifyGlass = magnifyGlass;
@@ -41,10 +43,12 @@ class InfoPanel {
       },
       updatePosition: () => this.positionManager.positionPanel()
     });
+    this.originalUpdateMagnifiedView = magnifyGlass.updateMagnifiedView;
+    this.originalShow = magnifyGlass.ui.show;
+    this.originalHide = magnifyGlass.ui.hide;
     this.hookIntoMagnifyGlass();
-    registerPanelSettings(this.stateManager, this.uiManager, this.positionManager);
     if (this.magnifyGlass.popOutManager) {
-      this.magnifyGlass.popOutManager.onStateChange = (isOpen) => {
+      this.magnifyGlass.popOutManager.onStateChange = () => {
         this.uiManager.updateControlStates();
       };
       this.magnifyGlass.popOutManager.onNodeSelect = (nodeId) => {
@@ -60,43 +64,39 @@ class InfoPanel {
     Logger.debug("Info Panel initialized successfully");
   }
   hookIntoMagnifyGlass() {
-    const originalUpdateMagnifiedView = this.magnifyGlass.updateMagnifiedView.bind(this.magnifyGlass);
-    this.magnifyGlass.updateMagnifiedView = (() => {
-      originalUpdateMagnifiedView();
-      if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"] && this.magnifyGlass.state.active) {
+    const mg = this.magnifyGlass;
+    mg.updateMagnifiedView = () => {
+      this.originalUpdateMagnifiedView.call(mg);
+      if (mg.state.active) {
         this.scheduleInfoUpdate();
       }
-    }).bind(this);
-    const originalShow = this.magnifyGlass.ui.show.bind(this.magnifyGlass.ui);
-    const originalHide = this.magnifyGlass.ui.hide.bind(this.magnifyGlass.ui);
-    this.magnifyGlass.ui.show = (() => {
-      originalShow();
+    };
+    mg.ui.show = () => {
+      this.originalShow.call(mg.ui);
       if (!this.magnifyGlass.state.active) {
         return;
       }
-      if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"]) {
-        if (this.stateManager.state.wasPanelVisibleBeforeHide) {
-          this.uiManager.show();
-          setTimeout(() => {
-            this.positionManager.positionPanel();
-            this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
-          }, 10);
-        } else {
-          const showControls = this.stateManager.state.settings["🔍MagnifyGlass.ShowHoveringControls"] !== false;
-          if (showControls && this.uiManager.elements.controls) {
-            this.uiManager.elements.controls.style.display = "flex";
-            this.uiManager.elements.controls.style.pointerEvents = "auto";
-          }
-          this.uiManager.updateControlStates();
-          setTimeout(() => {
-            this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
-          }, 10);
+      if (this.stateManager.state.wasPanelVisibleBeforeHide) {
+        this.uiManager.show();
+        setTimeout(() => {
+          this.positionManager.positionPanel();
+          this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
+        }, 10);
+      } else {
+        const showControls = this.stateManager.state.settings["🔍MagnifyGlass.ShowHoveringControls"] !== false;
+        if (showControls && this.uiManager.elements.controls) {
+          this.uiManager.elements.controls.style.display = "flex";
+          this.uiManager.elements.controls.style.pointerEvents = "auto";
         }
+        this.uiManager.updateControlStates();
+        setTimeout(() => {
+          this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
+        }, 10);
       }
-    }).bind(this);
-    this.magnifyGlass.ui.hide = (() => {
+    };
+    mg.ui.hide = () => {
       this.stateManager.state.wasPanelVisibleBeforeHide = this.stateManager.state.isPanelVisible;
-      originalHide();
+      this.originalHide.call(mg.ui);
       this.uiManager.hide();
       if (this.uiManager.elements.panel) {
         this.uiManager.elements.panel.style.display = "none";
@@ -108,15 +108,37 @@ class InfoPanel {
         this.uiManager.elements.controls.style.pointerEvents = "none";
       }
       this.canvasHighlighter.setHighlightedNode(null);
-    }).bind(this);
+    };
   }
   scheduleInfoUpdate() {
-    if (this.stateManager.state.updateScheduled) return;
-    this.stateManager.state.updateScheduled = true;
-    requestAnimationFrame(() => {
+    if (this.updateFrameId !== null) return;
+    this.updateFrameId = requestAnimationFrame(() => {
+      this.updateFrameId = null;
       this.updateInfo();
-      this.stateManager.state.updateScheduled = false;
     });
+  }
+  /**
+   * Undo everything the constructor set up: glass hooks, pop-out callbacks,
+   * listeners, timers and DOM.
+   */
+  cleanup() {
+    const mg = this.magnifyGlass;
+    mg.updateMagnifiedView = this.originalUpdateMagnifiedView;
+    mg.ui.show = this.originalShow;
+    mg.ui.hide = this.originalHide;
+    if (mg.popOutManager) {
+      mg.popOutManager.onStateChange = null;
+      mg.popOutManager.onNodeSelect = null;
+      mg.popOutManager.onWidgetEdit = null;
+    }
+    if (this.updateFrameId !== null) {
+      cancelAnimationFrame(this.updateFrameId);
+      this.updateFrameId = null;
+    }
+    this.eventManager.cleanup();
+    this.uiManager.cleanup();
+    this.canvasHighlighter.cleanup();
+    this.stateManager.cleanup();
   }
   /**
    * Update the info panel with current information.
@@ -125,7 +147,7 @@ class InfoPanel {
   updateInfo(forceUpdate = false) {
     const settings = this.stateManager.state.settings;
     const isActive = this.magnifyGlass.state.active;
-    if (!settings["🔍MagnifyGlass.InfoPanelEnabled"] || !isActive) {
+    if (!isActive) {
       this.uiManager.hide();
       if (this.uiManager.elements.controls && this.uiManager.elements.controls.style.display !== "none") {
         this.uiManager.elements.controls.style.display = "none";
@@ -195,16 +217,6 @@ class InfoPanel {
       }
     }
   }
-  updateSettings() {
-    this.stateManager.updateSettings();
-    this.uiManager.applyStyles();
-    if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"] && this.magnifyGlass.state.active) {
-      this.uiManager.show();
-      this.positionManager.positionPanel();
-    } else {
-      this.uiManager.hide();
-    }
-  }
   /**
    * Handle node selection from dropdown.
    * @param nodeId - ID of the selected node
@@ -222,6 +234,27 @@ class InfoPanel {
     this.updateInfo();
   }
 }
+function mountInfoPanel(magnifyGlass) {
+  if (window.infoPanelManager) return;
+  const infoPanel = new InfoPanel(magnifyGlass);
+  window.infoPanelManager = infoPanel;
+  (window.comfyUIMagnifyGlassExtensions ?? (window.comfyUIMagnifyGlassExtensions = [])).push(infoPanel);
+  magnifyGlass.setGlassPreviewActive(true);
+  if (magnifyGlass.state.active) {
+    magnifyGlass.ui.show();
+  }
+}
+function unmountInfoPanel(magnifyGlass) {
+  var _a;
+  const infoPanel = window.infoPanelManager;
+  if (!infoPanel) return;
+  infoPanel.cleanup();
+  window.infoPanelManager = void 0;
+  window.comfyUIMagnifyGlassExtensions = (_a = window.comfyUIMagnifyGlassExtensions) == null ? void 0 : _a.filter((ext) => ext !== infoPanel);
+  magnifyGlass.setGlassPreviewActive(true);
+}
 export {
-  InfoPanel
+  InfoPanel,
+  mountInfoPanel,
+  unmountInfoPanel
 };

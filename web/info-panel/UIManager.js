@@ -473,19 +473,17 @@ class UIManager {
    */
   show() {
     if (!this.elements.panel) return;
-    if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"]) {
-      this.elements.panel.style.pointerEvents = "auto";
-      this.elements.panel.style.display = "block";
-      if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"]) {
-        this.elements.panel.classList.add("persist-active");
-      }
-      const opacityPercent = Number(this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelOpacity"]) || 100;
-      this.elements.panel.style.opacity = (opacityPercent / 100).toString();
-      this.elements.panel.offsetHeight;
-      this.elements.panel.classList.add("visible");
-      this.stateManager.state.isPanelVisible = true;
-      this.updateControlStates();
+    this.elements.panel.style.pointerEvents = "auto";
+    this.elements.panel.style.display = "block";
+    if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"]) {
+      this.elements.panel.classList.add("persist-active");
     }
+    const opacityPercent = Number(this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelOpacity"]) || 100;
+    this.elements.panel.style.opacity = (opacityPercent / 100).toString();
+    this.elements.panel.offsetHeight;
+    this.elements.panel.classList.add("visible");
+    this.stateManager.state.isPanelVisible = true;
+    this.updateControlStates();
   }
   /**
    * Hide the panel.
@@ -1393,6 +1391,7 @@ class UIManager {
   }
   cleanup() {
     this.cleanupEditors();
+    this.hideDropdown();
     this.cleanupHotkeys();
     if (this.elements.panel && this.elements.panel.parentNode) {
       this.elements.panel.parentNode.removeChild(this.elements.panel);

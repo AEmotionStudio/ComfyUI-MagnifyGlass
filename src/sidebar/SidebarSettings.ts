@@ -405,6 +405,20 @@ export function renderSettingsPanel(container: HTMLElement): void {
     const resetKey = getSettingValue('🔍MagnifyGlass.ResetKey', 'o').toUpperCase();
     const toggleFollowKey = getSettingValue('🔍MagnifyGlass.ToggleFollowCursorKey', 'h').toUpperCase();
 
+    // ===== Inspector Panel On/Off =====
+    // Off leaves only the glass, so the panel's own sections are hidden too
+    const inspectorEnabled = getSettingValue('🔍MagnifyGlass.InfoPanelEnabled', true);
+    const inspectorToggle = createToggle('Inspector panel', inspectorEnabled,
+        (checked) => {
+            setSettingValue('🔍MagnifyGlass.InfoPanelEnabled', checked);
+            panelSection.section.hidden = !checked;
+            panelHotkeySection.section.hidden = !checked;
+        },
+        'Show the Inspector panel with node details next to the glass. Off: glass only.'
+    );
+    inspectorToggle.classList.add('magnify-inspector-toggle');
+    container.appendChild(inspectorToggle);
+
     // ===== Glass Settings Section =====
     // Use true (collapsed) by default as requested
     const glassSection = createSection('Glass Settings', true);
@@ -545,6 +559,12 @@ export function renderSettingsPanel(container: HTMLElement): void {
         getSettingValue('🔍MagnifyGlass.ForceDirectCaptureKey', 'd'), DIRECT_CAPTURE_KEYS,
         (value) => setSettingValue('🔍MagnifyGlass.ForceDirectCaptureKey', value),
         'Key for Force Direct Capture mode'
+    ));
+
+    hotkeySection.body.appendChild(createSelect('Glass Toggle Key',
+        getSettingValue('🔍MagnifyGlass.GlassPreviewToggleHotkey', 'g'), ['g', 'f', 'v', 'b'],
+        (value) => setSettingValue('🔍MagnifyGlass.GlassPreviewToggleHotkey', value),
+        'Key to show or hide the glass preview'
     ));
 
     const glassAltToggle = createToggle('Require Alt Key',
@@ -750,16 +770,7 @@ export function renderSettingsPanel(container: HTMLElement): void {
 
     // ===== Info Panel Section =====
     const panelSection = createSection('Info Panel', true);
-
-    const toggleHotkey = getSettingValue('🔍MagnifyGlass.ToggleHotkey', 'i').toUpperCase();
-    const glassToggleKey = getSettingValue('🔍MagnifyGlass.GlassPreviewToggleHotkey', 'g').toUpperCase();
-    const pinHotkeyVal = getSettingValue('🔍MagnifyGlass.PinPanelHotkey', 'u').toUpperCase();
-
-    panelSection.body.appendChild(createToggle('Enable Panel',
-        getSettingValue('🔍MagnifyGlass.InfoPanelEnabled', true),
-        (checked) => setSettingValue('🔍MagnifyGlass.InfoPanelEnabled', checked),
-        `Show info panel with node details. Toggle: ${toggleHotkey}`
-    ));
+    panelSection.section.hidden = !inspectorEnabled;
 
     panelSection.body.appendChild(createToggle('Persist Info',
         getSettingValue('🔍MagnifyGlass.InfoPanelPersist', false),
@@ -944,17 +955,12 @@ export function renderSettingsPanel(container: HTMLElement): void {
 
     // ===== Panel Hotkeys Section =====
     const panelHotkeySection = createSection('Panel Hotkeys', true);
+    panelHotkeySection.section.hidden = !inspectorEnabled;
 
     panelHotkeySection.body.appendChild(createSelect('Toggle Key',
         getSettingValue('🔍MagnifyGlass.ToggleHotkey', 'i'), ['i', 'j', 'k', 'l', 'n', 'm'],
         (value) => setSettingValue('🔍MagnifyGlass.ToggleHotkey', value),
         'Key to toggle info panel visibility'
-    ));
-
-    panelHotkeySection.body.appendChild(createSelect('Glass Toggle Key',
-        getSettingValue('🔍MagnifyGlass.GlassPreviewToggleHotkey', 'g'), ['g', 'f', 'v', 'b'],
-        (value) => setSettingValue('🔍MagnifyGlass.GlassPreviewToggleHotkey', value),
-        'Key to toggle glass preview in panel'
     ));
 
     panelHotkeySection.body.appendChild(createSelect('Pin Key',

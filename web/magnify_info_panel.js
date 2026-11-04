@@ -1,12 +1,12 @@
 import { app } from "/scripts/app.js";
-import { Logger } from "./shared/logger.js";
-import { InfoPanel } from "./info-panel/InfoPanel.js";
+import { registerPanelSettings } from "./shared/settings/panelSettings.js";
+import { mountInfoPanel, unmountInfoPanel } from "./info-panel/InfoPanel.js";
 app.registerExtension({
   name: "comfyui.magnify.info.panel",
   init() {
     const checkDependencies = () => {
       if (window.comfyUIMagnifyGlass) {
-        initializeInfoPanel();
+        initializeInfoPanel(window.comfyUIMagnifyGlass);
       } else {
         setTimeout(checkDependencies, 100);
       }
@@ -14,21 +14,6 @@ app.registerExtension({
     checkDependencies();
   }
 });
-function initializeInfoPanel() {
-  const magnifyGlass = window.comfyUIMagnifyGlass;
-  if (!magnifyGlass) {
-    Logger.error("Failed to find MagnifyGlass instance.");
-    return;
-  }
-  try {
-    const infoPanel = new InfoPanel(magnifyGlass);
-    window.infoPanelManager = infoPanel;
-    if (!window.comfyUIMagnifyGlassExtensions) {
-      window.comfyUIMagnifyGlassExtensions = [];
-    }
-    window.comfyUIMagnifyGlassExtensions.push(infoPanel);
-    Logger.debug("Info Panel extension initialized");
-  } catch (e) {
-    Logger.error("Error during initialization:", e);
-  }
+function initializeInfoPanel(magnifyGlass) {
+  registerPanelSettings((on) => on ? mountInfoPanel(magnifyGlass) : unmountInfoPanel(magnifyGlass));
 }

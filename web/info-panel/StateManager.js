@@ -7,6 +7,24 @@ import "/scripts/app.js";
 class StateManager {
   constructor() {
     __publicField(this, "state");
+    __publicField(this, "themeObserver");
+    __publicField(this, "themeInterval");
+    __publicField(this, "themeTimeout");
+    __publicField(this, "colorSchemeQuery");
+    __publicField(this, "onColorSchemeChange", () => this.detectCurrentTheme());
+    // Clicks on theme toggle buttons trigger an immediate re-detection
+    __publicField(this, "onDocumentClick", (e) => {
+      var _a, _b, _c, _d;
+      const target = e.target;
+      const isThemeButton = ((_a = target.textContent) == null ? void 0 : _a.toLowerCase().includes("theme")) || ((_b = target.textContent) == null ? void 0 : _b.toLowerCase().includes("light")) || ((_c = target.textContent) == null ? void 0 : _c.toLowerCase().includes("dark")) || ((_d = target.title) == null ? void 0 : _d.toLowerCase().includes("theme")) || typeof target.className === "string" && target.className.toLowerCase().includes("theme");
+      if (isThemeButton) {
+        setTimeout(() => {
+          if (this.detectCurrentTheme()) {
+            this.notifyThemeChange();
+          }
+        }, 100);
+      }
+    });
     this.state = {
       // Panel visibility and positioning
       isPanelVisible: false,
@@ -31,9 +49,6 @@ class StateManager {
       // Auto-collapse
       autoExpandTimer: null,
       lastNodeId: null,
-      // Update scheduling
-      updateScheduled: false,
-      isInitialLoading: false,
       // Current data
       currentInfo: null,
       // Node selection override
@@ -49,20 +64,14 @@ class StateManager {
   }
   initThemeDetection() {
     this.detectCurrentTheme();
-    setTimeout(() => {
+    this.themeTimeout = setTimeout(() => {
       if (this.detectCurrentTheme()) {
         this.notifyThemeChange();
       }
     }, 1e3);
     this.setupThemeObserver();
-    if (window.matchMedia) {
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)");
-      if (prefersDark.addListener) {
-        prefersDark.addListener(() => this.detectCurrentTheme());
-      } else if (prefersDark.addEventListener) {
-        prefersDark.addEventListener("change", () => this.detectCurrentTheme());
-      }
-    }
+    this.colorSchemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    this.colorSchemeQuery.addEventListener("change", this.onColorSchemeChange);
     this.setupThemeButtonListeners();
   }
   detectCurrentTheme() {
@@ -147,7 +156,7 @@ class StateManager {
     return false;
   }
   setupThemeObserver() {
-    const observer = new MutationObserver((mutations) => {
+    const observer = this.themeObserver = new MutationObserver((mutations) => {
       let shouldCheck = false;
       mutations.forEach((mutation) => {
         if (mutation.type === "attributes" && (mutation.attributeName === "class" || mutation.attributeName === "data-theme" || mutation.attributeName === "style")) {
@@ -168,25 +177,14 @@ class StateManager {
     themeElements.forEach((el) => {
       observer.observe(el, { attributes: true, attributeOldValue: true });
     });
-    setInterval(() => {
+    this.themeInterval = setInterval(() => {
       if (this.detectCurrentTheme()) {
         this.notifyThemeChange();
       }
     }, 2e3);
   }
   setupThemeButtonListeners() {
-    document.addEventListener("click", (e) => {
-      var _a, _b, _c, _d;
-      const target = e.target;
-      const isThemeButton = ((_a = target.textContent) == null ? void 0 : _a.toLowerCase().includes("theme")) || ((_b = target.textContent) == null ? void 0 : _b.toLowerCase().includes("light")) || ((_c = target.textContent) == null ? void 0 : _c.toLowerCase().includes("dark")) || ((_d = target.title) == null ? void 0 : _d.toLowerCase().includes("theme")) || typeof target.className === "string" && target.className.toLowerCase().includes("theme");
-      if (isThemeButton) {
-        setTimeout(() => {
-          if (this.detectCurrentTheme()) {
-            this.notifyThemeChange();
-          }
-        }, 100);
-      }
-    });
+    document.addEventListener("click", this.onDocumentClick);
   }
   notifyThemeChange() {
     this.state.settings["🔍MagnifyGlass.InfoPanelTheme"] = this.state.currentTheme;
@@ -294,20 +292,6 @@ class StateManager {
     if (typeof value !== "string") return fallback;
     return options.includes(value) ? value : fallback;
   }
-  updateSettings() {
-    const oldSettings = { ...this.state.settings };
-    this.loadSettings();
-    const changes = {};
-    Object.keys(this.state.settings).forEach((key) => {
-      if (oldSettings[key] !== this.state.settings[key]) {
-        changes[key] = {
-          old: oldSettings[key],
-          new: this.state.settings[key]
-        };
-      }
-    });
-    return changes;
-  }
   togglePanelVisibility() {
     this.state.isPanelVisible = !this.state.isPanelVisible;
     return this.state.isPanelVisible;
@@ -407,6 +391,11 @@ class StateManager {
   }
   cleanup() {
     this.clearAutoExpandTimer();
+    clearTimeout(this.themeTimeout);
+    clearInterval(this.themeInterval);
+    this.themeObserver.disconnect();
+    this.colorSchemeQuery.removeEventListener("change", this.onColorSchemeChange);
+    document.removeEventListener("click", this.onDocumentClick);
   }
 }
 export {

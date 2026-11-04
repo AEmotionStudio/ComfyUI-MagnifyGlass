@@ -45,7 +45,8 @@ Object.defineProperty(globalThis, 'document', {
         },
         querySelector: () => null,
         querySelectorAll: () => [],
-        addEventListener: vi.fn()
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn()
     },
     writable: true
 });

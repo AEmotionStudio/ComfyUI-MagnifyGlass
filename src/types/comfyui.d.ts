@@ -5,6 +5,8 @@
  * These types are based on the runtime behavior of ComfyUI.
  */
 
+import type { InfoPanel } from '../info-panel/InfoPanel';
+
 // ============================================================================
 // ComfyUI App
 // ============================================================================
@@ -198,7 +200,7 @@ declare global {
         comfyUIMagnifyGlass?: MagnifyGlassInstance;
         magnifyGlass?: MagnifyGlassInstance; // Alias used by info panel controls
         comfyUIMagnifyGlassExtensions?: unknown[];
-        infoPanelManager?: { uiManager?: { updateTheme: (theme: string) => void } };
+        infoPanelManager?: InfoPanel;
     }
 
     var app: ComfyApp;
@@ -225,6 +227,7 @@ export interface MagnifyGlassInstance {
     applyUiChanges(): void;
     toggle(): void;
     resetOffsets(): void;
+    setGlassPreviewActive(visible: boolean): void;
 }
 
 export interface MagnifyGlassState {
@@ -385,14 +388,6 @@ export interface ParameterItem {
     value: unknown;
     formattedValue?: string;
     highlight?: boolean;
-}
-
-/**
- * Settings change tracking.
- */
-export interface SettingsChange {
-    old: unknown;
-    new: unknown;
 }
 
 export { };

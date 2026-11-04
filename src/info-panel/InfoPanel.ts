@@ -6,7 +6,6 @@
  */
 
 import type { MagnifyGlassInstance } from '../types/comfyui';
-import { registerPanelSettings } from '../shared/settings';
 import { Logger } from '../shared/logger';
 import { StateManager } from './StateManager';
 import { UIManager } from './UIManager';
@@ -27,6 +26,10 @@ export class InfoPanel {
     eventManager: EventManager;
     informationGatherer: InformationGatherer;
     canvasHighlighter: CanvasHighlighter;
+    private originalUpdateMagnifiedView: () => void;
+    private originalShow: () => void;
+    private originalHide: () => void;
+    private updateFrameId: number | null = null;
 
     constructor(magnifyGlass: MagnifyGlassInstance) {
         this.magnifyGlass = magnifyGlass;
@@ -56,14 +59,14 @@ export class InfoPanel {
             updatePosition: () => this.positionManager.positionPanel()
         });
 
+        this.originalUpdateMagnifiedView = magnifyGlass.updateMagnifiedView;
+        this.originalShow = magnifyGlass.ui.show;
+        this.originalHide = magnifyGlass.ui.hide;
         this.hookIntoMagnifyGlass();
-
-        // Register settings with ComfyUI
-        registerPanelSettings(this.stateManager, this.uiManager, this.positionManager);
 
         // Listen for popout state changes to update UI buttons
         if (this.magnifyGlass.popOutManager) {
-            this.magnifyGlass.popOutManager.onStateChange = (isOpen: boolean) => {
+            this.magnifyGlass.popOutManager.onStateChange = () => {
                 this.uiManager.updateControlStates();
             };
             // Listen for node selection from popout
@@ -86,25 +89,17 @@ export class InfoPanel {
     }
 
     hookIntoMagnifyGlass(): void {
-        // Hook into magnify glass update cycle
-        const originalUpdateMagnifiedView = this.magnifyGlass.updateMagnifiedView.bind(this.magnifyGlass);
+        const mg = this.magnifyGlass;
 
-        this.magnifyGlass.updateMagnifiedView = (() => {
-            originalUpdateMagnifiedView();
-
-            // Schedule info update if panel is enabled and glass is active
-            if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"] &&
-                this.magnifyGlass.state.active) {
+        mg.updateMagnifiedView = () => {
+            this.originalUpdateMagnifiedView.call(mg);
+            if (mg.state.active) {
                 this.scheduleInfoUpdate();
             }
-        }).bind(this);
+        };
 
-        // Hook into show/hide
-        const originalShow = this.magnifyGlass.ui.show.bind(this.magnifyGlass.ui);
-        const originalHide = this.magnifyGlass.ui.hide.bind(this.magnifyGlass.ui);
-
-        this.magnifyGlass.ui.show = (() => {
-            originalShow();
+        mg.ui.show = () => {
+            this.originalShow.call(mg.ui);
 
             // CRITICAL: Only restore panel if the magnify glass is actually active
             // This prevents the panel from showing when toggle() is switching it OFF
@@ -112,41 +107,39 @@ export class InfoPanel {
                 return;
             }
 
-            if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"]) {
-                // Restore state: If it was visible before hide, make it visible now.
-                // Otherwise only show controls.
-                if (this.stateManager.state.wasPanelVisibleBeforeHide) {
-                    this.uiManager.show();
+            // Restore state: If it was visible before hide, make it visible now.
+            // Otherwise only show controls.
+            if (this.stateManager.state.wasPanelVisibleBeforeHide) {
+                this.uiManager.show();
 
-                    // Position properly
-                    setTimeout(() => {
-                        this.positionManager.positionPanel();
-                        this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
-                    }, 10);
-                } else {
-                    // Do NOT force panel visible. Only show controls.
-                    const showControls = this.stateManager.state.settings["🔍MagnifyGlass.ShowHoveringControls"] !== false;
-                    if (showControls && this.uiManager.elements.controls) {
-                        this.uiManager.elements.controls.style.display = 'flex';
-                        this.uiManager.elements.controls.style.pointerEvents = 'auto';
-                    }
-
-                    // Ensure states are updated
-                    this.uiManager.updateControlStates();
-
-                    // Position controls after showing (relative to glass since panel is hidden)
-                    setTimeout(() => {
-                        this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
-                    }, 10);
+                // Position properly
+                setTimeout(() => {
+                    this.positionManager.positionPanel();
+                    this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
+                }, 10);
+            } else {
+                // Do NOT force panel visible. Only show controls.
+                const showControls = this.stateManager.state.settings["🔍MagnifyGlass.ShowHoveringControls"] !== false;
+                if (showControls && this.uiManager.elements.controls) {
+                    this.uiManager.elements.controls.style.display = 'flex';
+                    this.uiManager.elements.controls.style.pointerEvents = 'auto';
                 }
-            }
-        }).bind(this);
 
-        this.magnifyGlass.ui.hide = (() => {
+                // Ensure states are updated
+                this.uiManager.updateControlStates();
+
+                // Position controls after showing (relative to glass since panel is hidden)
+                setTimeout(() => {
+                    this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
+                }, 10);
+            }
+        };
+
+        mg.ui.hide = () => {
             // Save state before hiding
             this.stateManager.state.wasPanelVisibleBeforeHide = this.stateManager.state.isPanelVisible;
 
-            originalHide();
+            this.originalHide.call(mg.ui);
             this.uiManager.hide();
 
             // FORCE HIDE: Directly set panel display to none as a safety measure
@@ -165,17 +158,43 @@ export class InfoPanel {
 
             // Fix: Ensure highlight is cleared when glass is disabled
             this.canvasHighlighter.setHighlightedNode(null);
-        }).bind(this);
+        };
     }
 
     scheduleInfoUpdate(): void {
-        if (this.stateManager.state.updateScheduled) return;
+        if (this.updateFrameId !== null) return;
 
-        this.stateManager.state.updateScheduled = true;
-        requestAnimationFrame(() => {
+        this.updateFrameId = requestAnimationFrame(() => {
+            this.updateFrameId = null;
             this.updateInfo();
-            this.stateManager.state.updateScheduled = false;
         });
+    }
+
+    /**
+     * Undo everything the constructor set up: glass hooks, pop-out callbacks,
+     * listeners, timers and DOM.
+     */
+    cleanup(): void {
+        const mg = this.magnifyGlass;
+        mg.updateMagnifiedView = this.originalUpdateMagnifiedView;
+        mg.ui.show = this.originalShow;
+        mg.ui.hide = this.originalHide;
+
+        if (mg.popOutManager) {
+            mg.popOutManager.onStateChange = null;
+            mg.popOutManager.onNodeSelect = null;
+            mg.popOutManager.onWidgetEdit = null;
+        }
+
+        if (this.updateFrameId !== null) {
+            cancelAnimationFrame(this.updateFrameId);
+            this.updateFrameId = null;
+        }
+
+        this.eventManager.cleanup();
+        this.uiManager.cleanup();
+        this.canvasHighlighter.cleanup();
+        this.stateManager.cleanup();
     }
 
     // State for persistence
@@ -189,8 +208,8 @@ export class InfoPanel {
         const settings = this.stateManager.state.settings;
         const isActive = this.magnifyGlass.state.active;
 
-        // Safety: If disabled or inactive, ensure hidden and return
-        if (!settings["🔍MagnifyGlass.InfoPanelEnabled"] || !isActive) {
+        // Safety: If inactive, ensure hidden and return
+        if (!isActive) {
             // Hide the panel completely when the glass is inactive
             this.uiManager.hide();
             if (this.uiManager.elements.controls && this.uiManager.elements.controls.style.display !== 'none') {
@@ -291,19 +310,6 @@ export class InfoPanel {
         }
     }
 
-    updateSettings(): void {
-        const changes = this.stateManager.updateSettings();
-        this.uiManager.applyStyles();
-
-        if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelEnabled"] && this.magnifyGlass.state.active) {
-            this.uiManager.show();
-            // Ensure position is updated after potential dimension changes
-            this.positionManager.positionPanel();
-        } else {
-            this.uiManager.hide();
-        }
-    }
-
     /**
      * Handle node selection from dropdown.
      * @param nodeId - ID of the selected node
@@ -325,4 +331,37 @@ export class InfoPanel {
         this.stateManager.clearSelectedNode();
         this.updateInfo();
     }
+}
+
+/**
+ * Build the info panel and attach it to the glass. Does nothing if it is already mounted.
+ */
+export function mountInfoPanel(magnifyGlass: MagnifyGlassInstance): void {
+    if (window.infoPanelManager) return;
+
+    const infoPanel = new InfoPanel(magnifyGlass);
+    window.infoPanelManager = infoPanel;
+    // Lets MagnifyGlass hide the panel along with the glass
+    (window.comfyUIMagnifyGlassExtensions ??= []).push(infoPanel);
+
+    // The new panel's G button starts out "visible"; a glass hidden with G while the panel was off must match it
+    magnifyGlass.setGlassPreviewActive(true);
+    if (magnifyGlass.state.active) {
+        magnifyGlass.ui.show();
+    }
+}
+
+/**
+ * Detach the info panel from the glass and remove it from the page.
+ */
+export function unmountInfoPanel(magnifyGlass: MagnifyGlassInstance): void {
+    const infoPanel = window.infoPanelManager;
+    if (!infoPanel) return;
+
+    infoPanel.cleanup();
+    window.infoPanelManager = undefined;
+    window.comfyUIMagnifyGlassExtensions = window.comfyUIMagnifyGlassExtensions?.filter(ext => ext !== infoPanel);
+
+    // The panel's G button may have hidden the glass preview; nothing could show it again
+    magnifyGlass.setGlassPreviewActive(true);
 }

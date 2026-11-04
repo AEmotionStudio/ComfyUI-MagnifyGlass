@@ -134,10 +134,8 @@ class CanvasHighlighter {
    */
   cleanup() {
     const app = window.app;
-    if (app && app.canvas && this.originalOnDrawForeground) {
-      if (app.canvas.onDrawForeground === this.boundOnDrawForeground) {
-        app.canvas.onDrawForeground = this.originalOnDrawForeground;
-      }
+    if (app && app.canvas && app.canvas.onDrawForeground === this.boundOnDrawForeground) {
+      app.canvas.onDrawForeground = this.originalOnDrawForeground;
     }
     if (this.highlightEl) {
       this.highlightEl.remove();

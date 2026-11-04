@@ -5,7 +5,7 @@
 **A powerful, customizable magnifying glass extension for ComfyUI.**
 
 [![ComfyUI](https://img.shields.io/badge/ComfyUI-Extension-green?style=for-the-badge)](https://github.com/comfyanonymous/ComfyUI)
-[![Version](https://img.shields.io/badge/Version-1.14.0-orange?style=for-the-badge)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases)
+[![Version](https://img.shields.io/badge/Version-1.15.0-orange?style=for-the-badge)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases)
 [![License](https://img.shields.io/badge/License-GPLv3-red?style=for-the-badge)](LICENSE)
 [![Dependencies](https://img.shields.io/badge/dependencies-none-brightgreen?style=for-the-badge&color=blue)](package.json)
 
@@ -25,14 +25,14 @@
 
 ---
 
-## 🚀 What's New in v1.14.0 (November 3, 2026)
+## 🚀 What's New in v1.15.0 (November 4, 2026)
 
-**Images and Videos in the Glass, Glass-Only Mode, New Sidebar**
+**Inspector Overhaul: New Look, Navigation and Modes**
 
-*   **🖼️ Media in the Glass**: Image previews, videos and animated images now show in the glass at their real position, at any canvas zoom. Images are drawn at full resolution, videos play smoothly, and both reach the pop-out and the Invert/Grayscale filters.
-*   **🔍 Glass-Only Mode**: Turn off **Inspector panel** at the top of the sidebar to remove the panel, its hotkeys and its highlight entirely. Turn it back on without a reload.
-*   **🎨 Sidebar Redesign**: Follows your ComfyUI palette (light or dark), with an About section for links, version and the studio's other packs.
-*   **🧩 Nodes 2.0**: Basic support for the Vue nodes mode.
+*   **🎨 Follows Your Palette**: The Inspector, its toolbar and menus use your ComfyUI palette, light or dark. The built-in themes are gone.
+*   **🧭 Header and Go to Node**: Title, `#id` and type in the header, Back/Forward, Previous/Next in execution order, and a searchable node picker. Subgraph path and group show as a breadcrumb.
+*   **📌 Simpler Modes**: Follow the glass or drag the header to float. **Sticky**, **Lock** and the new **Follow Selection** decide which node is shown. Hold is replaced by Lock.
+*   **✏️ Reliable Editing**: Canvas-matching number steps, commit on Enter, revert on Escape, multiline prompts, undo, and subgraph support.
 
 > 📄 **See [CHANGELOG.md](CHANGELOG.md) for the complete version history.**
 
@@ -61,9 +61,9 @@
 ### ℹ️ Inspector Panel
 ![Inspector Panel](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/MagnifyGlass_InspectorPanel_v1.webp)
 
-*   **Deep Analysis**: View node parameters (Seed, CFG, Steps), text content, and image details on hover.
-*   **Dockable Interface**: Pin the panel to keep it stable, or let it follow the glass.
-*   **Themed**: Automatically matches any ComfyUI theme (Dark, Light, Solarized, Arc, Nord, GitHub).
+*   **Live Widgets**: Every widget of the hovered node, editable while Sticky, Locked or following the selection, with copy on every row.
+*   **Navigation**: Go to any node by title, type or `#id`, step through execution order, and go Back/Forward through your jumps.
+*   **Follows Your Palette**: Matches any ComfyUI palette. Follow the glass or drag the header to float and resize it.
 
 </td>
 </tr>
@@ -134,10 +134,11 @@ git clone https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass.git
 | **`I`** | Toggle Inspector Panel Visibility |
 | **`G`** | Toggle Glass Preview (with the Inspector panel on, keeps the panel and hides the glass) |
 | **`Shift+P`** | Open Pop-Out Viewer in New Tab |
-| **`U`** | Pin/Unpin Inspector Panel |
+| **`U`** | Inspector: Follow the Glass / Float |
+| **`S`** | Inspector: Toggle Sticky |
 | **`O`** | Reset Offsets |
-| **`*`** | **Focus Current Node** (Center canvas on inspected node) |
-| **`Left/Right`** | Navigate Previous/Next node in execution order |
+| **`*`** | **Centre on Node** (centres the canvas and locks the Inspector to it) |
+| **`Left/Right`** | Previous/Next node in execution order (while the Inspector is hovered or focused) |
 | **`D`** | Force Direct Capture (Optional after v1.11.0 improvements) |
 | **Arrows** | Nudge Glass Position (When not navigating nodes) |
 
@@ -177,19 +178,22 @@ Access settings via the **new Sidebar Panel** or the ComfyUI Settings (⚙️) m
 | Setting | Default | Description |
 | :--- | :--- | :--- |
 | **Inspector panel** | `On` | Off leaves only the glass: the panel, its hotkeys (`I`, `U`, `S`, `*`) and its highlight are removed. |
-| **Persist Info** | `Off` | Keep last node info visible when not hovering a node. |
+| **Sticky** | `Off` | Keep the last node shown when not hovering a node. |
+| **Follow Selection** | `Off` | Show the selected node instead of the hovered one. |
 | **Node Highlight** | `On` | Show high-contrast border around inspected node. |
 | **Position** | `Bottom` | Position relative to the glass (Top/Bottom/Left/Right). |
 | **Width** | `300px` | Width of the inspector panel. |
-| **Max Height** | `300px` | Maximum vertical size before scrolling. |
+| **Max Height** | `600px` | Maximum height before the panel scrolls. |
 | **Font Size** | `14px` | Size of the text in the inspector. |
 | **Opacity** | `100%` | Background transparency of the panel. |
-| **Font Family** | `System` | Custom font selection for the panel. |
-| **Text Color** | `#6B7280` | Custom text color for node data. |
-| **Accent Color** | `#3B82F6` | Color for headers and highlights. |
+| **Font Family** | `System` | Font for the panel; only fonts installed locally are used. |
+| **Text Color** | `#6B7280` | Overrides the palette's text color when changed from the default. |
+| **Accent Color** | `#3B82F6` | Overrides the palette's accent color when changed from the default. |
 | **Hover Controls** | `On` | Show floating quick-action buttons. |
 | **Controls Position** | `Left` | Anchor point for the floating controls. |
 
+> Drag the panel's header to float it, and its corner to set Width and Max Height. **Lock** in the header keeps one node shown while you hover others.
+>
 > **Move Glass Position** (drag-glass mode) is one of the panel's floating controls, so it is unavailable while the Inspector panel is off. Use Follow Cursor (`H`) or the arrow keys instead.
 
 </details>

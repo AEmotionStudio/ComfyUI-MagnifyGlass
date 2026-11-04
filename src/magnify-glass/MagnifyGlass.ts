@@ -6,7 +6,7 @@
 
 import type { ComfyApp } from '../types/comfyui';
 import { findLiteGraphCanvas } from '../shared/utils';
-import { DEFAULT_PADDING, DEFAULT_GLASS_Y_OFFSET, INFO_PANEL_ID } from '../shared/constants';
+import { DEFAULT_PADDING, DEFAULT_GLASS_Y_OFFSET } from '../shared/constants';
 import { registerGlassSettings, registerAccessibilitySettings } from '../shared/settings';
 import { ConfigManager } from './ConfigManager';
 import { MagnifierState } from './MagnifierState';
@@ -42,12 +42,6 @@ export class MagnifyGlass {
     /** Last known mouse position for better initial positioning */
     lastKnownMousePosition: { x: number; y: number };
 
-    /** Whether we're currently over media (for info panel) */
-    isOverMedia: boolean;
-
-    /** Current media element under cursor */
-    currentMediaElement: HTMLImageElement | HTMLVideoElement | null;
-
     /** Render loop ID; the loop runs while the glass is active and visible */
     private animationLoopId: number | null;
 
@@ -74,10 +68,6 @@ export class MagnifyGlass {
 
         // Last known mouse position for better initial positioning
         this.lastKnownMousePosition = { x: 0, y: 0 };
-
-        // Media tracking
-        this.isOverMedia = false;
-        this.currentMediaElement = null;
 
         this.animationLoopId = null;
     }
@@ -159,21 +149,12 @@ export class MagnifyGlass {
 
     /**
      * Force hide all components including extensions (Info Panel, etc).
-     * This overcomes the "pinned" state of the info panel when the main tool is deactivated.
+     * This hides the info panel even while it floats, when the main tool is deactivated.
      */
     private forceHideAllComponents(): void {
         this.state.active = false;
         this.stopAnimationLoop();
         this.ui.hide();
-
-        // 1. Nuclear option: Direct DOM ID targeting
-        // This is necessary because in some cases object references might be stale or logic might prevent hiding
-        const panelEl = document.getElementById(INFO_PANEL_ID);
-        if (panelEl) {
-            panelEl.style.display = 'none';
-            // Also force opacity 0 just in case transition handles display
-            panelEl.style.opacity = '0';
-        }
 
         // Iterate through all registered extensions and hide them if they have a hide method
         const extensions = window.comfyUIMagnifyGlassExtensions;
@@ -182,10 +163,6 @@ export class MagnifyGlass {
                 // Check basically any likely property for a UI manager or direct hide method
                 if (extension && extension.uiManager && typeof extension.uiManager.hide === 'function') {
                     extension.uiManager.hide();
-                    // Explicitly force display none if available to be extra sure
-                    if (extension.uiManager.elements && extension.uiManager.elements.panel) {
-                        extension.uiManager.elements.panel.style.display = 'none';
-                    }
                 }
             });
         }
@@ -354,26 +331,8 @@ export class MagnifyGlass {
             }
         }
 
-        // Reset inspector panel position if exists
-        const extensions = window.comfyUIMagnifyGlassExtensions;
-        if (extensions && extensions.length > 0) {
-            extensions.forEach((extension: any) => {
-                if (extension?.stateManager) {
-                    extension.stateManager.state.isPanelPinned = false;
-                    extension.stateManager.state.isPanelLocked = false;
-                    extension.stateManager.state.isAutoPinned = false;
-                    extension.stateManager.state.pinnedPosition = { x: 0, y: 0 };
-                    extension.stateManager.state.lastPinnedPosition = null;
-
-                    if (extension.positionManager) {
-                        extension.positionManager.positionPanel();
-                    }
-                    if (extension.uiManager?.updateControlStates) {
-                        extension.uiManager.updateControlStates();
-                    }
-                }
-            });
-        }
+        // The inspector follows the glass again
+        window.comfyUIMagnifyGlassExtensions?.forEach(extension => extension.resetPosition());
 
         this.debugger.log("Reset: Magnify glass and inspector panel positions restored to defaults");
     }

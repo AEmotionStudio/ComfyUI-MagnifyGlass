@@ -7,7 +7,7 @@
 
 // @ts-ignore
 import { app } from "/scripts/app.js";
-import { PANEL_POSITIONS } from '../constants';
+import { PANEL_POSITIONS, PANEL_FONTS } from '../constants';
 import { DEFAULT_PANEL_SETTINGS } from './defaults';
 
 /**
@@ -42,7 +42,7 @@ export function registerPanelSettings(setEnabled: (enabled: boolean) => void): v
         name: "🔍 [4] Info Panel: Sticky Mode (Persist)",
         type: "boolean",
         defaultValue: settings["🔍MagnifyGlass.InfoPanelPersist"],
-        tooltip: "Keep displaying the last node's info until you hover over another node.",
+        tooltip: "Keep showing the last node while the cursor is over empty canvas. Its widgets can then be edited.",
         onChange: (value: any) => {
             const panel = window.infoPanelManager;
             if (!panel) return;
@@ -52,11 +52,25 @@ export function registerPanelSettings(setEnabled: (enabled: boolean) => void): v
     });
 
     app.ui.settings.addSetting({
+        id: "🔍MagnifyGlass.InfoPanelFollowSelection",
+        name: "🔍 [4] Info Panel: Follow Selection",
+        type: "boolean",
+        defaultValue: settings["🔍MagnifyGlass.InfoPanelFollowSelection"],
+        tooltip: "Show the selected node instead of the hovered one while a node is selected. Its widgets can then be edited.",
+        onChange: (value: any) => {
+            const panel = window.infoPanelManager;
+            if (!panel) return;
+            panel.stateManager.state.settings["🔍MagnifyGlass.InfoPanelFollowSelection"] = !!value;
+            panel.uiManager.updateControlStates();
+        }
+    });
+
+    app.ui.settings.addSetting({
         id: "🔍MagnifyGlass.NodeHighlightEnabled",
         name: "🔍 [4] Info Panel: Node Highlight Border",
         type: "boolean",
         defaultValue: settings["🔍MagnifyGlass.NodeHighlightEnabled"] ?? true,
-        tooltip: "Show a blue highlight border around the currently inspected node.",
+        tooltip: "Show a highlight border in the accent colour around the currently inspected node.",
         onChange: (value: any) => {
             const panel = window.infoPanelManager;
             if (!panel) return;
@@ -65,20 +79,6 @@ export function registerPanelSettings(setEnabled: (enabled: boolean) => void): v
             if (app && app.canvas) {
                 app.canvas.setDirty(true, true);
             }
-        }
-    });
-
-    app.ui.settings.addSetting({
-        id: "🔍MagnifyGlass.ShowInspectorTab",
-        name: "🔍 [4] Info Panel: Show Inspector Tab",
-        type: "combo",
-        options: [{ value: true, text: "Yes" }, { value: false, text: "No" }],
-        defaultValue: settings["🔍MagnifyGlass.ShowInspectorTab"],
-        tooltip: "Show or hide the Inspector tab with cursor and canvas information.",
-        onChange: (value: any) => {
-            const panel = window.infoPanelManager;
-            if (!panel) return;
-            panel.stateManager.state.settings["🔍MagnifyGlass.ShowInspectorTab"] = !!value;
         }
     });
 
@@ -179,30 +179,9 @@ export function registerPanelSettings(setEnabled: (enabled: boolean) => void): v
         id: "🔍MagnifyGlass.InfoPanelFontFamily",
         name: "🔍 [6] Panel Style: Font Family",
         type: "combo",
-        options: [
-            { value: "System Default", text: "System Default" },
-            { value: "Inter", text: "Inter" },
-            { value: "Roboto", text: "Roboto" },
-            { value: "JetBrains Mono", text: "JetBrains Mono" },
-            { value: "Fira Code", text: "Fira Code" },
-            { value: "IBM Plex Sans", text: "IBM Plex Sans" },
-            { value: "Space Grotesk", text: "Space Grotesk" },
-            { value: "Lexend", text: "Lexend" },
-            { value: "Outfit", text: "Outfit" },
-            { value: "Cinzel", text: "Cinzel (Epic)" },
-            { value: "Playfair Display", text: "Playfair Display (Elegant)" },
-            { value: "Orbitron", text: "Orbitron (Sci-Fi)" },
-            { value: "Dancing Script", text: "Dancing Script (Cursive)" },
-            { value: "Amatic SC", text: "Amatic SC (Handwritten)" },
-            { value: "Comfortaa", text: "Comfortaa (Rounded)" },
-            { value: "Righteous", text: "Righteous (Modern)" },
-            { value: "Bangers", text: "Bangers (Comic)" },
-            { value: "Press Start 2P", text: "Press Start 2P (Pixel)" },
-            { value: "Audiowide", text: "Audiowide (Techno)" },
-            { value: "monospace", text: "Monospace" },
-        ],
+        options: PANEL_FONTS.map(f => ({ value: f, text: f === "monospace" ? "Monospace" : f })),
         defaultValue: settings["🔍MagnifyGlass.InfoPanelFontFamily"],
-        tooltip: "Font family for the info panel text.",
+        tooltip: "Font family for the info panel text. A font that is not installed on this computer falls back to the default.",
         onChange: (value: any) => {
             const panel = window.infoPanelManager;
             if (!panel) return;

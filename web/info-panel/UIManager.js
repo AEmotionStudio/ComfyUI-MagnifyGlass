@@ -2,11 +2,12 @@ var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 import { Icons } from "../shared/icons.js";
-import { Logger } from "../shared/logger.js";
 import { INFO_PANEL_ID } from "../shared/constants.js";
-import { escapeHtml } from "../shared/utils.js";
-import { formatValue, getValueClass, getValueAttributes, formatWidgetValue } from "./ValueFormatter.js";
-import { getCheckpointInfo, getImageInfo, getTextBoxContent, getImportantNodeParameters } from "./NodeDataExtractor.js";
+import { DEFAULT_PANEL_SETTINGS } from "../shared/settings/defaults.js";
+import "/scripts/app.js";
+import { isUserTyping, setSettingValue, escapeHtml } from "../shared/utils.js";
+import { isLongText, formatWidgetValue } from "./ValueFormatter.js";
+import { getImportantNodeParameters } from "./NodeDataExtractor.js";
 import { NodeSelector } from "./NodeSelector.js";
 import { WidgetSyncManager } from "./widget-editors/WidgetSyncManager.js";
 import { WidgetEditorFactory } from "./widget-editors/WidgetEditorFactory.js";
@@ -19,13 +20,20 @@ class UIManager {
     __publicField(this, "nodeSelector");
     __publicField(this, "currentDropdown", null);
     __publicField(this, "currentDropdownCleanup", null);
-    __publicField(this, "onNodeSelected", null);
+    // Updates the panel at once, for changes made without moving the mouse over the canvas
+    __publicField(this, "onRefresh", null);
+    // Nodes visited by jumps, for Back and Forward. Ids only mean something in the graph they came from
+    __publicField(this, "history", { graph: null, ids: [], index: -1 });
     // Track active widget editors for cleanup
     __publicField(this, "activeEditors", /* @__PURE__ */ new Map());
     // Track active inline controls for cleanup
     __publicField(this, "activeInlineControls", /* @__PURE__ */ new Map());
     // Track active drag controllers for cleanup
     __publicField(this, "activeDragControllers", /* @__PURE__ */ new Map());
+    // What the content was last rendered from; emptied when hide() tears the controls down
+    __publicField(this, "renderKey", []);
+    // Long values the user expanded, by node id and label, so a re-render keeps them open
+    __publicField(this, "expandedValues", /* @__PURE__ */ new Set());
     // Hotkey handler for Focus Node
     __publicField(this, "hotkeyHandler", null);
     this.stateManager = stateManager;
@@ -46,119 +54,183 @@ class UIManager {
   createPanel() {
     this.elements.panel = document.createElement("div");
     this.elements.panel.id = INFO_PANEL_ID;
-    this.elements.panel.className = `magnify-info-panel theme-${this.stateManager.state.currentTheme}`;
+    this.elements.panel.className = "magnify-info-panel";
+    this.elements.panel.style.display = "none";
+    this.elements.panel.setAttribute("role", "region");
+    this.elements.panel.setAttribute("aria-label", "Node inspector");
     this.elements.header = document.createElement("div");
     this.elements.header.className = "panel-header";
     this.elements.header.innerHTML = `
-            <div class="header-content">
-                <div class="header-icon">${Icons.magnifyGlass}</div>
-                <div class="header-title">Inspector</div>
-                <div class="header-subtitle">Real-time analysis</div>
+            <div class="header-identity">
+                <span class="header-title"></span>
+                <span class="header-id"></span>
+                <span class="header-badge"></span>
             </div>
-            <div class="header-controls">
-                <button class="control-btn minimize-btn" title="Minimize Panel" aria-label="Minimize Panel" aria-expanded="true" data-action="minimize">${Icons.minus}</button>
-            </div>
+            <button class="copy-btn" title="Copy title and id" aria-label="Copy title and id" data-action="copy">${Icons.copy}</button>
+            <button class="control-btn lock-node-btn" aria-pressed="false" data-action="lock-node">${Icons.lock}</button>
+            <button class="control-btn minimize-btn" title="Minimize Panel" aria-label="Minimize Panel" aria-expanded="true" data-action="minimize">${Icons.minus}</button>
         `;
+    const nav = document.createElement("div");
+    nav.className = "panel-nav";
+    nav.setAttribute("role", "toolbar");
+    nav.setAttribute("aria-label", "Node navigation");
+    nav.innerHTML = `
+            <button class="control-btn" title="Back" aria-label="Back" data-action="back">${Icons.arrowLeft}</button>
+            <button class="control-btn" title="Forward" aria-label="Forward" data-action="forward">${Icons.arrowRight}</button>
+            <button class="control-btn" title="Previous in execution order (←)" aria-label="Previous in execution order" data-action="prev-node">${Icons.chevronLeft}</button>
+            <button class="control-btn" title="Next in execution order (→)" aria-label="Next in execution order" data-action="next-node">${Icons.chevronRight}</button>
+            <button class="control-btn" title="Centre on node (*)" aria-label="Centre on node" data-action="focus-node">${Icons.focus}</button>
+            <button class="goto-btn" aria-haspopup="listbox" aria-expanded="false" data-action="go-to-node">${Icons.magnifyGlass}<span>Go to node…</span></button>
+        `;
+    const breadcrumb = document.createElement("div");
+    breadcrumb.className = "panel-breadcrumb";
+    breadcrumb.hidden = true;
     this.elements.content = document.createElement("div");
     this.elements.content.className = "panel-content";
-    this.elements.panel.appendChild(this.elements.header);
-    this.elements.panel.appendChild(this.elements.content);
+    const resize = document.createElement("div");
+    resize.className = "panel-resize";
+    resize.title = "Resize";
+    this.elements.panel.append(this.elements.header, nav, breadcrumb, this.elements.content, resize);
+    this.renderHeader(null);
     this.applyStyles();
-    if (this.stateManager.state.isPanelMinimized) {
-      this.elements.panel.classList.add("panel-minimized");
-      this.updateMinimizedState();
-    }
+    this.updateMinimizedState();
     document.body.appendChild(this.elements.panel);
-    let originalTop = null;
-    let originalFontSize = null;
-    const MARGIN = 20;
-    this.elements.panel.addEventListener("mouseenter", () => {
-      if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"]) {
-        return;
-      }
-      if (!this.stateManager.state.isPanelMinimized && this.elements.panel) {
-        originalTop = this.elements.panel.offsetTop;
-        originalFontSize = parseFloat(getComputedStyle(this.elements.panel).fontSize);
-        this.elements.panel.classList.add("is-expanded");
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            if (!this.elements.panel) return;
-            const viewportHeight = window.innerHeight;
-            const rect = this.elements.panel.getBoundingClientRect();
-            if (rect.bottom > viewportHeight - MARGIN) {
-              const newTop = Math.max(MARGIN, originalTop - (rect.bottom - viewportHeight + MARGIN));
-              this.elements.panel.style.top = `${newTop}px`;
-            }
-          });
-        });
+    this.elements.panel.addEventListener("click", (e) => {
+      const target = e.target;
+      const button = target.closest("button[data-action]");
+      if (button && !button.disabled) {
+        this.handlePanelAction(button);
       }
     });
     this.elements.panel.addEventListener("mouseleave", () => {
-      if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"]) {
-        return;
-      }
-      if (this.elements.panel) {
-        this.elements.panel.classList.remove("is-expanded");
-        if (originalTop !== null) {
-          this.elements.panel.style.top = `${originalTop}px`;
-          originalTop = null;
-        }
-        if (originalFontSize !== null) {
-          this.elements.panel.style.fontSize = `${originalFontSize}px`;
-          originalFontSize = null;
-        }
-        this.elements.panel.style.transform = "";
-        this.elements.panel.style.transformOrigin = "";
-      }
+      const focused = document.activeElement;
+      if (focused && this.elements.panel.contains(focused) && !isUserTyping()) focused.blur();
     });
-    this.elements.panel.addEventListener("click", (e) => {
-      const target = e.target;
-      const minimizeBtn = target.closest('[data-action="minimize"]');
-      if (minimizeBtn) {
-        this.stateManager.state.isPanelMinimized = !this.stateManager.state.isPanelMinimized;
-        this.updateMinimizedState();
-        return;
-      }
-      const sectionHeader = target.closest(".section-header");
-      if (sectionHeader) {
-        const sectionId = sectionHeader.getAttribute("data-section");
-        if (sectionId && sectionId !== "node") {
-          const isExpanded = this.stateManager.state.expandedSections.has(sectionId);
-          if (isExpanded) {
-            this.stateManager.state.expandedSections.delete(sectionId);
-          } else {
-            this.stateManager.state.expandedSections.add(sectionId);
-          }
-          sectionHeader.classList.toggle("expanded", !isExpanded);
-          const sectionContent = sectionHeader.nextElementSibling;
-          if (sectionContent && sectionContent.classList.contains("section-content")) {
-            sectionContent.classList.toggle("expanded", !isExpanded);
-          }
-        }
-      }
+    this.elements.header.addEventListener("dblclick", (e) => {
+      if (e.target.closest("button")) return;
+      this.toggleMinimized();
     });
     if (!this.elements.controls) {
       this.createFloatingControls();
       this.updateControlStates();
     }
   }
+  handlePanelAction(button) {
+    var _a;
+    const state = this.stateManager.state;
+    switch (button.dataset.action) {
+      case "minimize":
+        this.toggleMinimized();
+        break;
+      case "lock-node":
+        this.lockTo(state.lockedNodeId === null ? state.currentNodeId : null);
+        (_a = this.onRefresh) == null ? void 0 : _a.call(this);
+        break;
+      case "back":
+        this.goThroughHistory(-1);
+        break;
+      case "forward":
+        this.goThroughHistory(1);
+        break;
+      case "prev-node":
+        this.navigateExecOrder(-1);
+        break;
+      case "next-node":
+        this.navigateExecOrder(1);
+        break;
+      case "focus-node":
+        this.focusCurrentNode();
+        break;
+      case "go-to-node":
+        if (this.currentDropdown) {
+          this.hideDropdown();
+        } else {
+          this.showNodePicker(button);
+        }
+        break;
+      case "copy":
+        this.copyValue(button);
+        break;
+      case "expand-value": {
+        const row = button.closest(".info-row");
+        const key = row.dataset.expandKey;
+        const expanded = !this.expandedValues.has(key);
+        if (expanded) {
+          this.expandedValues.add(key);
+        } else {
+          this.expandedValues.delete(key);
+        }
+        row.classList.toggle("is-expanded", expanded);
+        button.textContent = expanded ? "Show less" : "Show more";
+        button.setAttribute("aria-expanded", String(expanded));
+        break;
+      }
+      case "enter-subgraph": {
+        const node = state.currentNodeId === null ? null : this.nodeSelector.getNodeById(state.currentNodeId);
+        if (node == null ? void 0 : node.subgraph) {
+          this.lockTo(null);
+          app.canvas.openSubgraph(node.subgraph, node);
+        }
+        break;
+      }
+    }
+  }
+  toggleMinimized() {
+    this.stateManager.toggleMinimized();
+    this.stateManager.saveLayout();
+    this.updateMinimizedState();
+  }
   /**
-   * Create floating control buttons.
+   * Lock the panel to a node of the graph on screen, or release it with null.
+   */
+  lockTo(nodeId) {
+    var _a;
+    this.stateManager.state.lockedNodeId = nodeId;
+    this.stateManager.state.lockedGraph = (_a = app.canvas) == null ? void 0 : _a.graph;
+  }
+  /**
+   * Switch between following the glass and floating. A hidden glass cannot be followed.
+   */
+  toggleFloating() {
+    var _a;
+    const state = this.stateManager.state;
+    if (state.isFloating && !state.isGlassPreviewVisible) return;
+    state.isFloating = !state.isFloating;
+    this.stateManager.saveLayout();
+    this.updateControlStates();
+    (_a = this.onRefresh) == null ? void 0 : _a.call(this);
+  }
+  /**
+   * Sticky from the toolbar, the eye button and the S key. The settings dialog and the sidebar
+   * save the setting themselves, and its onChange updates the toolbar.
+   */
+  setPersist(persist) {
+    var _a;
+    this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"] = persist;
+    setSettingValue("🔍MagnifyGlass.InfoPanelPersist", persist);
+    this.updateControlStates();
+    (_a = this.onRefresh) == null ? void 0 : _a.call(this);
+  }
+  /**
+   * Create the toolbar: panel, glass and pop-out groups with a fixed set of buttons.
    */
   createFloatingControls() {
     this.elements.controls = document.createElement("div");
-    this.elements.controls.className = `floating-controls vertical-layout theme-${this.stateManager.state.currentTheme}`;
+    this.elements.controls.className = "floating-controls vertical-layout";
+    this.elements.controls.setAttribute("role", "toolbar");
+    this.elements.controls.setAttribute("aria-label", "Inspector and glass");
     this.elements.controls.innerHTML = `
-            <button class="control-btn unlock-btn" title="Unlock/Lock Panel from Glass" aria-label="Unlock or Lock Panel from Glass" aria-pressed="false" data-action="pin">${Icons.unlock}</button>
-            <button class="control-btn pin-btn" title="Pin/Unpin Panel Position (Prevent Drag)" aria-label="Pin or Unpin Panel Position" aria-pressed="false" data-action="lock">${Icons.pin}</button>
-            <button class="control-btn persist-btn" title="Toggle Persist Mode - Sticky Info (S)" aria-label="Toggle Sticky Info" aria-pressed="false" data-action="persist">${Icons.magnet}</button>
-            <button class="control-btn hold-btn" title="Hold Info - Pause/Play (P)" aria-label="Hold Info" aria-pressed="false" data-action="toggle-hold">${Icons.pause}</button>
-            <button class="control-btn visibility-btn" title="Toggle Panel Visibility (I)" aria-label="Toggle Panel Visibility" aria-pressed="true" data-action="toggle-panel">${Icons.eye}</button>
-            <button class="control-btn glass-btn" title="Toggle Glass Preview (G)" aria-label="Toggle Glass Preview" aria-pressed="true" data-action="toggle-glass">${Icons.magnifyGlass}</button>
-            <button class="control-btn cursor-btn" title="Toggle Cursor Preview" aria-label="Toggle Cursor Preview" aria-pressed="false" data-action="toggle-cursor">${Icons.cursor}</button>
-            <button class="control-btn drag-glass-btn" title="Move Glass Position (H)" aria-label="Move Glass Position" aria-pressed="false" data-action="drag-glass">${Icons.move}</button>
-            <button class="control-btn reset-glass-btn" title="Reset Glass Position (O)" aria-label="Reset Glass Position" data-action="reset-glass">${Icons.reset}</button>
-            <button class="control-btn popout-btn" title="Open in New Tab (Shift+P)" aria-label="Open in New Tab" aria-pressed="false" data-action="popout">${Icons.externalLink}</button>
+            <button class="control-btn" aria-pressed="false" data-action="float">${Icons.pin}</button>
+            <button class="control-btn" aria-pressed="false" data-action="persist">${Icons.magnet}</button>
+            <button class="control-btn" aria-pressed="false" data-action="follow-selection">${Icons.selection}</button>
+            <button class="control-btn" aria-pressed="true" data-action="toggle-panel">${Icons.eye}</button>
+            <span class="controls-divider" role="separator"></span>
+            <button class="control-btn" aria-pressed="true" data-action="toggle-glass">${Icons.magnifyGlass}</button>
+            <button class="control-btn" aria-pressed="false" data-action="toggle-cursor">${Icons.cursor}</button>
+            <button class="control-btn" aria-pressed="false" data-action="drag-glass">${Icons.move}</button>
+            <button class="control-btn" title="Reset Glass Position (O)" aria-label="Reset Glass Position (O)" data-action="reset-glass">${Icons.reset}</button>
+            <span class="controls-divider" role="separator"></span>
+            <button class="control-btn" aria-pressed="false" data-action="popout">${Icons.externalLink}</button>
         `;
     document.body.appendChild(this.elements.controls);
     this.elements.controls.style.display = "none";
@@ -166,251 +238,134 @@ class UIManager {
     this.elements.controls.style.left = "-9999px";
     this.elements.controls.style.top = "-9999px";
     this.elements.controls.addEventListener("click", (e) => {
-      var _a;
-      const target = e.target;
-      const button = target.closest("button[data-action]");
-      if (!button) return;
-      const action = button.getAttribute("data-action");
-      Logger.debug(`Control button clicked: ${action}`);
-      switch (action) {
-        case "pin":
-          this.stateManager.togglePinning();
-          this.updatePinnedState();
-          this.updateControlStates();
-          break;
-        case "lock":
-          this.stateManager.state.isPanelLocked = !this.stateManager.state.isPanelLocked;
-          this.updateControlStates();
-          if (this.elements.panel) {
-            this.elements.panel.classList.toggle("panel-locked", this.stateManager.state.isPanelLocked);
-          }
-          break;
-        case "persist":
-          this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"] = !this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"];
-          this.updateControlStates();
-          this.applyStyles();
-          break;
-        case "toggle-panel":
-          if (this.stateManager.state.isPanelVisible) {
-            this.hide();
-            if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"]) {
-              this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"] = false;
-              this.applyStyles();
-            }
-          } else {
-            this.show();
-          }
-          this.updateControlStates();
-          break;
-        case "toggle-glass":
-          this.stateManager.state.isGlassPreviewVisible = !this.stateManager.state.isGlassPreviewVisible;
-          if (!this.stateManager.state.isGlassPreviewVisible) {
-            console.log(`[MagnifyGlass Debug] Glass Hidden. pinned=${this.stateManager.state.isPanelPinned}, autoPinned=${this.stateManager.state.isAutoPinned}`);
-            if (!this.stateManager.state.isPanelPinned) {
-              if (this.elements.panel) {
-                const rect = this.elements.panel.getBoundingClientRect();
-                this.stateManager.state.pinnedPosition = { x: rect.left, y: rect.top };
-              }
-              this.stateManager.state.isPanelPinned = true;
-              this.stateManager.state.isAutoPinned = true;
-              console.log(`[MagnifyGlass Debug] Auto-Pinned panel.`);
-            }
-          } else {
-            console.log(`[MagnifyGlass Debug] Glass Shown. pinned=${this.stateManager.state.isPanelPinned}, autoPinned=${this.stateManager.state.isAutoPinned}`);
-            if (this.stateManager.state.isAutoPinned) {
-              this.stateManager.state.isPanelPinned = false;
-              this.stateManager.state.isAutoPinned = false;
-              console.log(`[MagnifyGlass Debug] Auto-Unpinned panel.`);
-            }
-          }
-          this.updateControlStates();
-          this.updatePinnedState();
-          const magnifyGlass = window.comfyUIMagnifyGlass;
-          if (magnifyGlass && magnifyGlass.setGlassPreviewActive) {
-            magnifyGlass.setGlassPreviewActive(this.stateManager.state.isGlassPreviewVisible);
-          } else if (magnifyGlass && ((_a = magnifyGlass.ui) == null ? void 0 : _a.setPreviewVisibility)) {
-            magnifyGlass.ui.setPreviewVisibility(this.stateManager.state.isGlassPreviewVisible);
-          }
-          break;
-        case "popout":
-          const glass = window.comfyUIMagnifyGlass;
-          if (glass && glass.popOutManager) {
-            glass.popOutManager.toggle();
-          }
-          break;
-        case "drag-glass":
-          const mglass = window.comfyUIMagnifyGlass;
-          if (mglass && mglass.state) {
-            mglass.state.isDragModeEnabled = !mglass.state.isDragModeEnabled;
-            this.updateControlStates();
-            if (mglass.ui && mglass.ui.setDragMode) {
-              mglass.ui.setDragMode(mglass.state.isDragModeEnabled);
-            }
-          }
-          break;
-        case "reset-glass":
-          const rglass = window.comfyUIMagnifyGlass;
-          if (rglass) {
-            rglass.resetOffsets();
-            Logger.debug("Reset glass position via hover controls");
-            if (rglass.state && rglass.state.isDragModeEnabled) {
-              rglass.state.isDragModeEnabled = false;
-              if (rglass.ui && rglass.ui.setDragMode) {
-                rglass.ui.setDragMode(false);
-              }
-              this.updateControlStates();
-            }
-          }
-          break;
-        case "toggle-cursor":
-          const cglass = window.comfyUIMagnifyGlass;
-          if (cglass && cglass.config) {
-            cglass.config.showCursorPreview = !cglass.config.showCursorPreview;
-            cglass.updateMagnifiedView();
-            this.updateControlStates();
-          }
-          break;
-        case "toggle-hold":
-          this.stateManager.toggleHold();
-          this.updateControlStates();
-          break;
-      }
+      const button = e.target.closest("button[data-action]");
+      if (button) this.handleControlAction(button.dataset.action);
     });
-    const controlsPosition = String(this.stateManager.state.settings["🔍MagnifyGlass.ControlsPosition"] || "top-right");
-    this.updateControlsLayout(controlsPosition);
+    this.updateControlsLayout(String(this.stateManager.state.settings["🔍MagnifyGlass.ControlsPosition"]));
     this.updateControlStates();
   }
+  handleControlAction(action) {
+    var _a, _b, _c, _d, _e, _f, _g;
+    const state = this.stateManager.state;
+    const settings = state.settings;
+    const glass = window.comfyUIMagnifyGlass;
+    switch (action) {
+      case "float":
+        this.toggleFloating();
+        break;
+      case "persist":
+        this.setPersist(!settings["🔍MagnifyGlass.InfoPanelPersist"]);
+        break;
+      case "follow-selection": {
+        const follow = !settings["🔍MagnifyGlass.InfoPanelFollowSelection"];
+        settings["🔍MagnifyGlass.InfoPanelFollowSelection"] = follow;
+        setSettingValue("🔍MagnifyGlass.InfoPanelFollowSelection", follow);
+        this.updateControlStates();
+        (_a = this.onRefresh) == null ? void 0 : _a.call(this);
+        break;
+      }
+      case "toggle-panel":
+        if (state.isPanelVisible) {
+          this.hide();
+          this.setPersist(false);
+        } else {
+          this.show();
+        }
+        break;
+      case "toggle-glass":
+        state.isGlassPreviewVisible = !state.isGlassPreviewVisible;
+        if (!state.isGlassPreviewVisible && !state.isFloating) {
+          if (state.isPanelVisible) {
+            const rect = this.elements.panel.getBoundingClientRect();
+            state.floatPosition = { x: rect.left, y: rect.top };
+          }
+          state.isFloating = true;
+          this.stateManager.saveLayout();
+        }
+        this.updateControlStates();
+        glass == null ? void 0 : glass.setGlassPreviewActive(state.isGlassPreviewVisible);
+        break;
+      case "toggle-cursor":
+        if (glass == null ? void 0 : glass.config) {
+          glass.config.showCursorPreview = !glass.config.showCursorPreview;
+          setSettingValue("🔍MagnifyGlass.ShowCursorPreview", glass.config.showCursorPreview);
+          glass.updateMagnifiedView();
+          this.updateControlStates();
+        }
+        break;
+      case "drag-glass":
+        if (glass == null ? void 0 : glass.state) {
+          glass.state.isDragModeEnabled = !glass.state.isDragModeEnabled;
+          (_c = (_b = glass.ui) == null ? void 0 : _b.setDragMode) == null ? void 0 : _c.call(_b, glass.state.isDragModeEnabled);
+          this.updateControlStates();
+        }
+        break;
+      case "reset-glass":
+        if (glass) {
+          glass.resetOffsets();
+          if ((_d = glass.state) == null ? void 0 : _d.isDragModeEnabled) {
+            glass.state.isDragModeEnabled = false;
+            (_f = (_e = glass.ui) == null ? void 0 : _e.setDragMode) == null ? void 0 : _f.call(_e, false);
+            this.updateControlStates();
+          }
+        }
+        break;
+      case "popout":
+        (_g = glass == null ? void 0 : glass.popOutManager) == null ? void 0 : _g.toggle();
+        break;
+    }
+  }
   /**
-   * Update control button states.
+   * Update the toolbar's pressed states, titles and the buttons that cannot act right now.
    */
   updateControlStates() {
     var _a, _b, _c;
-    if (!this.elements.controls) return;
-    const pinBtn = this.elements.controls.querySelector('[data-action="pin"]');
-    const lockBtn = this.elements.controls.querySelector('[data-action="lock"]');
-    const visibilityBtn = this.elements.controls.querySelector('[data-action="toggle-panel"]');
-    const glassBtn = this.elements.controls.querySelector('[data-action="toggle-glass"]');
-    const isPanelVisible = this.stateManager.state.isPanelVisible;
-    const isGlassVisible = this.stateManager.state.isGlassPreviewVisible;
-    if (pinBtn) {
-      pinBtn.classList.toggle("active", this.stateManager.state.isPanelPinned);
-      pinBtn.setAttribute("aria-pressed", String(this.stateManager.state.isPanelPinned));
-      pinBtn.title = this.stateManager.state.isPanelPinned ? "Lock Panel" : "Unlock Panel";
-      pinBtn.innerHTML = this.stateManager.state.isPanelPinned ? Icons.lock : Icons.unlock;
-      pinBtn.style.display = isPanelVisible ? "flex" : "none";
-      if (!isGlassVisible) {
-        pinBtn.disabled = true;
-        pinBtn.style.opacity = "0.5";
-        pinBtn.title = "Cannot toggle lock when glass preview is hidden";
-      } else {
-        pinBtn.disabled = false;
-        pinBtn.style.opacity = "";
-        pinBtn.title = this.stateManager.state.isPanelPinned ? "Lock Panel Position (Follow Glass)" : "Unlock Panel Position (Drag Inspector)";
-      }
-    }
-    if (lockBtn) {
-      const showLockBtn = isPanelVisible && this.stateManager.state.isPanelPinned;
-      lockBtn.style.display = showLockBtn ? "flex" : "none";
-      lockBtn.classList.toggle("active", this.stateManager.state.isPanelLocked);
-      lockBtn.setAttribute("aria-pressed", String(this.stateManager.state.isPanelLocked));
-      lockBtn.title = this.stateManager.state.isPanelLocked ? "Unpin Panel Position" : "Pin Panel Position";
-      lockBtn.disabled = !this.stateManager.state.isPanelPinned;
-    }
-    const persistBtn = this.elements.controls.querySelector('[data-action="persist"]');
-    if (persistBtn) {
-      const isPersistConfigured = !!this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"];
-      persistBtn.classList.toggle("active", isPersistConfigured);
-      persistBtn.setAttribute("aria-pressed", String(isPersistConfigured));
-      persistBtn.title = isPersistConfigured ? "Disable Sticky Info (S)" : "Enable Sticky Info (S)";
-      persistBtn.style.display = isPanelVisible ? "flex" : "none";
-    }
-    const holdBtn = this.elements.controls.querySelector('[data-action="toggle-hold"]');
-    if (holdBtn) {
-      const isPersistConfigured = !!this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"];
-      const isHeld = this.stateManager.state.isInfoHeld;
-      holdBtn.style.display = isPanelVisible && isPersistConfigured ? "flex" : "none";
-      holdBtn.classList.toggle("active", isHeld);
-      holdBtn.setAttribute("aria-pressed", String(isHeld));
-      holdBtn.innerHTML = isHeld ? Icons.play : Icons.pause;
-      holdBtn.title = isHeld ? "Resume Info Update (P)" : "Pause Info Update (P)";
-    }
-    if (visibilityBtn) {
-      visibilityBtn.classList.toggle("active", isPanelVisible);
-      visibilityBtn.setAttribute("aria-pressed", String(isPanelVisible));
-      visibilityBtn.title = isPanelVisible ? "Hide Panel" : "Show Panel";
-      if (!isGlassVisible) {
-        visibilityBtn.disabled = true;
-        visibilityBtn.style.opacity = "0.5";
-        visibilityBtn.title = "Cannot hide panel when glass preview is hidden";
-      } else {
-        visibilityBtn.disabled = false;
-        visibilityBtn.style.opacity = "";
-      }
-    }
-    if (glassBtn) {
-      glassBtn.classList.toggle("active", isGlassVisible);
-      glassBtn.setAttribute("aria-pressed", String(isGlassVisible));
-      glassBtn.title = isGlassVisible ? "Hide Glass Preview" : "Show Glass Preview";
-      glassBtn.style.display = isPanelVisible ? "flex" : "none";
-    }
-    const cursorBtn = this.elements.controls.querySelector('[data-action="toggle-cursor"]');
-    if (cursorBtn) {
-      const cglass = window.comfyUIMagnifyGlass;
-      const showCursor = ((_a = cglass == null ? void 0 : cglass.config) == null ? void 0 : _a.showCursorPreview) || false;
-      cursorBtn.classList.toggle("active", showCursor);
-      cursorBtn.setAttribute("aria-pressed", String(showCursor));
-      cursorBtn.title = showCursor ? "Hide Cursor Preview" : "Show Cursor Preview";
-      const isPersistConfigured = !!this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"];
-      cursorBtn.style.display = isGlassVisible && !this.stateManager.state.isPanelPinned && !isPersistConfigured ? "flex" : "none";
-    }
-    const dragGlassBtn = this.elements.controls.querySelector('[data-action="drag-glass"]');
-    if (dragGlassBtn) {
-      const mglass = window.comfyUIMagnifyGlass;
-      const isDragMode = ((_b = mglass == null ? void 0 : mglass.state) == null ? void 0 : _b.isDragModeEnabled) || false;
-      dragGlassBtn.classList.toggle("active", isDragMode);
-      dragGlassBtn.setAttribute("aria-pressed", String(isDragMode));
-      dragGlassBtn.title = isDragMode ? "Cancel Move Mode (H)" : "Move Glass Position (H)";
-      dragGlassBtn.style.display = isGlassVisible ? "flex" : "none";
-    }
-    const resetGlassBtn = this.elements.controls.querySelector('[data-action="reset-glass"]');
-    if (resetGlassBtn) {
-      resetGlassBtn.style.display = isGlassVisible ? "flex" : "none";
-    }
-    const popoutBtn = this.elements.controls.querySelector('[data-action="popout"]');
-    if (popoutBtn) {
-      const glass = window.comfyUIMagnifyGlass;
-      const isOpen = ((_c = glass == null ? void 0 : glass.popOutManager) == null ? void 0 : _c.isPopOutOpen()) || false;
-      popoutBtn.classList.toggle("active", isOpen);
-      popoutBtn.setAttribute("aria-pressed", String(isOpen));
-      popoutBtn.title = isOpen ? "Close Pop-out Viewer" : "Open Pop-out Viewer";
-    }
+    const controls = this.elements.controls;
+    if (!controls) return;
+    const state = this.stateManager.state;
+    const settings = state.settings;
+    const glass = window.comfyUIMagnifyGlass;
+    const glassVisible = state.isGlassPreviewVisible;
+    const set = (action, pressed, title, disabled = false) => {
+      const button = controls.querySelector(`[data-action="${action}"]`);
+      button.classList.toggle("active", pressed);
+      button.setAttribute("aria-pressed", String(pressed));
+      button.title = title;
+      button.setAttribute("aria-label", title);
+      button.disabled = disabled;
+    };
+    set(
+      "float",
+      state.isFloating,
+      !glassVisible ? "Floating: the glass preview is hidden" : state.isFloating ? "Floating: click to follow the glass (U)" : "Following the glass: click to float, or drag the header (U)",
+      !glassVisible
+    );
+    set("persist", !!settings["🔍MagnifyGlass.InfoPanelPersist"], "Sticky: keep the last node over empty canvas (S)");
+    set("follow-selection", !!settings["🔍MagnifyGlass.InfoPanelFollowSelection"], "Follow selection: show the selected node");
+    const keepPanel = !glassVisible && state.isPanelVisible;
+    set(
+      "toggle-panel",
+      state.isPanelVisible,
+      keepPanel ? "The panel stays visible while the glass preview is hidden" : state.isPanelVisible ? "Hide Panel (I)" : "Show Panel (I)",
+      keepPanel
+    );
+    set("toggle-glass", glassVisible, glassVisible ? "Hide Glass Preview (G)" : "Show Glass Preview (G)");
+    const showCursor = !!((_a = glass == null ? void 0 : glass.config) == null ? void 0 : _a.showCursorPreview);
+    set("toggle-cursor", showCursor, showCursor ? "Hide Cursor Preview" : "Show Cursor Preview", !glassVisible);
+    const isDragMode = !!((_b = glass == null ? void 0 : glass.state) == null ? void 0 : _b.isDragModeEnabled);
+    set("drag-glass", isDragMode, isDragMode ? "Cancel Move Mode (H)" : "Move Glass Position (H)", !glassVisible);
+    controls.querySelector('[data-action="reset-glass"]').disabled = !glassVisible;
+    const isOpen = !!((_c = glass == null ? void 0 : glass.popOutManager) == null ? void 0 : _c.isPopOutOpen());
+    set("popout", isOpen, isOpen ? "Close Pop-out Viewer (Shift+P)" : "Open Pop-out Viewer (Shift+P)");
   }
   /**
-   * Update controls layout based on position setting.
-   * @param position 
+   * A row above or below the panel, a column beside it.
    */
   updateControlsLayout(position) {
     if (!this.elements.controls) return;
-    this.elements.controls.classList.remove("horizontal-layout", "vertical-layout");
-    if (["top", "bottom"].includes(position)) {
-      this.elements.controls.classList.add("horizontal-layout");
-    } else {
-      this.elements.controls.classList.add("vertical-layout");
-    }
-  }
-  /**
-   * Load a Google Font dynamically.
-   * @param fontName - Name of the font to load
-   */
-  loadGoogleFont(fontName) {
-    const linkId = `google-font-${fontName.replace(/\s+/g, "-").toLowerCase()}`;
-    if (document.getElementById(linkId)) return;
-    const link = document.createElement("link");
-    link.id = linkId;
-    link.rel = "stylesheet";
-    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontName)}:wght@400;500;600;700&display=swap`;
-    document.head.appendChild(link);
-    Logger.debug(`[UIManager] Loaded Google Font: ${fontName}`);
+    const horizontal = position.startsWith("top") || position.startsWith("bottom");
+    this.elements.controls.classList.toggle("horizontal-layout", horizontal);
+    this.elements.controls.classList.toggle("vertical-layout", !horizontal);
   }
   /**
    * Apply current styles to elements.
@@ -418,55 +373,29 @@ class UIManager {
   applyStyles() {
     if (!this.elements.panel) return;
     const settings = this.stateManager.state.settings;
-    this.elements.panel.style.width = `${settings["🔍MagnifyGlass.InfoPanelWidth"]}px`;
-    const maxHeight = settings["🔍MagnifyGlass.InfoPanelMaxHeight"];
-    this.elements.panel.style.setProperty("--panel-max-height", `${maxHeight}px`);
-    this.elements.panel.style.height = "auto";
-    this.elements.panel.style.position = "absolute";
-    this.elements.panel.style.zIndex = "99999";
-    this.elements.panel.style.transform = "translateY(-10px)";
-    this.elements.panel.style.pointerEvents = "auto";
-    this.elements.panel.style.userSelect = "none";
-    const fontFamily = settings["🔍MagnifyGlass.InfoPanelFontFamily"] || "System Default";
-    if (fontFamily === "System Default" || fontFamily === "system-ui") {
-      this.elements.panel.style.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    const style = this.elements.panel.style;
+    style.width = `${settings["🔍MagnifyGlass.InfoPanelWidth"]}px`;
+    style.setProperty("--panel-max-height", `${settings["🔍MagnifyGlass.InfoPanelMaxHeight"]}px`);
+    style.setProperty("--panel-opacity", `${Number(settings["🔍MagnifyGlass.InfoPanelOpacity"]) || 100}%`);
+    const fontFamily = settings["🔍MagnifyGlass.InfoPanelFontFamily"];
+    if (fontFamily === "System Default") {
+      style.fontFamily = "inherit";
     } else if (fontFamily === "monospace") {
-      this.elements.panel.style.fontFamily = "'JetBrains Mono', 'Fira Code', 'SF Mono', Monaco, monospace";
+      style.fontFamily = "'JetBrains Mono', 'Fira Code', 'SF Mono', Monaco, monospace";
     } else {
-      this.loadGoogleFont(fontFamily);
-      this.elements.panel.style.fontFamily = `'${fontFamily}', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
+      style.fontFamily = `'${fontFamily}', Inter, Arial, sans-serif`;
     }
-    const fontSize = settings["🔍MagnifyGlass.InfoPanelFontSize"] || 14;
-    this.elements.panel.style.fontSize = `${fontSize}px`;
-    this.elements.panel.style.transition = "none";
-    const textColor = settings["🔍MagnifyGlass.InfoPanelTextColor"];
-    if (textColor && typeof textColor === "string") {
-      const normalizedTextColor = textColor.startsWith("#") ? textColor : `#${textColor}`;
-      this.elements.panel.style.setProperty("--info-panel-text-color", normalizedTextColor);
+    style.fontSize = `${settings["🔍MagnifyGlass.InfoPanelFontSize"] || 14}px`;
+    const root = document.documentElement.style;
+    for (const [property, key] of [["--mg-panel-fg", "🔍MagnifyGlass.InfoPanelTextColor"], ["--mg-panel-accent", "🔍MagnifyGlass.InfoPanelAccentColor"]]) {
+      const color = String(settings[key] || "");
+      if (color && color.toLowerCase() !== DEFAULT_PANEL_SETTINGS[key].toLowerCase()) {
+        root.setProperty(property, color);
+      } else {
+        root.removeProperty(property);
+      }
     }
-    const accentColor = settings["🔍MagnifyGlass.InfoPanelAccentColor"];
-    if (accentColor && typeof accentColor === "string") {
-      const normalizedAccentColor = accentColor.startsWith("#") ? accentColor : `#${accentColor}`;
-      this.elements.panel.style.setProperty("--info-panel-accent-color", normalizedAccentColor);
-    }
-    if (this.stateManager.state.isPanelVisible) {
-      const opacityPercent = Number(settings["🔍MagnifyGlass.InfoPanelOpacity"]) || 100;
-      this.elements.panel.style.opacity = (opacityPercent / 100).toString();
-    } else {
-      this.elements.panel.style.opacity = "0";
-    }
-    const isPersist = !!settings["🔍MagnifyGlass.InfoPanelPersist"];
-    if (isPersist) {
-      this.elements.panel.classList.add("persist-active");
-    } else {
-      this.elements.panel.classList.remove("persist-active");
-    }
-    const isHighContrastText = !!settings["🔍MagnifyGlass.HighContrastText"];
-    if (isHighContrastText) {
-      this.elements.panel.classList.add("high-contrast-text");
-    } else {
-      this.elements.panel.classList.remove("high-contrast-text");
-    }
+    this.elements.panel.classList.toggle("high-contrast-text", !!settings["🔍MagnifyGlass.HighContrastText"]);
   }
   /**
    * Show the panel.
@@ -474,14 +403,7 @@ class UIManager {
   show() {
     if (!this.elements.panel) return;
     this.elements.panel.style.pointerEvents = "auto";
-    this.elements.panel.style.display = "block";
-    if (this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"]) {
-      this.elements.panel.classList.add("persist-active");
-    }
-    const opacityPercent = Number(this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelOpacity"]) || 100;
-    this.elements.panel.style.opacity = (opacityPercent / 100).toString();
-    this.elements.panel.offsetHeight;
-    this.elements.panel.classList.add("visible");
+    this.elements.panel.style.display = "";
     this.stateManager.state.isPanelVisible = true;
     this.updateControlStates();
   }
@@ -491,11 +413,12 @@ class UIManager {
   hide() {
     if (!this.elements.panel) return;
     this.cleanupEditors();
-    this.elements.panel.classList.remove("visible");
-    this.elements.panel.classList.remove("persist-active");
+    this.renderKey = [];
+    this.hideDropdown();
     this.elements.panel.style.pointerEvents = "none";
     this.elements.panel.style.display = "none";
     this.stateManager.state.isPanelVisible = false;
+    this.stateManager.state.isPanelHovered = false;
     this.updateControlStates();
   }
   /**
@@ -506,32 +429,10 @@ class UIManager {
     this.elements.panel.classList.toggle("panel-minimized", this.stateManager.state.isPanelMinimized);
     const minimizeBtn = this.elements.header.querySelector(".minimize-btn");
     if (minimizeBtn) {
-      minimizeBtn.textContent = this.stateManager.state.isPanelMinimized ? "+" : "−";
+      minimizeBtn.innerHTML = this.stateManager.state.isPanelMinimized ? Icons.plus : Icons.minus;
       minimizeBtn.title = this.stateManager.state.isPanelMinimized ? "Expand Panel" : "Minimize Panel";
+      minimizeBtn.setAttribute("aria-label", minimizeBtn.title);
       minimizeBtn.setAttribute("aria-expanded", String(!this.stateManager.state.isPanelMinimized));
-    }
-  }
-  /**
-   * Update pinned state.
-   */
-  updatePinnedState() {
-    if (!this.elements.panel) return;
-    this.elements.panel.classList.toggle("panel-pinned", this.stateManager.state.isPanelPinned);
-    this.elements.panel.classList.toggle("panel-locked", this.stateManager.state.isPanelLocked);
-    this.updateControlStates();
-  }
-  /**
-   * Update theme class.
-   * @param newTheme 
-   */
-  updateTheme(newTheme) {
-    if (this.elements.panel) {
-      this.elements.panel.className = this.elements.panel.className.replace(/theme-[\w-]+/, `theme-${newTheme.toLowerCase()}`);
-      const opacityPercent = Number(this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelOpacity"]) || 100;
-      this.elements.panel.style.opacity = (opacityPercent / 100).toString();
-    }
-    if (this.elements.controls) {
-      this.elements.controls.className = this.elements.controls.className.replace(/theme-[\w-]+/, `theme-${newTheme.toLowerCase()}`);
     }
   }
   /**
@@ -539,121 +440,114 @@ class UIManager {
    * @param info
    */
   displayInfo(info) {
-    if (this.activeEditors.size > 0) {
-      this.updateHeaderSubtitle(info);
+    const renderKey = this.getRenderKey(info);
+    if (this.isEditing() || renderKey.length === this.renderKey.length && renderKey.every((v, i) => Object.is(v, this.renderKey[i]))) {
       return;
     }
-    const sections = this.buildSections(info);
-    this.renderSections(sections);
-    this.updateSectionStates();
-    this.updateHeaderSubtitle(info);
+    this.renderKey = renderKey;
+    this.renderHeader(info.hoveredNode);
+    this.renderContent(info.hoveredNode);
   }
   /**
-   * Build section data from info object.
-   * @param info 
-   * @returns 
+   * Show the node's identity, its subgraph path and group, and which navigation applies.
+   * The header is built once and only updated, so focus stays on its buttons.
    */
-  buildSections(info) {
-    const sections = [];
-    const settings = this.stateManager.state.settings;
-    if (settings["🔍MagnifyGlass.ShowInspectorTab"] && info.cursor && info.cursor.canvas) {
-      const inspectorContent = [
-        { label: "Cursor Canvas", value: `(${Math.round(info.cursor.canvas.x)}, ${Math.round(info.cursor.canvas.y)})` },
-        { label: "Canvas Scale", value: `${(info.canvas.scale * 100).toFixed(1)}%` },
-        { label: "Magnifier Zoom", value: `${info.magnifier.zoomFactor}×` }
-      ];
-      sections.push({
-        id: "inspector",
-        icon: Icons.info,
-        title: "Inspector",
-        content: inspectorContent
-      });
-    }
-    if (info.media) {
-      const mediaContent = [
-        { label: "Type", value: info.media.tagName },
-        { label: "Source", value: info.media.src }
-      ];
-      if (info.media.naturalSize) {
-        mediaContent.push({ label: "Natural", value: info.media.naturalSize });
-      }
-      sections.push({
-        id: "media",
-        icon: Icons.camera,
-        title: "Media",
-        badge: info.media.tagName,
-        content: mediaContent
-      });
-    }
-    if (info.hoveredNode) {
-      const nodeContent = [];
-      nodeContent.push({
-        label: "Title",
-        value: `${info.hoveredNode.title || "Untitled"} (#${info.hoveredNode.id})`,
-        clickable: "title"
-      });
-      if (info.hoveredNode.executionOrder !== void 0) {
-        nodeContent.push({ label: "Exec Order", value: info.hoveredNode.executionOrder, clickable: "execOrder" });
-      }
-      nodeContent.push({
-        label: "Location",
-        value: "Focus Node",
-        clickable: "zoom",
-        nodeId: info.hoveredNode.id,
-        specialType: "focus-node"
-      });
-      if (info.hoveredNode.category) {
-        nodeContent.push({ label: "Category", value: info.hoveredNode.category, copyable: true });
-      }
-      if (info.hoveredNode.pythonModule) {
-        const path = info.hoveredNode.pythonModule.replace(/\./g, "/") + ".py";
-        nodeContent.push({ label: "Path", value: path, copyable: true });
-      }
-      const nodeType = info.hoveredNode.type ? info.hoveredNode.type.toLowerCase() : "";
-      const isSaveNode = nodeType.includes("save") && !nodeType.includes("checkpoint") && !nodeType.includes("model") && !nodeType.includes("preview");
-      const showAllWidgets = info.hoveredNode.type && (nodeType.includes("ksampler") || nodeType.includes("sampler") || nodeType.includes("k_samplers") || nodeType.includes("checkpoint") || nodeType.includes("model") || nodeType.includes("lora") || nodeType.includes("controlnet") || nodeType.includes("advanced") || nodeType.includes("detailer") || nodeType.includes("inpaint") || nodeType.includes("upscale") || nodeType.includes("clip") || nodeType.includes("text") || nodeType.includes("encode")) && !isSaveNode;
-      if (!showAllWidgets) {
-        const checkpoint = getCheckpointInfo(info.hoveredNode);
-        if (checkpoint) {
-          nodeContent.push({ label: "Model", value: checkpoint });
-        }
-        const imgInfo = getImageInfo(info.hoveredNode);
-        if (imgInfo) {
-          if (typeof imgInfo === "string") {
-            nodeContent.push({ label: "Image", value: imgInfo });
-          } else if (typeof imgInfo === "object" && imgInfo !== null) {
-            const imgResult = imgInfo;
-            nodeContent.push({ label: "Image Size", value: `${imgResult.width}×${imgResult.height}` });
-            if (imgResult.src) {
-              nodeContent.push({ label: "Image Source", value: imgResult.src });
-            }
-          }
-        }
-        const textContent = getTextBoxContent(info.hoveredNode);
-        if (textContent) {
-          nodeContent.push({ label: "Text", value: textContent });
-        }
-      }
-      const importantParameters = getImportantNodeParameters(info.hoveredNode);
-      nodeContent.push(...importantParameters);
-      sections.push({
-        id: "node",
-        icon: Icons.box,
-        title: "Node",
-        badge: info.hoveredNode.type,
-        content: nodeContent
-      });
-    }
-    return sections;
+  renderHeader(node) {
+    var _a;
+    const panel = this.elements.panel;
+    const state = this.stateManager.state;
+    const find = (selector) => panel.querySelector(selector);
+    const title = find(".header-title");
+    title.textContent = node ? node.title : "Inspector";
+    title.title = node ? node.title : "";
+    title.classList.toggle("is-empty", !node);
+    const id = find(".header-id");
+    id.hidden = !node;
+    id.textContent = node ? `#${node.id}` : "";
+    const badge = find(".header-badge");
+    badge.textContent = node ? node.type : "";
+    badge.title = node ? node.type : "";
+    badge.hidden = !node || badge.textContent === node.title;
+    const copy = find('.panel-header [data-action="copy"]');
+    copy.hidden = !node;
+    copy.dataset.copyValue = node ? `${node.title} #${node.id}` : "";
+    const locked = state.lockedNodeId !== null;
+    const lock = find('[data-action="lock-node"]');
+    lock.disabled = !node && !locked;
+    lock.classList.toggle("active", locked);
+    lock.setAttribute("aria-pressed", String(locked));
+    lock.title = locked ? "Unlock: show the hovered node" : "Lock to this node";
+    lock.setAttribute("aria-label", lock.title);
+    find('[data-action="focus-node"]').disabled = !node;
+    const history = this.history;
+    const inHistory = history.ids.length > 0 && history.graph === ((_a = app.canvas) == null ? void 0 : _a.graph);
+    const atEntry = history.ids[history.index] === state.currentNodeId;
+    find('[data-action="back"]').disabled = !inHistory || history.index < (atEntry ? 1 : 0);
+    find('[data-action="forward"]').disabled = !inHistory || !atEntry || history.index >= history.ids.length - 1;
+    const breadcrumb = find(".panel-breadcrumb");
+    const path = (node == null ? void 0 : node.graphPath.length) ? ["Root", ...node.graphPath] : [];
+    breadcrumb.innerHTML = [
+      path.map((name, i) => `<span class="crumb" title="${escapeHtml(name)}"${i === path.length - 1 ? ' aria-current="location"' : ""}>${escapeHtml(name)}</span>`).join('<span class="crumb-sep" aria-hidden="true">›</span>'),
+      (node == null ? void 0 : node.group) ? `<span class="crumb-group" title="Group">${escapeHtml(node.group)}</span>` : "",
+      (node == null ? void 0 : node.isSubgraph) ? '<button class="crumb-action" data-action="enter-subgraph">Enter subgraph</button>' : ""
+    ].join("");
+    breadcrumb.hidden = !breadcrumb.innerHTML;
   }
   /**
-   * Render sections to the panel.
-   * @param sections 
+   * Everything the rendered content depends on, compared value by value.
    */
-  renderSections(sections) {
+  getRenderKey(info) {
+    var _a;
+    const state = this.stateManager.state;
+    const key = [
+      (_a = app.canvas) == null ? void 0 : _a.graph,
+      state.settings["🔍MagnifyGlass.InfoPanelPersist"],
+      state.showsSelection,
+      state.lockedNodeId,
+      state.isPanelMinimized
+    ];
+    const node = info.hoveredNode;
+    if (node) {
+      key.push(node.id, node.title, node.mode, node.executionOrder, node.group, node.graphPath.join("\n"));
+      for (const widget of node.widgets) key.push(widget.value, widget.computedDisabled);
+      for (const input of node.inputs) key.push(input.link);
+    }
+    return key;
+  }
+  /**
+   * Widgets are editable when the shown node cannot change under the cursor on its way to the panel.
+   */
+  canEdit() {
+    const state = this.stateManager.state;
+    return !!state.settings["🔍MagnifyGlass.InfoPanelPersist"] || state.lockedNodeId !== null || state.showsSelection;
+  }
+  isEditing() {
+    return this.activeEditors.size > 0 || [...this.activeDragControllers.values()].some((controller) => controller.isDragging) || [...this.activeInlineControls.values()].some((control) => control.isOpen());
+  }
+  /**
+   * The node's rows: exec order, category and source path, then its widgets.
+   */
+  buildRows(node) {
+    const rows = [];
+    if (node.executionOrder !== void 0) {
+      rows.push({ label: "Exec Order", value: node.executionOrder });
+    }
+    if (node.category) {
+      rows.push({ label: "Category", value: node.category });
+    }
+    if (node.pythonModule) {
+      rows.push({ label: "Path", value: node.pythonModule.replace(/\./g, "/") + ".py" });
+    }
+    rows.push(...getImportantNodeParameters(node));
+    return rows;
+  }
+  /**
+   * Render the node's rows, or the empty state when no node is shown.
+   */
+  renderContent(node) {
     if (!this.elements.content) return;
     this.cleanupEditors();
-    if (sections.length === 0) {
+    if (!node) {
       this.elements.content.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-state-icon">${Icons.mapPin}</div>
@@ -662,30 +556,22 @@ class UIManager {
             `;
       return;
     }
-    const isStickyEnabled = !!this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"];
-    this.elements.content.innerHTML = sections.map((section) => `
-            <div class="info-section" data-section="${escapeHtml(section.id)}">
-                <div class="section-header" data-section="${escapeHtml(section.id)}">
-                    <span class="section-icon">${section.icon}</span>
-                    <span class="section-title">${escapeHtml(section.title)}</span>
-                    ${section.badge ? `<span class="section-badge">${escapeHtml(section.badge)}</span>` : ""}
-                    ${section.id !== "node" ? `<span class="expand-icon">${Icons.chevronRight}</span>` : ""}
-                </div>
-                <div class="section-content">
-                    <div class="section-body">
-                        ${section.content.map((item) => {
-      let value;
-      if (item.specialType === "focus-node") {
-        value = `<span class="focus-node-btn">${Icons.focus} ${escapeHtml(item.value)}</span>`;
-      } else {
-        value = formatValue(item.value, item.label);
+    const canEdit = this.canEdit();
+    const rows = this.buildRows(node);
+    const copyTexts = [];
+    this.elements.content.innerHTML = `
+            <div class="info-rows">
+                ${rows.map((item) => {
+      const text = String(item.value ?? "");
+      const isLong = isLongText(text);
+      const expandKey = `${node.id}:${item.label}`;
+      const isExpanded = isLong && this.expandedValues.has(expandKey);
+      let value = escapeHtml(text);
+      if (item.isLinked) {
+        value += '<span class="linked-tag" title="Set by a link">linked</span>';
       }
-      const valueClass = getValueClass(item.value);
-      const valueAttributes = getValueAttributes(item.value);
-      const clickableAttr = item.clickable ? `data-clickable="${item.clickable}"` : "";
       const nodeIdAttr = item.nodeId !== void 0 ? `data-node-id="${item.nodeId}"` : "";
-      const clickableClass = item.clickable ? "clickable-row" : "";
-      const isEditable = item.isEditable && isStickyEnabled && item.widgetName && item.nodeId !== void 0;
+      const isEditable = item.isEditable && canEdit && item.widgetName && item.nodeId !== void 0;
       const editableClass = isEditable ? "editable" : "";
       const constraintsJson = isEditable && item.constraints ? escapeHtml(JSON.stringify(item.constraints)) : "";
       const rawValueStr = isEditable ? typeof item.rawValue === "boolean" ? item.rawValue ? "true" : "false" : escapeHtml(String(item.rawValue ?? "")) : "";
@@ -693,23 +579,25 @@ class UIManager {
       const isActionable = item.isActionable && item.widgetName && item.nodeId !== void 0;
       const actionableClass = isActionable ? "actionable" : "";
       const actionableAttrs = isActionable ? `data-actionable="true" data-widget-name="${escapeHtml(item.widgetName)}" data-widget-type="button"` : "";
-      const dropdownIcon = item.clickable && item.clickable !== "zoom" ? '<span class="dropdown-indicator" style="margin-left: 4px; opacity: 0.6; font-size: 10px;">▼</span>' : "";
-      const copyButton = item.copyable ? `<button class="copy-btn" data-copy-value="${escapeHtml(String(item.value))}" title="Copy to clipboard">${Icons.copy}</button>` : "";
+      if (!isActionable) copyTexts.push(text);
+      const copyButton = isActionable ? "" : `<button class="copy-btn" data-action="copy" title="Copy value" aria-label="Copy ${escapeHtml(item.label)}">${Icons.copy}</button>`;
+      const expandButton = isLong ? `<button class="value-expand" data-action="expand-value" aria-expanded="${isExpanded}">${isExpanded ? "Show less" : "Show more"}</button>` : "";
       return `
-                            <div class="info-row ${clickableClass} ${editableClass} ${actionableClass}${item.copyable ? " copyable-row" : ""}" ${clickableAttr} ${nodeIdAttr} ${editableAttrs} ${actionableAttrs} style="${item.clickable ? "cursor: pointer;" : ""}">
+                            <div class="info-row ${editableClass} ${actionableClass}${isExpanded ? " is-expanded" : ""}" ${nodeIdAttr} ${editableAttrs} ${actionableAttrs}${isLong ? ` data-expand-key="${escapeHtml(expandKey)}"` : ""}>
+                                <span class="info-label">${escapeHtml(item.label).replace(/_/g, "_<wbr>")}</span>
+                                <span class="info-value${isLong ? " is-clamped" : ""} original">${value}</span>
                                 ${copyButton}
-                                <span class="info-label">${escapeHtml(item.label)}</span>
-                                <span class="info-value ${valueClass} original" ${valueAttributes}>${value}${dropdownIcon}</span>
+                                ${expandButton}
                                 <div class="inline-control-container" style="display: none;"></div>
                                 <div class="widget-editor-container" style="display: none;"></div>
                             </div>`;
     }).join("")}
-                    </div>
-                </div>
-            </div>`).join("");
-    this.attachDropdownClickHandlers();
-    this.attachCopyButtonHandlers();
-    if (isStickyEnabled) {
+                ${!canEdit && rows.some((item) => item.isEditable) ? '<button class="edit-hint" data-action="lock-node" title="Lock the panel to this node to edit its widgets">Lock to edit</button>' : ""}
+            </div>`;
+    this.elements.content.querySelectorAll(".copy-btn").forEach((button, i) => {
+      button.dataset.copyValue = copyTexts[i];
+    });
+    if (canEdit) {
       this.attachEditableRowHandlers();
     }
     this.attachActionableRowHandlers();
@@ -819,7 +707,16 @@ class UIManager {
           valueEl.style.display = "none";
         }
       } else if (editorContainer) {
+        valueEl.tabIndex = 0;
+        valueEl.setAttribute("role", "button");
+        valueEl.setAttribute("aria-label", `Edit ${rowEl.querySelector(".info-label").textContent}`);
         valueEl.addEventListener("click", (e) => {
+          e.stopPropagation();
+          this.enterEditMode(rowEl, valueEl, editorContainer);
+        });
+        valueEl.addEventListener("keydown", (e) => {
+          if (e.key !== "Enter" && e.key !== " ") return;
+          e.preventDefault();
           e.stopPropagation();
           this.enterEditMode(rowEl, valueEl, editorContainer);
         });
@@ -828,12 +725,10 @@ class UIManager {
         const dragController = new DragValueController(rowEl, {
           nodeId,
           widgetName,
-          widgetType,
-          currentValue: rawValue,
           constraints,
           onChange: (value) => {
             rowEl.dataset.rawValue = String(value);
-            valueEl.textContent = formatWidgetValue(value);
+            valueEl.textContent = formatWidgetValue(value, constraints.precision);
           }
         });
         this.activeDragControllers.set(controlKey, dragController);
@@ -898,7 +793,7 @@ class UIManager {
     const editor = this.activeEditors.get(editorKey);
     if (editor) {
       const actualValue = WidgetSyncManager.getWidgetValue(parseInt(nodeId, 10), widgetName);
-      valueEl.textContent = formatWidgetValue(actualValue ?? editor.getValue());
+      valueEl.textContent = formatWidgetValue(actualValue ?? editor.getValue(), JSON.parse(row.dataset.constraints || "{}").precision);
       editor.destroy();
       this.activeEditors.delete(editorKey);
     }
@@ -908,112 +803,33 @@ class UIManager {
     container.innerHTML = "";
   }
   /**
-   * Attach click handlers to copy buttons for copying values to clipboard.
+   * Copy a button's value. navigator.clipboard is missing on plain http, such as ComfyUI opened
+   * from another machine on the LAN, so fall back to a selected textarea there.
    */
-  attachCopyButtonHandlers() {
-    if (!this.elements.content) return;
-    const copyButtons = this.elements.content.querySelectorAll(".copy-btn");
-    copyButtons.forEach((btn) => {
-      btn.addEventListener("click", async (e) => {
-        e.stopPropagation();
-        e.preventDefault();
-        const button = btn;
-        const valueToCopy = button.dataset.copyValue || "";
-        try {
-          await navigator.clipboard.writeText(valueToCopy);
-          const originalHtml = button.innerHTML;
-          button.innerHTML = "✓";
-          button.classList.add("copied");
-          setTimeout(() => {
-            button.innerHTML = originalHtml;
-            button.classList.remove("copied");
-          }, 1500);
-        } catch (err) {
-          Logger.error("[UIManager] Failed to copy to clipboard:", err);
-        }
-      });
-    });
-  }
-  /**
-   * Attach click handlers to clickable dropdown rows.
-   */
-  attachDropdownClickHandlers() {
-    if (!this.elements.content) return;
-    const clickableRows = this.elements.content.querySelectorAll("[data-clickable]");
-    clickableRows.forEach((row) => {
-      const clickableType = row.dataset.clickable;
-      row.addEventListener("click", (e) => {
-        e.stopPropagation();
-        if (clickableType === "title") {
-          this.showTitleDropdown(row);
-        } else if (clickableType === "execOrder") {
-          this.showExecOrderDropdown(row);
-        } else if (clickableType === "id") {
-          this.showIdDropdown(row);
-        } else if (clickableType === "zoom") {
-          const nodeId = row.dataset.nodeId;
-          if (nodeId) {
-            const app = window.app;
-            const node = app.graph.getNodeById(parseInt(nodeId));
-            if (node && app.canvas) {
-              app.canvas.centerOnNode(node);
-            }
-          }
-        }
-      });
-      row.addEventListener("mouseenter", () => {
-        row.style.background = "var(--comfy-input-bg, rgba(255,255,255,0.05))";
-      });
-      row.addEventListener("mouseleave", () => {
-        row.style.background = "";
-      });
-    });
-  }
-  /**
-   * Update section expansion states.
-   */
-  updateSectionStates() {
-    if (!this.elements.content) return;
-    const sections = this.elements.content.querySelectorAll(".info-section");
-    sections.forEach((section) => {
-      const sectionId = section.dataset.section;
-      if (!sectionId) return;
-      const header = section.querySelector(".section-header");
-      const content = section.querySelector(".section-content");
-      if (header && content) {
-        if (this.stateManager.state.expandedSections.has(sectionId)) {
-          header.classList.add("expanded");
-          content.classList.add("expanded");
-        } else {
-          header.classList.remove("expanded");
-          content.classList.remove("expanded");
-        }
-      }
-    });
-  }
-  /**
-   * Update header subtitle.
-   * @param info 
-   */
-  updateHeaderSubtitle(info) {
-    if (!this.elements.header) return;
-    const subtitleElement = this.elements.header.querySelector(".header-subtitle");
-    if (subtitleElement) {
-      const accentColor = String(this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelAccentColor"] || "");
-      if (info.hoveredNode) {
-        subtitleElement.textContent = `Analyzing: ${info.hoveredNode.title} `;
-        subtitleElement.style.color = accentColor;
-      } else if (info.media) {
-        subtitleElement.textContent = `Media: ${info.media.tagName} `;
-        subtitleElement.style.color = accentColor;
-      } else if (info.connection) {
-        subtitleElement.textContent = `Connection: ${info.connection.type} `;
-        subtitleElement.style.color = accentColor;
-      } else {
-        subtitleElement.textContent = "Real-time analysis";
-        subtitleElement.style.color = "";
+  async copyValue(button) {
+    const text = button.dataset.copyValue ?? "";
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      const textarea = document.createElement("textarea");
+      textarea.value = text;
+      textarea.className = "copy-fallback";
+      document.body.appendChild(textarea);
+      textarea.select();
+      const copied = document.execCommand("copy");
+      textarea.remove();
+      button.focus();
+      if (!copied) {
+        app.extensionManager.toast.add({ severity: "error", summary: "Copy failed", detail: "The browser blocked access to the clipboard.", life: 3e3 });
+        return;
       }
     }
+    button.innerHTML = Icons.check;
+    button.classList.add("copied");
+    setTimeout(() => {
+      button.innerHTML = Icons.copy;
+      button.classList.remove("copied");
+    }, 1500);
   }
   /**
    * Inject CSS styles by loading external stylesheet.
@@ -1029,370 +845,240 @@ class UIManager {
     }
   }
   /**
-   * Show dropdown with nodes sorted by title.
-   * @param anchorElement - Element to anchor the dropdown to
+   * Open the Go to node picker under its button. Typing filters by title, type or #id,
+   * the arrows and Enter pick, and Escape or a pick returns focus to the button.
    */
-  showTitleDropdown(anchorElement) {
+  showNodePicker(anchor) {
     this.hideDropdown();
-    const nodes = this.nodeSelector.getNodesSortedByTitle();
-    if (nodes.length === 0) return;
-    this.createDropdown(nodes, anchorElement, "title");
-  }
-  /**
-   * Show dropdown with nodes sorted by execution order.
-   * @param anchorElement - Element to anchor the dropdown to
-   */
-  showExecOrderDropdown(anchorElement) {
-    this.hideDropdown();
-    const nodes = this.nodeSelector.getNodesSortedByExecOrder();
-    if (nodes.length === 0) return;
-    this.createDropdown(nodes, anchorElement, "execOrder");
-  }
-  /**
-   * Show dropdown with nodes sorted by ID.
-   * @param anchorElement - Element to anchor the dropdown to
-   */
-  showIdDropdown(anchorElement) {
-    this.hideDropdown();
-    const nodes = this.nodeSelector.getNodesSortedById();
-    if (nodes.length === 0) return;
-    this.createDropdown(nodes, anchorElement, "id");
-  }
-  /**
-   * Create and show the dropdown.
-   */
-  createDropdown(nodes, anchorElement, type) {
-    const dropdown = document.createElement("div");
-    dropdown.className = `node-selector-dropdown theme-${this.stateManager.state.currentTheme}`;
-    dropdown.setAttribute("role", "listbox");
-    dropdown.setAttribute("tabindex", "-1");
-    dropdown.setAttribute("aria-label", type === "title" ? "Select Node by Title" : type === "execOrder" ? "Select Node by Execution Order" : "Select Node by ID");
-    dropdown.style.cssText = `
-            position: fixed;
-            z-index: 100000;
-            overflow-y: auto;
-            background: var(--comfy-menu-bg, #2a2a2a);
-            border: 1px solid var(--border-color, #444);
-            border-radius: 6px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-            min-width: 200px;
-            outline: none;
-        `;
-    let activeIndex = 0;
-    nodes.forEach((node, index) => {
-      const item = document.createElement("div");
-      item.className = "dropdown-item";
-      item.setAttribute("role", "option");
-      item.setAttribute("aria-selected", index === activeIndex ? "true" : "false");
-      if (index === activeIndex) {
-        item.classList.add("focused");
-      }
-      item.style.cssText = `
-                padding: 8px 12px;
-                cursor: pointer;
-                border-bottom: 1px solid var(--border-color, #333);
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                font-size: 13px;
-                background: ${index === activeIndex ? "var(--comfy-input-bg, #3a3a3a)" : ""};
-            `;
-      const isExecOrder = "order" in node;
-      if (isExecOrder) {
-        const execNode = node;
-        item.innerHTML = `
-                    <span style="color: var(--info-panel-accent-color, #4ecdc4); font-weight: 600; min-width: 24px;">#${execNode.order}</span>
-                    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(execNode.title)} (#${execNode.id})</span>
-                    <span style="color: #888; font-size: 11px;">${escapeHtml(execNode.type)}</span>
-                `;
+    const picker = document.createElement("div");
+    picker.className = "node-selector-dropdown";
+    picker.style.fontSize = this.elements.panel.style.fontSize;
+    picker.innerHTML = `
+            <input type="text" class="node-picker-filter" placeholder="Title, type or #id" role="combobox" aria-label="Go to node"
+                aria-autocomplete="list" aria-expanded="true" aria-controls="magnify-node-picker-list">
+            <div class="node-picker-list" id="magnify-node-picker-list" role="listbox" aria-label="Nodes"></div>
+            <div class="node-picker-empty" hidden>No matching nodes</div>`;
+    const filter = picker.querySelector("input");
+    const list = picker.querySelector(".node-picker-list");
+    const empty = picker.querySelector(".node-picker-empty");
+    let entries = [];
+    let active = -1;
+    const setActive = (index, scroll = true) => {
+      var _a;
+      (_a = list.children[active]) == null ? void 0 : _a.classList.remove("active");
+      active = entries.length ? Math.max(0, Math.min(index, entries.length - 1)) : -1;
+      const item = list.children[active];
+      if (item) {
+        item.classList.add("active");
+        if (scroll) item.scrollIntoView({ block: "nearest" });
+        filter.setAttribute("aria-activedescendant", item.id);
       } else {
-        item.innerHTML = `
-                    <span style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(node.title)} (#${node.id})</span>
-                    <span style="color: #888; font-size: 11px;">${escapeHtml(node.type)}</span>
-                `;
-      }
-      item.addEventListener("mouseenter", () => {
-        if (activeIndex !== index) {
-          const items = dropdown.querySelectorAll(".dropdown-item");
-          if (items[activeIndex]) {
-            const prev = items[activeIndex];
-            prev.style.background = "";
-            prev.classList.remove("focused");
-            prev.setAttribute("aria-selected", "false");
-          }
-          activeIndex = index;
-          item.classList.add("focused");
-          item.setAttribute("aria-selected", "true");
-        }
-        item.style.background = "var(--comfy-input-bg, #3a3a3a)";
-      });
-      item.addEventListener("mouseleave", () => {
-        if (index !== activeIndex) {
-          item.style.background = "";
-        }
-      });
-      item.addEventListener("click", (e) => {
-        e.stopPropagation();
-        this.hideDropdown();
-        this.stateManager.setSelectedNode(node.id);
-        if (this.onNodeSelected) {
-          this.onNodeSelected(node.id);
-        }
-      });
-      dropdown.appendChild(item);
-    });
-    document.body.appendChild(dropdown);
-    this.positionDropdownWithinViewport(dropdown, anchorElement);
-    this.currentDropdown = dropdown;
-    const cleanup = () => {
-      document.removeEventListener("mousedown", closeHandler, true);
-      window.removeEventListener("keydown", keyHandler, true);
-      if (this.elements.panel) {
-        this.elements.panel.removeEventListener("mousedown", panelCloseHandler, true);
-      }
-      const canvas = document.querySelector("canvas.main-canvas, canvas");
-      if (canvas) {
-        canvas.removeEventListener("pointerdown", canvasCloseHandler, true);
-      }
-      if (this.currentDropdownCleanup === cleanup) {
-        this.currentDropdownCleanup = null;
+        filter.removeAttribute("aria-activedescendant");
       }
     };
-    this.currentDropdownCleanup = cleanup;
-    const closeHandler = (e) => {
-      if (!dropdown.contains(e.target) && !anchorElement.contains(e.target)) {
-        this.hideDropdown();
-      }
+    const render = () => {
+      const current = this.stateManager.state.currentNodeId;
+      entries = this.nodeSelector.search(filter.value);
+      list.innerHTML = entries.map((node, i) => `
+                <div class="dropdown-item" id="magnify-node-picker-${i}" role="option" aria-selected="${node.id === current}" data-index="${i}">
+                    <span class="dropdown-item-order">${node.order >= 0 ? node.order : ""}</span>
+                    <span class="dropdown-item-title">${escapeHtml(node.title)}</span>
+                    <span class="dropdown-item-type">${escapeHtml(node.type)}</span>
+                    <span class="dropdown-item-id">#${node.id}</span>
+                </div>`).join("");
+      empty.hidden = entries.length > 0;
+      active = -1;
+      setActive(filter.value ? 0 : entries.findIndex((node) => node.id === current));
     };
-    const panelCloseHandler = (e) => {
-      if (!dropdown.contains(e.target) && !anchorElement.contains(e.target)) {
-        this.hideDropdown();
-      }
-    };
-    const canvasCloseHandler = (_e) => {
+    const close = (refocus = true) => {
       this.hideDropdown();
+      if (refocus) anchor.focus();
     };
-    const updateActiveItem = (newIndex) => {
-      const items = dropdown.querySelectorAll(".dropdown-item");
-      if (items.length === 0) return;
-      if (newIndex < 0) newIndex = 0;
-      if (newIndex >= items.length) newIndex = items.length - 1;
-      if (activeIndex >= 0 && activeIndex < items.length) {
-        const oldItem = items[activeIndex];
-        oldItem.classList.remove("focused");
-        oldItem.setAttribute("aria-selected", "false");
-        oldItem.style.background = "";
-      }
-      activeIndex = newIndex;
-      const newItem = items[activeIndex];
-      newItem.classList.add("focused");
-      newItem.setAttribute("aria-selected", "true");
-      newItem.style.background = "var(--comfy-input-bg, #3a3a3a)";
-      newItem.scrollIntoView({ block: "nearest" });
+    const pick = (index, refocus = true) => {
+      const entry = entries[index];
+      if (!entry) return;
+      close(refocus);
+      this.jumpToNode(entry.id);
     };
-    const keyHandler = (e) => {
-      console.debug("[DropdownKeyHandler] Key pressed:", e.key, "activeIndex:", activeIndex);
-      if (e.key === "Escape") {
-        if (document.activeElement !== dropdown && !dropdown.contains(document.activeElement)) {
-          return;
-        }
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        this.hideDropdown();
-        return;
-      }
+    filter.addEventListener("input", render);
+    filter.addEventListener("keydown", (e) => {
       if (e.key === "ArrowDown") {
-        console.debug("[DropdownKeyHandler] ArrowDown - moving to", activeIndex + 1);
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        updateActiveItem(activeIndex + 1);
+        setActive(active + 1);
       } else if (e.key === "ArrowUp") {
-        console.debug("[DropdownKeyHandler] ArrowUp - moving to", activeIndex - 1);
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        updateActiveItem(activeIndex - 1);
+        setActive(active - 1);
       } else if (e.key === "Enter") {
-        console.debug("[DropdownKeyHandler] Enter - selecting", activeIndex);
-        e.preventDefault();
-        e.stopPropagation();
-        e.stopImmediatePropagation();
-        const items = dropdown.querySelectorAll(".dropdown-item");
-        if (activeIndex >= 0 && activeIndex < items.length) {
-          items[activeIndex].click();
-        }
-      }
-    };
-    setTimeout(() => {
-      if (this.currentDropdownCleanup !== cleanup || !dropdown.parentNode) {
+        pick(active);
+      } else if (e.key === "Escape") {
+        close();
+      } else {
         return;
       }
-      document.addEventListener("mousedown", closeHandler, true);
-      window.addEventListener("keydown", keyHandler, true);
-      dropdown.focus();
-      if (this.elements.panel) {
-        this.elements.panel.addEventListener("mousedown", panelCloseHandler, true);
-      }
-      const canvas = document.querySelector("canvas.main-canvas, canvas");
-      if (canvas) {
-        canvas.addEventListener("pointerdown", canvasCloseHandler, true);
-      }
-    }, 10);
+      e.preventDefault();
+      e.stopPropagation();
+    });
+    list.addEventListener("mousedown", (e) => e.preventDefault());
+    list.addEventListener("mouseover", (e) => {
+      const item = e.target.closest(".dropdown-item");
+      if (item) setActive(Number(item.dataset.index), false);
+    });
+    list.addEventListener("click", (e) => {
+      const item = e.target.closest(".dropdown-item");
+      if (item) pick(Number(item.dataset.index), false);
+    });
+    picker.addEventListener("focusout", (e) => {
+      if (e.relatedTarget && !picker.contains(e.relatedTarget)) this.hideDropdown();
+    });
+    const onPointerDown = (e) => {
+      if (!picker.contains(e.target) && !anchor.contains(e.target)) this.hideDropdown();
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    this.currentDropdownCleanup = () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      anchor.setAttribute("aria-expanded", "false");
+    };
+    document.body.appendChild(picker);
+    this.currentDropdown = picker;
+    anchor.setAttribute("aria-expanded", "true");
+    this.positionPicker(picker, anchor);
+    render();
+    filter.focus();
   }
   /**
-   * Hide the current dropdown.
+   * Hide the Go to node picker.
    */
   hideDropdown() {
-    if (this.currentDropdownCleanup) {
-      this.currentDropdownCleanup();
-      this.currentDropdownCleanup = null;
-    }
-    if (this.currentDropdown && this.currentDropdown.parentNode) {
-      this.currentDropdown.parentNode.removeChild(this.currentDropdown);
-      this.currentDropdown = null;
-    }
+    var _a;
+    const cleanup = this.currentDropdownCleanup;
+    this.currentDropdownCleanup = null;
+    cleanup == null ? void 0 : cleanup();
+    (_a = this.currentDropdown) == null ? void 0 : _a.remove();
+    this.currentDropdown = null;
   }
   /**
-   * Position a dropdown within viewport bounds.
-   * Allows dropdown to expand to fit content, constrained by available space.
+   * Below the button when there is room, otherwise above it, held by its bottom edge so filtering keeps it in place.
+   * It lines up with the panel and is as wide.
    */
-  positionDropdownWithinViewport(dropdown, anchor) {
+  positionPicker(picker, anchor) {
     const margin = 10;
     const gap = 4;
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    const anchorRect = anchor.getBoundingClientRect();
-    dropdown.style.maxWidth = "none";
-    dropdown.style.maxHeight = "none";
-    const naturalRect = dropdown.getBoundingClientRect();
-    const spaceBelow = viewportHeight - anchorRect.bottom - margin - gap;
-    const spaceAbove = anchorRect.top - margin - gap;
-    const spaceRight = viewportWidth - anchorRect.left - margin;
-    const spaceLeft = anchorRect.right - margin;
-    let top;
-    let maxHeight;
-    if (spaceBelow >= naturalRect.height || spaceBelow >= spaceAbove) {
-      top = anchorRect.bottom + gap;
-      maxHeight = Math.max(100, spaceBelow);
+    const rect = anchor.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom - margin - gap;
+    const spaceAbove = rect.top - margin - gap;
+    if (spaceBelow >= 240 || spaceBelow >= spaceAbove) {
+      picker.style.top = `${rect.bottom + gap}px`;
+      picker.style.maxHeight = `${Math.max(100, spaceBelow)}px`;
     } else {
-      maxHeight = Math.max(100, spaceAbove);
-      top = anchorRect.top - gap - Math.min(naturalRect.height, maxHeight);
+      picker.style.bottom = `${window.innerHeight - rect.top + gap}px`;
+      picker.style.maxHeight = `${Math.max(100, spaceAbove)}px`;
     }
-    let left = anchorRect.left;
-    let maxWidth;
-    if (naturalRect.width <= spaceRight) {
-      maxWidth = spaceRight;
-    } else if (naturalRect.width <= spaceLeft) {
-      left = anchorRect.right - naturalRect.width;
-      maxWidth = spaceLeft;
-    } else {
-      left = margin;
-      maxWidth = viewportWidth - margin * 2;
-    }
-    left = Math.max(margin, Math.min(left, viewportWidth - margin - naturalRect.width));
-    dropdown.style.top = `${Math.max(margin, top)}px`;
-    dropdown.style.left = `${Math.max(margin, left)}px`;
-    dropdown.style.maxWidth = `${maxWidth}px`;
-    dropdown.style.maxHeight = `${maxHeight}px`;
+    const panelRect = this.elements.panel.getBoundingClientRect();
+    picker.style.width = `${panelRect.width}px`;
+    picker.style.left = `${Math.max(margin, Math.min(panelRect.left, window.innerWidth - margin - picker.offsetWidth))}px`;
   }
   /**
-   * Setup global hotkeys for the info panel
+   * Panel hotkeys: * centres the canvas on the node, ←/→ step through execution order.
+   * They act only while the panel is visible and hovered or focused; otherwise the glass keeps ←/→ for its nudge.
    */
   setupHotkeys() {
     this.hotkeyHandler = (e) => {
-      const activeElement = document.activeElement;
-      if (activeElement && (activeElement.tagName === "INPUT" || activeElement.tagName === "TEXTAREA" || activeElement.isContentEditable)) {
-        return;
-      }
+      if (e.ctrlKey || e.metaKey || e.altKey || isUserTyping()) return;
+      const { panel } = this.elements;
+      const { isPanelVisible, isPanelHovered } = this.stateManager.state;
+      if (!panel || !isPanelVisible || !(isPanelHovered || panel.contains(document.activeElement))) return;
       if (e.key === "*") {
-        e.preventDefault();
-        e.stopPropagation();
         this.focusCurrentNode();
-        return;
-      }
-      if (e.key === "ArrowLeft") {
-        if (!this.elements.panel || this.elements.panel.style.display === "none") {
-          return;
-        }
-        e.preventDefault();
-        e.stopPropagation();
+      } else if (e.key === "ArrowLeft") {
         this.navigateExecOrder(-1);
-        return;
-      }
-      if (e.key === "ArrowRight") {
-        if (!this.elements.panel || this.elements.panel.style.display === "none") {
-          return;
-        }
-        e.preventDefault();
-        e.stopPropagation();
+      } else if (e.key === "ArrowRight") {
         this.navigateExecOrder(1);
+      } else {
         return;
       }
+      e.preventDefault();
     };
-    window.addEventListener("keydown", this.hotkeyHandler, true);
+    document.addEventListener("keydown", this.hotkeyHandler, true);
   }
   /**
    * Remove hotkey listeners
    */
   cleanupHotkeys() {
     if (this.hotkeyHandler) {
-      window.removeEventListener("keydown", this.hotkeyHandler, true);
+      document.removeEventListener("keydown", this.hotkeyHandler, true);
       this.hotkeyHandler = null;
     }
   }
   /**
-   * Focus/center the canvas on the currently displayed node
+   * Centre the canvas on a node and lock the panel to it, recording the jump for Back.
    */
-  focusCurrentNode() {
-    var _a;
-    const nodeRow = (_a = this.elements.content) == null ? void 0 : _a.querySelector("[data-node-id]");
-    if (!nodeRow) return;
-    const nodeId = nodeRow.dataset.nodeId;
-    if (!nodeId) return;
-    const app = window.app;
-    if (!(app == null ? void 0 : app.graph)) return;
-    const node = app.graph.getNodeById(parseInt(nodeId));
-    if (node && app.canvas) {
-      app.canvas.centerOnNode(node);
+  jumpToNode(nodeId) {
+    const node = this.nodeSelector.getNodeById(nodeId);
+    if (!node) return;
+    this.recordCurrentNode();
+    const history = this.history;
+    if (history.ids[history.index] !== nodeId) {
+      history.ids.splice(++history.index, Infinity, nodeId);
     }
+    this.showNode(node);
   }
   /**
-   * Navigate to previous/next node by execution order
+   * Back (-1) or Forward (1) through the jumps. Back from a node reached by hovering returns to the last jump.
+   */
+  goThroughHistory(step) {
+    this.recordCurrentNode();
+    const history = this.history;
+    const atEntry = history.ids[history.index] === this.stateManager.state.currentNodeId;
+    const index = atEntry ? history.index + step : step < 0 ? history.index : -1;
+    const node = index >= 0 && index < history.ids.length ? this.nodeSelector.getNodeById(history.ids[index]) : null;
+    if (!node) return;
+    history.index = index;
+    this.showNode(node);
+  }
+  /**
+   * Add the shown node to the history, so Back returns to it. A new graph on screen starts a new history.
+   */
+  recordCurrentNode() {
+    var _a;
+    const graph = (_a = app.canvas) == null ? void 0 : _a.graph;
+    if (this.history.graph !== graph) {
+      this.history = { graph, ids: [], index: -1 };
+    }
+    const history = this.history;
+    const current = this.stateManager.state.currentNodeId;
+    if (current !== null && history.ids[history.index] !== current) {
+      history.ids.splice(++history.index, Infinity, current);
+    }
+  }
+  showNode(node) {
+    var _a;
+    this.lockTo(node.id);
+    app.canvas.centerOnNode(node);
+    (_a = this.onRefresh) == null ? void 0 : _a.call(this);
+  }
+  /**
+   * Centre the canvas on the shown node and lock the panel to it.
+   */
+  focusCurrentNode() {
+    const nodeId = this.stateManager.state.currentNodeId;
+    if (nodeId !== null) this.jumpToNode(nodeId);
+  }
+  /**
+   * Jump to the previous/next node by execution order, wrapping around.
+   * From a node without an order, Next starts at the first node and Prev at the last.
    * @param direction -1 for previous, +1 for next
    */
   navigateExecOrder(direction) {
-    var _a;
-    const nodeRow = (_a = this.elements.content) == null ? void 0 : _a.querySelector("[data-node-id]");
-    if (!nodeRow) return;
-    const currentNodeId = parseInt(nodeRow.dataset.nodeId || "0");
-    if (!currentNodeId && currentNodeId !== 0) return;
     const nodes = this.nodeSelector.getNodesSortedByExecOrder();
     if (nodes.length === 0) return;
-    const currentIndex = nodes.findIndex((n) => n.id === currentNodeId);
-    if (currentIndex === -1) {
-      this.selectNodeById(nodes[0].id);
-      return;
-    }
-    let newIndex = currentIndex + direction;
-    if (newIndex < 0) newIndex = nodes.length - 1;
-    if (newIndex >= nodes.length) newIndex = 0;
-    this.selectNodeById(nodes[newIndex].id);
-  }
-  /**
-   * Select a node by ID and update the inspector panel
-   */
-  selectNodeById(nodeId) {
-    this.stateManager.setSelectedNode(nodeId);
-    if (this.onNodeSelected) {
-      this.onNodeSelected(nodeId);
-    }
+    const index = nodes.findIndex((n) => n.id === this.stateManager.state.currentNodeId);
+    const next = index === -1 ? direction > 0 ? 0 : nodes.length - 1 : (index + direction + nodes.length) % nodes.length;
+    this.jumpToNode(nodes[next].id);
   }
   cleanup() {
     this.cleanupEditors();
     this.hideDropdown();
     this.cleanupHotkeys();
+    document.documentElement.style.removeProperty("--mg-panel-fg");
+    document.documentElement.style.removeProperty("--mg-panel-accent");
     if (this.elements.panel && this.elements.panel.parentNode) {
       this.elements.panel.parentNode.removeChild(this.elements.panel);
     }

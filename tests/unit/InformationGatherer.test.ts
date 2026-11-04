@@ -7,11 +7,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock ComfyUI app as a global (ComfyUI exposes it on window/globalThis)
-const mockApp = {
-    graph: {
-        _nodes: []
-    },
+const mockApp: any = {
     canvas: {
+        graph: {
+            _nodes: [],
+            getNodeOnPos: () => null
+        },
         canvas: {
             getBoundingClientRect: () => ({ left: 0, top: 0, width: 800, height: 600, right: 800, bottom: 600 })
         },
@@ -40,9 +41,7 @@ const mockMagnifyGlass = {
         offsetX: 0,
         offsetY: 0
     },
-    lastKnownMousePosition: { x: 200, y: 200 },
-    isOverMedia: false,
-    currentMediaElement: null
+    lastKnownMousePosition: { x: 200, y: 200 }
 };
 
 Object.defineProperty(globalThis, 'window', {
@@ -59,9 +58,6 @@ describe('InformationGatherer', () => {
 
     beforeEach(() => {
         gatherer = new InformationGatherer();
-        // Reset mock state
-        mockMagnifyGlass.isOverMedia = false;
-        mockMagnifyGlass.currentMediaElement = null;
     });
 
     describe('constructor', () => {
@@ -74,20 +70,12 @@ describe('InformationGatherer', () => {
         it('should return a GatheredInfo object with required fields', () => {
             const info = gatherer.gatherInformation();
 
-            expect(info).toHaveProperty('timestamp');
-            expect(info).toHaveProperty('cursor');
-            expect(info).toHaveProperty('zoom');
-            expect(info).toHaveProperty('nodeCount');
-            expect(info).toHaveProperty('hoveredNode');
-            expect(info).toHaveProperty('hoveredWidget');
-            expect(info).toHaveProperty('mediaElement');
+            expect(Object.keys(info).sort()).toEqual(['cursor', 'hoveredNode', 'zoom']);
         });
 
         it('should return cursor position from magnifyGlass state', () => {
             const info = gatherer.gatherInformation();
 
-            expect(info.cursor.screenX).toBe(200);
-            expect(info.cursor.screenY).toBe(200);
             expect(info.cursor.canvasX).toBe(100);
             expect(info.cursor.canvasY).toBe(100);
         });
@@ -103,38 +91,19 @@ describe('InformationGatherer', () => {
         });
     });
 
-    describe('formatValue', () => {
-        it('should format null values', () => {
-            expect(gatherer.formatValue(null)).toBe('null');
-        });
+    describe('getNodeUnderCursor', () => {
+        it('should hit-test the graph on screen, title bar and collapsed nodes included', () => {
+            // A collapsed node in a subgraph: only its title pill sits above pos
+            const node = { id: 3, pos: [190, 230], size: [140, 80], flags: { collapsed: true } };
+            const getNodeOnPos = vi.fn(() => node);
+            const canvasGraph = mockApp.canvas.graph;
+            mockApp.canvas.graph = { _nodes: [node], getNodeOnPos };
 
-        it('should format undefined values', () => {
-            expect(gatherer.formatValue(undefined)).toBe('undefined');
-        });
+            const hit = gatherer.getNodeUnderCursor();
 
-        it('should format string values as-is', () => {
-            expect(gatherer.formatValue('hello world')).toBe('hello world');
-        });
-
-        it('should format integer values without decimals', () => {
-            expect(gatherer.formatValue(42)).toBe('42');
-        });
-
-        it('should format float values with 3 decimals', () => {
-            expect(gatherer.formatValue(3.14159)).toBe('3.142');
-        });
-
-        it('should format boolean values', () => {
-            expect(gatherer.formatValue(true)).toBe('true');
-            expect(gatherer.formatValue(false)).toBe('false');
-        });
-
-        it('should format arrays with length', () => {
-            expect(gatherer.formatValue([1, 2, 3])).toBe('Array(3)');
-        });
-
-        it('should format objects as "Object"', () => {
-            expect(gatherer.formatValue({ key: 'value' })).toBe('Object');
+            expect(getNodeOnPos).toHaveBeenCalledWith(200, 200);
+            expect(hit).toBe(node);
+            mockApp.canvas.graph = canvasGraph;
         });
     });
 
@@ -147,8 +116,9 @@ describe('InformationGatherer', () => {
             expect(gatherer.getNodeModeText(1)).toBe('On Event');
         });
 
-        it('should return "Never" for mode 2', () => {
-            expect(gatherer.getNodeModeText(2)).toBe('Never');
+        it('names modes 2 and 4 as ComfyUI does', () => {
+            expect(gatherer.getNodeModeText(2)).toBe('Mute');
+            expect(gatherer.getNodeModeText(4)).toBe('Bypass');
         });
 
         it('should return fallback for unknown modes', () => {

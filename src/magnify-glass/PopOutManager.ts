@@ -71,10 +71,6 @@ interface PopOutInfo {
     magnifier?: {
         zoomFactor: number;
     };
-    media?: {
-        tagName: string;
-        naturalSize?: string;
-    };
 }
 
 /**
@@ -91,7 +87,8 @@ export class PopOutManager {
     private lastPongTime: number = 0;
     private pingInterval: number | null = null;
     private viewerUrl: string;
-    private currentTheme: string = 'dark'; // Default theme
+    // The theme last sent to the viewer, null until it connects
+    private sentTheme: string | null = null;
 
     /** Throttle frame sending to ~30fps */
     private lastFrameTime: number = 0;
@@ -168,16 +165,19 @@ export class PopOutManager {
      */
     private handleMessage(message: PopOutMessage): void {
         switch (message.type) {
-            case 'pong':
+            case 'pong': {
                 this.lastPongTime = Date.now();
                 if (!this.isOpen) {
                     this.isOpen = true;
+                    this.sentTheme = null;
                     Logger.debug('[PopOut] Viewer tab connected');
                     if (this.onStateChange) this.onStateChange(true);
-                    // Send current theme immediately upon connection
-                    this.sendConfig({ theme: this.currentTheme });
                 }
+                // The viewer follows the palette's light or dark, which the frontend keeps as body.dark-theme
+                const theme = document.body.classList.contains('dark-theme') ? 'dark' : 'light';
+                if (theme !== this.sentTheme) this.sendConfig({ theme });
                 break;
+            }
             case 'close':
                 this.isOpen = false;
                 this.popOutWindow = null;
@@ -203,8 +203,8 @@ export class PopOutManager {
                 // Popout requested to zoom to a node
                 if (typeof message.data === 'number') {
                     const app = (window as any).app;
-                    const node = app.graph.getNodeById(message.data);
-                    if (node && app.canvas) {
+                    const node = app.canvas?.graph?.getNodeById(message.data);
+                    if (node) {
                         app.canvas.centerOnNode(node);
                     }
                 }
@@ -258,12 +258,7 @@ export class PopOutManager {
         }
 
         const app = (window as any).app;
-        if (!app?.graph) {
-            Logger.warn('[PopOut] No app.graph available for button click');
-            return;
-        }
-
-        const node = app.graph.getNodeById(buttonData.nodeId);
+        const node = app?.canvas?.graph?.getNodeById(buttonData.nodeId);
         if (!node?.widgets) {
             Logger.warn(`[PopOut] Node ${buttonData.nodeId} not found or has no widgets`);
             return;
@@ -376,39 +371,17 @@ export class PopOutManager {
     /**
      * Send configuration to the pop-out viewer.
      */
-    /**
-     * Send configuration to the pop-out viewer.
-     */
     sendConfig(config: Partial<PopOutConfig>): void {
         if (!this.channel) return;
 
-        // Merge with current theme if not provided
-        const finalConfig = {
-            theme: this.currentTheme,
-            ...config
-        };
-
-        // Update local theme cache if provided in config
         if (config.theme) {
-            this.currentTheme = config.theme;
+            this.sentTheme = config.theme;
         }
 
         this.sendMessage({
             type: 'config',
-            data: finalConfig
+            data: config
         });
-    }
-
-    /**
-     * Update the viewer theme.
-     * @param theme - Theme name (e.g. 'dark', 'light')
-     */
-    updateTheme(theme: string): void {
-        if (this.currentTheme === theme) return;
-
-        this.currentTheme = theme;
-        this.sendConfig({ theme });
-        Logger.debug(`[PopOut] Theme updated to: ${theme}`);
     }
 
     /**
@@ -437,7 +410,7 @@ export class PopOutManager {
         try {
             // Access nodes from ComfyUI's app object
             const app = (window as any).app;
-            const nodes = app?.graph?._nodes || [];
+            const nodes = app?.canvas?.graph?._nodes || [];
 
             let nodeList: { id: number; title: string; type: string; order?: number }[];
 
@@ -538,17 +511,6 @@ export class PopOutManager {
             if (magnifyGlass?.config) {
                 sanitized.magnifier = {
                     zoomFactor: Number(magnifyGlass.config.zoomFactor || 1)
-                };
-            }
-
-            // Handle media - map from GatheredInfo mediaElement
-            if (info.mediaElement || info.media) {
-                const media = info.mediaElement || info.media;
-                sanitized.media = {
-                    tagName: String(media.tagName || media.type || ''),
-                    naturalSize: media.naturalWidth && media.naturalHeight
-                        ? `${media.naturalWidth}×${media.naturalHeight}`
-                        : media.naturalSize
                 };
             }
 

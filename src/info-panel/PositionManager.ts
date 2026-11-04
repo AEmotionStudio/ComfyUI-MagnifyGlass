@@ -20,28 +20,24 @@ export class PositionManager {
     positionPanel(): void {
         if (!this.panelElement) return;
 
-        // If panel is pinned, keep it at its pinned position
-        if (this.stateManager.state.isPanelPinned) {
-            this.applyPinnedPosition();
+        if (this.stateManager.state.isFloating) {
+            this.applyFloatPosition();
             return;
         }
 
-        // Normal positioning logic
         this.calculateNormalPosition();
     }
 
-    applyPinnedPosition(): void {
-        if (!this.panelElement) return;
-
-        let { x, y } = this.stateManager.state.pinnedPosition;
-
-        // If pinnedPosition is uninitialized (0,0), use calculateNormalPosition to get a valid position
-        if (x === 0 && y === 0) {
+    /**
+     * Keep a floating panel where it was put, 4px inside the window. It starts floating where it last followed the glass.
+     */
+    applyFloatPosition(): void {
+        const state = this.stateManager.state;
+        if (!state.floatPosition) {
             this.calculateNormalPosition();
-            // Save the calculated position as the new pinned position
-            if (this.panelElement) {
-                const rect = this.panelElement.getBoundingClientRect();
-                this.stateManager.state.pinnedPosition = { x: rect.left, y: rect.top };
+            // Not the element's rect, which is empty while the panel is hidden
+            if (this.cachedPanelPosition) {
+                state.floatPosition = { x: this.cachedPanelPosition.x, y: this.cachedPanelPosition.y };
             }
             return;
         }
@@ -50,8 +46,10 @@ export class PositionManager {
         const panelHeight = this.panelElement.offsetHeight || 400;
         const margin = 4;
 
-        const boundedX = Math.max(margin, Math.min(x, window.innerWidth - panelWidth - margin));
-        const boundedY = Math.max(margin, Math.min(y, window.innerHeight - panelHeight - margin));
+        const boundedX = Math.max(margin, Math.min(state.floatPosition.x, window.innerWidth - panelWidth - margin));
+        const boundedY = Math.max(margin, Math.min(state.floatPosition.y, window.innerHeight - panelHeight - margin));
+        // Stored bounded, so a drag past the edge turns back at once
+        state.floatPosition = { x: boundedX, y: boundedY };
 
         this.panelElement.style.left = `${boundedX}px`;
         this.panelElement.style.top = `${boundedY}px`;
@@ -191,41 +189,31 @@ export class PositionManager {
         // Enforce no transition on controls to prevent 'rubber-banding'
         controlsElement.style.transition = 'none';
 
-        const controlsPosition = this.stateManager.state.settings["🔍MagnifyGlass.ControlsPosition"] || "right";
+        // left/right: beside the reference; top-*/bottom-*: above or below it, held by the named edge.
+        // A side without room flips to the other, so the toolbar never covers the panel.
+        const [side, edge] = String(this.stateManager.state.settings["🔍MagnifyGlass.ControlsPosition"] || "left").split('-');
+        const width = controlsElement.offsetWidth;
+        const height = controlsElement.offsetHeight;
         const margin = 4;
 
         let left: number;
         let top: number;
 
-        switch (controlsPosition) {
-            case "left":
-                left = referenceRect.left - controlsElement.offsetWidth - margin;
-                top = referenceRect.top;
-                break;
-            case "right":
-                left = referenceRect.right + margin;
-                top = referenceRect.top;
-                break;
-            case "top":
-                left = referenceRect.left;
-                top = referenceRect.top - controlsElement.offsetHeight - margin;
-                break;
-            case "bottom":
-                left = referenceRect.left;
-                top = referenceRect.bottom + margin;
-                break;
-            case "top-right":
-                left = referenceRect.right - controlsElement.offsetWidth;
-                top = referenceRect.top - controlsElement.offsetHeight - margin;
-                break;
-            default:
-                left = referenceRect.right + margin;
-                top = referenceRect.top;
+        if (side === 'top' || side === 'bottom') {
+            const above = referenceRect.top - height - margin;
+            const below = referenceRect.bottom + margin;
+            top = side === 'top' ? (above >= margin ? above : below) : (below + height <= window.innerHeight - margin ? below : above);
+            left = edge === 'right' ? referenceRect.right - width : referenceRect.left;
+        } else {
+            const before = referenceRect.left - width - margin;
+            const after = referenceRect.right + margin;
+            left = side === 'left' ? (before >= margin ? before : after) : (after + width <= window.innerWidth - margin ? after : before);
+            top = referenceRect.top;
         }
 
         // Keep controls within viewport
-        left = Math.max(10, Math.min(left, window.innerWidth - controlsElement.offsetWidth - 10));
-        top = Math.max(10, Math.min(top, window.innerHeight - controlsElement.offsetHeight - 10));
+        left = Math.max(margin, Math.min(left, window.innerWidth - width - margin));
+        top = Math.max(margin, Math.min(top, window.innerHeight - height - margin));
 
         controlsElement.style.left = `${left}px`;
         controlsElement.style.top = `${top}px`;

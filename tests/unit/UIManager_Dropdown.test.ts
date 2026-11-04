@@ -1,26 +1,49 @@
-
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { UIManager } from '../../src/info-panel/UIManager';
 import { StateManager } from '../../src/info-panel/StateManager';
 
-// Mock app global
+const nodes = [
+    { id: 1, title: 'KSampler', type: 'KSampler', order: 2 },
+    { id: 2, title: 'Load Checkpoint', type: 'CheckpointLoaderSimple', order: 0 },
+    { id: 3, title: 'Positive', type: 'CLIPTextEncode', order: 1 },
+    { id: 12, title: 'Note', type: 'Note' }
+];
+
 (globalThis as any).app = {
-    graph: { _nodes: [] },
-    canvas: { centerOnNode: vi.fn() }
+    canvas: {
+        graph: { _nodes: nodes, getNodeById: (id: number) => nodes.find(n => n.id === id) ?? null },
+        centerOnNode: vi.fn()
+    }
 };
 
-describe('UIManager Dropdown Accessibility', () => {
+describe('Go to node picker', () => {
     let uiManager: UIManager;
     let stateManager: StateManager;
+    let anchor: HTMLButtonElement;
+
+    const picker = () => document.querySelector('.node-selector-dropdown') as HTMLElement | null;
+    const filter = () => picker()!.querySelector('input') as HTMLInputElement;
+    const items = () => Array.from(picker()!.querySelectorAll('.dropdown-item')) as HTMLElement[];
+    const activeItem = () => picker()!.querySelector('.dropdown-item.active') as HTMLElement | null;
+    const type = (text: string) => {
+        filter().value = text;
+        filter().dispatchEvent(new Event('input'));
+    };
+    const press = (key: string) => {
+        const event = new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true });
+        filter().dispatchEvent(event);
+        return event;
+    };
 
     beforeEach(() => {
+        // Keep happy-dom from fetching the panel stylesheet
+        document.head.innerHTML = '<style id="magnify-info-panel-styles-v2"></style>';
         stateManager = new StateManager();
-        stateManager.state.currentTheme = 'dark';
-
         uiManager = new UIManager(stateManager);
-
-        document.body.innerHTML = '';
+        uiManager.onRefresh = vi.fn();
+        anchor = uiManager.elements.panel!.querySelector('[data-action="go-to-node"]') as HTMLButtonElement;
         Element.prototype.scrollIntoView = vi.fn();
+        (globalThis as any).app.canvas.centerOnNode.mockClear();
     });
 
     afterEach(() => {
@@ -29,189 +52,147 @@ describe('UIManager Dropdown Accessibility', () => {
         vi.restoreAllMocks();
     });
 
-    it('should create a dropdown with accessible attributes', () => {
-        const nodes = [
-            { id: 1, title: 'Node 1', type: 'Type A' },
-            { id: 2, title: 'Node 2', type: 'Type B' }
-        ];
-        const anchor = document.createElement('div');
-        document.body.appendChild(anchor);
+    it('opens from the header as a combobox over a listbox, on the current node', () => {
+        stateManager.state.currentNodeId = 1;
+        anchor.click();
 
-        (uiManager as any).createDropdown(nodes, anchor, 'title');
+        expect(anchor.getAttribute('aria-expanded')).toBe('true');
+        expect(document.activeElement).toBe(filter());
+        expect(filter().getAttribute('role')).toBe('combobox');
+        const list = picker()!.querySelector('[role="listbox"]')!;
+        expect(filter().getAttribute('aria-controls')).toBe(list.id);
 
-        const dropdown = document.querySelector('.node-selector-dropdown');
-        expect(dropdown).not.toBeNull();
-        expect(dropdown?.getAttribute('role')).toBe('listbox');
-        expect(dropdown?.getAttribute('tabindex')).toBe('-1');
+        // Rows in execution order: exec number, title, type and id
+        expect(items().map(item => item.querySelector('.dropdown-item-id')!.textContent)).toEqual(['#2', '#3', '#1', '#12']);
+        expect(items()[0].querySelector('.dropdown-item-order')!.textContent).toBe('0');
+        expect(items()[0].querySelector('.dropdown-item-type')!.textContent).toBe('CheckpointLoaderSimple');
+        expect(items()[3].querySelector('.dropdown-item-order')!.textContent).toBe('');
 
-        const items = dropdown?.querySelectorAll('.dropdown-item');
-        expect(items?.length).toBe(2);
-        expect(items?.[0].getAttribute('role')).toBe('option');
-        expect(items?.[0].getAttribute('aria-selected')).toBe('true');
+        expect(activeItem()).toBe(items()[2]);
+        expect(items()[2].getAttribute('aria-selected')).toBe('true');
+        expect(filter().getAttribute('aria-activedescendant')).toBe(items()[2].id);
     });
 
-    it('should navigate dropdown with keyboard', async () => {
-        vi.useFakeTimers();
+    it('filters by title, type or #id', () => {
+        anchor.click();
 
-        const nodes = [
-            { id: 1, title: 'Node 1', type: 'Type A' },
-            { id: 2, title: 'Node 2', type: 'Type B' }
-        ];
-        const anchor = document.createElement('div');
-        document.body.appendChild(anchor);
+        type('posit');
+        expect(items().map(item => item.querySelector('.dropdown-item-title')!.textContent)).toEqual(['Positive']);
+        type('checkpointloader');
+        expect(items()).toHaveLength(1);
+        type('#12');
+        expect(items().map(item => item.querySelector('.dropdown-item-title')!.textContent)).toEqual(['Note']);
+        expect(activeItem()).toBe(items()[0]);
 
-        (uiManager as any).createDropdown(nodes, anchor, 'title');
-
-        vi.advanceTimersByTime(100);
-
-        const dropdown = document.querySelector('.node-selector-dropdown') as HTMLElement;
-        const items = dropdown.querySelectorAll('.dropdown-item');
-
-        expect(document.activeElement).toBe(dropdown);
-
-        // Arrow Down
-        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
-        expect(items[1].getAttribute('aria-selected')).toBe('true');
-
-        // Arrow Up
-        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
-        expect(items[0].getAttribute('aria-selected')).toBe('true');
-
-        vi.useRealTimers();
+        type('nothing like it');
+        expect(items()).toHaveLength(0);
+        expect((picker()!.querySelector('.node-picker-empty') as HTMLElement).hidden).toBe(false);
+        expect(filter().hasAttribute('aria-activedescendant')).toBe(false);
+        expect(press('Enter').defaultPrevented).toBe(true);
+        expect(picker()).not.toBeNull();
     });
 
-    it('should cleanup event listeners when item is selected', () => {
-        vi.useFakeTimers();
-        const docRemoveSpy = vi.spyOn(document, 'removeEventListener');
-        const winRemoveSpy = vi.spyOn(window, 'removeEventListener');
+    it('escapes node titles', () => {
+        nodes.push({ id: 99, title: '<img src=x onerror=alert(1)>', type: 'Evil' });
+        try {
+            anchor.click();
+            type('#99');
 
-        const nodes = [{ id: 1, title: 'Node 1', type: 'Type A' }];
-        const anchor = document.createElement('div');
-        document.body.appendChild(anchor);
-
-        (uiManager as any).createDropdown(nodes, anchor, 'title');
-
-        vi.advanceTimersByTime(100);
-
-        const dropdown = document.querySelector('.node-selector-dropdown') as HTMLElement;
-        const item = dropdown.querySelector('.dropdown-item') as HTMLElement;
-
-        // Simulate click
-        item.click();
-
-        // Assert cleanup was called - keydown is on window, mousedown on document
-        expect(winRemoveSpy).toHaveBeenCalledWith('keydown', expect.any(Function), true);
-        expect(docRemoveSpy).toHaveBeenCalledWith('mousedown', expect.any(Function), true);
-
-        vi.useRealTimers();
+            expect(picker()!.querySelector('img')).toBeNull();
+            expect(items()[0].textContent).toContain('<img src=x onerror=alert(1)>');
+        } finally {
+            nodes.pop();
+        }
     });
 
-    it('should focus dropdown on creation for keyboard accessibility', () => {
-        // Test that dropdown receives focus when created, enabling keyboard navigation
-        vi.useFakeTimers();
+    it('moves with the arrows and jumps with Enter: centre, lock, focus back', () => {
+        anchor.click();
+        expect(activeItem()).toBe(items()[0]);
 
-        const nodes = [{ id: 1, title: 'Node 1', type: 'Type A' }, { id: 2, title: 'Node 2', type: 'Type B' }];
-        const anchor = document.createElement('div');
-        document.body.appendChild(anchor);
+        press('ArrowDown');
+        press('ArrowDown');
+        press('ArrowDown');
+        press('ArrowDown'); // stays on the last
+        expect(activeItem()).toBe(items()[3]);
+        press('ArrowUp');
+        expect(filter().getAttribute('aria-activedescendant')).toBe(items()[2].id);
 
-        (uiManager as any).createDropdown(nodes, anchor, 'title');
+        // Hovering moves the item Enter picks
+        items()[1].dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+        expect(activeItem()).toBe(items()[1]);
 
-        vi.advanceTimersByTime(100);
-
-        const dropdown = document.querySelector('.node-selector-dropdown') as HTMLElement;
-
-        // Dropdown should have focus for keyboard accessibility
-        expect(document.activeElement).toBe(dropdown);
-
-        // First item should be selected by default
-        const items = dropdown.querySelectorAll('.dropdown-item');
-        expect(items[0].getAttribute('aria-selected')).toBe('true');
-        expect(items[1].getAttribute('aria-selected')).toBe('false');
-
-        vi.useRealTimers();
+        const event = press('Enter');
+        expect(event.defaultPrevented).toBe(true);
+        expect(picker()).toBeNull();
+        expect(document.activeElement).toBe(anchor);
+        expect(anchor.getAttribute('aria-expanded')).toBe('false');
+        expect((globalThis as any).app.canvas.centerOnNode).toHaveBeenCalledWith(nodes[2]);
+        expect(stateManager.state.lockedNodeId).toBe(3);
+        expect(uiManager.onRefresh).toHaveBeenCalledTimes(1);
     });
 
-    it('should cleanup previous event listeners when opening a new dropdown via anchor click', () => {
-        vi.useFakeTimers();
-        const docRemoveSpy = vi.spyOn(document, 'removeEventListener');
-        const winRemoveSpy = vi.spyOn(window, 'removeEventListener');
+    it('picks with a click', () => {
+        anchor.click();
+        items()[3].click();
 
-        const nodes = [{ id: 1, title: 'Node 1', type: 'Type A' }];
-        const anchor = document.createElement('div');
-        document.body.appendChild(anchor);
-
-        // Open first time
-        (uiManager as any).createDropdown(nodes, anchor, 'title');
-        vi.advanceTimersByTime(100);
-
-        // Reset spies to track calls for the next action
-        docRemoveSpy.mockClear();
-        winRemoveSpy.mockClear();
-
-        // Simulate re-opening (which calls hideDropdown then createDropdown)
-        (uiManager as any).showTitleDropdown(anchor);
-
-        // Verify that cleanup for the FIRST dropdown occurred
-        expect(winRemoveSpy).toHaveBeenCalledWith('keydown', expect.any(Function), true);
-        expect(docRemoveSpy).toHaveBeenCalledWith('mousedown', expect.any(Function), true);
-
-        vi.useRealTimers();
+        expect(picker()).toBeNull();
+        expect(stateManager.state.lockedNodeId).toBe(12);
     });
 
-    it('should not intercept Escape key when focus is elsewhere', () => {
-        vi.useFakeTimers();
+    it('Escape closes it, returns focus and stays out of other listeners', () => {
+        anchor.click();
+        const later = vi.fn();
+        window.addEventListener('keydown', later);
 
-        const nodes = [{ id: 1, title: 'Node 1', type: 'Type A' }];
-        const anchor = document.createElement('div');
-        document.body.appendChild(anchor);
+        press('Escape');
 
-        (uiManager as any).createDropdown(nodes, anchor, 'title');
-        vi.advanceTimersByTime(100);
-
-        // Simulate focus moving elsewhere
-        const otherInput = document.createElement('input');
-        document.body.appendChild(otherInput);
-        otherInput.focus();
-
-        const event = new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true });
-        const preventDefaultSpy = vi.spyOn(event, 'preventDefault');
-        const stopPropagationSpy = vi.spyOn(event, 'stopPropagation');
-
-        document.dispatchEvent(event);
-
-        // If the bug exists, these will be called. We expect them NOT to be called.
-        expect(preventDefaultSpy).not.toHaveBeenCalled();
-        expect(stopPropagationSpy).not.toHaveBeenCalled();
-
-        // Also dropdown should still be open (or maybe not? The user requirement is just about blocking propagation)
-        // If we don't intercept, it stays open. But ideally pressing Escape on another input might close that input's menu, not ours.
-        // Or if it's a modal, maybe it should close?
-        // The reviewer says: "dropdown's handler will intercept the event and block propagation".
-        // So simply verifying propagation is not blocked is enough.
-
-        vi.useRealTimers();
+        expect(picker()).toBeNull();
+        expect(document.activeElement).toBe(anchor);
+        expect(later).not.toHaveBeenCalled();
+        expect(stateManager.state.lockedNodeId).toBeNull();
+        window.removeEventListener('keydown', later);
     });
 
-    it('should not add listeners if dropdown is closed before timeout', () => {
-        vi.useFakeTimers();
-        const addEventListenerSpy = vi.spyOn(document, 'addEventListener');
+    it('closes on a press outside, on the button again, and removes its listener', () => {
+        const docRemove = vi.spyOn(document, 'removeEventListener');
+        anchor.click();
 
-        const nodes = [{ id: 1, title: 'Node 1', type: 'Type A' }];
-        const anchor = document.createElement('div');
-        document.body.appendChild(anchor);
+        picker()!.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+        expect(picker()).not.toBeNull();
+        document.body.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+        expect(picker()).toBeNull();
+        expect(docRemove).toHaveBeenCalledWith('pointerdown', expect.any(Function), true);
 
-        (uiManager as any).createDropdown(nodes, anchor, 'title');
+        anchor.click();
+        anchor.click();
+        expect(picker()).toBeNull();
+        expect(anchor.getAttribute('aria-expanded')).toBe('false');
+    });
 
-        // Immediately close it (before timeout fires)
-        uiManager.hideDropdown();
+    it('closes when focus moves elsewhere', () => {
+        anchor.click();
+        const other = document.createElement('button');
+        document.body.appendChild(other);
 
-        // Advance time to let timeout fire
-        vi.advanceTimersByTime(100);
+        other.focus();
 
-        // Listeners should NOT have been added
-        expect(addEventListenerSpy).not.toHaveBeenCalledWith('keydown', expect.any(Function));
-        expect(addEventListenerSpy).not.toHaveBeenCalledWith('mousedown', expect.any(Function), true);
+        expect(picker()).toBeNull();
+    });
+});
 
-        vi.useRealTimers();
+describe('Inspector header', () => {
+    it('is built before window.app exists, as the panel mounts during extension setup', () => {
+        const saved = (globalThis as any).app;
+        delete (globalThis as any).app;
+        try {
+            document.head.innerHTML = '<style id="magnify-info-panel-styles-v2"></style>';
+            const ui = new UIManager(new StateManager());
+
+            expect(ui.elements.panel!.querySelector('.header-title')!.textContent).toBe('Inspector');
+            expect((ui.elements.panel!.querySelector('[data-action="back"]') as HTMLButtonElement).disabled).toBe(true);
+            ui.cleanup();
+        } finally {
+            (globalThis as any).app = saved;
+        }
     });
 });

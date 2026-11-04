@@ -25,8 +25,6 @@ const DEFAULT_PANEL_SETTINGS = {
   "🔍MagnifyGlass.InfoPanelWidth": DEFAULT_PANEL_WIDTH,
   "🔍MagnifyGlass.InfoPanelOpacity": DEFAULT_PANEL_OPACITY,
   "🔍MagnifyGlass.InfoPanelMaxHeight": DEFAULT_PANEL_MAX_HEIGHT,
-  "🔍MagnifyGlass.InfoPanelAnimations": false,
-  "🔍MagnifyGlass.ShowInspectorTab": false,
   "🔍MagnifyGlass.ToggleHotkey": "i",
   "🔍MagnifyGlass.GlassPreviewToggleHotkey": "g",
   "🔍MagnifyGlass.PinPanelHotkey": "u",
@@ -37,9 +35,10 @@ const DEFAULT_PANEL_SETTINGS = {
   "🔍MagnifyGlass.InfoPanelFontSize": 14,
   "🔍MagnifyGlass.InfoPanelFontFamily": "System Default",
   "🔍MagnifyGlass.InfoPanelPersist": false,
-  "🔍MagnifyGlass.HoldInfoHotkey": "p",
+  "🔍MagnifyGlass.InfoPanelFollowSelection": false,
   "🔍MagnifyGlass.StickyInfoHotkey": "s",
-  "🔍MagnifyGlass.NodeHighlightEnabled": true
+  "🔍MagnifyGlass.NodeHighlightEnabled": true,
+  "🔍MagnifyGlass.HighContrastText": false
 };
 const DEFAULT_ACCESSIBILITY_SETTINGS = {
   "🔍MagnifyGlass.AccessibilityEnabled": false,
@@ -59,8 +58,7 @@ const DEFAULT_ACCESSIBILITY_SETTINGS = {
 const DEFAULT_SETTINGS = {
   ...DEFAULT_GLASS_SETTINGS,
   ...DEFAULT_PANEL_SETTINGS,
-  ...DEFAULT_ACCESSIBILITY_SETTINGS,
-  "🔍MagnifyGlass.HighContrastText": false
+  ...DEFAULT_ACCESSIBILITY_SETTINGS
 };
 export {
   DEFAULT_ACCESSIBILITY_SETTINGS,

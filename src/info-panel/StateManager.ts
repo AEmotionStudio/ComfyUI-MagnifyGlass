@@ -4,49 +4,37 @@
  * Centralized state management for the information panel.
  */
 
-import type { GatheredInfo } from '../types/comfyui';
 import { getSettingValue, clamp } from '../shared/utils';
 import { DEFAULT_PANEL_SETTINGS } from '../shared/settings';
+import { PANEL_FONTS, STORAGE_KEYS } from '../shared/constants';
 
 export interface InfoPanelStateData {
     // Panel visibility and positioning
     isPanelVisible: boolean;
     wasPanelVisibleBeforeHide: boolean; // Persist state across glass toggles
     isPanelMinimized: boolean;
-    isPanelPinned: boolean;
-    isPanelLocked: boolean; // New lock state
-    isAutoPinned: boolean; // Track if panel was auto-pinned by glass hide
-    pinnedPosition: { x: number; y: number };
-    lastPinnedPosition: { x: number; y: number } | null; // Remember last pinned location
+    // Floating: stays where it was dragged instead of following the glass
+    isFloating: boolean;
+    // Where it floats; null until it first floats
+    floatPosition: { x: number; y: number } | null;
 
     // Glass visibility
     isGlassPreviewVisible: boolean;
 
-    // Info freezing
-    isInfoHeld: boolean;
-
-    // Section expansion
-    expandedSections: Set<string>;
-
-    // Interaction states
     isPanelHovered: boolean;
-    isHoveringNode: boolean;
 
-    // Auto-collapse
-    autoExpandTimer: ReturnType<typeof setTimeout> | null;
-    lastNodeId: string | number | null;
+    // The node the panel shows
+    currentNodeId: number | null;
 
-    // Current data
-    currentInfo: GatheredInfo | null;
-
-    // Node selection override (user-selected node from dropdown)
-    selectedNodeId: number | null;
+    // Node the panel is locked to: shown instead of the hovered node until unlocked
+    lockedNodeId: number | null;
+    // The graph that id belongs to; another graph on screen releases the lock
+    lockedGraph: unknown;
+    // The shown node is the canvas selection (Follow selection)
+    showsSelection: boolean;
 
     // Settings cache - using index signature for dynamic ComfyUI settings
     settings: { [key: string]: string | number | boolean };
-
-    // Auto-detected theme
-    currentTheme: string;
 }
 
 /**
@@ -55,11 +43,6 @@ export interface InfoPanelStateData {
  */
 export class StateManager {
     state: InfoPanelStateData;
-    private themeObserver!: MutationObserver;
-    private themeInterval!: ReturnType<typeof setInterval>;
-    private themeTimeout!: ReturnType<typeof setTimeout>;
-    private colorSchemeQuery!: MediaQueryList;
-    private readonly onColorSchemeChange = () => this.detectCurrentTheme();
 
     constructor() {
         this.state = {
@@ -67,243 +50,49 @@ export class StateManager {
             isPanelVisible: false,
             wasPanelVisibleBeforeHide: false,
             isPanelMinimized: false,
-            isPanelPinned: false,
-            isPanelLocked: false, // New lock state
-            isAutoPinned: false, // Track if panel was auto-pinned by glass hide
-            pinnedPosition: { x: 0, y: 0 },
-            lastPinnedPosition: null, // Remember last pinned location
+            isFloating: false,
+            floatPosition: null,
 
             // Glass visibility
             isGlassPreviewVisible: true,
-            isInfoHeld: false,
 
-            // Section expansion
-            expandedSections: new Set(['node']),
-
-            // Interaction states
             isPanelHovered: false,
-            isHoveringNode: false,
+            currentNodeId: null,
 
-            // Auto-collapse
-            autoExpandTimer: null,
-            lastNodeId: null,
-
-            // Current data
-            currentInfo: null,
-
-            // Node selection override
-            selectedNodeId: null,
+            lockedNodeId: null,
+            lockedGraph: null,
+            showsSelection: false,
 
             // Settings cache
-            settings: {},
-
-            // Auto-detected theme
-            currentTheme: 'dark' // Will be auto-detected
+            settings: {}
         };
 
-        this.initThemeDetection();
         this.loadSettings();
+        this.loadLayout();
     }
 
-    initThemeDetection(): void {
-        // Detect ComfyUI's current theme
-        this.detectCurrentTheme();
-
-        // Force an immediate check in case we missed the initial state
-        this.themeTimeout = setTimeout(() => {
-            if (this.detectCurrentTheme()) {
-                this.notifyThemeChange();
-            }
-        }, 1000);
-
-        // Set up mutation observer to watch for theme changes
-        this.setupThemeObserver();
-
-        // Listen for system theme changes as fallback
-        this.colorSchemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
-        this.colorSchemeQuery.addEventListener('change', this.onColorSchemeChange);
-
-        // Add click listener to theme toggle buttons for immediate detection
-        this.setupThemeButtonListeners();
-    }
-
-    detectCurrentTheme(): boolean {
-        let detectedTheme = 'dark'; // Default fallback
-
-        // Method 1: Try to read from ComfyUI's color palette setting
+    /**
+     * Float mode, float position and minimized state are kept per browser.
+     */
+    private loadLayout(): void {
         try {
-            // ComfyUI stores theme in 'Comfy.ColorPalette' setting
-            const colorPalette = getSettingValue('Comfy.ColorPalette', '');
-
-            if (colorPalette) {
-                // Extract theme name from various possible formats
-                const paletteStr = String(colorPalette).toLowerCase();
-
-                if (paletteStr.includes('obsidian') && paletteStr.includes('dark')) {
-                    detectedTheme = 'obsidian-dark';
-                } else if (paletteStr.includes('obsidian')) {
-                    detectedTheme = 'obsidian';
-                } else if (paletteStr.includes('milk') || paletteStr.includes('white')) {
-                    detectedTheme = 'milk-white';
-                } else if (paletteStr.includes('solarized')) {
-                    detectedTheme = 'solarized';
-                } else if (paletteStr.includes('arc')) {
-                    detectedTheme = 'arc';
-                } else if (paletteStr.includes('nord')) {
-                    detectedTheme = 'nord';
-                } else if (paletteStr.includes('github')) {
-                    detectedTheme = 'github';
-                } else if (paletteStr.includes('light')) {
-                    detectedTheme = 'light';
-                } else if (paletteStr.includes('dark')) {
-                    detectedTheme = 'dark';
-                }
+            const layout = JSON.parse(localStorage.getItem(STORAGE_KEYS.INSPECTOR_LAYOUT) || '{}');
+            this.state.isFloating = layout.floating === true;
+            this.state.isPanelMinimized = layout.minimized === true;
+            if (Number.isFinite(layout.x) && Number.isFinite(layout.y)) {
+                this.state.floatPosition = { x: layout.x, y: layout.y };
             }
         } catch (e) {
-            // Fallback to brightness-based detection
-            console.warn('ComfyUI Info Panel: Could not read theme from settings, using fallback detection');
+            // Storage blocked or the saved layout unreadable: start from the defaults
         }
-
-        // Method 2: Fallback - check body/html for theme classes or data attributes
-        if (detectedTheme === 'dark') {
-            const body = document.body;
-            const html = document.documentElement;
-
-            // Check for data-theme attribute
-            const dataTheme = body.getAttribute('data-theme') || html.getAttribute('data-theme');
-            if (dataTheme) {
-                detectedTheme = dataTheme.toLowerCase();
-            }
-
-            // Check for theme classes
-            const classes = (body.className + ' ' + html.className).toLowerCase();
-            if (classes.includes('theme-obsidian-dark') || classes.includes('obsidian-dark')) {
-                detectedTheme = 'obsidian-dark';
-            } else if (classes.includes('theme-obsidian') || classes.includes('obsidian')) {
-                detectedTheme = 'obsidian';
-            } else if (classes.includes('theme-milk-white') || classes.includes('milk-white') || classes.includes('milk_white')) {
-                detectedTheme = 'milk-white';
-            } else if (classes.includes('theme-solarized') || classes.includes('solarized')) {
-                detectedTheme = 'solarized';
-            } else if (classes.includes('theme-arc') || classes.includes('arc-theme')) {
-                detectedTheme = 'arc';
-            } else if (classes.includes('theme-nord') || classes.includes('nord-theme')) {
-                detectedTheme = 'nord';
-            } else if (classes.includes('theme-github') || classes.includes('github-theme')) {
-                detectedTheme = 'github';
-            } else if (classes.includes('theme-light') || classes.includes('light-theme')) {
-                detectedTheme = 'light';
-            } else if (classes.includes('theme-dracula') || classes.includes('dracula-theme')) {
-                detectedTheme = 'dracula';
-            } else if (classes.includes('theme-gruvbox') || classes.includes('gruvbox-theme')) {
-                detectedTheme = 'gruvbox';
-            } else if (classes.includes('theme-monokai') || classes.includes('monokai-theme')) {
-                detectedTheme = 'monokai';
-            }
-        }
-
-        // Method 3: Last resort - brightness detection for light vs dark
-        if (detectedTheme === 'dark') {
-            const bodyStyles = window.getComputedStyle(document.body);
-            const bgColor = bodyStyles.backgroundColor;
-            if (bgColor && bgColor !== 'rgba(0, 0, 0, 0)' && bgColor !== 'transparent') {
-                const rgbMatch = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-                if (rgbMatch) {
-                    const [, r, g, b] = rgbMatch.map(Number);
-                    const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-                    if (brightness > 180) {
-                        detectedTheme = 'light';
-                    }
-                }
-            }
-        }
-
-        // Update theme if it changed
-        if (this.state.currentTheme !== detectedTheme) {
-            this.state.currentTheme = detectedTheme;
-            return true; // Theme changed
-        }
-
-        return false; // No change
     }
 
-    setupThemeObserver(): void {
-        // Watch for changes to body/html classes and attributes
-        const observer = this.themeObserver = new MutationObserver((mutations) => {
-            let shouldCheck = false;
-            mutations.forEach((mutation) => {
-                if (mutation.type === 'attributes' &&
-                    (mutation.attributeName === 'class' ||
-                        mutation.attributeName === 'data-theme' ||
-                        mutation.attributeName === 'style')) {
-                    shouldCheck = true;
-                }
-            });
-
-            if (shouldCheck && this.detectCurrentTheme()) {
-                // Theme changed, update UI immediately
-                this.notifyThemeChange();
-            }
-        });
-
-        // Observe changes to body, html, and vue app
-        observer.observe(document.body, { attributes: true, attributeOldValue: true });
-        observer.observe(document.documentElement, { attributes: true, attributeOldValue: true });
-
-        const vueApp = document.querySelector('#vue-app');
-        if (vueApp) {
-            observer.observe(vueApp, { attributes: true, attributeOldValue: true });
-        }
-
-        // Also watch for changes to any element with theme-related classes
-        const themeElements = document.querySelectorAll('[class*="theme"], [class*="dark"], [class*="light"], [data-theme]');
-        themeElements.forEach(el => {
-            observer.observe(el, { attributes: true, attributeOldValue: true });
-        });
-
-        // Periodic fallback check every 2 seconds
-        this.themeInterval = setInterval(() => {
-            if (this.detectCurrentTheme()) {
-                this.notifyThemeChange();
-            }
-        }, 2000);
-    }
-
-    setupThemeButtonListeners(): void {
-        document.addEventListener('click', this.onDocumentClick);
-    }
-
-    // Clicks on theme toggle buttons trigger an immediate re-detection
-    private readonly onDocumentClick = (e: MouseEvent) => {
-        const target = e.target as HTMLElement;
-        const isThemeButton = target.textContent?.toLowerCase().includes('theme') ||
-            target.textContent?.toLowerCase().includes('light') ||
-            target.textContent?.toLowerCase().includes('dark') ||
-            target.title?.toLowerCase().includes('theme') ||
-            (typeof target.className === 'string' && target.className.toLowerCase().includes('theme'));
-
-        if (isThemeButton) {
-            setTimeout(() => {
-                if (this.detectCurrentTheme()) {
-                    this.notifyThemeChange();
-                }
-            }, 100);
-        }
-    };
-
-    notifyThemeChange(): void {
-        // Update settings to reflect new theme
-        this.state.settings["🔍MagnifyGlass.InfoPanelTheme"] = this.state.currentTheme;
-
-        // Notify UI components of theme change immediately
-        if (window.infoPanelManager && window.infoPanelManager.uiManager) {
-            window.infoPanelManager.uiManager.updateTheme(this.state.currentTheme);
-        }
-
-        // Notify Pop-Out Manager (if it exists on the main glass instance)
-        const magnifyGlass = (window as any).comfyUIMagnifyGlass;
-        if (magnifyGlass && magnifyGlass.popOutManager) {
-            magnifyGlass.popOutManager.updateTheme(this.state.currentTheme);
+    saveLayout(): void {
+        const { isFloating, floatPosition, isPanelMinimized } = this.state;
+        try {
+            localStorage.setItem(STORAGE_KEYS.INSPECTOR_LAYOUT, JSON.stringify({ floating: isFloating, minimized: isPanelMinimized, ...floatPosition }));
+        } catch (e) {
+            // Storage blocked: the layout lasts until reload
         }
     }
 
@@ -311,10 +100,7 @@ export class StateManager {
         const defaults = DEFAULT_PANEL_SETTINGS;
 
         Object.keys(defaults).forEach(key => {
-            // Skip the theme setting since we auto-detect it
-            if (key !== "🔍MagnifyGlass.InfoPanelTheme") {
-                this.state.settings[key] = getSettingValue(key, (defaults as any)[key]);
-            }
+            this.state.settings[key] = getSettingValue(key, (defaults as any)[key]);
         });
 
         // Validate numeric settings
@@ -354,16 +140,9 @@ export class StateManager {
             this.state.settings["🔍MagnifyGlass.ControlsPosition"], validControlPositions, defaults["🔍MagnifyGlass.ControlsPosition"] as string
         );
 
-        const validFonts = [
-            'System Default', 'Inter', 'Roboto', 'JetBrains Mono', 'Fira Code',
-            'IBM Plex Sans', 'Space Grotesk', 'Lexend', 'Outfit', 'monospace', 'system-ui'
-        ];
         this.state.settings["🔍MagnifyGlass.InfoPanelFontFamily"] = this.validateStringOption(
-            this.state.settings["🔍MagnifyGlass.InfoPanelFontFamily"], validFonts, defaults["🔍MagnifyGlass.InfoPanelFontFamily"] as string
+            this.state.settings["🔍MagnifyGlass.InfoPanelFontFamily"], PANEL_FONTS, defaults["🔍MagnifyGlass.InfoPanelFontFamily"] as string
         );
-
-        // Set theme to auto-detected value
-        this.state.settings["🔍MagnifyGlass.InfoPanelTheme"] = this.state.currentTheme;
     }
 
     /**
@@ -390,140 +169,13 @@ export class StateManager {
     /**
      * Validate string against an allowlist.
      */
-    private validateStringOption(value: unknown, options: string[], fallback: string): string {
+    private validateStringOption(value: unknown, options: readonly string[], fallback: string): string {
         if (typeof value !== 'string') return fallback;
         return options.includes(value) ? value : fallback;
-    }
-
-    togglePanelVisibility(): boolean {
-        this.state.isPanelVisible = !this.state.isPanelVisible;
-        return this.state.isPanelVisible;
-    }
-
-    toggleGlassPreview(): boolean {
-        this.state.isGlassPreviewVisible = !this.state.isGlassPreviewVisible;
-        return this.state.isGlassPreviewVisible;
-    }
-
-    togglePinning(): boolean {
-        const wasPinned = this.state.isPanelPinned;
-        this.state.isPanelPinned = !this.state.isPanelPinned;
-
-        // When unpinning, also unlock and clear auto-pin flag
-        if (!this.state.isPanelPinned) {
-            this.state.isPanelLocked = false;
-            this.state.isAutoPinned = false; // Clear auto-pin flag when manually unpinning
-        } else {
-            // When manually pinning, also clear auto-pin flag (this is a user-initiated pin)
-            this.state.isAutoPinned = false;
-        }
-
-        if (this.state.isPanelPinned && this.state.lastPinnedPosition) {
-            // Restore to last pinned position
-            this.state.pinnedPosition = { ...this.state.lastPinnedPosition };
-        } else if (!this.state.isPanelPinned && wasPinned) {
-            // Save current position when unpinning
-            this.state.lastPinnedPosition = { ...this.state.pinnedPosition };
-        }
-
-        return this.state.isPanelPinned;
-    }
-
-    toggleLocking(): boolean {
-        // Only allow locking when pinned
-        if (!this.state.isPanelPinned) {
-            return false;
-        }
-
-        this.state.isPanelLocked = !this.state.isPanelLocked;
-        return this.state.isPanelLocked;
     }
 
     toggleMinimized(): boolean {
         this.state.isPanelMinimized = !this.state.isPanelMinimized;
         return this.state.isPanelMinimized;
-    }
-
-    toggleHold(): boolean {
-        this.state.isInfoHeld = !this.state.isInfoHeld;
-        return this.state.isInfoHeld;
-    }
-
-    toggleSection(sectionId: string): boolean {
-        if (sectionId === 'node') return false; // Node section always expanded
-
-        if (this.state.expandedSections.has(sectionId)) {
-            this.state.expandedSections.delete(sectionId);
-        } else {
-            this.state.expandedSections.add(sectionId);
-        }
-        return true;
-    }
-
-    setPinnedPosition(x: number, y: number): void {
-        this.state.pinnedPosition = { x, y };
-        // Also save as last pinned position for memory
-        this.state.lastPinnedPosition = { x, y };
-    }
-
-    setCurrentInfo(info: GatheredInfo): void {
-        this.state.currentInfo = info;
-    }
-
-    /**
-     * Set the selected node ID for manual override.
-     * When set, the inspector will display this node instead of the hovered node.
-     */
-    setSelectedNode(id: number | null): void {
-        this.state.selectedNodeId = id;
-    }
-
-    /**
-     * Clear the selected node, returning to hover-based detection.
-     */
-    clearSelectedNode(): void {
-        this.state.selectedNodeId = null;
-    }
-
-    scheduleAutoCollapse(): void {
-        this.clearAutoExpandTimer();
-        if (this.state.settings["🔍MagnifyGlass.InfoPanelAnimations"]) {
-            this.state.autoExpandTimer = setTimeout(() => {
-                if (!this.state.isPanelHovered) {
-                    this.collapseNodeSections();
-                }
-            }, 1500);
-        }
-    }
-
-    clearAutoExpandTimer(): void {
-        if (this.state.autoExpandTimer) {
-            clearTimeout(this.state.autoExpandTimer);
-            this.state.autoExpandTimer = null;
-        }
-    }
-
-    expandNodeSections(): void {
-        this.state.expandedSections.add('hoveredNode');
-        this.state.expandedSections.add('node');
-        this.state.expandedSections.add('cursor');
-        this.state.expandedSections.add('canvas');
-        this.state.expandedSections.add('magnifier');
-        this.clearAutoExpandTimer();
-    }
-
-    collapseNodeSections(): void {
-        this.state.expandedSections.delete('hoveredNode');
-        this.state.expandedSections.delete('node');
-        this.state.expandedSections.delete('widget');
-    }
-
-    cleanup(): void {
-        this.clearAutoExpandTimer();
-        clearTimeout(this.themeTimeout);
-        clearInterval(this.themeInterval);
-        this.themeObserver.disconnect();
-        this.colorSchemeQuery.removeEventListener('change', this.onColorSchemeChange);
-        document.removeEventListener('click', this.onDocumentClick);
     }
 }

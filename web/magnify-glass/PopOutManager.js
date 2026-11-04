@@ -15,8 +15,8 @@ class PopOutManager {
     __publicField(this, "lastPongTime", 0);
     __publicField(this, "pingInterval", null);
     __publicField(this, "viewerUrl");
-    __publicField(this, "currentTheme", "dark");
-    // Default theme
+    // The theme last sent to the viewer, null until it connects
+    __publicField(this, "sentTheme", null);
     /** Throttle frame sending to ~30fps */
     __publicField(this, "lastFrameTime", 0);
     __publicField(this, "FRAME_INTERVAL", 33);
@@ -74,16 +74,20 @@ class PopOutManager {
    * Handle incoming messages from the viewer tab.
    */
   handleMessage(message) {
+    var _a, _b;
     switch (message.type) {
-      case "pong":
+      case "pong": {
         this.lastPongTime = Date.now();
         if (!this.isOpen) {
           this.isOpen = true;
+          this.sentTheme = null;
           Logger.debug("[PopOut] Viewer tab connected");
           if (this.onStateChange) this.onStateChange(true);
-          this.sendConfig({ theme: this.currentTheme });
         }
+        const theme = document.body.classList.contains("dark-theme") ? "dark" : "light";
+        if (theme !== this.sentTheme) this.sendConfig({ theme });
         break;
+      }
       case "close":
         this.isOpen = false;
         this.popOutWindow = null;
@@ -102,8 +106,8 @@ class PopOutManager {
       case "zoom-node":
         if (typeof message.data === "number") {
           const app = window.app;
-          const node = app.graph.getNodeById(message.data);
-          if (node && app.canvas) {
+          const node = (_b = (_a = app.canvas) == null ? void 0 : _a.graph) == null ? void 0 : _b.getNodeById(message.data);
+          if (node) {
             app.canvas.centerOnNode(node);
           }
         }
@@ -144,16 +148,13 @@ class PopOutManager {
    * Invokes the widget's callback function.
    */
   handleButtonClick(buttonData) {
+    var _a, _b;
     if (!buttonData || typeof buttonData.nodeId !== "number" || !buttonData.widgetName) {
       Logger.warn("[PopOut] Invalid button click data:", buttonData);
       return;
     }
     const app = window.app;
-    if (!(app == null ? void 0 : app.graph)) {
-      Logger.warn("[PopOut] No app.graph available for button click");
-      return;
-    }
-    const node = app.graph.getNodeById(buttonData.nodeId);
+    const node = (_b = (_a = app == null ? void 0 : app.canvas) == null ? void 0 : _a.graph) == null ? void 0 : _b.getNodeById(buttonData.nodeId);
     if (!(node == null ? void 0 : node.widgets)) {
       Logger.warn(`[PopOut] Node ${buttonData.nodeId} not found or has no widgets`);
       return;
@@ -243,32 +244,15 @@ class PopOutManager {
   /**
    * Send configuration to the pop-out viewer.
    */
-  /**
-   * Send configuration to the pop-out viewer.
-   */
   sendConfig(config) {
     if (!this.channel) return;
-    const finalConfig = {
-      theme: this.currentTheme,
-      ...config
-    };
     if (config.theme) {
-      this.currentTheme = config.theme;
+      this.sentTheme = config.theme;
     }
     this.sendMessage({
       type: "config",
-      data: finalConfig
+      data: config
     });
-  }
-  /**
-   * Update the viewer theme.
-   * @param theme - Theme name (e.g. 'dark', 'light')
-   */
-  updateTheme(theme) {
-    if (this.currentTheme === theme) return;
-    this.currentTheme = theme;
-    this.sendConfig({ theme });
-    Logger.debug(`[PopOut] Theme updated to: ${theme}`);
   }
   /**
    * Send inspector info to the pop-out viewer.
@@ -287,11 +271,11 @@ class PopOutManager {
    * Fetches nodes from canvas and sends them to the popout.
    */
   handleNodeListRequest(sortBy) {
-    var _a;
+    var _a, _b;
     if (!this.channel) return;
     try {
       const app = window.app;
-      const nodes = ((_a = app == null ? void 0 : app.graph) == null ? void 0 : _a._nodes) || [];
+      const nodes = ((_b = (_a = app == null ? void 0 : app.canvas) == null ? void 0 : _a.graph) == null ? void 0 : _b._nodes) || [];
       let nodeList;
       if (sortBy === "execOrder") {
         nodeList = nodes.map((n) => ({
@@ -367,13 +351,6 @@ class PopOutManager {
       if (magnifyGlass == null ? void 0 : magnifyGlass.config) {
         sanitized.magnifier = {
           zoomFactor: Number(magnifyGlass.config.zoomFactor || 1)
-        };
-      }
-      if (info.mediaElement || info.media) {
-        const media = info.mediaElement || info.media;
-        sanitized.media = {
-          tagName: String(media.tagName || media.type || ""),
-          naturalSize: media.naturalWidth && media.naturalHeight ? `${media.naturalWidth}×${media.naturalHeight}` : media.naturalSize
         };
       }
       return sanitized;

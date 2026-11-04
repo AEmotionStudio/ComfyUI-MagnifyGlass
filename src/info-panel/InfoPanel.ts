@@ -30,6 +30,7 @@ export class InfoPanel {
     private originalShow: () => void;
     private originalHide: () => void;
     private updateFrameId: number | null = null;
+    private boundScheduleSelectionUpdate: () => void;
 
     constructor(magnifyGlass: MagnifyGlassInstance) {
         this.magnifyGlass = magnifyGlass;
@@ -38,13 +39,13 @@ export class InfoPanel {
         this.stateManager = new StateManager();
         this.uiManager = new UIManager(this.stateManager);
         this.informationGatherer = new InformationGatherer();
-        this.canvasHighlighter = new CanvasHighlighter();
+        this.canvasHighlighter = new CanvasHighlighter(this.stateManager.state.settings);
 
         // Position Manager needs the UI elements
         this.positionManager = new PositionManager(this.stateManager, this.uiManager.elements.panel!);
 
         // Event Manager needs state and UI manager
-        this.eventManager = new EventManager(this.stateManager, this.uiManager.elements.panel!, this.positionManager, {
+        this.eventManager = new EventManager(this.stateManager, this.uiManager.elements.panel!, {
             toggleVisibility: () => {
                 if (this.stateManager.state.isPanelVisible) {
                     this.uiManager.hide();
@@ -52,12 +53,25 @@ export class InfoPanel {
                     this.uiManager.show();
                 }
             },
-            togglePin: () => {
-                this.stateManager.togglePinning();
-                this.uiManager.updatePinnedState();
+            toggleFloat: () => this.uiManager.toggleFloating(),
+            toggleSticky: () => this.uiManager.setPersist(!this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"]),
+            updateLayout: () => {
+                this.uiManager.applyStyles();
+                this.uiManager.updateControlStates();
+                this.positionManager.positionPanel();
+                this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
             },
-            updatePosition: () => this.positionManager.positionPanel()
+            isGlassActive: () => this.magnifyGlass.state.active
         });
+
+        // A click or key can change the selection without moving the mouse, which drives the other updates
+        this.boundScheduleSelectionUpdate = () => {
+            if (this.magnifyGlass.state.active && this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelFollowSelection"]) {
+                this.scheduleInfoUpdate();
+            }
+        };
+        document.addEventListener('pointerup', this.boundScheduleSelectionUpdate, true);
+        document.addEventListener('keyup', this.boundScheduleSelectionUpdate, true);
 
         this.originalUpdateMagnifiedView = magnifyGlass.updateMagnifiedView;
         this.originalShow = magnifyGlass.ui.show;
@@ -69,21 +83,19 @@ export class InfoPanel {
             this.magnifyGlass.popOutManager.onStateChange = () => {
                 this.uiManager.updateControlStates();
             };
-            // Listen for node selection from popout
+            // A node picked in the pop-out is a jump like any other
             this.magnifyGlass.popOutManager.onNodeSelect = (nodeId: number) => {
-                this.onNodeSelected(nodeId);
+                this.uiManager.jumpToNode(nodeId);
             };
             // Listen for widget edits from popout to force refresh
             this.magnifyGlass.popOutManager.onWidgetEdit = () => {
-                // Force update to reflect changes (e.g. unhidden widgets)
-                this.updateInfo(true);
+                // Reflect the edit (e.g. unhidden widgets)
+                this.updateInfo();
             };
         }
 
-        // Set up node selection callback
-        this.uiManager.onNodeSelected = (nodeId: number) => {
-            this.onNodeSelected(nodeId);
-        };
+        // Jumps, the lock and the mode buttons show their result at once
+        this.uiManager.onRefresh = () => this.updateInfo();
 
         Logger.debug('Info Panel initialized successfully');
     }
@@ -142,14 +154,6 @@ export class InfoPanel {
             this.originalHide.call(mg.ui);
             this.uiManager.hide();
 
-            // FORCE HIDE: Directly set panel display to none as a safety measure
-            if (this.uiManager.elements.panel) {
-                this.uiManager.elements.panel.style.display = 'none';
-                this.uiManager.elements.panel.style.pointerEvents = 'none';
-                // Also force opacity 0 to prevent any visual ghost
-                this.uiManager.elements.panel.style.opacity = '0';
-            }
-
             // Explicitly hide floating controls when glass is disabled
             if (this.uiManager.elements.controls) {
                 this.uiManager.elements.controls.style.display = 'none';
@@ -190,21 +194,35 @@ export class InfoPanel {
             cancelAnimationFrame(this.updateFrameId);
             this.updateFrameId = null;
         }
+        document.removeEventListener('pointerup', this.boundScheduleSelectionUpdate, true);
+        document.removeEventListener('keyup', this.boundScheduleSelectionUpdate, true);
 
         this.eventManager.cleanup();
         this.uiManager.cleanup();
         this.canvasHighlighter.cleanup();
-        this.stateManager.cleanup();
     }
 
-    // State for persistence
-    private lastValidNodeInfo: any = null;
+    /**
+     * Follow the glass again from where it starts.
+     */
+    resetPosition(): void {
+        // A hidden glass cannot be followed
+        if (!this.stateManager.state.isGlassPreviewVisible) return;
+        this.stateManager.state.isFloating = false;
+        this.stateManager.state.floatPosition = null;
+        this.stateManager.saveLayout();
+        this.positionManager.positionPanel();
+        this.uiManager.updateControlStates();
+    }
+
+    // The node Sticky keeps, looked up again on each update like the locked one
+    private stickyNodeId: number | null = null;
+    private stickyGraph: unknown = null;
 
     /**
      * Update the info panel with current information.
-     * @param forceUpdate - If true, bypass the isInfoHeld check to force an update
      */
-    updateInfo(forceUpdate: boolean = false): void {
+    updateInfo(): void {
         const settings = this.stateManager.state.settings;
         const isActive = this.magnifyGlass.state.active;
 
@@ -219,61 +237,41 @@ export class InfoPanel {
             return;
         }
 
-        // Logic for "Hold Info" (Freeze)
-        // Skip if held, UNLESS we're forcing an update (e.g., from dropdown selection)
-        if (this.stateManager.state.isInfoHeld && !forceUpdate) {
-            // If held, we skip gathering new info and skip updating the display content.
-            // But we MUST still update positioning to keep the UI responsive to movement.
-            this.positionManager.positionPanel();
-            this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
-            return;
-        }
-
         let info = this.informationGatherer.gatherInformation();
+        const state = this.stateManager.state;
 
-        // AUTO-CLEAR SELECTION: If user hovers a different node, clear the manual selection
-        // This allows the dropdown selection to be a "jump to" action, then resume normal hover
-        const selectedNodeId = this.stateManager.state.selectedNodeId;
-        if (selectedNodeId !== null && info.hoveredNode && info.hoveredNode.id !== selectedNodeId) {
-            // User is hovering a different node than the selected one - clear selection
-            this.stateManager.clearSelectedNode();
+        // The locked node is shown whatever is hovered, then the first selected node when following the selection.
+        // The lock goes when its node does, or when another graph is on screen, where its id is another node.
+        if (state.lockedNodeId !== null && state.lockedGraph !== app.canvas?.graph) {
+            state.lockedNodeId = null;
+        }
+        const lockedNode = state.lockedNodeId === null ? null : this.uiManager.nodeSelector.getNodeById(state.lockedNodeId);
+        if (!lockedNode) {
+            state.lockedNodeId = null;
+        }
+        const selectedNode = !lockedNode && settings["🔍MagnifyGlass.InfoPanelFollowSelection"]
+            ? Object.values(app.canvas?.selected_nodes ?? {})[0]
+            : undefined;
+        state.showsSelection = !!selectedNode;
+        const shownNode = lockedNode ?? selectedNode;
+        if (shownNode) {
+            info = { ...info, hoveredNode: this.informationGatherer.getDetailedNodeInfo(shownNode) };
         }
 
-        // NODE SELECTION OVERRIDE - check if user has selected a specific node (after auto-clear check)
-        const currentSelectedId = this.stateManager.state.selectedNodeId;
-        if (currentSelectedId !== null) {
-            const selectedNode = this.uiManager.nodeSelector.getNodeById(currentSelectedId);
-            if (selectedNode) {
-                // Override with selected node info
-                const detailedInfo = this.informationGatherer.getDetailedNodeInfo(
-                    selectedNode,
-                    { x: 0, y: 0 } // No local position when manually selected
-                );
-                info = {
-                    ...info,
-                    hoveredNode: detailedInfo,
-                    hoveredWidget: null
-                };
+        // Over empty canvas Sticky keeps the last node, until it goes or another graph is on screen
+        if (info.hoveredNode) {
+            this.stickyNodeId = info.hoveredNode.id;
+            this.stickyGraph = app.canvas?.graph;
+        } else if (settings["🔍MagnifyGlass.InfoPanelPersist"] && this.stickyNodeId !== null) {
+            const stickyNode = this.stickyGraph === app.canvas?.graph ? this.uiManager.nodeSelector.getNodeById(this.stickyNodeId) : null;
+            if (stickyNode) {
+                info = { ...info, hoveredNode: this.informationGatherer.getDetailedNodeInfo(stickyNode) };
+            } else {
+                this.stickyNodeId = null;
             }
         }
-        // END NODE SELECTION OVERRIDE
 
-        // PERSISTENCE LOGIC START
-        if (info.hoveredNode) {
-            // We have a valid node, update our cache
-            this.lastValidNodeInfo = info;
-        } else if (settings["🔍MagnifyGlass.InfoPanelPersist"] && this.lastValidNodeInfo) {
-            // No node hovered, but persistence is ON and we have a cache.
-            // Merge the CACHED node info into the CURRENT info (so we keep current cursor pos/zoom but show old node)
-            info = {
-                ...info, // Current timestamp, cursor, zoom
-                hoveredNode: this.lastValidNodeInfo.hoveredNode,
-                hoveredWidget: this.lastValidNodeInfo.hoveredWidget
-            };
-        }
-        // PERSISTENCE LOGIC END
-
-        this.stateManager.setCurrentInfo(info);
+        state.currentNodeId = info.hoveredNode?.id ?? null;
 
         // Update the UI
         this.uiManager.displayInfo(info);
@@ -288,48 +286,6 @@ export class InfoPanel {
 
         this.positionManager.positionPanel();
         this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
-
-        // Handle node hover state logic if needed for internal state
-        if (info.hoveredNode) {
-            this.stateManager.state.isHoveringNode = true;
-            this.stateManager.expandNodeSections();
-            if (this.stateManager.state.lastNodeId !== info.hoveredNode.id) {
-                this.stateManager.state.lastNodeId = info.hoveredNode.id;
-            }
-        } else {
-            this.stateManager.state.isHoveringNode = false;
-            // Only collapse if we are NOT persisting
-            if (!settings["🔍MagnifyGlass.InfoPanelPersist"]) {
-                if (this.stateManager.state.lastNodeId !== null) {
-                    this.stateManager.state.lastNodeId = null;
-                    if (!this.stateManager.state.isPanelHovered) {
-                        this.stateManager.scheduleAutoCollapse();
-                    }
-                }
-            }
-        }
-    }
-
-    /**
-     * Handle node selection from dropdown.
-     * @param nodeId - ID of the selected node
-     */
-    onNodeSelected(nodeId: number): void {
-        Logger.debug(`Node selected from dropdown: ${nodeId}`);
-
-        // Set the selected node in state manager
-        this.stateManager.setSelectedNode(nodeId);
-
-        // Force an immediate info update (bypasses isInfoHeld)
-        this.updateInfo(true);
-    }
-
-    /**
-     * Clear the selected node, returning to hover-based detection.
-     */
-    clearSelectedNode(): void {
-        this.stateManager.clearSelectedNode();
-        this.updateInfo();
     }
 }
 

@@ -19,6 +19,28 @@ const PANEL_POSITIONS = [
   "Left",
   "Right"
 ];
+const PANEL_FONTS = [
+  "System Default",
+  "Inter",
+  "Roboto",
+  "JetBrains Mono",
+  "Fira Code",
+  "IBM Plex Sans",
+  "Space Grotesk",
+  "Lexend",
+  "Outfit",
+  "Cinzel",
+  "Playfair Display",
+  "Orbitron",
+  "Dancing Script",
+  "Amatic SC",
+  "Comfortaa",
+  "Righteous",
+  "Bangers",
+  "Press Start 2P",
+  "Audiowide",
+  "monospace"
+];
 const ACTIVATION_KEYS = ["x", "z", "m", "q", "v", "c"];
 const RESET_KEYS = ["r", "o", "p", "k", "l"];
 const TOGGLE_FOLLOW_KEYS = ["f", "g", "h", "j", "k"];
@@ -31,7 +53,7 @@ const DEFAULT_BORDER_WIDTH = 1;
 const DEFAULT_BORDER_COLOR = "#6b7280";
 const DEFAULT_OFFSET_STEP = 5;
 const DEFAULT_PANEL_WIDTH = 300;
-const DEFAULT_PANEL_MAX_HEIGHT = 300;
+const DEFAULT_PANEL_MAX_HEIGHT = 600;
 const DEFAULT_PANEL_OPACITY = 100;
 const INFO_PANEL_ID = "comfyui-magnify-info-panel-pro-v2";
 const Z_INDEX = {
@@ -39,7 +61,8 @@ const Z_INDEX = {
 };
 const STORAGE_KEYS = {
   OFFSET_X: "comfyui_magnify_offset_x",
-  OFFSET_Y: "comfyui_magnify_offset_y"
+  OFFSET_Y: "comfyui_magnify_offset_y",
+  INSPECTOR_LAYOUT: "comfyui_magnify_inspector_layout"
 };
 const BROADCAST_CHANNEL_NAME = "comfyui-magnifyglass-popout";
 export {
@@ -59,6 +82,7 @@ export {
   GLASS_POSITIONS,
   GLASS_SHAPES,
   INFO_PANEL_ID,
+  PANEL_FONTS,
   PANEL_POSITIONS,
   RESET_KEYS,
   STORAGE_KEYS,

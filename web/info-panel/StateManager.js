@@ -4,204 +4,55 @@ var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "sy
 import { getSettingValue, clamp } from "../shared/utils.js";
 import { DEFAULT_PANEL_SETTINGS } from "../shared/settings/defaults.js";
 import "/scripts/app.js";
+import { STORAGE_KEYS, PANEL_FONTS } from "../shared/constants.js";
 class StateManager {
   constructor() {
     __publicField(this, "state");
-    __publicField(this, "themeObserver");
-    __publicField(this, "themeInterval");
-    __publicField(this, "themeTimeout");
-    __publicField(this, "colorSchemeQuery");
-    __publicField(this, "onColorSchemeChange", () => this.detectCurrentTheme());
-    // Clicks on theme toggle buttons trigger an immediate re-detection
-    __publicField(this, "onDocumentClick", (e) => {
-      var _a, _b, _c, _d;
-      const target = e.target;
-      const isThemeButton = ((_a = target.textContent) == null ? void 0 : _a.toLowerCase().includes("theme")) || ((_b = target.textContent) == null ? void 0 : _b.toLowerCase().includes("light")) || ((_c = target.textContent) == null ? void 0 : _c.toLowerCase().includes("dark")) || ((_d = target.title) == null ? void 0 : _d.toLowerCase().includes("theme")) || typeof target.className === "string" && target.className.toLowerCase().includes("theme");
-      if (isThemeButton) {
-        setTimeout(() => {
-          if (this.detectCurrentTheme()) {
-            this.notifyThemeChange();
-          }
-        }, 100);
-      }
-    });
     this.state = {
       // Panel visibility and positioning
       isPanelVisible: false,
       wasPanelVisibleBeforeHide: false,
       isPanelMinimized: false,
-      isPanelPinned: false,
-      isPanelLocked: false,
-      // New lock state
-      isAutoPinned: false,
-      // Track if panel was auto-pinned by glass hide
-      pinnedPosition: { x: 0, y: 0 },
-      lastPinnedPosition: null,
-      // Remember last pinned location
+      isFloating: false,
+      floatPosition: null,
       // Glass visibility
       isGlassPreviewVisible: true,
-      isInfoHeld: false,
-      // Section expansion
-      expandedSections: /* @__PURE__ */ new Set(["node"]),
-      // Interaction states
       isPanelHovered: false,
-      isHoveringNode: false,
-      // Auto-collapse
-      autoExpandTimer: null,
-      lastNodeId: null,
-      // Current data
-      currentInfo: null,
-      // Node selection override
-      selectedNodeId: null,
+      currentNodeId: null,
+      lockedNodeId: null,
+      lockedGraph: null,
+      showsSelection: false,
       // Settings cache
-      settings: {},
-      // Auto-detected theme
-      currentTheme: "dark"
-      // Will be auto-detected
+      settings: {}
     };
-    this.initThemeDetection();
     this.loadSettings();
+    this.loadLayout();
   }
-  initThemeDetection() {
-    this.detectCurrentTheme();
-    this.themeTimeout = setTimeout(() => {
-      if (this.detectCurrentTheme()) {
-        this.notifyThemeChange();
-      }
-    }, 1e3);
-    this.setupThemeObserver();
-    this.colorSchemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    this.colorSchemeQuery.addEventListener("change", this.onColorSchemeChange);
-    this.setupThemeButtonListeners();
-  }
-  detectCurrentTheme() {
-    let detectedTheme = "dark";
+  /**
+   * Float mode, float position and minimized state are kept per browser.
+   */
+  loadLayout() {
     try {
-      const colorPalette = getSettingValue("Comfy.ColorPalette", "");
-      if (colorPalette) {
-        const paletteStr = String(colorPalette).toLowerCase();
-        if (paletteStr.includes("obsidian") && paletteStr.includes("dark")) {
-          detectedTheme = "obsidian-dark";
-        } else if (paletteStr.includes("obsidian")) {
-          detectedTheme = "obsidian";
-        } else if (paletteStr.includes("milk") || paletteStr.includes("white")) {
-          detectedTheme = "milk-white";
-        } else if (paletteStr.includes("solarized")) {
-          detectedTheme = "solarized";
-        } else if (paletteStr.includes("arc")) {
-          detectedTheme = "arc";
-        } else if (paletteStr.includes("nord")) {
-          detectedTheme = "nord";
-        } else if (paletteStr.includes("github")) {
-          detectedTheme = "github";
-        } else if (paletteStr.includes("light")) {
-          detectedTheme = "light";
-        } else if (paletteStr.includes("dark")) {
-          detectedTheme = "dark";
-        }
+      const layout = JSON.parse(localStorage.getItem(STORAGE_KEYS.INSPECTOR_LAYOUT) || "{}");
+      this.state.isFloating = layout.floating === true;
+      this.state.isPanelMinimized = layout.minimized === true;
+      if (Number.isFinite(layout.x) && Number.isFinite(layout.y)) {
+        this.state.floatPosition = { x: layout.x, y: layout.y };
       }
     } catch (e) {
-      console.warn("ComfyUI Info Panel: Could not read theme from settings, using fallback detection");
     }
-    if (detectedTheme === "dark") {
-      const body = document.body;
-      const html = document.documentElement;
-      const dataTheme = body.getAttribute("data-theme") || html.getAttribute("data-theme");
-      if (dataTheme) {
-        detectedTheme = dataTheme.toLowerCase();
-      }
-      const classes = (body.className + " " + html.className).toLowerCase();
-      if (classes.includes("theme-obsidian-dark") || classes.includes("obsidian-dark")) {
-        detectedTheme = "obsidian-dark";
-      } else if (classes.includes("theme-obsidian") || classes.includes("obsidian")) {
-        detectedTheme = "obsidian";
-      } else if (classes.includes("theme-milk-white") || classes.includes("milk-white") || classes.includes("milk_white")) {
-        detectedTheme = "milk-white";
-      } else if (classes.includes("theme-solarized") || classes.includes("solarized")) {
-        detectedTheme = "solarized";
-      } else if (classes.includes("theme-arc") || classes.includes("arc-theme")) {
-        detectedTheme = "arc";
-      } else if (classes.includes("theme-nord") || classes.includes("nord-theme")) {
-        detectedTheme = "nord";
-      } else if (classes.includes("theme-github") || classes.includes("github-theme")) {
-        detectedTheme = "github";
-      } else if (classes.includes("theme-light") || classes.includes("light-theme")) {
-        detectedTheme = "light";
-      } else if (classes.includes("theme-dracula") || classes.includes("dracula-theme")) {
-        detectedTheme = "dracula";
-      } else if (classes.includes("theme-gruvbox") || classes.includes("gruvbox-theme")) {
-        detectedTheme = "gruvbox";
-      } else if (classes.includes("theme-monokai") || classes.includes("monokai-theme")) {
-        detectedTheme = "monokai";
-      }
-    }
-    if (detectedTheme === "dark") {
-      const bodyStyles = window.getComputedStyle(document.body);
-      const bgColor = bodyStyles.backgroundColor;
-      if (bgColor && bgColor !== "rgba(0, 0, 0, 0)" && bgColor !== "transparent") {
-        const rgbMatch = bgColor.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-        if (rgbMatch) {
-          const [, r, g, b] = rgbMatch.map(Number);
-          const brightness = (r * 299 + g * 587 + b * 114) / 1e3;
-          if (brightness > 180) {
-            detectedTheme = "light";
-          }
-        }
-      }
-    }
-    if (this.state.currentTheme !== detectedTheme) {
-      this.state.currentTheme = detectedTheme;
-      return true;
-    }
-    return false;
   }
-  setupThemeObserver() {
-    const observer = this.themeObserver = new MutationObserver((mutations) => {
-      let shouldCheck = false;
-      mutations.forEach((mutation) => {
-        if (mutation.type === "attributes" && (mutation.attributeName === "class" || mutation.attributeName === "data-theme" || mutation.attributeName === "style")) {
-          shouldCheck = true;
-        }
-      });
-      if (shouldCheck && this.detectCurrentTheme()) {
-        this.notifyThemeChange();
-      }
-    });
-    observer.observe(document.body, { attributes: true, attributeOldValue: true });
-    observer.observe(document.documentElement, { attributes: true, attributeOldValue: true });
-    const vueApp = document.querySelector("#vue-app");
-    if (vueApp) {
-      observer.observe(vueApp, { attributes: true, attributeOldValue: true });
-    }
-    const themeElements = document.querySelectorAll('[class*="theme"], [class*="dark"], [class*="light"], [data-theme]');
-    themeElements.forEach((el) => {
-      observer.observe(el, { attributes: true, attributeOldValue: true });
-    });
-    this.themeInterval = setInterval(() => {
-      if (this.detectCurrentTheme()) {
-        this.notifyThemeChange();
-      }
-    }, 2e3);
-  }
-  setupThemeButtonListeners() {
-    document.addEventListener("click", this.onDocumentClick);
-  }
-  notifyThemeChange() {
-    this.state.settings["🔍MagnifyGlass.InfoPanelTheme"] = this.state.currentTheme;
-    if (window.infoPanelManager && window.infoPanelManager.uiManager) {
-      window.infoPanelManager.uiManager.updateTheme(this.state.currentTheme);
-    }
-    const magnifyGlass = window.comfyUIMagnifyGlass;
-    if (magnifyGlass && magnifyGlass.popOutManager) {
-      magnifyGlass.popOutManager.updateTheme(this.state.currentTheme);
+  saveLayout() {
+    const { isFloating, floatPosition, isPanelMinimized } = this.state;
+    try {
+      localStorage.setItem(STORAGE_KEYS.INSPECTOR_LAYOUT, JSON.stringify({ floating: isFloating, minimized: isPanelMinimized, ...floatPosition }));
+    } catch (e) {
     }
   }
   loadSettings() {
     const defaults = DEFAULT_PANEL_SETTINGS;
     Object.keys(defaults).forEach((key) => {
-      if (key !== "🔍MagnifyGlass.InfoPanelTheme") {
-        this.state.settings[key] = getSettingValue(key, defaults[key]);
-      }
+      this.state.settings[key] = getSettingValue(key, defaults[key]);
     });
     this.state.settings["🔍MagnifyGlass.InfoPanelWidth"] = this.validateNumber(
       this.state.settings["🔍MagnifyGlass.InfoPanelWidth"],
@@ -247,25 +98,11 @@ class StateManager {
       validControlPositions,
       defaults["🔍MagnifyGlass.ControlsPosition"]
     );
-    const validFonts = [
-      "System Default",
-      "Inter",
-      "Roboto",
-      "JetBrains Mono",
-      "Fira Code",
-      "IBM Plex Sans",
-      "Space Grotesk",
-      "Lexend",
-      "Outfit",
-      "monospace",
-      "system-ui"
-    ];
     this.state.settings["🔍MagnifyGlass.InfoPanelFontFamily"] = this.validateStringOption(
       this.state.settings["🔍MagnifyGlass.InfoPanelFontFamily"],
-      validFonts,
+      PANEL_FONTS,
       defaults["🔍MagnifyGlass.InfoPanelFontFamily"]
     );
-    this.state.settings["🔍MagnifyGlass.InfoPanelTheme"] = this.state.currentTheme;
   }
   /**
    * Validate numeric input with bounds checking.
@@ -292,110 +129,9 @@ class StateManager {
     if (typeof value !== "string") return fallback;
     return options.includes(value) ? value : fallback;
   }
-  togglePanelVisibility() {
-    this.state.isPanelVisible = !this.state.isPanelVisible;
-    return this.state.isPanelVisible;
-  }
-  toggleGlassPreview() {
-    this.state.isGlassPreviewVisible = !this.state.isGlassPreviewVisible;
-    return this.state.isGlassPreviewVisible;
-  }
-  togglePinning() {
-    const wasPinned = this.state.isPanelPinned;
-    this.state.isPanelPinned = !this.state.isPanelPinned;
-    if (!this.state.isPanelPinned) {
-      this.state.isPanelLocked = false;
-      this.state.isAutoPinned = false;
-    } else {
-      this.state.isAutoPinned = false;
-    }
-    if (this.state.isPanelPinned && this.state.lastPinnedPosition) {
-      this.state.pinnedPosition = { ...this.state.lastPinnedPosition };
-    } else if (!this.state.isPanelPinned && wasPinned) {
-      this.state.lastPinnedPosition = { ...this.state.pinnedPosition };
-    }
-    return this.state.isPanelPinned;
-  }
-  toggleLocking() {
-    if (!this.state.isPanelPinned) {
-      return false;
-    }
-    this.state.isPanelLocked = !this.state.isPanelLocked;
-    return this.state.isPanelLocked;
-  }
   toggleMinimized() {
     this.state.isPanelMinimized = !this.state.isPanelMinimized;
     return this.state.isPanelMinimized;
-  }
-  toggleHold() {
-    this.state.isInfoHeld = !this.state.isInfoHeld;
-    return this.state.isInfoHeld;
-  }
-  toggleSection(sectionId) {
-    if (sectionId === "node") return false;
-    if (this.state.expandedSections.has(sectionId)) {
-      this.state.expandedSections.delete(sectionId);
-    } else {
-      this.state.expandedSections.add(sectionId);
-    }
-    return true;
-  }
-  setPinnedPosition(x, y) {
-    this.state.pinnedPosition = { x, y };
-    this.state.lastPinnedPosition = { x, y };
-  }
-  setCurrentInfo(info) {
-    this.state.currentInfo = info;
-  }
-  /**
-   * Set the selected node ID for manual override.
-   * When set, the inspector will display this node instead of the hovered node.
-   */
-  setSelectedNode(id) {
-    this.state.selectedNodeId = id;
-  }
-  /**
-   * Clear the selected node, returning to hover-based detection.
-   */
-  clearSelectedNode() {
-    this.state.selectedNodeId = null;
-  }
-  scheduleAutoCollapse() {
-    this.clearAutoExpandTimer();
-    if (this.state.settings["🔍MagnifyGlass.InfoPanelAnimations"]) {
-      this.state.autoExpandTimer = setTimeout(() => {
-        if (!this.state.isPanelHovered) {
-          this.collapseNodeSections();
-        }
-      }, 1500);
-    }
-  }
-  clearAutoExpandTimer() {
-    if (this.state.autoExpandTimer) {
-      clearTimeout(this.state.autoExpandTimer);
-      this.state.autoExpandTimer = null;
-    }
-  }
-  expandNodeSections() {
-    this.state.expandedSections.add("hoveredNode");
-    this.state.expandedSections.add("node");
-    this.state.expandedSections.add("cursor");
-    this.state.expandedSections.add("canvas");
-    this.state.expandedSections.add("magnifier");
-    this.clearAutoExpandTimer();
-  }
-  collapseNodeSections() {
-    this.state.expandedSections.delete("hoveredNode");
-    this.state.expandedSections.delete("node");
-    this.state.expandedSections.delete("widget");
-  }
-  cleanup() {
-    this.clearAutoExpandTimer();
-    clearTimeout(this.themeTimeout);
-    clearInterval(this.themeInterval);
-    this.themeObserver.disconnect();
-    this.colorSchemeQuery.removeEventListener("change", this.onColorSchemeChange);
-    document.removeEventListener("click", this.onDocumentClick);
   }
 }
 export {

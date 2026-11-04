@@ -16,6 +16,7 @@ export interface WidgetConstraints {
     min?: number;
     max?: number;
     step?: number;
+    round?: number;
     precision?: number;
     options?: unknown[];  // For combo widgets
 }
@@ -35,68 +36,46 @@ export interface SyncResult {
  * Handles bidirectional sync between inspector and canvas nodes
  */
 export class WidgetSyncManager {
-    private static debounceTimers: Map<string, number> = new Map();
-    private static readonly DEBOUNCE_MS = 50;
-
     /**
-     * Update a widget value on a node
+     * Update a widget value on a node in the graph on screen
      * @param nodeId - The node ID
      * @param widgetName - The widget name
      * @param value - The new value to set
+     * @param recordUndo - Record an undo step now; drags pass false and record once on release
      * @returns SyncResult indicating success or failure
      */
-    static syncWidgetValue(nodeId: number, widgetName: string, value: unknown): SyncResult {
+    static syncWidgetValue(nodeId: number, widgetName: string, value: unknown, recordUndo: boolean = true): SyncResult {
         try {
-            if (!app?.graph) {
-                return { success: false, error: 'ComfyUI app not available' };
-            }
-
-            const node = app.graph.getNodeById(nodeId);
+            const node = app?.canvas?.graph?.getNodeById(nodeId);
             if (!node) {
                 return { success: false, error: `Node ${nodeId} not found` };
             }
 
-            if (!node.widgets || node.widgets.length === 0) {
-                return { success: false, error: `Node ${nodeId} has no widgets` };
-            }
-
-            const widget = node.widgets.find((w: any) => w.name === widgetName);
+            const widget = node.widgets?.find((w: any) => w.name === widgetName);
             if (!widget) {
                 return { success: false, error: `Widget "${widgetName}" not found on node ${nodeId}` };
             }
 
             const previousValue = widget.value;
-
-            // Apply constraints before setting value
             const constrainedValue = this.applyConstraints(value, widget);
 
-            // Update widget value
-            widget.value = constrainedValue;
-
-            // Trigger widget callback if it exists (some widgets need this for side effects)
-            if (typeof widget.callback === 'function') {
-                try {
-                    widget.callback(constrainedValue, app.canvas, node, [0, 0], null);
-                } catch (callbackError) {
-                    Logger.warn(`Widget callback failed for ${widgetName}:`, callbackError);
-                    // Continue anyway - the value is set
-                }
+            // setValue runs the callback, onWidgetChanged and bumps the graph version, like a canvas edit
+            if (typeof widget.setValue === 'function') {
+                widget.setValue(constrainedValue, { node, canvas: app.canvas });
+            } else {
+                widget.value = constrainedValue;
+                widget.callback?.(constrainedValue, app.canvas, node, app.canvas.graph_mouse);
             }
 
-            // Mark node as dirty to trigger redraw
-            if (typeof node.setDirtyCanvas === 'function') {
-                node.setDirtyCanvas(true, true);
-            }
+            node.graph?.setDirtyCanvas(true, true);
+            if (recordUndo) this.recordUndo();
 
-            // Force canvas redraw
-            this.triggerCanvasRedraw();
-
-            Logger.debug(`[WidgetSync] Updated ${widgetName} on node ${nodeId}: ${previousValue} → ${constrainedValue}`);
+            Logger.debug(`[WidgetSync] Updated ${widgetName} on node ${nodeId}: ${previousValue} → ${widget.value}`);
 
             return {
                 success: true,
                 previousValue,
-                newValue: constrainedValue
+                newValue: widget.value
             };
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
@@ -106,56 +85,10 @@ export class WidgetSyncManager {
     }
 
     /**
-     * Debounced version of syncWidgetValue for text input
-     * @param nodeId - The node ID
-     * @param widgetName - The widget name  
-     * @param value - The new value to set
-     * @param debounceMs - Debounce delay in milliseconds (default 50ms)
+     * Let ComfyUI's change tracker pick up the edit as an undo step
      */
-    static syncWidgetValueDebounced(
-        nodeId: number,
-        widgetName: string,
-        value: unknown,
-        debounceMs: number = this.DEBOUNCE_MS
-    ): void {
-        const key = `${nodeId}:${widgetName}`;
-
-        // Clear existing timer
-        const existingTimer = this.debounceTimers.get(key);
-        if (existingTimer) {
-            window.clearTimeout(existingTimer);
-        }
-
-        // Set new timer
-        const timer = window.setTimeout(() => {
-            this.syncWidgetValue(nodeId, widgetName, value);
-            this.debounceTimers.delete(key);
-        }, debounceMs);
-
-        this.debounceTimers.set(key, timer);
-    }
-
-    /**
-     * Get widget constraints for validation
-     * @param nodeId - The node ID
-     * @param widgetName - The widget name
-     * @returns WidgetConstraints or null if widget not found
-     */
-    static getWidgetConstraints(nodeId: number, widgetName: string): WidgetConstraints | null {
-        try {
-            if (!app?.graph) return null;
-
-            const node = app.graph.getNodeById(nodeId);
-            if (!node?.widgets) return null;
-
-            const widget = node.widgets.find((w: any) => w.name === widgetName);
-            if (!widget) return null;
-
-            return this.extractConstraints(widget);
-        } catch (error) {
-            Logger.warn(`[WidgetSync] Error getting constraints:`, error);
-            return null;
-        }
+    static recordUndo(): void {
+        app?.extensionManager?.workflow?.activeWorkflow?.changeTracker?.checkState();
     }
 
     /**
@@ -170,22 +103,37 @@ export class WidgetSyncManager {
         if (typeof widget.step === 'number') constraints.step = widget.step;
 
         // Options object (ComfyUI sometimes nests these)
-        if (widget.options) {
-            if (typeof widget.options.min === 'number') constraints.min = widget.options.min;
-            if (typeof widget.options.max === 'number') constraints.max = widget.options.max;
-            if (typeof widget.options.step === 'number') constraints.step = widget.options.step;
-            if (typeof widget.options.precision === 'number') constraints.precision = widget.options.precision;
-            if (Array.isArray(widget.options.values)) {
-                constraints.options = widget.options.values;
+        const options = widget.options;
+        if (options && !Array.isArray(options)) {
+            if (typeof options.min === 'number') constraints.min = options.min;
+            if (typeof options.max === 'number') constraints.max = options.max;
+            // ComfyUI stores step as 10x the input step and the real one as step2
+            if (typeof options.step2 === 'number') constraints.step = options.step2;
+            else if (typeof options.step === 'number') constraints.step = options.step / 10;
+            if (typeof options.round === 'number' && options.round > 0) constraints.round = options.round;
+            if (typeof options.precision === 'number') constraints.precision = options.precision;
+            const values = typeof options.values === 'function' ? options.values(widget, widget.node) : options.values;
+            if (Array.isArray(values)) {
+                constraints.options = values;
             }
         }
 
         // Combo widget options (array of values)
-        if (Array.isArray(widget.options)) {
-            constraints.options = widget.options;
+        if (Array.isArray(options)) {
+            constraints.options = options;
         }
 
         return constraints;
+    }
+
+    /**
+     * Step for one nudge of a number widget. Shift is x10, Alt is x0.1 but never finer than the widget stores.
+     */
+    static getStep(constraints: WidgetConstraints | undefined, e?: { shiftKey: boolean; altKey: boolean }): number {
+        const step = constraints?.step ?? 1;
+        if (e?.shiftKey) return step * 10;
+        if (e?.altKey) return Math.max(step / 10, constraints?.round ?? 10 ** -(constraints?.precision ?? 3));
+        return step;
     }
 
     /**
@@ -196,27 +144,25 @@ export class WidgetSyncManager {
         const widgetType = this.getWidgetType(widget);
 
         // Handle number types
-        if (widgetType === 'number' || widgetType === 'INT' || widgetType === 'FLOAT' || widgetType === 'slider') {
+        if (widgetType === 'INT' || widgetType === 'FLOAT' || widgetType === 'slider') {
             let numValue = typeof value === 'number' ? value : parseFloat(String(value));
 
             if (isNaN(numValue)) {
                 return widget.value; // Return current value if invalid
             }
 
-            // Apply min/max
+            if (constraints.round) {
+                numValue = Math.round(numValue / constraints.round) * constraints.round;
+            }
+            if (typeof constraints.precision === 'number') {
+                numValue = parseFloat(numValue.toFixed(constraints.precision));
+            }
+
             if (typeof constraints.min === 'number') {
                 numValue = Math.max(constraints.min, numValue);
             }
             if (typeof constraints.max === 'number') {
                 numValue = Math.min(constraints.max, numValue);
-            }
-
-            // Note: Skip step rounding to preserve user's exact input value
-            // The widget callback or ComfyUI pipeline will handle step constraints if needed
-
-            // Apply precision
-            if (typeof constraints.precision === 'number') {
-                numValue = parseFloat(numValue.toFixed(constraints.precision));
             }
 
             return numValue;
@@ -258,12 +204,13 @@ export class WidgetSyncManager {
         // Button widgets - explicit type check
         if (type === 'button') return 'button';
 
-        // Map ComfyUI widget types to our categories
-        if (type === 'number' || type === 'int' || type === 'float') return 'number';
+        // Map ComfyUI widget types to our categories. INT and FLOAT both use 'number'; INT has precision 0.
+        if (type === 'number' || type === 'knob') return widget.options?.precision === 0 ? 'INT' : 'FLOAT';
         if (type === 'combo' || type === 'string' && Array.isArray(widget.options)) return 'combo';
         if (type === 'toggle' || type === 'boolean') return 'boolean';
         if (type === 'slider') return 'slider';
-        if (type === 'text' || type === 'string' || type === 'customtext') return 'text';
+        if (type === 'customtext' || widget.options?.multiline) return 'multiline';
+        if (type === 'text' || type === 'string') return 'text';
 
         // Check for array options (combo indicator)
         if (Array.isArray(widget.options) && widget.options.length > 0) {
@@ -305,80 +252,22 @@ export class WidgetSyncManager {
         // Widgets marked as readonly
         if (widget.readonly) return false;
 
-        // Check type
+        // Writing a string over an object value would corrupt it
+        if (widget.value !== null && typeof widget.value === 'object') return false;
+
         const type = this.getWidgetType(widget);
 
-        // Button widgets are actionable, not editable
-        if (type === 'button') return false;
+        // DOM widgets own their element; only the multiline textarea maps to a plain value
+        if (widget.element && type !== 'multiline') return false;
 
-        const editableTypes = ['number', 'text', 'combo', 'boolean', 'slider', 'INT', 'FLOAT'];
-
-        return editableTypes.includes(type) || editableTypes.includes(type.toUpperCase());
-    }
-
-    /**
-     * Force canvas redraw after widget update
-     */
-    static triggerCanvasRedraw(): void {
-        try {
-            if (app?.canvas) {
-                if (typeof app.canvas.setDirty === 'function') {
-                    app.canvas.setDirty(true, true);
-                }
-                if (typeof app.canvas.draw === 'function') {
-                    app.canvas.draw(true, true);
-                }
-            }
-        } catch (error) {
-            Logger.warn(`[WidgetSync] Canvas redraw failed:`, error);
-        }
+        return ['INT', 'FLOAT', 'text', 'multiline', 'combo', 'boolean', 'slider'].includes(type);
     }
 
     /**
      * Get current value of a widget
      */
     static getWidgetValue(nodeId: number, widgetName: string): unknown | null {
-        try {
-            if (!app?.graph) return null;
-
-            const node = app.graph.getNodeById(nodeId);
-            if (!node?.widgets) return null;
-
-            const widget = node.widgets.find((w: any) => w.name === widgetName);
-            return widget?.value ?? null;
-        } catch (error) {
-            return null;
-        }
-    }
-
-    /**
-     * Validate a value against widget constraints without applying
-     */
-    static validateValue(nodeId: number, widgetName: string, value: unknown): { valid: boolean; error?: string } {
-        const constraints = this.getWidgetConstraints(nodeId, widgetName);
-        if (!constraints) {
-            return { valid: true }; // No constraints = valid
-        }
-
-        // Number validation
-        if (typeof value === 'number') {
-            if (typeof constraints.min === 'number' && value < constraints.min) {
-                return { valid: false, error: `Value must be at least ${constraints.min}` };
-            }
-            if (typeof constraints.max === 'number' && value > constraints.max) {
-                return { valid: false, error: `Value must be at most ${constraints.max}` };
-            }
-        }
-
-        // Combo validation - use string comparison
-        if (constraints.options) {
-            const valueStr = String(value);
-            const hasMatch = constraints.options.some(opt => String(opt) === valueStr);
-            if (!hasMatch) {
-                return { valid: false, error: `Invalid option selected` };
-            }
-        }
-
-        return { valid: true };
+        const widget = app?.canvas?.graph?.getNodeById(nodeId)?.widgets?.find((w: any) => w.name === widgetName);
+        return widget?.value ?? null;
     }
 }

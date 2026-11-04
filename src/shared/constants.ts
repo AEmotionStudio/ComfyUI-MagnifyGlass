@@ -45,6 +45,15 @@ export const PANEL_POSITIONS = [
 
 export type PanelPosition = typeof PANEL_POSITIONS[number];
 
+// Info panel fonts; each is used only when installed on this computer
+export const PANEL_FONTS = [
+    "System Default", "Inter", "Roboto", "JetBrains Mono", "Fira Code",
+    "IBM Plex Sans", "Space Grotesk", "Lexend", "Outfit",
+    "Cinzel", "Playfair Display", "Orbitron", "Dancing Script", "Amatic SC",
+    "Comfortaa", "Righteous", "Bangers", "Press Start 2P", "Audiowide",
+    "monospace"
+] as const;
+
 // Available keys for settings
 export const ACTIVATION_KEYS = ["x", "z", "m", "q", "v", "c"] as const;
 export const RESET_KEYS = ["r", "o", "p", "k", "l"] as const;
@@ -62,7 +71,7 @@ export const DEFAULT_OFFSET_STEP = 5;
 
 // Panel Constants
 export const DEFAULT_PANEL_WIDTH = 300;
-export const DEFAULT_PANEL_MAX_HEIGHT = 300;
+export const DEFAULT_PANEL_MAX_HEIGHT = 600;
 export const DEFAULT_PANEL_OPACITY = 100;
 export const INFO_PANEL_ID = "comfyui-magnify-info-panel-pro-v2";
 
@@ -74,17 +83,11 @@ export const Z_INDEX = {
     CONTROLS: 99998
 } as const;
 
-// Animation durations (ms)
-export const ANIMATION = {
-    PANEL_TRANSITION: 300,
-    AUTO_COLLAPSE_DELAY: 1500,
-    THEME_DETECTION_INTERVAL: 2000
-} as const;
-
 // LocalStorage keys
 export const STORAGE_KEYS = {
     OFFSET_X: 'comfyui_magnify_offset_x',
-    OFFSET_Y: 'comfyui_magnify_offset_y'
+    OFFSET_Y: 'comfyui_magnify_offset_y',
+    INSPECTOR_LAYOUT: 'comfyui_magnify_inspector_layout'
 } as const;
 
 // BroadcastChannel for pop-out tab communication

@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.0] - 2026-11-04
+
+### Changed
+- **Inspector look**: The panel, its toolbar and its menus follow your ComfyUI palette (any palette, light or dark) with a flat, denser layout. Text and Accent Color override the palette only when changed from their defaults. Max Height and Opacity now apply in every mode.
+- **Header and navigation**: The header shows the node's title, `#id` and type, with Lock and Minimize (double-click the header to minimize). Below it: Back/Forward, Previous/Next in execution order, Centre on node, and a searchable **Go to node** picker (title, type or `#id`) that replaces the three node lists. A breadcrumb shows the subgraph path and group, with "Enter subgraph" for subgraph nodes. Every jump centres the canvas and locks the panel to the node.
+- **Simpler modes**: The panel either follows the glass or floats. Dragging the header floats it, and its position and minimized state are kept per browser. A corner handle sets Width and Max Height. **Sticky** (S) keeps the last node, **Lock** keeps one node while you hover others, and the new **Follow Selection** setting shows the selected node.
+- **Editing**: Widgets are editable while Sticky, Locked or following the selection; otherwise rows offer "Lock to edit". Number steps match the canvas (Shift ×10, Alt ×0.1), text commits on Enter or blur and Escape reverts, prompts get a multiline editor (Ctrl+Enter), and a drag is one undo step. Linked widgets are read-only.
+- **Copy**: Every row can be copied, the header copies `Title #id`, and copying works on plain-http LAN addresses.
+- **Toolbar**: A fixed set of grouped buttons; ones that can't act are disabled. All eight Controls Positions work, and the toolbar flips sides instead of covering the panel.
+- **Hotkeys**: Panel keys act only while the glass is on and never with Ctrl or Meta. `*` and ←/→ act only while the panel is hovered or focused, so the arrow keys nudge the glass otherwise. Rebinding applies at once.
+- Max Height now defaults to 600px.
+
+### Fixed
+- **Subgraphs**: The panel, picker, highlight and editing use the graph on screen, so they work inside subgraphs. Title bars and collapsed nodes are hit.
+- **Widget edits** run the widget's callback, redraw the canvas and record undo. CLIPLoader's `type` widget shows again.
+- Dropdowns no longer get orphaned or keep writing after the panel re-renders, and they can be filtered by typing.
+- The panel re-renders only when the shown node changes, so hover, focus and text selection survive.
+- Saved fonts no longer reset on reload, and High Contrast Text applies on load.
+- Node modes read Mute and Bypass instead of Never and On Request.
+- The pop-out editor keeps newlines, handles widget names with quotes, and Escape no longer closes the window.
+
+### Removed
+- The built-in panel themes and their palette detection.
+- Hold (P); use Lock.
+- Loading fonts from Google Fonts. Font Family uses fonts installed locally.
+- The Inspector and Media sections, the Show Inspector Tab setting, the guessed Model/Image/Text rows, and the unused Animations setting.
+
+---
+
 ## [1.14.0] - 2026-11-03
 
 ### Fixed

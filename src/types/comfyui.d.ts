@@ -23,6 +23,7 @@ export interface ComfyExtension {
     name: string;
     setup?: () => Promise<void> | void;
     init?: () => Promise<void> | void;
+    afterConfigureGraph?: () => Promise<void> | void;
     commands?: ComfyCommand[];
     keybindings?: ComfyKeybinding[];
     menuCommands?: ComfyMenuCommand[];
@@ -141,7 +142,13 @@ export interface ComfyDialog {
 
 export interface ComfyGraph {
     _nodes: ComfyNode[];
+    /** The graph itself for the root graph; set on subgraphs */
+    rootGraph: ComfyGraph;
+    /** Subgraphs only */
+    name?: string;
     getNodeById(id: number): ComfyNode | null;
+    getNodeOnPos(x: number, y: number): ComfyNode | null;
+    getGroupOnPos(x: number, y: number): { title: string } | undefined;
 }
 
 export interface ComfyNode {
@@ -158,6 +165,10 @@ export interface ComfyNode {
     inputs?: ComfySlot[];
     outputs?: ComfySlot[];
     properties?: Record<string, unknown>;
+    graph?: ComfyGraph;
+    /** Subgraph nodes only */
+    subgraph?: ComfyGraph;
+    isSubgraphNode?(): boolean;
 }
 
 export interface ComfyWidget {
@@ -183,12 +194,16 @@ export interface ComfySlot {
 
 export interface ComfyCanvas {
     canvas: HTMLCanvasElement;
+    graph: ComfyGraph | null;
     ds: {
         scale: number;
         offset: [number, number];
     };
     node_over: ComfyNode | null;
+    selected_nodes: Record<string, ComfyNode>;
     convertOffsetToCanvasPos?(pos: [number, number]): [number, number];
+    centerOnNode(node: ComfyNode): void;
+    openSubgraph(subgraph: ComfyGraph, fromNode: ComfyNode): void;
 }
 
 // ============================================================================
@@ -198,8 +213,7 @@ export interface ComfyCanvas {
 declare global {
     interface Window {
         comfyUIMagnifyGlass?: MagnifyGlassInstance;
-        magnifyGlass?: MagnifyGlassInstance; // Alias used by info panel controls
-        comfyUIMagnifyGlassExtensions?: unknown[];
+        comfyUIMagnifyGlassExtensions?: InfoPanel[];
         infoPanelManager?: InfoPanel;
     }
 
@@ -220,11 +234,8 @@ export interface MagnifyGlassInstance {
         onStateChange?: ((isOpen: boolean) => void) | null;
         onNodeSelect?: ((nodeId: number) => void) | null;
         onWidgetEdit?: (() => void) | null;
-        updateTheme?(theme: string): void;
     };
     lastKnownMousePosition: { x: number; y: number };
-    isOverMedia: boolean;
-    currentMediaElement: HTMLImageElement | HTMLVideoElement | null;
     updateMagnifiedView(): void;
     applyUiChanges(): void;
     toggle(): void;
@@ -285,18 +296,12 @@ export interface MagnifyGlassRenderer {
  * Returned by InformationGatherer.gatherInformation()
  */
 export interface GatheredInfo {
-    timestamp: number;
     cursor: {
-        screenX: number;
-        screenY: number;
         canvasX: number;
         canvasY: number;
     };
     zoom: number;
-    nodeCount: number;
     hoveredNode: NodeInfo | null;
-    hoveredWidget: WidgetInfo | null;
-    mediaElement: MediaInfo | null;
 }
 
 /**
@@ -307,89 +312,26 @@ export interface NodeInfo {
     id: number;
     title: string;
     type: string;
-    mode: string | number;
+    mode: string;
     position: {
         x: number;
         y: number;
-        formatted?: string;
-    } | string;
+    };
     size: {
         width: number;
         height: number;
-        formatted?: string;
-    } | string;
-    localPosition?: {
-        x: number;
-        y: number;
-        formatted?: string;
-        percentage?: { x: string; y: string };
-    };
-    counts?: {
-        widgets: number;
-        inputs: number;
-        outputs: number;
-        properties: number;
     };
     widgets: ComfyWidget[];
     inputs: ComfyInput[];
     outputs: ComfyOutput[];
     properties: Record<string, unknown>;
-    hoverRegion?: string;
     executionOrder?: number;
-    author?: string;
     category?: string;
     pythonModule?: string;
-}
-
-/**
- * Information about a widget.
- */
-export interface WidgetInfo {
-    name: string;
-    type: string;
-    value: string;
-    options?: unknown;
-    min?: number;
-    max?: number;
-    step?: number;
-}
-
-/**
- * Information about a media element (image or video).
- */
-export interface MediaInfo {
-    type: 'image' | 'video';
-    tagName: string;
-    src: string;
-    naturalWidth: number;
-    naturalHeight: number;
-    displayWidth: number;
-    displayHeight: number;
-    aspectRatio: string;
-    duration?: number;
-    currentTime?: number;
-}
-
-/**
- * A section in the info panel display.
- */
-export interface SectionData {
-    id: string;
-    title: string;
-    icon: string;
-    visible: boolean;
-    expanded: boolean;
-    content: ParameterItem[];
-}
-
-/**
- * A parameter item displayed in a section.
- */
-export interface ParameterItem {
-    label: string;
-    value: unknown;
-    formattedValue?: string;
-    highlight?: boolean;
+    /** Names of the subgraphs from the root down to the node's graph */
+    graphPath: string[];
+    group?: string;
+    isSubgraph: boolean;
 }
 
 export { };

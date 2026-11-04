@@ -1,14 +1,15 @@
 var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
-import { getSettingValue } from "../shared/utils.js";
 class CanvasHighlighter {
-  constructor() {
+  constructor(settings) {
     __publicField(this, "originalOnDrawForeground", null);
     __publicField(this, "highlightedNodeId", null);
     __publicField(this, "highlightEl", null);
     // Cache for DOM updates to minimize thrashing
     __publicField(this, "lastStyleState", "");
+    // The panel's settings cache, which the setting's onChange keeps current
+    __publicField(this, "settings");
     // Bound method to preserve 'this' and allow equality check
     __publicField(this, "boundOnDrawForeground", (ctx, visible_nodes) => {
       if (this.originalOnDrawForeground) {
@@ -16,38 +17,14 @@ class CanvasHighlighter {
       }
       this.updateHighlightPosition();
     });
+    this.settings = settings;
     this.createHighlightElement();
   }
   createHighlightElement() {
     this.highlightEl = document.createElement("div");
     this.highlightEl.id = "magnify-glass-node-highlight";
-    this.highlightEl.style.cssText = `
-            position: fixed;
-            pointer-events: none;
-            border: 2px solid #007bff;
-            border-radius: 10px;
-            z-index: 1000;
-            display: none;
-            box-sizing: border-box;
-            box-shadow: 0 0 10px rgba(0, 123, 255, 0.3);
-        `;
+    this.highlightEl.style.display = "none";
     document.body.appendChild(this.highlightEl);
-  }
-  /**
-   * Hook into the main canvas onDrawForeground method.
-   */
-  hookCanvas() {
-    const app = window.app;
-    if (!app || !app.canvas) {
-      return false;
-    }
-    const canvas = app.canvas;
-    if (canvas.onDrawForeground === this.boundOnDrawForeground) {
-      return true;
-    }
-    this.originalOnDrawForeground = canvas.onDrawForeground;
-    canvas.onDrawForeground = this.boundOnDrawForeground;
-    return true;
   }
   /**
    * Set the node ID to highlight.
@@ -79,17 +56,17 @@ class CanvasHighlighter {
    * Update the position of the DOM highlight element.
    */
   updateHighlightPosition() {
+    var _a;
     if (!this.highlightEl) return;
     const app = window.app;
-    if (!app || !app.canvas || !app.graph) return;
-    const highlightEnabled = getSettingValue("🔍MagnifyGlass.NodeHighlightEnabled", true);
-    if (!highlightEnabled || this.highlightedNodeId === null) {
+    if (!((_a = app == null ? void 0 : app.canvas) == null ? void 0 : _a.graph)) return;
+    if (!this.settings["🔍MagnifyGlass.NodeHighlightEnabled"] || this.highlightedNodeId === null) {
       if (this.highlightEl.style.display !== "none") {
         this.highlightEl.style.display = "none";
       }
       return;
     }
-    const node = app.graph.getNodeById(this.highlightedNodeId);
+    const node = app.canvas.graph.getNodeById(this.highlightedNodeId);
     if (!node) {
       if (this.highlightEl.style.display !== "none") {
         this.highlightEl.style.display = "none";
@@ -117,13 +94,15 @@ class CanvasHighlighter {
     const pageY = canvasRect.top + canvasY - padding;
     const finalW = canvasW + padding * 2;
     const finalH = canvasH + padding * 2;
-    const styleState = `${pageX.toFixed(1)},${pageY.toFixed(1)},${finalW.toFixed(1)},${finalH.toFixed(1)}`;
+    const clip = `inset(${canvasRect.top - pageY}px ${pageX + finalW - canvasRect.right}px ${pageY + finalH - canvasRect.bottom}px ${canvasRect.left - pageX}px)`;
+    const styleState = `${pageX.toFixed(1)},${pageY.toFixed(1)},${finalW.toFixed(1)},${finalH.toFixed(1)},${clip}`;
     if (this.lastStyleState !== styleState || this.highlightEl.style.display === "none") {
       this.highlightEl.style.display = "block";
       this.highlightEl.style.left = `${pageX}px`;
       this.highlightEl.style.top = `${pageY}px`;
       this.highlightEl.style.width = `${finalW}px`;
       this.highlightEl.style.height = `${finalH}px`;
+      this.highlightEl.style.clipPath = clip;
       const borderWidth = Math.max(2, Math.min(6, 3 * scale));
       this.highlightEl.style.borderWidth = `${borderWidth}px`;
       this.lastStyleState = styleState;

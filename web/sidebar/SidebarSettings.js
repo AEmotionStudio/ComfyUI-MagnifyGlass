@@ -1,4 +1,4 @@
-import { GLASS_SHAPES, GLASS_POSITIONS, ACTIVATION_KEYS, RESET_KEYS, TOGGLE_FOLLOW_KEYS, DIRECT_CAPTURE_KEYS, PANEL_POSITIONS } from "../shared/constants.js";
+import { GLASS_SHAPES, GLASS_POSITIONS, ACTIVATION_KEYS, RESET_KEYS, TOGGLE_FOLLOW_KEYS, DIRECT_CAPTURE_KEYS, PANEL_POSITIONS, PANEL_FONTS } from "../shared/constants.js";
 import { setSettingValue, getSettingValue } from "../shared/utils.js";
 import { DEFAULT_SETTINGS } from "../shared/settings/defaults.js";
 import { resetAllSettings } from "../shared/settings/reset.js";
@@ -572,16 +572,16 @@ function renderSettingsPanel(container) {
   const panelSection = createSection("Info Panel");
   panelSection.section.hidden = !inspectorEnabled;
   panelSection.body.appendChild(createToggle(
-    "Persist Info",
+    "Sticky",
     settingValue("🔍MagnifyGlass.InfoPanelPersist"),
-    (checked) => {
-      setSettingValue("🔍MagnifyGlass.InfoPanelPersist", checked);
-      const infoPanel = window.infoPanelManager;
-      if (infoPanel == null ? void 0 : infoPanel.uiManager) {
-        infoPanel.uiManager.updateControlStates();
-      }
-    },
-    "Keep displaying the last node info when hovering empty space"
+    (checked) => setSettingValue("🔍MagnifyGlass.InfoPanelPersist", checked),
+    "Keep showing the last node over empty canvas. Its widgets can then be edited"
+  ));
+  panelSection.body.appendChild(createToggle(
+    "Follow Selection",
+    settingValue("🔍MagnifyGlass.InfoPanelFollowSelection"),
+    (checked) => setSettingValue("🔍MagnifyGlass.InfoPanelFollowSelection", checked),
+    "Show the selected node instead of the hovered one. Its widgets can then be edited"
   ));
   panelSection.body.appendChild(createToggle(
     "Node Highlight Border",
@@ -682,32 +682,10 @@ function renderSettingsPanel(container) {
       }
     }
   ));
-  const fontFamilyOptions = [
-    "System Default",
-    "Inter",
-    "Roboto",
-    "JetBrains Mono",
-    "Fira Code",
-    "IBM Plex Sans",
-    "Space Grotesk",
-    "Lexend",
-    "Outfit",
-    "Cinzel",
-    "Playfair Display",
-    "Orbitron",
-    "Dancing Script",
-    "Amatic SC",
-    "Comfortaa",
-    "Righteous",
-    "Bangers",
-    "Press Start 2P",
-    "Audiowide",
-    "monospace"
-  ];
   panelSection.body.appendChild(createSelect(
     "Font Family",
     settingValue("🔍MagnifyGlass.InfoPanelFontFamily"),
-    fontFamilyOptions,
+    PANEL_FONTS,
     (value) => setSettingValue("🔍MagnifyGlass.InfoPanelFontFamily", value),
     "Font family for the info panel text",
     (value) => {
@@ -791,16 +769,16 @@ function renderSettingsPanel(container) {
   panelHotkeySection.body.appendChild(createSelect(
     "Toggle Key",
     settingValue("🔍MagnifyGlass.ToggleHotkey"),
-    ["i", "j", "k", "l", "n", "m"],
+    ["i", "j", "k", "l"],
     (value) => setSettingValue("🔍MagnifyGlass.ToggleHotkey", value),
     "Key to toggle info panel visibility"
   ));
   panelHotkeySection.body.appendChild(createSelect(
-    "Pin Key",
+    "Float Key",
     settingValue("🔍MagnifyGlass.PinPanelHotkey"),
     ["u", "p", "y", "t"],
     (value) => setSettingValue("🔍MagnifyGlass.PinPanelHotkey", value),
-    "Key to pin/unpin the info panel position"
+    "Key to switch the panel between following the glass and floating"
   ));
   const panelAltToggle = createToggle(
     "Require Alt Key",

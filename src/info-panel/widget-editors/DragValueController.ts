@@ -2,7 +2,7 @@
  * ComfyUI MagnifyGlass - Drag Value Controller
  * 
  * Handles horizontal drag gestures on inspector rows for quick value changes.
- * Allows users to drag left/right to adjust numbers or cycle through options.
+ * Allows users to drag left/right to adjust numbers.
  */
 
 import { WidgetSyncManager, WidgetConstraints } from './WidgetSyncManager';
@@ -14,21 +14,12 @@ import { Logger } from '../../shared/logger';
 export interface DragConfig {
     nodeId: number;
     widgetName: string;
-    widgetType: string;
-    currentValue: unknown;
     constraints?: WidgetConstraints;
     onChange?: (value: unknown) => void;
 }
 
-/**
- * Default sensitivity settings
- */
-const DRAG_SENSITIVITY = {
-    // Pixels to drag for one step change (applies to all numeric types)
-    pixelsPerStep: 10,
-    // Minimum pixels to trigger option cycle for combos (increased to prevent accidental cycling)
-    comboThreshold: 60,
-};
+// Pixels to drag for one step change
+const PIXELS_PER_STEP = 10;
 
 /**
  * Drag Value Controller
@@ -37,11 +28,11 @@ const DRAG_SENSITIVITY = {
 export class DragValueController {
     private element: HTMLElement;
     private config: DragConfig;
-    private isDragging: boolean = false;
+    isDragging: boolean = false;
+    private value: unknown = null;
     private startX: number = 0;
     private startValue: number = 0;
-    private startOptionIndex: number = 0;
-    private accumulatedDelta: number = 0;
+    private startStep: number = 0;
 
     // Bound event handlers for cleanup
     private boundPointerDown: (e: PointerEvent) => void;
@@ -70,23 +61,6 @@ export class DragValueController {
         this.element.classList.add('draggable');
 
         this.element.addEventListener('pointerdown', this.boundPointerDown);
-
-        // Add visual indicator
-        // this.addDragIndicator();
-    }
-
-    /**
-     * Add visual drag indicator to the row
-     */
-    private addDragIndicator(): void {
-        // Check if already has indicator
-        if (this.element.querySelector('.drag-indicator')) return;
-
-        const indicator = document.createElement('span');
-        indicator.className = 'drag-indicator';
-        indicator.innerHTML = '⟷'; // Left-right arrow
-        indicator.setAttribute('aria-hidden', 'true');
-        this.element.appendChild(indicator);
     }
 
     /**
@@ -115,18 +89,10 @@ export class DragValueController {
 
         this.isDragging = true;
         this.startX = e.clientX;
-        this.accumulatedDelta = 0;
-
-        // Capture current value
-        const type = this.config.widgetType.toLowerCase();
-        if (type === 'number' || type === 'int' || type === 'float' || type === 'slider') {
-            this.startValue = Number(this.config.currentValue) || 0;
-        } else if (type === 'combo') {
-            const options = this.config.constraints?.options ?? [];
-            const currentStr = String(this.config.currentValue);
-            this.startOptionIndex = options.findIndex(opt => String(opt) === currentStr);
-            if (this.startOptionIndex === -1) this.startOptionIndex = 0;
-        }
+        // From the widget, which the editor, an undo or the canvas may have changed since the row was drawn
+        this.value = WidgetSyncManager.getWidgetValue(this.config.nodeId, this.config.widgetName);
+        this.startValue = Number(this.value) || 0;
+        this.startStep = WidgetSyncManager.getStep(this.config.constraints, e);
 
         // Add dragging class
         this.element.classList.add('dragging');
@@ -155,14 +121,14 @@ export class DragValueController {
         e.preventDefault();
         e.stopPropagation();
 
-        const deltaX = e.clientX - this.startX;
-        const type = this.config.widgetType.toLowerCase();
-
-        if (type === 'number' || type === 'int' || type === 'float' || type === 'slider') {
-            this.handleNumberDrag(deltaX);
-        } else if (type === 'combo') {
-            this.handleComboDrag(deltaX);
+        // Holding or releasing Shift/Alt mid-drag continues from the current value at the new step
+        const step = WidgetSyncManager.getStep(this.config.constraints, e);
+        if (step !== this.startStep) {
+            this.startX = e.clientX;
+            this.startValue = Number(this.value) || 0;
+            this.startStep = step;
         }
+        this.handleNumberDrag(e.clientX - this.startX);
     }
 
     /**
@@ -170,64 +136,16 @@ export class DragValueController {
      * Uses discrete stepping: every N pixels = exactly 1 step change
      */
     private handleNumberDrag(deltaX: number): void {
-        const constraints = this.config.constraints;
-        const isInt = this.config.widgetType.toLowerCase() === 'int';
-
-        // Determine the step size (1 for integers, 0.1 or widget step for floats)
-        const step = constraints?.step ?? (isInt ? 1 : 0.1);
-
         // Calculate discrete number of steps (truncate, don't round)
-        const steps = Math.trunc(deltaX / DRAG_SENSITIVITY.pixelsPerStep);
+        const steps = Math.trunc(deltaX / PIXELS_PER_STEP);
+        const target = this.startValue + steps * this.startStep;
+        if (target === this.value) return;
 
-        // Calculate new value
-        let newValue = this.startValue + (steps * step);
-
-        // Apply constraints
-        if (constraints?.min !== undefined) {
-            newValue = Math.max(constraints.min, newValue);
-        }
-        if (constraints?.max !== undefined) {
-            newValue = Math.min(constraints.max, newValue);
-        }
-
-        // Round for display precision
-        if (isInt) {
-            newValue = Math.round(newValue);
-        } else {
-            const precision = constraints?.precision ?? 2;
-            newValue = Number(newValue.toFixed(precision));
-        }
-
-        // Sync the value
-        WidgetSyncManager.syncWidgetValue(this.config.nodeId, this.config.widgetName, newValue);
-        this.config.currentValue = newValue;
-        this.config.onChange?.(newValue);
-    }
-
-    /**
-     * Handle combo value drag - cycle through options
-     */
-    private handleComboDrag(deltaX: number): void {
-        const options = this.config.constraints?.options ?? [];
-        if (options.length === 0) return;
-
-        this.accumulatedDelta = deltaX;
-
-        // Calculate how many options to move
-        const optionDelta = Math.floor(Math.abs(this.accumulatedDelta) / DRAG_SENSITIVITY.comboThreshold);
-
-        if (optionDelta > 0) {
-            const direction = deltaX > 0 ? 1 : -1;
-            let newIndex = this.startOptionIndex + (optionDelta * direction);
-
-            // Wrap around
-            newIndex = ((newIndex % options.length) + options.length) % options.length;
-
-            const newValue = options[newIndex];
-            WidgetSyncManager.syncWidgetValue(this.config.nodeId, this.config.widgetName, newValue);
-            this.config.currentValue = newValue;
-            this.config.onChange?.(newValue);
-        }
+        // Clamping, rounding and precision happen in the sync; undo is recorded once on release
+        const result = WidgetSyncManager.syncWidgetValue(this.config.nodeId, this.config.widgetName, target, false);
+        if (!result.success) return;
+        this.value = result.newValue;
+        this.config.onChange?.(result.newValue);
     }
 
     /**
@@ -263,6 +181,7 @@ export class DragValueController {
     private endDrag(pointerId?: number): void {
         this.isDragging = false;
         this.element.classList.remove('dragging');
+        WidgetSyncManager.recordUndo();
 
         // Release pointer capture if we have a pointer ID
         if (pointerId !== undefined) {
@@ -281,23 +200,10 @@ export class DragValueController {
     }
 
     /**
-     * Update the current value (call when value changes externally)
-     */
-    updateValue(value: unknown): void {
-        this.config.currentValue = value;
-    }
-
-    /**
      * Cleanup and remove drag handling
      */
     destroy(): void {
         this.element.classList.remove('draggable', 'dragging');
-
-        // Remove indicator
-        const indicator = this.element.querySelector('.drag-indicator');
-        if (indicator) {
-            indicator.remove();
-        }
 
         // Remove the pointerdown listener from the element
         this.element.removeEventListener('pointerdown', this.boundPointerDown);
@@ -314,8 +220,6 @@ export class DragValueController {
      */
     static isTypeSupported(widgetType: string): boolean {
         const type = widgetType.toLowerCase();
-        return [
-            'number', 'int', 'float', 'slider', 'combo'
-        ].includes(type);
+        return ['int', 'float', 'slider'].includes(type);
     }
 }

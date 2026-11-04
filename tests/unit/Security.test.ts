@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { Window } from 'happy-dom';
-import { formatValue } from '../../src/info-panel/ValueFormatter';
 import { escapeHtml, sanitizeElement } from '../../src/shared/utils';
+import { UIManager } from '../../src/info-panel/UIManager';
+import { StateManager } from '../../src/info-panel/StateManager';
 
 describe('Security', () => {
     describe('sanitizeElement', () => {
@@ -108,98 +109,49 @@ describe('Security', () => {
        });
     });
 
-    describe('formatValue', () => {
-        it('should escape HTML in values to prevent XSS', () => {
-            const maliciousInput = '<script>alert("xss")</script>';
-            const escaped = formatValue(maliciousInput);
-
-            // Assert that the output does NOT contain the raw script tag
-            expect(escaped).not.toContain('<script>');
-
-            // Assert that the output IS escaped
-            expect(escaped).toContain('&lt;script&gt;');
-            expect(escaped).toContain('&lt;/script&gt;');
-        });
-
-        it('should escape quotes', () => {
-            const input = 'Value with "quotes" and \'single quotes\'';
-            const escaped = formatValue(input);
-            expect(escaped).toContain('&quot;quotes&quot;');
-            expect(escaped).toContain('&#039;single quotes&#039;');
-        });
-    });
-
     describe('UIManager Rendering Logic', () => {
-        // Mock logic for UIManager rendering to verify the fix for trusted HTML
+        it('should render widget values and their copy text as text', () => {
+            (globalThis as any).app = { canvas: { graph: null } };
+            document.head.innerHTML = '<style id="magnify-info-panel-styles-v2"></style>';
+            const ui = new UIManager(new StateManager());
+            const malicious = '<script>alert("xss")</script> \'quoted\'';
 
-        // Helper to simulate UIManager.renderSections logic
-        const renderItem = (item: any) => {
-            let value;
-            if (item.specialType === 'focus-node') {
-                // Mimic UIManager logic: inject static HTML structure but escape the dynamic value
-                // In actual code: `<span class="focus-node-btn">${Icons.focus} ${escapeHtml(item.value)}</span>`
-                // We mock Icons.focus here for simplicity
-                value = `<span class="focus-node-btn">ICON ${escapeHtml(item.value)}</span>`;
-            } else {
-                value = formatValue(item.value, item.label);
-            }
-            return value;
-        };
+            ui.displayInfo({
+                hoveredNode: {
+                    id: 1, title: 'Node', type: 'KSampler', mode: 'Always', inputs: [], outputs: [], properties: {},
+                    widgets: [{ name: '<img src=x onerror=alert(1)>', type: 'text', value: malicious }],
+                    graphPath: [], group: null, isSubgraph: false
+                }
+            });
 
-        it('should escape values even if isHtml is true (legacy bypass check)', () => {
-            const item = {
-                value: '<script>alert("xss")</script>',
-                isHtml: true, // This flag should be IGNORED now
-                label: 'Malicious Button'
-            };
-
-            const renderedValue = renderItem(item);
-
-            // It should fall through to formatValue which escapes
-            expect(renderedValue).not.toContain('<script>');
-            expect(renderedValue).toContain('&lt;script&gt;');
+            const content = ui.elements.content!;
+            expect(content.querySelector('script, img')).toBeNull();
+            const row = content.querySelector('.info-row')!;
+            expect(row.querySelector('.info-label')!.textContent).toBe('<img src=x onerror=alert(1)>');
+            expect(row.querySelector('.info-value')!.textContent).toContain(malicious);
+            expect((row.querySelector('.copy-btn') as HTMLElement).dataset.copyValue).toBe(malicious);
+            ui.cleanup();
         });
 
-        it('should correctly render specialType="focus-node" with safe value', () => {
-            const item = {
-                value: 'Focus Node',
-                specialType: 'focus-node',
-                label: 'Location'
-            };
+        it('should render node names in the header as text', () => {
+            (globalThis as any).app = { canvas: { graph: null } };
+            document.head.innerHTML = '<style id="magnify-info-panel-styles-v2"></style>';
+            const ui = new UIManager(new StateManager());
 
-            const renderedValue = renderItem(item);
+            ui.displayInfo({
+                hoveredNode: {
+                    id: 1, title: '<img src=x onerror=alert(1)>', type: '<script>alert(1)</script>',
+                    mode: 'Always', widgets: [], inputs: [], outputs: [], properties: {},
+                    graphPath: ['<b onclick=alert(1)>sub</b>'], group: '<a href="javascript:alert(1)">g</a>', isSubgraph: false
+                }
+            });
 
-            expect(renderedValue).toContain('<span class="focus-node-btn">');
-            expect(renderedValue).toContain('Focus Node');
-        });
-
-        it('should escape malicious content even in specialType="focus-node"', () => {
-            const item = {
-                value: '<script>alert(1)</script>',
-                specialType: 'focus-node',
-                label: 'Location'
-            };
-
-            const renderedValue = renderItem(item);
-
-            // The container span is there
-            expect(renderedValue).toContain('<span class="focus-node-btn">');
-            // But the content is escaped
-            expect(renderedValue).not.toContain('<script>');
-            expect(renderedValue).toContain('&lt;script&gt;');
-        });
-
-        it('should escape values NOT marked as isHtml', () => {
-            const item = {
-                value: '<script>alert(1)</script>',
-                isHtml: false,
-                label: 'Malicious Input'
-            };
-
-            const renderedValue = renderItem(item);
-
-            expect(renderedValue).not.toContain('<script>');
-            expect(renderedValue).toContain('&lt;script&gt;');
+            const panel = ui.elements.panel!;
+            expect(panel.querySelector('.header-identity span *, .panel-breadcrumb b, .panel-breadcrumb a')).toBeNull();
+            expect(panel.querySelector('.header-title')!.textContent).toBe('<img src=x onerror=alert(1)>');
+            expect(panel.querySelector('.header-badge')!.textContent).toBe('<script>alert(1)</script>');
+            expect(panel.querySelector('.panel-breadcrumb')!.textContent).toContain('<b onclick=alert(1)>sub</b>');
+            ui.cleanup();
         });
     });
 

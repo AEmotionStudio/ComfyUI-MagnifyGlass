@@ -6,8 +6,7 @@
  */
 
 import { WidgetSyncManager, WidgetConstraints } from './WidgetSyncManager';
-import { Logger } from '../../shared/logger';
-import { CustomDropdown, createDropdownTrigger, updateDropdownTriggerValue } from '../../shared/CustomDropdown';
+import { Icons } from '../../shared/icons';
 
 /**
  * Configuration for creating a widget editor
@@ -46,31 +45,24 @@ export class WidgetEditorFactory {
         const type = config.widgetType.toLowerCase();
 
         switch (type) {
-            case 'number':
             case 'int':
             case 'float':
                 return this.createNumberEditor(config);
 
-            case 'combo':
-                return this.createComboEditor(config);
-
-            case 'toggle':
-            case 'boolean':
-                return this.createBooleanEditor(config);
-
             case 'slider':
                 return this.createSliderEditor(config);
 
-            case 'text':
-            case 'string':
-            case 'customtext':
+            case 'multiline':
+                return this.createTextEditor(config, true);
+
             default:
-                return this.createTextEditor(config);
+                return this.createTextEditor(config, false);
         }
     }
 
     /**
-     * Create a number input editor
+     * Create a number input editor. Typing commits on Enter or blur, Escape drops it.
+     * The arrow keys and steppers step by the widget step (Shift x10, Alt x0.1) and commit at once.
      */
     private static createNumberEditor(config: WidgetEditorConfig): WidgetEditorInstance {
         const container = document.createElement('div');
@@ -79,84 +71,83 @@ export class WidgetEditorFactory {
         const input = document.createElement('input');
         input.type = 'number';
         input.className = 'widget-editor-input';
-        input.value = String(config.currentValue ?? 0);
+        input.setAttribute('aria-label', config.widgetName);
 
-        // Apply constraints
-        if (config.constraints) {
-            if (typeof config.constraints.min === 'number') {
-                input.min = String(config.constraints.min);
-            }
-            if (typeof config.constraints.max === 'number') {
-                input.max = String(config.constraints.max);
-            }
-            if (typeof config.constraints.step === 'number') {
-                input.step = String(config.constraints.step);
-            }
-        }
+        const constraints = config.constraints;
+        const format = (v: unknown) => typeof constraints?.precision === 'number' ? Number(v).toFixed(constraints.precision) : String(v);
+        input.value = format(config.currentValue ?? 0);
+        if (typeof constraints?.min === 'number') input.min = String(constraints.min);
+        if (typeof constraints?.max === 'number') input.max = String(constraints.max);
+        input.step = String(WidgetSyncManager.getStep(constraints));
 
         // Create stepper buttons
         const decrementBtn = document.createElement('button');
         decrementBtn.className = 'widget-editor-stepper decrement';
-        decrementBtn.innerHTML = '−';
+        decrementBtn.innerHTML = Icons.minus;
         decrementBtn.type = 'button';
+        decrementBtn.setAttribute('aria-label', 'Decrease');
 
         const incrementBtn = document.createElement('button');
         incrementBtn.className = 'widget-editor-stepper increment';
-        incrementBtn.innerHTML = '+';
+        incrementBtn.innerHTML = Icons.plus;
         incrementBtn.type = 'button';
+        incrementBtn.setAttribute('aria-label', 'Increase');
 
-        // Event handlers
-        const syncValue = () => {
+        let committedValue = input.value;
+
+        const commit = () => {
+            if (input.value === committedValue) return;
             const numValue = parseFloat(input.value);
-            if (!isNaN(numValue)) {
-                WidgetSyncManager.syncWidgetValue(config.nodeId, config.widgetName, numValue);
-                config.onChange?.(numValue);
-            }
+            if (isNaN(numValue)) return;
+            const result = WidgetSyncManager.syncWidgetValue(config.nodeId, config.widgetName, numValue);
+            if (!result.success) return;
+            input.value = format(result.newValue);
+            committedValue = input.value;
+            config.onChange?.(result.newValue);
         };
 
-        input.addEventListener('input', syncValue);
-        input.addEventListener('change', syncValue);
+        const nudge = (direction: number, e: MouseEvent | KeyboardEvent) => {
+            const typed = parseFloat(input.value);
+            const current = Number(config.currentValue);
+            const base = !isNaN(typed) ? typed : !isNaN(current) ? current : (constraints?.min ?? 0);
+            input.value = String(base + direction * WidgetSyncManager.getStep(constraints, e));
+            commit();
+        };
+
         input.addEventListener('focus', () => config.onFocus?.());
-        input.addEventListener('blur', () => config.onBlur?.());
+        // On the container, so leaving from a stepper focused with Tab closes the editor too
+        container.addEventListener('focusout', () => {
+            commit();
+            config.onBlur?.();
+        });
+
+        // Keep focus in the input, so Enter and Escape still reach it after a stepper click
+        decrementBtn.addEventListener('mousedown', (e) => e.preventDefault());
+        incrementBtn.addEventListener('mousedown', (e) => e.preventDefault());
 
         decrementBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            // Always use step=1 for fine-grained control via stepper buttons
-            const step = 1;
-            const currentVal = parseFloat(input.value);
-            // Handle NaN (empty input) - fall back to current value or min or 0
-            const baseValue = isNaN(currentVal) ? (config.constraints?.min ?? Number(config.currentValue) ?? 0) : currentVal;
-            let newValue = baseValue - step;
-            // Clamp to constraints
-            if (config.constraints?.min !== undefined) {
-                newValue = Math.max(config.constraints.min, newValue);
-            }
-            input.value = String(newValue);
-            syncValue();
+            nudge(-1, e);
         });
 
         incrementBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            // Always use step=1 for fine-grained control via stepper buttons
-            const step = 1;
-            const currentVal = parseFloat(input.value);
-            // Handle NaN (empty input) - fall back to current value or min or 0
-            const baseValue = isNaN(currentVal) ? (config.constraints?.min ?? Number(config.currentValue) ?? 0) : currentVal;
-            let newValue = baseValue + step;
-            // Clamp to constraints
-            if (config.constraints?.max !== undefined) {
-                newValue = Math.min(config.constraints.max, newValue);
-            }
-            input.value = String(newValue);
-            syncValue();
+            nudge(1, e);
         });
 
-        // Handle keyboard - Enter to confirm, Escape to cancel
         input.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' || e.key === 'Enter') {
+            if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
                 e.preventDefault();
+                nudge(e.key === 'ArrowUp' ? 1 : -1, e);
+            } else if (e.key === 'Enter') {
+                e.preventDefault();
+                input.blur();
+            } else if (e.key === 'Escape') {
+                // Drops the typing only; the steps are already committed
+                e.preventDefault();
+                input.value = committedValue;
                 input.blur();
             }
         });
@@ -170,24 +161,26 @@ export class WidgetEditorFactory {
             getValue: () => parseFloat(input.value),
             setValue: (v) => { input.value = String(v); },
             focus: () => { input.focus(); input.select(); },
-            destroy: () => { container.remove(); }
+            destroy: () => {
+                commit();
+                container.remove();
+            }
         };
     }
 
     /**
-     * Create a text input editor
+     * Create a text editor. Commits on blur, Enter (Ctrl/Cmd+Enter in a textarea) and when destroyed; Escape reverts.
      */
-    private static createTextEditor(config: WidgetEditorConfig): WidgetEditorInstance {
+    private static createTextEditor(config: WidgetEditorConfig, multiline: boolean): WidgetEditorInstance {
         const value = String(config.currentValue ?? '');
-        const isLongText = value.length > 50 || value.includes('\n');
 
         const container = document.createElement('div');
         container.className = 'widget-editor widget-editor-text';
 
         let inputElement: HTMLInputElement | HTMLTextAreaElement;
 
-        if (isLongText) {
-            // Use textarea for long text (prompts)
+        // A text input would drop newlines, so any value that has them gets a textarea too
+        if (multiline || value.includes('\n')) {
             const textarea = document.createElement('textarea');
             textarea.className = 'widget-editor-textarea';
             textarea.value = value;
@@ -213,29 +206,33 @@ export class WidgetEditorFactory {
             input.value = value;
             inputElement = input;
         }
+        inputElement.setAttribute('aria-label', config.widgetName);
 
-        // Event handlers
-        const syncValue = () => {
-            WidgetSyncManager.syncWidgetValueDebounced(
-                config.nodeId,
-                config.widgetName,
-                inputElement.value,
-                100
-            );
-            config.onChange?.(inputElement.value);
+        const startValue = inputElement.value;
+        let committedValue = startValue;
+
+        const commit = () => {
+            if (inputElement.value === committedValue) return;
+            committedValue = inputElement.value;
+            WidgetSyncManager.syncWidgetValue(config.nodeId, config.widgetName, committedValue);
+            config.onChange?.(committedValue);
         };
 
-        inputElement.addEventListener('input', syncValue);
         inputElement.addEventListener('focus', () => config.onFocus?.());
-        inputElement.addEventListener('blur', () => config.onBlur?.());
+        inputElement.addEventListener('blur', () => {
+            commit();
+            config.onBlur?.();
+        });
 
         inputElement.addEventListener('keydown', (evt) => {
             const e = evt as KeyboardEvent;
             if (e.key === 'Escape') {
+                e.preventDefault();
+                inputElement.value = startValue;
+                commit();
                 inputElement.blur();
-            }
-            // Allow Enter in textarea, but not in input
-            if (e.key === 'Enter' && inputElement instanceof HTMLInputElement) {
+            } else if (e.key === 'Enter' && (inputElement instanceof HTMLInputElement || e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
                 inputElement.blur();
             }
         });
@@ -247,148 +244,10 @@ export class WidgetEditorFactory {
             getValue: () => inputElement.value,
             setValue: (v) => { inputElement.value = String(v); },
             focus: () => { inputElement.focus(); if (inputElement instanceof HTMLInputElement) inputElement.select(); },
-            destroy: () => { container.remove(); }
-        };
-    }
-
-    /**
-     * Create a combo/dropdown editor
-     * Uses custom dropdown for viewport-aware positioning
-     */
-    private static createComboEditor(config: WidgetEditorConfig): WidgetEditorInstance {
-        const container = document.createElement('div');
-        container.className = 'widget-editor widget-editor-combo';
-
-        const options = config.constraints?.options ?? [];
-        let currentValue = String(config.currentValue);
-
-        // Create trigger element that looks like a select
-        const trigger = createDropdownTrigger(currentValue, 'widget-editor-dropdown-trigger');
-        trigger.style.cssText = `
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            width: 100%;
-            padding: 4px 28px 4px 10px;
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-            font-size: 14px;
-            color: var(--info-panel-accent-color, #a0d468);
-            background: rgba(160, 212, 104, 0.12);
-            border: 1px solid transparent;
-            border-radius: 6px;
-            cursor: pointer;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            transition: all 0.2s ease;
-        `;
-
-        let activeDropdown: CustomDropdown | null = null;
-
-        // Handle trigger click to show dropdown
-        const showDropdown = () => {
-            if (activeDropdown) {
-                activeDropdown.hide();
-                activeDropdown = null;
-                return;
-            }
-
-            config.onFocus?.();
-
-            activeDropdown = new CustomDropdown({
-                options: options.map(String),
-                currentValue,
-                anchor: trigger,
-                onChange: (value) => {
-                    currentValue = value;
-                    updateDropdownTriggerValue(trigger, value);
-                    WidgetSyncManager.syncWidgetValue(config.nodeId, config.widgetName, value);
-                    config.onChange?.(value);
-                },
-                onClose: () => {
-                    activeDropdown = null;
-                    config.onBlur?.();
-                }
-            });
-            activeDropdown.show();
-        };
-
-        trigger.addEventListener('click', showDropdown);
-
-        // Hover effect
-        trigger.addEventListener('mouseenter', () => {
-            trigger.style.background = 'rgba(160, 212, 104, 0.18)';
-            trigger.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
-        });
-        trigger.addEventListener('mouseleave', () => {
-            trigger.style.background = 'rgba(160, 212, 104, 0.12)';
-            trigger.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
-        });
-
-        // Keyboard support
-        trigger.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-                e.preventDefault();
-                showDropdown();
-            } else if (e.key === 'Escape' && activeDropdown) {
-                activeDropdown.hide();
-            }
-        });
-
-        container.appendChild(trigger);
-
-        return {
-            element: container,
-            getValue: () => currentValue,
-            setValue: (v) => {
-                currentValue = String(v);
-                updateDropdownTriggerValue(trigger, currentValue);
-            },
-            focus: () => trigger.focus(),
             destroy: () => {
-                activeDropdown?.hide();
+                commit();
                 container.remove();
             }
-        };
-    }
-
-    /**
-     * Create a boolean toggle editor
-     */
-    private static createBooleanEditor(config: WidgetEditorConfig): WidgetEditorInstance {
-        const container = document.createElement('div');
-        container.className = 'widget-editor widget-editor-boolean';
-
-        const label = document.createElement('label');
-        label.className = 'widget-editor-toggle';
-
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.className = 'widget-editor-checkbox';
-        // Handle boolean coercion properly - string 'false' should be false, not true
-        const boolValue = config.currentValue === true || config.currentValue === 'true';
-        checkbox.checked = boolValue;
-
-        const slider = document.createElement('span');
-        slider.className = 'widget-editor-toggle-slider';
-
-        // Event handlers
-        checkbox.addEventListener('change', () => {
-            WidgetSyncManager.syncWidgetValue(config.nodeId, config.widgetName, checkbox.checked);
-            config.onChange?.(checkbox.checked);
-        });
-
-        checkbox.addEventListener('focus', () => config.onFocus?.());
-        checkbox.addEventListener('blur', () => config.onBlur?.());
-
-        label.appendChild(checkbox);
-        label.appendChild(slider);
-        container.appendChild(label);
-
-        return {
-            element: container,
-            getValue: () => checkbox.checked,
-            setValue: (v) => { checkbox.checked = Boolean(v); },
-            focus: () => checkbox.focus(),
-            destroy: () => { container.remove(); }
         };
     }
 
@@ -402,13 +261,14 @@ export class WidgetEditorFactory {
         const slider = document.createElement('input');
         slider.type = 'range';
         slider.className = 'widget-editor-range';
+        slider.setAttribute('aria-label', config.widgetName);
         slider.value = String(config.currentValue ?? 0);
 
         // Apply constraints
         if (config.constraints) {
             slider.min = String(config.constraints.min ?? 0);
             slider.max = String(config.constraints.max ?? 100);
-            slider.step = String(config.constraints.step ?? 0.01);
+            slider.step = String(WidgetSyncManager.getStep(config.constraints));
         }
 
         // Value display
@@ -420,11 +280,12 @@ export class WidgetEditorFactory {
         const syncValue = () => {
             const numValue = parseFloat(slider.value);
             valueDisplay.textContent = numValue.toFixed(config.constraints?.precision ?? 2);
-            WidgetSyncManager.syncWidgetValue(config.nodeId, config.widgetName, numValue);
+            WidgetSyncManager.syncWidgetValue(config.nodeId, config.widgetName, numValue, false);
             config.onChange?.(numValue);
         };
 
         slider.addEventListener('input', syncValue);
+        slider.addEventListener('change', () => WidgetSyncManager.recordUndo());
         slider.addEventListener('focus', () => config.onFocus?.());
         slider.addEventListener('blur', () => config.onBlur?.());
 
@@ -450,19 +311,5 @@ export class WidgetEditorFactory {
             focus: () => slider.focus(),
             destroy: () => { container.remove(); }
         };
-    }
-
-    /**
-     * Check if a widget type is supported for editing
-     */
-    static isTypeSupported(widgetType: string): boolean {
-        const supported = [
-            'number', 'int', 'float',
-            'text', 'string', 'customtext',
-            'combo',
-            'toggle', 'boolean',
-            'slider'
-        ];
-        return supported.includes(widgetType.toLowerCase());
     }
 }

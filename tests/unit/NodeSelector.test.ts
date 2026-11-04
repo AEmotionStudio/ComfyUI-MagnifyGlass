@@ -17,11 +17,15 @@ const mockNodes = [
     { id: 7, title: 'Untitled', type: 'Unknown' } // No order
 ];
 
-const mockApp = {
-    graph: {
-        _nodes: mockNodes,
-        getNodeById: (id: number) => mockNodes.find(n => n.id === id) || null
-    }
+const graphOf = (nodes: any[]) => ({
+    _nodes: nodes,
+    getNodeById: (id: number) => nodes.find(n => n.id === id) || null
+});
+
+// app.graph is always the root graph; the canvas holds the graph on screen
+const mockApp: any = {
+    graph: graphOf([]),
+    canvas: { graph: graphOf(mockNodes) }
 };
 
 (globalThis as any).app = mockApp;
@@ -49,30 +53,6 @@ describe('NodeSelector', () => {
             expect(newSelector.getAllNodes()).toEqual([]);
 
             (globalThis as any).app = originalApp;
-        });
-    });
-
-    describe('getNodesSortedByTitle', () => {
-        it('should return nodes sorted alphabetically by title', () => {
-            const nodes = selector.getNodesSortedByTitle();
-
-            expect(nodes[0].title).toBe('CLIP Text Encode');
-            expect(nodes[1].title).toBe('Empty Latent');
-            expect(nodes[2].title).toBe('KSampler');
-            expect(nodes[3].title).toBe('Load Checkpoint');
-            expect(nodes[4].title).toBe('Save Image');
-            expect(nodes[5].title).toBe('Untitled');
-            expect(nodes[6].title).toBe('VAE Decode');
-        });
-
-        it('should include id, title, and type in each entry', () => {
-            const nodes = selector.getNodesSortedByTitle();
-            const ksamplerNode = nodes.find(n => n.id === 1);
-
-            expect(ksamplerNode).toBeDefined();
-            expect(ksamplerNode?.id).toBe(1);
-            expect(ksamplerNode?.title).toBe('KSampler');
-            expect(ksamplerNode?.type).toBe('KSampler');
         });
     });
 
@@ -116,39 +96,42 @@ describe('NodeSelector', () => {
         });
     });
 
-    describe('searchByTitle', () => {
-        it('should find nodes matching partial title (case-insensitive)', () => {
-            const results = selector.searchByTitle('sample');
+    describe('search', () => {
+        it('lists every node by execution order, nodes without one last', () => {
+            const results = selector.search('');
 
-            expect(results).toHaveLength(1);
-            expect(results[0].title).toBe('KSampler');
+            expect(results.map(n => n.id)).toEqual([2, 3, 4, 1, 5, 6, 7]);
+            expect(results[0]).toEqual({ id: 2, title: 'Load Checkpoint', type: 'CheckpointLoader', order: 1 });
+            expect(results[6].order).toBe(-1);
         });
 
-        it('should find multiple matches', () => {
-            const results = selector.searchByTitle('e');
-
-            // CLIP Text Encode, Empty Latent, KSampler, Load Checkpoint, Save Image, VAE Decode
-            expect(results.length).toBeGreaterThan(1);
+        it('matches title or type in any case', () => {
+            expect(selector.search('KSAMPLER').map(n => n.id)).toEqual([1]);
+            expect(selector.search('latentimage').map(n => n.id)).toEqual([4]);
+            expect(selector.search('  encode ').map(n => n.id)).toEqual([3]);
+            expect(selector.search('xyz123')).toEqual([]);
         });
 
-        it('should return empty array for no matches', () => {
-            const results = selector.searchByTitle('xyz123');
-            expect(results).toEqual([]);
-        });
-
-        it('should be case-insensitive', () => {
-            const results1 = selector.searchByTitle('KSAMPLER');
-            const results2 = selector.searchByTitle('ksampler');
-
-            expect(results1).toHaveLength(1);
-            expect(results2).toHaveLength(1);
-            expect(results1[0].id).toBe(results2[0].id);
+        it('matches an id given as #id or plainly', () => {
+            expect(selector.search('#5').map(n => n.id)).toEqual([5]);
+            expect(selector.search('6').map(n => n.id)).toEqual([6]);
+            expect(selector.search('#').length).toBe(7);
+            expect(selector.search('#55')).toEqual([]);
         });
     });
 
-    describe('getNodeCount', () => {
-        it('should return the total number of nodes', () => {
-            expect(selector.getNodeCount()).toBe(7);
+    describe('inside a subgraph', () => {
+        it('should list and resolve nodes of the graph on screen, not the root graph', () => {
+            const rootCanvasGraph = mockApp.canvas.graph;
+            mockApp.graph = graphOf(mockNodes);
+            mockApp.canvas.graph = graphOf([{ id: 1, title: 'Inner Sampler', type: 'KSampler', order: 0 }]);
+
+            expect(selector.getAllNodes()).toHaveLength(1);
+            expect(selector.getNodeById(1)?.title).toBe('Inner Sampler');
+            expect(selector.getNodeById(3)).toBeNull();
+
+            mockApp.graph = graphOf([]);
+            mockApp.canvas.graph = rootCanvasGraph;
         });
     });
 });

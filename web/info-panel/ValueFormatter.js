@@ -1,50 +1,22 @@
-import { escapeHtml } from "../shared/utils.js";
-function formatValue(value, label) {
-  if (value === null || value === void 0) return "";
-  const str = String(value);
-  if (label && (label.toLowerCase().includes("text") || label.toLowerCase().includes("prompt") || label.toLowerCase().includes("model") || label.toLowerCase().includes("file") || label.toLowerCase().includes("conditioning") || label.toLowerCase().includes("positive") || label.toLowerCase().includes("negative"))) {
-    return escapeHtml(str);
-  }
-  return escapeHtml(str);
-}
-function getValueClass(value) {
-  if (!value) return "";
-  const str = String(value);
-  const classes = [];
-  if (str.length > 100) {
-    classes.push("long-text");
-  }
-  return classes.join(" ");
-}
-function getValueAttributes(value) {
-  if (!value) return "";
-  const str = String(value);
-  if (str.length > 500) {
-    return `title="${escapeHtml(str)}"`;
-  }
-  return "";
-}
-function formatWidgetValue(value) {
+function formatWidgetValue(value, precision) {
   if (value === null) return "null";
   if (value === void 0) return "undefined";
-  if (typeof value === "string") {
-    return value;
-  }
   if (typeof value === "number") {
-    return Number.isInteger(value) ? value.toString() : value.toFixed(3);
-  }
-  if (typeof value === "boolean") return value.toString();
-  if (Array.isArray(value)) {
-    return `Array(${value.length})`;
+    return precision === void 0 ? String(value) : value.toFixed(precision);
   }
   if (typeof value === "object") {
-    return "Object";
+    try {
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return Array.isArray(value) ? `Array(${value.length})` : "Object";
+    }
   }
   return String(value);
 }
+function isLongText(text) {
+  return text.length > 200 || text.split("\n").length > 4;
+}
 export {
-  formatValue,
   formatWidgetValue,
-  getValueAttributes,
-  getValueClass
+  isLongText
 };

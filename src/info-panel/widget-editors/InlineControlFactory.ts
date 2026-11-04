@@ -28,6 +28,8 @@ export interface InlineControlInstance {
     element: HTMLElement;
     getValue(): unknown;
     setValue(value: unknown): void;
+    /** True while the control holds an open menu that a re-render would close */
+    isOpen(): boolean;
     destroy(): void;
 }
 
@@ -76,6 +78,7 @@ export class InlineControlFactory {
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
         checkbox.className = 'inline-toggle-input';
+        checkbox.setAttribute('aria-label', config.widgetName);
         // Handle boolean coercion properly
         const boolValue = config.currentValue === true || config.currentValue === 'true';
         checkbox.checked = boolValue;
@@ -101,6 +104,7 @@ export class InlineControlFactory {
             element: container,
             getValue: () => checkbox.checked,
             setValue: (v) => { checkbox.checked = Boolean(v); },
+            isOpen: () => false,
             destroy: () => { container.remove(); }
         };
     }
@@ -118,23 +122,7 @@ export class InlineControlFactory {
 
         // Create trigger element that looks like a select
         const trigger = createDropdownTrigger(currentValue, 'inline-dropdown-trigger');
-        trigger.style.cssText = `
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 10px;
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-            font-size: 14px;
-            background: rgba(160, 212, 104, 0.12);
-            border: 1px solid transparent;
-            border-radius: 6px;
-            color: var(--info-panel-accent-color, #74b9ff);
-            cursor: pointer;
-            min-width: 100px;
-            max-width: 180px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            transition: all 0.2s ease;
-        `;
+        trigger.setAttribute('aria-label', config.widgetName);
 
         let activeDropdown: CustomDropdown | null = null;
 
@@ -150,7 +138,6 @@ export class InlineControlFactory {
 
             if (activeDropdown) {
                 activeDropdown.hide();
-                activeDropdown = null;
                 return;
             }
 
@@ -172,16 +159,6 @@ export class InlineControlFactory {
             activeDropdown.show();
         });
 
-        // Hover effect
-        trigger.addEventListener('mouseenter', () => {
-            trigger.style.background = 'rgba(160, 212, 104, 0.18)';
-            trigger.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
-        });
-        trigger.addEventListener('mouseleave', () => {
-            trigger.style.background = 'rgba(160, 212, 104, 0.12)';
-            trigger.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.1)';
-        });
-
         // Keyboard support
         trigger.addEventListener('keydown', (e) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -199,6 +176,7 @@ export class InlineControlFactory {
                 currentValue = String(v);
                 updateDropdownTriggerValue(trigger, currentValue);
             },
+            isOpen: () => activeDropdown !== null,
             destroy: () => {
                 activeDropdown?.hide();
                 container.remove();
@@ -227,24 +205,6 @@ export class InlineControlFactory {
         button.textContent = buttonLabel;
         button.type = 'button';
 
-        // Style the button to match theme
-        button.style.cssText = `
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 12px;
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-            font-size: 13px;
-            background: var(--info-panel-accent-color, #a0d468);
-            color: var(--comfy-menu-bg, #1a1a1a);
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.2s ease;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-        `;
-
         // Stop propagation on container to prevent parent handlers from interfering
         container.addEventListener('click', (e) => e.stopPropagation());
         container.addEventListener('mousedown', (e) => e.stopPropagation());
@@ -255,18 +215,9 @@ export class InlineControlFactory {
             e.stopPropagation();
             e.preventDefault();
 
-            // Visual feedback
-            button.style.transform = 'scale(0.95)';
-            setTimeout(() => { button.style.transform = ''; }, 100);
-
             // Access the widget callback through the node
             const app = (window as any).app;
-            if (!app?.graph) {
-                Logger.warn(`[InlineControl] No app.graph available`);
-                return;
-            }
-
-            const node = app.graph.getNodeById(config.nodeId);
+            const node = app?.canvas?.graph?.getNodeById(config.nodeId);
             if (!node?.widgets) {
                 Logger.warn(`[InlineControl] Node ${config.nodeId} not found or has no widgets`);
                 return;
@@ -285,22 +236,13 @@ export class InlineControlFactory {
             }
         });
 
-        // Hover effects
-        button.addEventListener('mouseenter', () => {
-            button.style.transform = 'translateY(-1px)';
-            button.style.boxShadow = '0 3px 8px rgba(0, 0, 0, 0.25)';
-        });
-        button.addEventListener('mouseleave', () => {
-            button.style.transform = '';
-            button.style.boxShadow = '0 1px 3px rgba(0, 0, 0, 0.2)';
-        });
-
         container.appendChild(button);
 
         return {
             element: container,
             getValue: () => config.currentValue,
             setValue: () => { /* Buttons don't have editable values */ },
+            isOpen: () => false,
             destroy: () => { container.remove(); }
         };
     }

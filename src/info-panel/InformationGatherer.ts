@@ -5,7 +5,7 @@
  * Responsible for collecting information about nodes, widgets, and canvas state.
  */
 
-import type { ComfyApp, ComfyNode, ComfyWidget, GatheredInfo, NodeInfo, WidgetInfo, MediaInfo } from '../types/comfyui';
+import type { ComfyApp, ComfyGraph, ComfyNode, GatheredInfo, NodeInfo } from '../types/comfyui';
 
 declare const app: ComfyApp;
 declare const LiteGraph: any;
@@ -21,85 +21,41 @@ export class InformationGatherer {
         const magnifyGlass = window.comfyUIMagnifyGlass;
         if (!magnifyGlass) {
             return {
-                timestamp: Date.now(),
-                cursor: { screenX: 0, screenY: 0, canvasX: 0, canvasY: 0 },
+                cursor: { canvasX: 0, canvasY: 0 },
                 zoom: 1,
-                nodeCount: 0,
-                hoveredNode: null,
-                hoveredWidget: null,
-                mediaElement: null
+                hoveredNode: null
             };
         }
 
         const info: GatheredInfo = {
-            timestamp: Date.now(),
             cursor: {
-                screenX: magnifyGlass.lastKnownMousePosition.x,
-                screenY: magnifyGlass.lastKnownMousePosition.y,
                 canvasX: magnifyGlass.state.x,
                 canvasY: magnifyGlass.state.y
             },
             zoom: magnifyGlass.state.canvasScale,
-            nodeCount: app.graph?._nodes?.length ?? 0,
-            hoveredNode: null,
-            hoveredWidget: null,
-            mediaElement: null
+            hoveredNode: null
         };
-
-        if (magnifyGlass.isOverMedia && magnifyGlass.currentMediaElement) {
-            info.mediaElement = this.getMediaInfo(magnifyGlass.currentMediaElement);
-        }
 
         const nodeUnderCursor = this.getNodeUnderCursor();
         if (nodeUnderCursor) {
-            info.hoveredNode = this.getDetailedNodeInfo(nodeUnderCursor.node, nodeUnderCursor.localPos);
-
-            const widget = this.getWidgetUnderCursor(nodeUnderCursor.node, nodeUnderCursor.localPos);
-            if (widget) {
-                info.hoveredWidget = this.getWidgetInfo(widget);
-            }
+            info.hoveredNode = this.getDetailedNodeInfo(nodeUnderCursor);
         }
 
         return info;
     }
 
-    getNodeUnderCursor(): { node: ComfyNode, localPos: { x: number, y: number } } | null {
+    getNodeUnderCursor(): ComfyNode | null {
         const magnifyGlass = window.comfyUIMagnifyGlass;
-        if (!app.graph || !app.canvas || !magnifyGlass) {
+        const graph = app.canvas?.graph;
+        if (!graph || !magnifyGlass) {
             return null;
         }
 
+        if (app.canvas.node_over) {
+            return app.canvas.node_over;
+        }
+
         try {
-            // Try to get the node from ComfyUI's state
-            if (app.canvas.node_over) {
-                const node = app.canvas.node_over;
-                if (node && node.pos && node.size) {
-                    const canvasRect = app.canvas.canvas.getBoundingClientRect();
-                    const mouseX = magnifyGlass.lastKnownMousePosition.x - canvasRect.left;
-                    const mouseY = magnifyGlass.lastKnownMousePosition.y - canvasRect.top;
-
-                    let graphPos: [number, number];
-                    if (app.canvas.convertOffsetToCanvasPos) {
-                        graphPos = app.canvas.convertOffsetToCanvasPos([mouseX, mouseY]);
-                    } else {
-                        const ds = app.canvas.ds || { scale: 1, offset: [0, 0] };
-                        graphPos = [
-                            (mouseX / ds.scale) - (ds.offset[0] / ds.scale),
-                            (mouseY / ds.scale) - (ds.offset[1] / ds.scale)
-                        ];
-                    }
-
-                    return {
-                        node: node,
-                        localPos: {
-                            x: graphPos[0] - node.pos[0],
-                            y: graphPos[1] - node.pos[1]
-                        }
-                    };
-                }
-            }
-
-            // Fallback to manual detection
             const canvasRect = app.canvas.canvas.getBoundingClientRect();
             const mouseX = magnifyGlass.lastKnownMousePosition.x - canvasRect.left;
             const mouseY = magnifyGlass.lastKnownMousePosition.y - canvasRect.top;
@@ -115,24 +71,7 @@ export class InformationGatherer {
                 ];
             }
 
-            for (let i = app.graph._nodes.length - 1; i >= 0; i--) {
-                const node = app.graph._nodes[i];
-                if (!node.pos || !node.size || (node.flags && node.flags.collapsed)) continue;
-
-                if (graphPos[0] >= node.pos[0] &&
-                    graphPos[0] <= node.pos[0] + node.size[0] &&
-                    graphPos[1] >= node.pos[1] &&
-                    graphPos[1] <= node.pos[1] + node.size[1]) {
-
-                    return {
-                        node: node,
-                        localPos: {
-                            x: graphPos[0] - node.pos[0],
-                            y: graphPos[1] - node.pos[1]
-                        }
-                    };
-                }
-            }
+            return graph.getNodeOnPos(graphPos[0], graphPos[1]) ?? null;
         } catch (err) {
             console.warn("Error in node detection:", err);
         }
@@ -140,9 +79,8 @@ export class InformationGatherer {
         return null;
     }
 
-    getDetailedNodeInfo(node: ComfyNode, localPos: { x: number, y: number }): NodeInfo {
-        // Try to get author and category from node constructor or registered node types
-        let author: string | undefined;
+    getDetailedNodeInfo(node: ComfyNode): NodeInfo {
+        // Category and module from the node constructor or the registered node types
         let category: string | undefined;
         let executionOrder: number | undefined;
         let pythonModule: string | undefined;
@@ -152,19 +90,15 @@ export class InformationGatherer {
             const nodeData = (node as any).constructor?.nodeData;
             if (nodeData) {
                 pythonModule = nodeData.python_module;
-                author = nodeData.author || pythonModule?.split('.')[0];
                 category = nodeData.category;
             }
 
             // Try to get from LiteGraph registered node types
-            if (!author && typeof LiteGraph !== 'undefined') {
+            if (!pythonModule && typeof LiteGraph !== 'undefined') {
                 const nodeType = (LiteGraph as any).registered_node_types?.[node.type];
                 if (nodeType) {
-                    author = nodeType.nodeData?.author || nodeType.author;
                     category = nodeType.category || category;
-                    if (!pythonModule && nodeType.nodeData?.python_module) {
-                        pythonModule = nodeType.nodeData.python_module;
-                    }
+                    pythonModule = nodeType.nodeData?.python_module;
                 }
             }
 
@@ -181,184 +115,51 @@ export class InformationGatherer {
             mode: this.getNodeModeText(node.mode),
             position: {
                 x: Math.round(node.pos[0]),
-                y: Math.round(node.pos[1]),
-                formatted: `(${Math.round(node.pos[0])}, ${Math.round(node.pos[1])})`
+                y: Math.round(node.pos[1])
             },
             size: {
                 width: Math.round(node.size[0]),
-                height: Math.round(node.size[1]),
-                formatted: `${Math.round(node.size[0])}×${Math.round(node.size[1])}`
-            },
-            localPosition: {
-                x: Math.round(localPos.x),
-                y: Math.round(localPos.y),
-                formatted: `(${Math.round(localPos.x)}, ${Math.round(localPos.y)})`,
-                percentage: {
-                    x: ((localPos.x / node.size[0]) * 100).toFixed(1),
-                    y: ((localPos.y / node.size[1]) * 100).toFixed(1)
-                }
-            },
-            counts: {
-                widgets: node.widgets ? node.widgets.length : 0,
-                inputs: node.inputs ? node.inputs.length : 0,
-                outputs: node.outputs ? node.outputs.length : 0,
-                properties: node.properties ? Object.keys(node.properties).length : 0
+                height: Math.round(node.size[1])
             },
             widgets: node.widgets || [],
             inputs: node.inputs || [],
             outputs: node.outputs || [],
             properties: node.properties || {},
-            hoverRegion: this.detectNodeRegion(localPos, node),
             executionOrder: executionOrder,
-            author: author,
             category: category,
-            pythonModule: pythonModule
+            pythonModule: pythonModule,
+            graphPath: this.getGraphPath(node.graph),
+            group: node.graph?.getGroupOnPos(node.pos[0] + node.size[0] / 2, node.pos[1] + node.size[1] / 2)?.title,
+            isSubgraph: !!node.isSubgraphNode?.()
         };
     }
 
-    getNodeInfo(node: ComfyNode): NodeInfo {
-        return {
-            id: node.id,
-            title: node.title || "Untitled",
-            type: node.type,
-            mode: node.mode,
-            size: node.size ? `${Math.round(node.size[0])}×${Math.round(node.size[1])}` : "Unknown",
-            position: node.pos ? `(${Math.round(node.pos[0])}, ${Math.round(node.pos[1])})` : "Unknown",
-            widgets: node.widgets || [],
-            inputs: node.inputs || [],
-            outputs: node.outputs || [],
-            properties: node.properties || {}
-        };
-    }
+    /**
+     * Names of the subgraphs that lead from the root graph to this one, found through the subgraph nodes.
+     */
+    getGraphPath(graph: ComfyGraph | undefined): string[] {
+        if (!graph || graph.rootGraph === graph) return [];
 
-    getWidgetUnderCursor(node: ComfyNode, localPos: { x: number, y: number }): ComfyWidget | null {
-        if (!node.widgets || !node.widgets.length) return null;
-
-        const titleHeight = 30;
-        let currentY = titleHeight;
-
-        for (const widget of node.widgets) {
-            const widgetHeight = 25;
-
-            if (localPos.y >= currentY && localPos.y <= currentY + widgetHeight) {
-                return widget;
+        const find = (nodes: ComfyNode[], path: string[]): string[] | null => {
+            for (const node of nodes) {
+                if (!node.subgraph || !node.isSubgraphNode?.()) continue;
+                const subPath = [...path, node.subgraph.name || 'Subgraph'];
+                const found = node.subgraph === graph ? subPath : find(node.subgraph._nodes, subPath);
+                if (found) return found;
             }
-
-            currentY += widgetHeight + 5;
-        }
-
-        return null;
-    }
-
-    getWidgetInfo(widget: ComfyWidget): WidgetInfo {
-        return {
-            name: widget.name,
-            type: widget.type,
-            value: this.formatValue(widget.value),
-            options: widget.options || null,
-            min: widget.min,
-            max: widget.max,
-            step: widget.step
+            return null;
         };
-    }
-
-    getMediaInfo(mediaElement: HTMLImageElement | HTMLVideoElement): MediaInfo {
-        const info: MediaInfo = {
-            type: mediaElement instanceof HTMLImageElement ? 'image' : 'video',
-            tagName: mediaElement.tagName,
-            src: mediaElement.src ? mediaElement.src.substring(mediaElement.src.lastIndexOf('/') + 1) : 'No source',
-            naturalWidth: 0,
-            naturalHeight: 0,
-            displayWidth: 0,
-            displayHeight: 0,
-            aspectRatio: ''
-        };
-
-        if (mediaElement instanceof HTMLImageElement) {
-            info.naturalWidth = mediaElement.naturalWidth;
-            info.naturalHeight = mediaElement.naturalHeight;
-            info.displayWidth = Math.round(mediaElement.width);
-            info.displayHeight = Math.round(mediaElement.height);
-            if (mediaElement.naturalWidth && mediaElement.naturalHeight) {
-                info.aspectRatio = (mediaElement.naturalWidth / mediaElement.naturalHeight).toFixed(2);
-            }
-        } else if (mediaElement instanceof HTMLVideoElement) {
-            info.naturalWidth = mediaElement.videoWidth;
-            info.naturalHeight = mediaElement.videoHeight;
-            info.displayWidth = Math.round(mediaElement.width);
-            info.displayHeight = Math.round(mediaElement.height);
-            info.duration = mediaElement.duration;
-            info.currentTime = mediaElement.currentTime;
-            if (mediaElement.videoWidth && mediaElement.videoHeight) {
-                info.aspectRatio = (mediaElement.videoWidth / mediaElement.videoHeight).toFixed(2);
-            }
-        }
-
-        return info;
+        return find(graph.rootGraph._nodes, []) ?? [];
     }
 
     getNodeModeText(mode: number): string {
         const modes: { [key: number]: string } = {
             0: 'Always',
             1: 'On Event',
-            2: 'Never',
+            2: 'Mute',
             3: 'On Trigger',
-            4: 'On Request'
+            4: 'Bypass'
         };
         return modes[mode] || `Mode ${mode}`;
-    }
-
-    detectNodeRegion(localPos: { x: number, y: number }, node: ComfyNode): string {
-        const titleHeight = 30;
-        const regions: string[] = [];
-
-        if (localPos.y <= titleHeight) {
-            regions.push("Title Bar");
-        }
-
-        if (localPos.x <= 10) {
-            regions.push("Left Edge");
-        } else if (localPos.x >= node.size[0] - 10) {
-            regions.push("Right Edge");
-        }
-
-        if (localPos.y <= 10) {
-            regions.push("Top Edge");
-        } else if (localPos.y >= node.size[1] - 10) {
-            regions.push("Bottom Edge");
-        }
-
-        if (regions.length === 0) {
-            if (localPos.y > titleHeight) {
-                regions.push("Content Area");
-            }
-        }
-
-        if (localPos.x <= 20 && localPos.y > titleHeight) {
-            regions.push("Input Area");
-        } else if (localPos.x >= node.size[0] - 20 && localPos.y > titleHeight) {
-            regions.push("Output Area");
-        }
-
-        return regions.length > 0 ? regions.join(", ") : "Unknown";
-    }
-
-    formatValue(value: unknown): string {
-        if (value === null) return "null";
-        if (value === undefined) return "undefined";
-        if (typeof value === "string") {
-            return value; // Show full text without truncation
-        }
-        if (typeof value === "number") {
-            return Number.isInteger(value) ? value.toString() : value.toFixed(3);
-        }
-        if (typeof value === "boolean") return value.toString();
-        if (Array.isArray(value)) {
-            return `Array(${value.length})`;
-        }
-        if (typeof value === "object") {
-            return "Object";
-        }
-        return String(value);
     }
 }

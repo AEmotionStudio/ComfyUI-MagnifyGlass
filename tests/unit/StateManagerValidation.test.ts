@@ -1,67 +1,5 @@
 
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-
-// Mock localStorage
-const localStorageMock = (() => {
-    let store: Record<string, string> = {};
-    return {
-        getItem: (key: string) => store[key] || null,
-        setItem: (key: string, value: string) => { store[key] = value; },
-        removeItem: (key: string) => { delete store[key]; },
-        clear: () => { store = {}; }
-    };
-})();
-
-Object.defineProperty(globalThis, 'localStorage', {
-    value: localStorageMock
-});
-
-// Mock window
-Object.defineProperty(globalThis, 'window', {
-    value: {
-        matchMedia: () => ({
-            addListener: vi.fn(),
-            addEventListener: vi.fn(),
-            removeEventListener: vi.fn(),
-        }),
-        infoPanelManager: null,
-        getComputedStyle: () => ({
-            backgroundColor: 'rgb(30, 30, 30)'
-        })
-    },
-    writable: true
-});
-
-// Mock document
-Object.defineProperty(globalThis, 'document', {
-    value: {
-        body: {
-            getAttribute: () => null,
-            className: ''
-        },
-        documentElement: {
-            getAttribute: () => null,
-            className: ''
-        },
-        querySelector: () => null,
-        querySelectorAll: () => [],
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn()
-    },
-    writable: true
-});
-
-// Mock getComputedStyle
-(globalThis as any).getComputedStyle = () => ({
-    backgroundColor: 'rgb(30, 30, 30)'
-});
-
-// Mock MutationObserver
-(globalThis as any).MutationObserver = class {
-    observe = vi.fn();
-    disconnect = vi.fn();
-    takeRecords = vi.fn();
-};
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // Mock utils
 vi.mock('../../src/shared/utils', () => ({
@@ -81,12 +19,6 @@ describe('StateManager Settings Validation', () => {
         // Reset getSettingValue to return default
         (getSettingValue as any).mockImplementation((key: string, def: any) => def);
         stateManager = new StateManager();
-    });
-
-    afterEach(() => {
-        if (stateManager) {
-            stateManager.cleanup();
-        }
     });
 
     it('should validate InfoPanelWidth (number validation)', () => {
@@ -133,5 +65,14 @@ describe('StateManager Settings Validation', () => {
         });
         stateManager.loadSettings();
         expect(stateManager.state.settings['🔍MagnifyGlass.InfoPanelFontFamily']).toBe('System Default'); // Default
+    });
+
+    it('keeps every font the settings offer', () => {
+        (getSettingValue as any).mockImplementation((key: string, def: any) => {
+            if (key === '🔍MagnifyGlass.InfoPanelFontFamily') return 'Press Start 2P';
+            return def;
+        });
+        stateManager.loadSettings();
+        expect(stateManager.state.settings['🔍MagnifyGlass.InfoPanelFontFamily']).toBe('Press Start 2P');
     });
 });

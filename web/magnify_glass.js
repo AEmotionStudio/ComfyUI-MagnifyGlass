@@ -2,6 +2,7 @@ import { MagnifyGlass } from "./magnify-glass/MagnifyGlass.js";
 import { app } from "/scripts/app.js";
 import { Logger } from "./shared/logger.js";
 import { initSidebar } from "./sidebar/sidebar.js";
+import "./shared/settings/defaults.js";
 import { ABOUT_BADGES } from "./sidebar/SidebarAbout.js";
 app.registerExtension({
   name: "comfyui.magnify.glass",

@@ -3,60 +3,40 @@ class NodeSelector {
    * Get all nodes from the graph.
    */
   getAllNodes() {
-    var _a;
-    return ((_a = app == null ? void 0 : app.graph) == null ? void 0 : _a._nodes) ?? [];
+    var _a, _b;
+    return ((_b = (_a = app == null ? void 0 : app.canvas) == null ? void 0 : _a.graph) == null ? void 0 : _b._nodes) ?? [];
   }
-  /**
-   * Get nodes sorted alphabetically by title.
-   */
-  getNodesSortedByTitle() {
+  getEntries() {
     return this.getAllNodes().map((n) => ({
       id: n.id,
       title: n.title || "Untitled",
-      type: n.type || "Unknown"
-    })).sort((a, b) => a.title.localeCompare(b.title));
+      type: n.type || "Unknown",
+      order: n.order ?? -1
+    }));
   }
   /**
    * Get nodes sorted by execution order.
    * Only includes nodes that have a valid execution order.
    */
   getNodesSortedByExecOrder() {
-    return this.getAllNodes().map((n) => ({
-      id: n.id,
-      title: n.title || "Untitled",
-      type: n.type || "Unknown",
-      order: n.order ?? -1
-    })).filter((n) => n.order >= 0).sort((a, b) => a.order - b.order);
-  }
-  /**
-   * Get nodes sorted by ID number (ascending).
-   */
-  getNodesSortedById() {
-    return this.getAllNodes().map((n) => ({
-      id: n.id,
-      title: n.title || "Untitled",
-      type: n.type || "Unknown"
-    })).sort((a, b) => a.id - b.id);
+    return this.getEntries().filter((n) => n.order >= 0).sort((a, b) => a.order - b.order);
   }
   /**
    * Get a node by its ID.
    */
   getNodeById(id) {
-    var _a;
-    return ((_a = app == null ? void 0 : app.graph) == null ? void 0 : _a.getNodeById(id)) ?? null;
+    var _a, _b;
+    return ((_b = (_a = app == null ? void 0 : app.canvas) == null ? void 0 : _a.graph) == null ? void 0 : _b.getNodeById(id)) ?? null;
   }
   /**
-   * Search nodes by title (case-insensitive partial match).
+   * Nodes whose title or type contains the query (any case), or whose id it names as `#id` or plainly.
+   * Sorted by execution order; nodes without one come last, by title.
    */
-  searchByTitle(query) {
-    const lowerQuery = query.toLowerCase();
-    return this.getNodesSortedByTitle().filter((n) => n.title.toLowerCase().includes(lowerQuery));
-  }
-  /**
-   * Get total node count.
-   */
-  getNodeCount() {
-    return this.getAllNodes().length;
+  search(query) {
+    const q = query.trim().toLowerCase();
+    const idQuery = q.startsWith("#") ? q.slice(1) : null;
+    const rank = (n) => n.order < 0 ? Infinity : n.order;
+    return this.getEntries().filter((n) => idQuery !== null ? !idQuery || String(n.id) === idQuery : n.title.toLowerCase().includes(q) || n.type.toLowerCase().includes(q) || String(n.id) === q).sort((a, b) => rank(a) - rank(b) || a.title.localeCompare(b.title));
   }
 }
 export {

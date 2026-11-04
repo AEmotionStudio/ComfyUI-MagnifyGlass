@@ -21,15 +21,17 @@ class InfoPanel {
     __publicField(this, "originalShow");
     __publicField(this, "originalHide");
     __publicField(this, "updateFrameId", null);
-    // State for persistence
-    __publicField(this, "lastValidNodeInfo", null);
+    __publicField(this, "boundScheduleSelectionUpdate");
+    // The node Sticky keeps, looked up again on each update like the locked one
+    __publicField(this, "stickyNodeId", null);
+    __publicField(this, "stickyGraph", null);
     this.magnifyGlass = magnifyGlass;
     this.stateManager = new StateManager();
     this.uiManager = new UIManager(this.stateManager);
     this.informationGatherer = new InformationGatherer();
-    this.canvasHighlighter = new CanvasHighlighter();
+    this.canvasHighlighter = new CanvasHighlighter(this.stateManager.state.settings);
     this.positionManager = new PositionManager(this.stateManager, this.uiManager.elements.panel);
-    this.eventManager = new EventManager(this.stateManager, this.uiManager.elements.panel, this.positionManager, {
+    this.eventManager = new EventManager(this.stateManager, this.uiManager.elements.panel, {
       toggleVisibility: () => {
         if (this.stateManager.state.isPanelVisible) {
           this.uiManager.hide();
@@ -37,12 +39,23 @@ class InfoPanel {
           this.uiManager.show();
         }
       },
-      togglePin: () => {
-        this.stateManager.togglePinning();
-        this.uiManager.updatePinnedState();
+      toggleFloat: () => this.uiManager.toggleFloating(),
+      toggleSticky: () => this.uiManager.setPersist(!this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelPersist"]),
+      updateLayout: () => {
+        this.uiManager.applyStyles();
+        this.uiManager.updateControlStates();
+        this.positionManager.positionPanel();
+        this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
       },
-      updatePosition: () => this.positionManager.positionPanel()
+      isGlassActive: () => this.magnifyGlass.state.active
     });
+    this.boundScheduleSelectionUpdate = () => {
+      if (this.magnifyGlass.state.active && this.stateManager.state.settings["🔍MagnifyGlass.InfoPanelFollowSelection"]) {
+        this.scheduleInfoUpdate();
+      }
+    };
+    document.addEventListener("pointerup", this.boundScheduleSelectionUpdate, true);
+    document.addEventListener("keyup", this.boundScheduleSelectionUpdate, true);
     this.originalUpdateMagnifiedView = magnifyGlass.updateMagnifiedView;
     this.originalShow = magnifyGlass.ui.show;
     this.originalHide = magnifyGlass.ui.hide;
@@ -52,15 +65,13 @@ class InfoPanel {
         this.uiManager.updateControlStates();
       };
       this.magnifyGlass.popOutManager.onNodeSelect = (nodeId) => {
-        this.onNodeSelected(nodeId);
+        this.uiManager.jumpToNode(nodeId);
       };
       this.magnifyGlass.popOutManager.onWidgetEdit = () => {
-        this.updateInfo(true);
+        this.updateInfo();
       };
     }
-    this.uiManager.onNodeSelected = (nodeId) => {
-      this.onNodeSelected(nodeId);
-    };
+    this.uiManager.onRefresh = () => this.updateInfo();
     Logger.debug("Info Panel initialized successfully");
   }
   hookIntoMagnifyGlass() {
@@ -98,11 +109,6 @@ class InfoPanel {
       this.stateManager.state.wasPanelVisibleBeforeHide = this.stateManager.state.isPanelVisible;
       this.originalHide.call(mg.ui);
       this.uiManager.hide();
-      if (this.uiManager.elements.panel) {
-        this.uiManager.elements.panel.style.display = "none";
-        this.uiManager.elements.panel.style.pointerEvents = "none";
-        this.uiManager.elements.panel.style.opacity = "0";
-      }
       if (this.uiManager.elements.controls) {
         this.uiManager.elements.controls.style.display = "none";
         this.uiManager.elements.controls.style.pointerEvents = "none";
@@ -135,16 +141,28 @@ class InfoPanel {
       cancelAnimationFrame(this.updateFrameId);
       this.updateFrameId = null;
     }
+    document.removeEventListener("pointerup", this.boundScheduleSelectionUpdate, true);
+    document.removeEventListener("keyup", this.boundScheduleSelectionUpdate, true);
     this.eventManager.cleanup();
     this.uiManager.cleanup();
     this.canvasHighlighter.cleanup();
-    this.stateManager.cleanup();
+  }
+  /**
+   * Follow the glass again from where it starts.
+   */
+  resetPosition() {
+    if (!this.stateManager.state.isGlassPreviewVisible) return;
+    this.stateManager.state.isFloating = false;
+    this.stateManager.state.floatPosition = null;
+    this.stateManager.saveLayout();
+    this.positionManager.positionPanel();
+    this.uiManager.updateControlStates();
   }
   /**
    * Update the info panel with current information.
-   * @param forceUpdate - If true, bypass the isInfoHeld check to force an update
    */
-  updateInfo(forceUpdate = false) {
+  updateInfo() {
+    var _a, _b, _c, _d, _e;
     const settings = this.stateManager.state.settings;
     const isActive = this.magnifyGlass.state.active;
     if (!isActive) {
@@ -155,43 +173,33 @@ class InfoPanel {
       this.canvasHighlighter.setHighlightedNode(null);
       return;
     }
-    if (this.stateManager.state.isInfoHeld && !forceUpdate) {
-      this.positionManager.positionPanel();
-      this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
-      return;
-    }
     let info = this.informationGatherer.gatherInformation();
-    const selectedNodeId = this.stateManager.state.selectedNodeId;
-    if (selectedNodeId !== null && info.hoveredNode && info.hoveredNode.id !== selectedNodeId) {
-      this.stateManager.clearSelectedNode();
+    const state = this.stateManager.state;
+    if (state.lockedNodeId !== null && state.lockedGraph !== ((_a = app.canvas) == null ? void 0 : _a.graph)) {
+      state.lockedNodeId = null;
     }
-    const currentSelectedId = this.stateManager.state.selectedNodeId;
-    if (currentSelectedId !== null) {
-      const selectedNode = this.uiManager.nodeSelector.getNodeById(currentSelectedId);
-      if (selectedNode) {
-        const detailedInfo = this.informationGatherer.getDetailedNodeInfo(
-          selectedNode,
-          { x: 0, y: 0 }
-          // No local position when manually selected
-        );
-        info = {
-          ...info,
-          hoveredNode: detailedInfo,
-          hoveredWidget: null
-        };
-      }
+    const lockedNode = state.lockedNodeId === null ? null : this.uiManager.nodeSelector.getNodeById(state.lockedNodeId);
+    if (!lockedNode) {
+      state.lockedNodeId = null;
+    }
+    const selectedNode = !lockedNode && settings["🔍MagnifyGlass.InfoPanelFollowSelection"] ? Object.values(((_b = app.canvas) == null ? void 0 : _b.selected_nodes) ?? {})[0] : void 0;
+    state.showsSelection = !!selectedNode;
+    const shownNode = lockedNode ?? selectedNode;
+    if (shownNode) {
+      info = { ...info, hoveredNode: this.informationGatherer.getDetailedNodeInfo(shownNode) };
     }
     if (info.hoveredNode) {
-      this.lastValidNodeInfo = info;
-    } else if (settings["🔍MagnifyGlass.InfoPanelPersist"] && this.lastValidNodeInfo) {
-      info = {
-        ...info,
-        // Current timestamp, cursor, zoom
-        hoveredNode: this.lastValidNodeInfo.hoveredNode,
-        hoveredWidget: this.lastValidNodeInfo.hoveredWidget
-      };
+      this.stickyNodeId = info.hoveredNode.id;
+      this.stickyGraph = (_c = app.canvas) == null ? void 0 : _c.graph;
+    } else if (settings["🔍MagnifyGlass.InfoPanelPersist"] && this.stickyNodeId !== null) {
+      const stickyNode = this.stickyGraph === ((_d = app.canvas) == null ? void 0 : _d.graph) ? this.uiManager.nodeSelector.getNodeById(this.stickyNodeId) : null;
+      if (stickyNode) {
+        info = { ...info, hoveredNode: this.informationGatherer.getDetailedNodeInfo(stickyNode) };
+      } else {
+        this.stickyNodeId = null;
+      }
     }
-    this.stateManager.setCurrentInfo(info);
+    state.currentNodeId = ((_e = info.hoveredNode) == null ? void 0 : _e.id) ?? null;
     this.uiManager.displayInfo(info);
     this.canvasHighlighter.setHighlightedNode(info.hoveredNode ? info.hoveredNode.id : null);
     if (this.magnifyGlass.popOutManager && this.magnifyGlass.popOutManager.isPopOutOpen()) {
@@ -199,39 +207,6 @@ class InfoPanel {
     }
     this.positionManager.positionPanel();
     this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
-    if (info.hoveredNode) {
-      this.stateManager.state.isHoveringNode = true;
-      this.stateManager.expandNodeSections();
-      if (this.stateManager.state.lastNodeId !== info.hoveredNode.id) {
-        this.stateManager.state.lastNodeId = info.hoveredNode.id;
-      }
-    } else {
-      this.stateManager.state.isHoveringNode = false;
-      if (!settings["🔍MagnifyGlass.InfoPanelPersist"]) {
-        if (this.stateManager.state.lastNodeId !== null) {
-          this.stateManager.state.lastNodeId = null;
-          if (!this.stateManager.state.isPanelHovered) {
-            this.stateManager.scheduleAutoCollapse();
-          }
-        }
-      }
-    }
-  }
-  /**
-   * Handle node selection from dropdown.
-   * @param nodeId - ID of the selected node
-   */
-  onNodeSelected(nodeId) {
-    Logger.debug(`Node selected from dropdown: ${nodeId}`);
-    this.stateManager.setSelectedNode(nodeId);
-    this.updateInfo(true);
-  }
-  /**
-   * Clear the selected node, returning to hover-based detection.
-   */
-  clearSelectedNode() {
-    this.stateManager.clearSelectedNode();
-    this.updateInfo();
   }
 }
 function mountInfoPanel(magnifyGlass) {

@@ -37,6 +37,7 @@ class InlineControlFactory {
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.className = "inline-toggle-input";
+    checkbox.setAttribute("aria-label", config.widgetName);
     const boolValue = config.currentValue === true || config.currentValue === "true";
     checkbox.checked = boolValue;
     const slider = document.createElement("span");
@@ -57,6 +58,7 @@ class InlineControlFactory {
       setValue: (v) => {
         checkbox.checked = Boolean(v);
       },
+      isOpen: () => false,
       destroy: () => {
         container.remove();
       }
@@ -73,23 +75,7 @@ class InlineControlFactory {
     const options = ((_a = config.constraints) == null ? void 0 : _a.options) ?? [];
     let currentValue = String(config.currentValue);
     const trigger = createDropdownTrigger(currentValue, "inline-dropdown-trigger");
-    trigger.style.cssText = `
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 10px;
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-            font-size: 14px;
-            background: rgba(160, 212, 104, 0.12);
-            border: 1px solid transparent;
-            border-radius: 6px;
-            color: var(--info-panel-accent-color, #74b9ff);
-            cursor: pointer;
-            min-width: 100px;
-            max-width: 180px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            transition: all 0.2s ease;
-        `;
+    trigger.setAttribute("aria-label", config.widgetName);
     let activeDropdown = null;
     const stopProp = (e) => e.stopPropagation();
     container.addEventListener("click", stopProp);
@@ -99,7 +85,6 @@ class InlineControlFactory {
       e.stopPropagation();
       if (activeDropdown) {
         activeDropdown.hide();
-        activeDropdown = null;
         return;
       }
       activeDropdown = new CustomDropdown({
@@ -120,14 +105,6 @@ class InlineControlFactory {
       });
       activeDropdown.show();
     });
-    trigger.addEventListener("mouseenter", () => {
-      trigger.style.background = "rgba(160, 212, 104, 0.18)";
-      trigger.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.15)";
-    });
-    trigger.addEventListener("mouseleave", () => {
-      trigger.style.background = "rgba(160, 212, 104, 0.12)";
-      trigger.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.1)";
-    });
     trigger.addEventListener("keydown", (e) => {
       if (e.key === "Enter" || e.key === " ") {
         e.preventDefault();
@@ -142,6 +119,7 @@ class InlineControlFactory {
         currentValue = String(v);
         updateDropdownTriggerValue(trigger, currentValue);
       },
+      isOpen: () => activeDropdown !== null,
       destroy: () => {
         activeDropdown == null ? void 0 : activeDropdown.hide();
         container.remove();
@@ -164,38 +142,15 @@ class InlineControlFactory {
     }
     button.textContent = buttonLabel;
     button.type = "button";
-    button.style.cssText = `
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 12px;
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-            font-size: 13px;
-            background: var(--info-panel-accent-color, #a0d468);
-            color: var(--comfy-menu-bg, #1a1a1a);
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: all 0.2s ease;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-        `;
     container.addEventListener("click", (e) => e.stopPropagation());
     container.addEventListener("mousedown", (e) => e.stopPropagation());
     container.addEventListener("mouseup", (e) => e.stopPropagation());
     button.addEventListener("click", (e) => {
+      var _a, _b;
       e.stopPropagation();
       e.preventDefault();
-      button.style.transform = "scale(0.95)";
-      setTimeout(() => {
-        button.style.transform = "";
-      }, 100);
       const app = window.app;
-      if (!(app == null ? void 0 : app.graph)) {
-        Logger.warn(`[InlineControl] No app.graph available`);
-        return;
-      }
-      const node = app.graph.getNodeById(config.nodeId);
+      const node = (_b = (_a = app == null ? void 0 : app.canvas) == null ? void 0 : _a.graph) == null ? void 0 : _b.getNodeById(config.nodeId);
       if (!(node == null ? void 0 : node.widgets)) {
         Logger.warn(`[InlineControl] Node ${config.nodeId} not found or has no widgets`);
         return;
@@ -212,20 +167,13 @@ class InlineControlFactory {
         Logger.warn(`[InlineControl] Widget ${config.widgetName} not found or has no callback`);
       }
     });
-    button.addEventListener("mouseenter", () => {
-      button.style.transform = "translateY(-1px)";
-      button.style.boxShadow = "0 3px 8px rgba(0, 0, 0, 0.25)";
-    });
-    button.addEventListener("mouseleave", () => {
-      button.style.transform = "";
-      button.style.boxShadow = "0 1px 3px rgba(0, 0, 0, 0.2)";
-    });
     container.appendChild(button);
     return {
       element: container,
       getValue: () => config.currentValue,
       setValue: () => {
       },
+      isOpen: () => false,
       destroy: () => {
         container.remove();
       }

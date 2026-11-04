@@ -3,7 +3,10 @@
  *
  * A custom dropdown component that stays within viewport bounds.
  * Replaces native select elements for better positioning control.
+ * Its filter input holds focus while it is open, so typing never reaches ComfyUI's hotkeys.
  */
+
+import { Icons } from './icons';
 
 export interface CustomDropdownConfig {
     options: string[];
@@ -11,8 +14,9 @@ export interface CustomDropdownConfig {
     anchor: HTMLElement;
     onChange: (value: string) => void;
     onClose?: () => void;
-    theme?: string;
 }
+
+let dropdownCount = 0;
 
 /**
  * Custom dropdown that positions itself within viewport bounds.
@@ -20,113 +24,128 @@ export interface CustomDropdownConfig {
  */
 export class CustomDropdown {
     private dropdown: HTMLElement | null = null;
+    private filter: HTMLInputElement | null = null;
+    private visibleItems: HTMLElement[] = [];
     private config: CustomDropdownConfig;
     private closeHandler: ((e: MouseEvent) => void) | null = null;
     private keyHandler: ((e: KeyboardEvent) => void) | null = null;
     private scrollHandler: ((e: Event) => void) | null = null;
-    private currentIndex: number = 0;  // Track active item for keyboard navigation
+    private listenerTimer: ReturnType<typeof setTimeout> | null = null;
+    private activeItem: HTMLElement | null = null;  // Item that Enter picks, moved by the arrows and hover
 
     constructor(config: CustomDropdownConfig) {
         this.config = config;
     }
 
     /**
-     * Show the dropdown
+     * Show the dropdown. Does nothing while it is already open.
      */
     show(): void {
-        this.hide(); // Close any existing dropdown first
+        if (this.dropdown) return;
 
+        const id = `custom-dropdown-${++dropdownCount}`;
         const dropdown = document.createElement('div');
-        dropdown.className = `custom-dropdown-menu${this.config.theme ? ` theme-${this.config.theme}` : ''}`;
-        dropdown.style.cssText = `
-            position: fixed;
-            z-index: 100001;
-            overflow-y: auto;
-            background: var(--comfy-menu-bg, #1a1a1f);
-            border: 1px solid var(--border-color, #444);
-            border-radius: 6px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-            min-width: 120px;
-        `;
+        dropdown.className = 'custom-dropdown-menu';
+        // Appended to body, so it takes the size of the text it opens from
+        dropdown.style.fontSize = getComputedStyle(this.config.anchor).fontSize;
 
-        // Build dropdown items
-        this.config.options.forEach((optionValue) => {
+        const filter = document.createElement('input');
+        filter.type = 'text';
+        filter.className = 'custom-dropdown-filter';
+        filter.placeholder = 'Filter…';
+        filter.setAttribute('role', 'combobox');
+        filter.setAttribute('aria-label', 'Filter options');
+        filter.setAttribute('aria-autocomplete', 'list');
+        filter.setAttribute('aria-expanded', 'true');
+        filter.setAttribute('aria-controls', `${id}-list`);
+
+        const list = document.createElement('div');
+        list.className = 'custom-dropdown-list';
+        list.id = `${id}-list`;
+        list.setAttribute('role', 'listbox');
+
+        const items = this.config.options.map((optionValue, i) => {
             const item = document.createElement('div');
             item.className = 'custom-dropdown-item';
+            item.id = `${id}-${i}`;
             item.dataset.value = optionValue;
-
-            const isSelected = optionValue === this.config.currentValue;
-            item.style.cssText = `
-                padding: 8px 12px;
-                cursor: pointer;
-                border-bottom: 1px solid var(--border-color, #333);
-                font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-                font-size: 13px;
-                color: ${isSelected ? 'var(--info-panel-accent-color, #4ecdc4)' : 'inherit'};
-                background: ${isSelected ? 'rgba(78, 205, 196, 0.1)' : 'transparent'};
-                white-space: nowrap;
-            `;
+            item.setAttribute('role', 'option');
+            item.setAttribute('aria-selected', String(optionValue === this.config.currentValue));
             item.textContent = optionValue;
 
-            // Hover effect
-            item.addEventListener('mouseenter', () => {
-                if (!isSelected) {
-                    item.style.background = 'var(--comfy-input-bg, #3a3a3a)';
-                }
-            });
-            item.addEventListener('mouseleave', () => {
-                item.style.background = isSelected ? 'rgba(78, 205, 196, 0.1)' : 'transparent';
-            });
-
-            // Selection handler
+            item.addEventListener('mouseenter', () => this.setActive(this.visibleItems.indexOf(item), false));
             item.addEventListener('click', (e) => {
                 e.stopPropagation();
-                this.config.onChange(optionValue);
-                this.hide();
+                this.select(optionValue);
             });
 
-            dropdown.appendChild(item);
+            list.appendChild(item);
+            return item;
         });
 
-        // Remove border from last item
-        const lastItem = dropdown.lastElementChild as HTMLElement;
-        if (lastItem) {
-            lastItem.style.borderBottom = 'none';
-        }
+        filter.addEventListener('input', () => {
+            const query = filter.value.toLowerCase();
+            for (const item of items) {
+                item.hidden = !item.dataset.value!.toLowerCase().includes(query);
+            }
+            this.visibleItems = items.filter(item => !item.hidden);
+            this.setActive(0);
+        });
 
+        dropdown.append(filter, list);
         document.body.appendChild(dropdown);
         this.dropdown = dropdown;
-
-        // Initialize currentIndex based on currently selected value
-        this.currentIndex = this.config.options.indexOf(this.config.currentValue);
-        if (this.currentIndex < 0) this.currentIndex = 0;
-
-        // Make dropdown focusable for keyboard events
-        dropdown.setAttribute('tabindex', '-1');
+        this.filter = filter;
+        this.visibleItems = items;
 
         // Position within viewport
         this.positionWithinViewport();
 
-        // Scroll to selected item
-        this.scrollToSelected();
+        // Start on the current value
+        this.setActive(Math.max(0, this.config.options.indexOf(this.config.currentValue)));
 
         // Setup close handlers
         this.setupCloseHandlers();
 
-        // Focus dropdown for keyboard navigation
-        dropdown.focus();
+        this.config.anchor.setAttribute('aria-expanded', 'true');
+        filter.focus();
     }
 
     /**
-     * Hide the dropdown
+     * Hide the dropdown. Fires onClose once, and does nothing when it is not open.
      */
     hide(): void {
-        if (this.dropdown && this.dropdown.parentNode) {
-            this.dropdown.parentNode.removeChild(this.dropdown);
-            this.dropdown = null;
-        }
+        if (!this.dropdown) return;
+        this.dropdown.remove();
+        this.dropdown = null;
+        this.filter = null;
+        this.visibleItems = [];
+        this.activeItem = null;
         this.cleanupHandlers();
+        this.config.anchor.setAttribute('aria-expanded', 'false');
         this.config.onClose?.();
+    }
+
+    private select(value: string): void {
+        this.config.onChange(value);
+        this.hide();
+        this.config.anchor.focus();
+    }
+
+    /**
+     * Move the active item, clamped to the visible items
+     */
+    private setActive(index: number, scroll = true): void {
+        this.activeItem?.classList.remove('active');
+        this.activeItem = this.visibleItems[Math.max(0, Math.min(index, this.visibleItems.length - 1))] ?? null;
+
+        if (this.activeItem) {
+            this.activeItem.classList.add('active');
+            if (scroll) this.activeItem.scrollIntoView({ block: 'nearest' });
+            this.filter?.setAttribute('aria-activedescendant', this.activeItem.id);
+        } else {
+            this.filter?.removeAttribute('aria-activedescendant');
+        }
     }
 
     /**
@@ -141,9 +160,6 @@ export class CustomDropdown {
         const viewportHeight = window.innerHeight;
         const anchorRect = this.config.anchor.getBoundingClientRect();
 
-        // Temporarily remove constraints to measure natural size
-        this.dropdown.style.maxWidth = 'none';
-        this.dropdown.style.maxHeight = 'none';
         const naturalRect = this.dropdown.getBoundingClientRect();
 
         // Calculate available space in each direction
@@ -151,18 +167,16 @@ export class CustomDropdown {
         const spaceAbove = anchorRect.top - margin - gap;
         const spaceRight = viewportWidth - anchorRect.left - margin;
 
-        // Vertical positioning: prefer below, flip above if needed
-        let top: number;
+        // Vertical positioning: prefer below, flip above if needed. Above, it is anchored by its
+        // bottom edge so it stays against the anchor when the filter shrinks the list
         let maxHeight: number;
 
         if (spaceBelow >= naturalRect.height || spaceBelow >= spaceAbove) {
-            // Position below anchor
-            top = anchorRect.bottom + gap;
+            this.dropdown.style.top = `${anchorRect.bottom + gap}px`;
             maxHeight = Math.max(100, spaceBelow);
         } else {
-            // Position above anchor
+            this.dropdown.style.bottom = `${viewportHeight - anchorRect.top + gap}px`;
             maxHeight = Math.max(100, spaceAbove);
-            top = anchorRect.top - gap - Math.min(naturalRect.height, maxHeight);
         }
 
         // Horizontal positioning: prefer left-aligned with anchor, shift if needed
@@ -178,31 +192,12 @@ export class CustomDropdown {
             maxWidth = viewportWidth - margin * 2;
         }
 
-        // Ensure minimum width matches anchor
-        const minWidth = Math.max(120, anchorRect.width);
+        // At least as wide as the anchor, and a fixed width so filtering does not resize it
+        const width = Math.min(Math.max(120, anchorRect.width, naturalRect.width), maxWidth);
 
-        // Apply final position and constraints
-        this.dropdown.style.top = `${Math.max(margin, top)}px`;
         this.dropdown.style.left = `${Math.max(margin, left)}px`;
-        this.dropdown.style.minWidth = `${minWidth}px`;
-        this.dropdown.style.maxWidth = `${maxWidth}px`;
+        this.dropdown.style.width = `${width}px`;
         this.dropdown.style.maxHeight = `${maxHeight}px`;
-    }
-
-    /**
-     * Scroll to the currently selected item
-     */
-    private scrollToSelected(): void {
-        if (!this.dropdown) return;
-
-        const selectedItem = this.dropdown.querySelector(
-            `[data-value="${CSS.escape(this.config.currentValue)}"]`
-        ) as HTMLElement;
-
-        if (selectedItem) {
-            // Scroll the item into view, centered if possible
-            selectedItem.scrollIntoView({ block: 'nearest' });
-        }
     }
 
     /**
@@ -218,65 +213,34 @@ export class CustomDropdown {
             }
         };
 
-        // Helper to update active item visually
-        const updateActiveItem = (newIndex: number) => {
-            if (!this.dropdown) return;
-            const items = this.dropdown.querySelectorAll('.custom-dropdown-item');
-            if (items.length === 0) return;
-
-            // Clamp index
-            if (newIndex < 0) newIndex = 0;
-            if (newIndex >= items.length) newIndex = items.length - 1;
-
-            // Remove highlight from old item
-            if (this.currentIndex >= 0 && this.currentIndex < items.length) {
-                const oldItem = items[this.currentIndex] as HTMLElement;
-                const isOldSelected = this.config.options[this.currentIndex] === this.config.currentValue;
-                oldItem.style.background = isOldSelected ? 'rgba(78, 205, 196, 0.1)' : 'transparent';
-            }
-
-            this.currentIndex = newIndex;
-
-            // Highlight new item
-            const newItem = items[this.currentIndex] as HTMLElement;
-            newItem.style.background = 'var(--comfy-input-bg, #3a3a3a)';
-            newItem.scrollIntoView({ block: 'nearest' });
-        };
-
         // Key handler for navigation and closing
         this.keyHandler = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
+            // Tab closes it like a native select, and moves on from the trigger
+            if (e.key === 'Tab') {
                 this.hide();
+                this.config.anchor.focus();
                 return;
             }
+            if (e.key !== 'Escape' && e.key !== 'ArrowDown' && e.key !== 'ArrowUp' && e.key !== 'Enter') return;
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
 
-            if (e.key === 'ArrowDown') {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                updateActiveItem(this.currentIndex + 1);
+            const index = this.activeItem ? this.visibleItems.indexOf(this.activeItem) : -1;
+            if (e.key === 'Escape') {
+                this.hide();
+                this.config.anchor.focus();
+            } else if (e.key === 'ArrowDown') {
+                this.setActive(index + 1);
             } else if (e.key === 'ArrowUp') {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                updateActiveItem(this.currentIndex - 1);
-            } else if (e.key === 'Enter') {
-                e.preventDefault();
-                e.stopPropagation();
-                e.stopImmediatePropagation();
-                if (this.currentIndex >= 0 && this.currentIndex < this.config.options.length) {
-                    this.config.onChange(this.config.options[this.currentIndex]);
-                    this.hide();
-                }
+                this.setActive(index - 1);
+            } else if (this.activeItem) {
+                this.select(this.activeItem.dataset.value!);
             }
         };
 
         // Close on scroll outside the dropdown (not when scrolling within it)
         this.scrollHandler = (e: Event) => {
-            // Don't close if scrolling within the dropdown itself
             if (this.dropdown && e.target instanceof Node && this.dropdown.contains(e.target)) {
                 return;
             }
@@ -284,7 +248,8 @@ export class CustomDropdown {
         };
 
         // Delay adding listeners to avoid immediate closure from the opening click
-        setTimeout(() => {
+        this.listenerTimer = setTimeout(() => {
+            this.listenerTimer = null;
             // Use window and capture phase for key events to intercept before ComfyUI
             window.addEventListener('keydown', this.keyHandler!, true);
             // Use capture phase (true) to get events before they can be stopped
@@ -298,13 +263,17 @@ export class CustomDropdown {
      * Cleanup event handlers
      */
     private cleanupHandlers(): void {
+        if (this.listenerTimer) {
+            clearTimeout(this.listenerTimer);
+            this.listenerTimer = null;
+        }
         if (this.closeHandler) {
             document.removeEventListener('mousedown', this.closeHandler, true);
             document.removeEventListener('click', this.closeHandler, true);
             this.closeHandler = null;
         }
         if (this.keyHandler) {
-            window.removeEventListener('keydown', this.keyHandler, true);  // Match window listener
+            window.removeEventListener('keydown', this.keyHandler, true);
             this.keyHandler = null;
         }
         if (this.scrollHandler) {
@@ -326,26 +295,15 @@ export function createDropdownTrigger(
     trigger.setAttribute('tabindex', '0');
     trigger.setAttribute('role', 'combobox');
     trigger.setAttribute('aria-haspopup', 'listbox');
+    trigger.setAttribute('aria-expanded', 'false');
 
     const valueSpan = document.createElement('span');
     valueSpan.className = 'custom-dropdown-value';
     valueSpan.textContent = currentValue;
-    valueSpan.style.cssText = `
-        flex: 1;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    `;
 
     const arrow = document.createElement('span');
     arrow.className = 'custom-dropdown-arrow';
-    arrow.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
-    arrow.style.cssText = `
-        flex-shrink: 0;
-        display: flex;
-        align-items: center;
-        opacity: 0.7;
-    `;
+    arrow.innerHTML = Icons.chevronDown;
 
     trigger.appendChild(valueSpan);
     trigger.appendChild(arrow);

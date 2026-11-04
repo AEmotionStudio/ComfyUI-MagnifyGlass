@@ -5,11 +5,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>🔍 MagnifyGlass Viewer</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
-        rel="stylesheet">
     <style>
         :root {
             --bg-primary: #0f0f14;
@@ -50,159 +45,6 @@
             --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
             --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
             --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
-        }
-
-        /* Solarized Theme */
-        [data-theme="solarized"] {
-            --bg-primary: #002b36;
-            --bg-secondary: #073642;
-            --bg-tertiary: #073642;
-            --bg-elevated: #002b36;
-            --border-subtle: rgba(88, 110, 117, 0.3);
-            --border-default: rgba(88, 110, 117, 0.5);
-            --text-primary: #839496;
-            --text-secondary: #586e75;
-            --text-tertiary: #586e75;
-            --accent-blue: #268bd2;
-            --accent-cyan: #2aa198;
-            --accent-green: #859900;
-        }
-
-        /* Arc Theme */
-        [data-theme="arc"] {
-            --bg-primary: #383c4a;
-            --bg-secondary: #404552;
-            --bg-tertiary: #2f343f;
-            --bg-elevated: #4b5162;
-            --border-subtle: rgba(0, 0, 0, 0.2);
-            --border-default: rgba(0, 0, 0, 0.3);
-            --text-primary: #d3dae3;
-            --text-secondary: #a0a8b9;
-            --text-tertiary: #7c818c;
-            --accent-blue: #5294e2;
-        }
-
-        /* Nord Theme */
-        [data-theme="nord"] {
-            --bg-primary: #2e3440;
-            --bg-secondary: #3b4252;
-            --bg-tertiary: #434c5e;
-            --bg-elevated: #4c566a;
-            --border-subtle: rgba(0, 0, 0, 0.2);
-            --border-default: rgba(236, 239, 244, 0.1);
-            --text-primary: #d8dee9;
-            --text-secondary: #e5e9f0;
-            --text-tertiary: #4c566a;
-            --accent-blue: #81a1c1;
-            --accent-cyan: #88c0d0;
-            --accent-green: #a3be8c;
-        }
-
-        /* GitHub Theme */
-        [data-theme="github"] {
-            --bg-primary: #ffffff;
-            --bg-secondary: #f6f8fa;
-            --bg-tertiary: #ffffff;
-            --bg-elevated: #f6f8fa;
-            --border-subtle: rgba(27, 31, 35, 0.05);
-            --border-default: rgba(27, 31, 35, 0.1);
-            --text-primary: #24292e;
-            --text-secondary: #586069;
-            --text-tertiary: #6a737d;
-            --accent-blue: #0366d6;
-        }
-
-        /* Gruvbox Theme */
-        [data-theme="gruvbox"] {
-            --bg-primary: #282828;
-            --bg-secondary: #3c3836;
-            --bg-tertiary: #504945;
-            --bg-elevated: #665c54;
-            --border-subtle: rgba(168, 153, 132, 0.2);
-            --border-default: rgba(168, 153, 132, 0.4);
-            --text-primary: #ebdbb2;
-            --text-secondary: #a89984;
-            --text-tertiary: #928374;
-            --accent-blue: #83a598;
-            --accent-green: #b8bb26;
-        }
-
-        /* Dracula Theme */
-        [data-theme="dracula"] {
-            --bg-primary: #282a36;
-            --bg-secondary: #44475a;
-            --bg-tertiary: #44475a;
-            --bg-elevated: #6272a4;
-            --border-subtle: rgba(189, 147, 249, 0.2);
-            --border-default: rgba(98, 114, 164, 0.5);
-            --text-primary: #f8f8f2;
-            --text-secondary: #6272a4;
-            --text-tertiary: #6272a4;
-            --accent-blue: #8be9fd;
-            --accent-green: #50fa7b;
-        }
-
-        /* Monokai Theme */
-        [data-theme="monokai"] {
-            --bg-primary: #272822;
-            --bg-secondary: #3e3d32;
-            --bg-tertiary: #3e3d32;
-            --bg-elevated: #49483e;
-            --border-subtle: rgba(255, 255, 255, 0.1);
-            --border-default: rgba(255, 255, 255, 0.2);
-            --text-primary: #f8f8f2;
-            --text-secondary: #75715e;
-            --text-tertiary: #75715e;
-            --accent-blue: #66d9ef;
-            --accent-green: #a6e22e;
-        }
-
-        /* Obsidian Theme - deep purple/charcoal */
-        [data-theme="obsidian"] {
-            --bg-primary: rgb(30, 30, 40);
-            --bg-secondary: rgb(40, 40, 55);
-            --bg-tertiary: rgb(50, 50, 65);
-            --bg-elevated: rgb(45, 45, 60);
-            --border-subtle: rgba(80, 80, 100, 0.3);
-            --border-default: rgba(80, 80, 100, 0.5);
-            --text-primary: #d4d4d8;
-            --text-secondary: #a1a1aa;
-            --text-tertiary: #71717a;
-            --accent-blue: #8b5cf6;
-            --accent-green: #a78bfa;
-            --accent-purple: #8b5cf6;
-        }
-
-        /* Obsidian Dark Theme - even darker obsidian */
-        [data-theme="obsidian-dark"] {
-            --bg-primary: rgb(15, 15, 20);
-            --bg-secondary: rgb(25, 25, 35);
-            --bg-tertiary: rgb(35, 35, 45);
-            --bg-elevated: rgb(30, 30, 40);
-            --border-subtle: rgba(60, 60, 80, 0.3);
-            --border-default: rgba(60, 60, 80, 0.5);
-            --text-primary: #c4c4cc;
-            --text-secondary: #9494a0;
-            --text-tertiary: #64647a;
-            --accent-blue: #a78bfa;
-            --accent-green: #c4b5fd;
-            --accent-purple: #a78bfa;
-        }
-
-        /* Milk White Theme - soft cream/white */
-        [data-theme="milk-white"] {
-            --bg-primary: rgb(255, 253, 250);
-            --bg-secondary: rgb(250, 248, 245);
-            --bg-tertiary: rgb(245, 243, 240);
-            --bg-elevated: rgb(255, 255, 255);
-            --border-subtle: rgba(220, 215, 210, 0.5);
-            --border-default: rgba(220, 215, 210, 0.8);
-            --text-primary: #3d3d3d;
-            --text-secondary: #5a5a5a;
-            --text-tertiary: #888888;
-            --accent-blue: #7c3aed;
-            --accent-green: #059669;
-            --accent-purple: #7c3aed;
         }
 
         * {
@@ -874,6 +716,11 @@
             outline: none;
         }
 
+        textarea.widget-editor-input {
+            resize: vertical;
+            line-height: 1.4;
+        }
+
         .widget-editor-input:focus {
             box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.25);
         }
@@ -1110,11 +957,14 @@
             }
         }
 
-        // Track current info for widget editing
+        // The latest info, and the node the sidebar was last rendered from
         let currentInfo = null;
+        let renderedNode = null;
 
         function handleInfo(info) {
-            currentInfo = info; // Store for widget editing
+            currentInfo = info;
+            // Re-rendering would drop an open editor; closing it renders the latest info
+            if (sidebarContent.querySelector('.widget-editor-inline')) return;
             if (!info) {
                 showEmptyState();
                 return;
@@ -1154,97 +1004,160 @@
             });
         }
 
+        // Widget rows carry their index into renderedNode.widgets; names never go into inline handlers
+        function widgetFor(element) {
+            const index = element.dataset.widget;
+            return renderedNode && index !== undefined ? renderedNode.widgets[Number(index)] : null;
+        }
+
+        sidebarContent.addEventListener('click', (e) => {
+            const element = e.target.closest('[data-widget]');
+            const widget = element && widgetFor(element);
+            if (!widget) return;
+            const kind = element.dataset.kind;
+            if (kind === 'toggle') {
+                toggleButtonWidget(element, renderedNode.id, widget.name);
+            } else if (kind === 'action') {
+                sendButtonClick(renderedNode.id, widget.name);
+                element.style.transform = 'scale(0.95)';
+                setTimeout(() => element.style.transform = '', 100);
+            } else if (kind === 'value') {
+                editWidgetValue(element, renderedNode.id, widget);
+            }
+        });
+
+        sidebarContent.addEventListener('change', (e) => {
+            const slider = e.target.closest('.widget-editor-slider');
+            const widget = slider && widgetFor(slider);
+            if (widget) sendWidgetEdit(renderedNode.id, widget.name, parseFloat(slider.value));
+        });
+
+        function toggleButtonWidget(button, nodeId, widgetName) {
+            const newState = button.dataset.state !== 'true';
+            button.dataset.state = String(newState);
+            sendWidgetEdit(nodeId, widgetName, newState);
+            button.textContent = newState ? '✓ ON' : '○ OFF';
+            button.style.background = newState ? 'var(--accent-green, #22c55e)' : 'var(--bg-tertiary, #333)';
+            button.style.color = newState ? 'var(--bg-primary, #1a1a1a)' : 'var(--text-secondary, #aaa)';
+            button.style.borderColor = newState ? 'var(--accent-green, #22c55e)' : 'var(--border-default, #555)';
+            button.style.transform = 'scale(0.95)';
+            setTimeout(() => button.style.transform = '', 100);
+        }
+
+        // The real step: ComfyUI keeps a 10x legacy value in step and the actual one in step2
+        function stepFor(opts) {
+            if (opts.step2 !== undefined) return opts.step2;
+            return opts.step !== undefined ? opts.step / 10 : 'any';
+        }
+
         /**
-         * Start editing a widget value inline
+         * Start editing a widget value inline. Enter or blur commits, Escape cancels;
+         * a textarea commits on Ctrl/Cmd+Enter so its newlines survive.
          */
-        function editWidgetValue(element, nodeId, widgetName, currentValue, widgetType, options) {
-            // Already editing?
+        function editWidgetValue(element, nodeId, widget) {
             if (element.querySelector('.widget-editor-inline')) return;
 
-            const originalHtml = element.innerHTML;
-            // Check for combo by looking at options array, not just type
-            const isCombo = Array.isArray(options) && options.length > 0;
-            const isNumber = widgetType === 'number' || widgetType === 'int' || widgetType === 'float';
-            const isBoolean = widgetType === 'toggle' || widgetType === 'boolean';
+            const options = widget.options;
+            const opts = options && !Array.isArray(options) ? options : {};
+            const type = (widget.type || 'text').toLowerCase();
+            const currentValue = widget.value;
 
-            let editorHtml;
-
-            if (isCombo) {
-                // Add a hidden placeholder to ensure 'onchange' fires even if the user selects the same value again.
-                // If we pre-selected the current value, clicking it again wouldn't trigger 'change'.
-                const placeholder = `<option value="" disabled selected style="display:none">Select...</option>`;
-
-                const optionsHtml = options.map(opt =>
-                    `<option value="${escapeHtml(String(opt))}">${escapeHtml(String(opt))}</option>`
-                ).join('');
-
-                // Escape original HTML for the cancel function
-                const safeOriginalHtml = originalHtml.replace(/'/g, "\\\\'");
-
-                // onchange: Commit value immediately
-                // onblur: If we have a value (user selected something but browser weirdness), commit. 
-                //         If value is empty (user clicked away without selecting), CANCEL edit and restore original display.
-                editorHtml = `<select class="widget-editor-select" 
-                    onchange="if(this.value) commitWidgetEdit(this, ${nodeId}, '${widgetName}')" 
-                    onblur="if(this.value) commitWidgetEdit(this, ${nodeId}, '${widgetName}') else cancelWidgetEdit(this, '${safeOriginalHtml}')"
-                    >${placeholder}${optionsHtml}</select>`;
-            } else if (isBoolean) {
+            if (type === 'toggle' || type === 'boolean') {
                 // Read the CURRENT displayed value from the element text, not the stale parameter
-                const displayedText = element.textContent?.trim().toLowerCase();
-                const currentBool = displayedText === 'true';
-                const newValue = !currentBool;
-                sendWidgetEdit(nodeId, widgetName, newValue);
-                // Update display - keep it simple, just update text and color
+                const newValue = element.textContent.trim().toLowerCase() !== 'true';
+                sendWidgetEdit(nodeId, widget.name, newValue);
                 element.textContent = newValue ? 'true' : 'false';
                 element.style.color = newValue ? 'var(--accent-green)' : 'var(--text-tertiary)';
                 return;
-            } else if (isNumber) {
-                // Use regular number input (sliders are already rendered inline from renderList)
-                editorHtml = `<input type="number" class="widget-editor-input" value="${escapeHtml(String(currentValue))}" 
-                    onblur="commitWidgetEdit(this, ${nodeId}, '${widgetName}')" 
-                    onkeydown="if(event.key==='Enter'){this.blur();}if(event.key==='Escape'){cancelWidgetEdit(this,'${escapeHtml(originalHtml.replace(/'/g, "\\\\'"))}');}"/>`;
+            }
+
+            let editor;
+            let readValue;
+            if (Array.isArray(options) && options.length > 0) {
+                editor = document.createElement('select');
+                editor.className = 'widget-editor-select';
+                // A hidden placeholder, so picking the current value again still fires change
+                for (const label of ['Select...', ...options]) {
+                    const option = document.createElement('option');
+                    option.textContent = String(label);
+                    editor.appendChild(option);
+                }
+                editor.options[0].disabled = true;
+                editor.options[0].hidden = true;
+                editor.selectedIndex = 0;
+                // The option itself, so numeric combo values stay numbers
+                readValue = () => editor.selectedIndex > 0 ? options[editor.selectedIndex - 1] : undefined;
+            } else if (type === 'number' || type === 'knob' || type === 'int' || type === 'float') {
+                editor = document.createElement('input');
+                editor.type = 'number';
+                editor.className = 'widget-editor-input';
+                if (opts.min !== undefined) editor.min = String(opts.min);
+                if (opts.max !== undefined) editor.max = String(opts.max);
+                editor.step = String(stepFor(opts));
+                editor.value = String(currentValue);
+                readValue = () => editor.value === '' || isNaN(parseFloat(editor.value)) ? undefined : parseFloat(editor.value);
             } else {
-                // Text input
-                editorHtml = `<input type="text" class="widget-editor-input" value="${escapeHtml(String(currentValue))}" 
-                    onblur="commitWidgetEdit(this, ${nodeId}, '${widgetName}')" 
-                    onkeydown="if(event.key==='Enter'){this.blur();}if(event.key==='Escape'){cancelWidgetEdit(this,'${escapeHtml(originalHtml.replace(/'/g, "\\\\'"))}');}"/>`;
+                const text = String(currentValue ?? '');
+                const multiline = type === 'customtext' || opts.multiline || text.includes('\n');
+                editor = document.createElement(multiline ? 'textarea' : 'input');
+                editor.className = 'widget-editor-input';
+                if (multiline) {
+                    editor.rows = Math.min(Math.max(text.split('\n').length, 3), 12);
+                } else {
+                    editor.type = 'text';
+                }
+                editor.value = text;
+                readValue = () => editor.value;
             }
 
-            element.innerHTML = `<div class="widget-editor-inline">${editorHtml}</div>`;
+            let done = false;
+            const finish = (commit) => {
+                if (done) return;
+                done = true;
+                const value = readValue();
+                if (commit && value !== undefined) {
+                    sendWidgetEdit(nodeId, widget.name, value);
+                    element.innerHTML = '';
+                    const shown = document.createElement('span');
+                    shown.style.color = 'var(--accent-blue)';
+                    shown.textContent = String(value);
+                    element.appendChild(shown);
+                } else {
+                    element.innerHTML = '';
+                    handleInfo(currentInfo);
+                }
+            };
 
-            const input = element.querySelector('input, select');
-            if (input) {
-                input.focus();
-                if (input.select) input.select();
+            if (editor.tagName === 'SELECT') {
+                editor.addEventListener('change', () => finish(true));
+                // Clicking away without a pick cancels
+                editor.addEventListener('blur', () => finish(editor.selectedIndex > 0));
+            } else {
+                editor.addEventListener('blur', () => finish(true));
             }
-        }
+            editor.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    // Escape on the page closes the window
+                    e.stopPropagation();
+                    finish(false);
+                } else if (e.key === 'Enter' && (editor.tagName !== 'TEXTAREA' || e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    finish(true);
+                }
+            });
 
-        /**
-         * Commit widget edit and send to main window
-         */
-        function commitWidgetEdit(input, nodeId, widgetName) {
-            const value = input.type === 'number' ? parseFloat(input.value) : input.value;
-            sendWidgetEdit(nodeId, widgetName, value);
-
-            // Update display
-            const container = input.closest('.widget-value-editable');
-            if (container) {
-                container.innerHTML = `<span style="color: var(--accent-blue);">${escapeHtml(String(value))}</span>`;
-            }
-        }
-
-        /**
-         * Cancel widget edit
-         */
-        function cancelWidgetEdit(input, originalHtml) {
-            const container = input.closest('.widget-value-editable');
-            if (container) {
-                container.innerHTML = originalHtml;
-            }
+            const wrapper = document.createElement('div');
+            wrapper.className = 'widget-editor-inline';
+            wrapper.appendChild(editor);
+            element.innerHTML = '';
+            element.appendChild(wrapper);
+            editor.focus();
+            if (editor.select) editor.select();
         }
 
         function renderInfo(info) {
             let html = '';
+            renderedNode = info.hoveredNode || null;
 
             // Cursor section (Now First)
             if (info.cursor && info.canvas) {
@@ -1324,7 +1237,7 @@
                             ${info.hoveredNode.mode !== undefined ? `
                             <div class="info-row">
                                 <span class="info-label">Mode</span>
-                                <span class="info-value">${getModeText(info.hoveredNode.mode)}</span>
+                                <span class="info-value">${escapeHtml(String(info.hoveredNode.mode))}</span>
                             </div>` : ''}
                             ${info.hoveredNode.size ? `
                             <div class="info-row">
@@ -1341,29 +1254,6 @@
                             ${renderList('Inputs', info.hoveredNode.inputs)}
                             ${renderList('Outputs', info.hoveredNode.outputs)}
                             ${renderList('Widgets', info.hoveredNode.widgets, info.hoveredNode.id)}
-                        </div>
-                    </div>
-                `;
-            }
-
-            // Media section
-            if (info.media) {
-                html += `
-                    <div class="info-section">
-                        <div class="section-header">
-                            <svg class="section-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                                <circle cx="12" cy="13" r="4"/>
-                            </svg>
-                            <span class="section-title">Media</span>
-                            <span class="section-badge">${info.media.tagName || 'Unknown'}</span>
-                        </div>
-                        <div class="section-body">
-                            ${info.media.naturalSize ? `
-                            <div class="info-row">
-                                <span class="info-label">Size</span>
-                                <span class="info-value">${info.media.naturalSize}</span>
-                            </div>` : ''}
                         </div>
                     </div>
                 `;
@@ -1389,14 +1279,6 @@
             } else {
                 window.collapsedSections.delete(sectionId);
             }
-        }
-
-        function getModeText(mode) {
-            // Check if it's already text
-            if (typeof mode === 'string') return mode;
-            // Map ComfyUI mode numbers
-            const modes = { 0: 'Always', 1: 'On Event', 2: 'Never', 3: 'Trigger' };
-            return modes[mode] || String(mode);
         }
 
         function formatSize(size) {
@@ -1442,7 +1324,8 @@
             const listHtml = items.map((item, index) => {
                 const name = escapeHtml(item.name || item.label || 'Unknown');
                 const type = item.type ? escapeHtml(item.type) : null;
-                const rawValue = item.value !== undefined ? String(item.value) : null;
+                const isObjectValue = typeof item.value === 'object' && item.value !== null;
+                const rawValue = item.value === undefined ? null : isObjectValue ? JSON.stringify(item.value) : String(item.value);
                 const itemId = `${title.toLowerCase()}-${index}`;
 
                 // Detect toggle-style "button" widgets (have boolean values)
@@ -1495,18 +1378,8 @@
                             </div>
                             <button 
                                 id="${itemId}"
-                                onclick="
-                                    const currentState = this.dataset.state === 'true';
-                                    const newState = !currentState;
-                                    this.dataset.state = String(newState);
-                                    sendWidgetEdit(${nodeId}, '${escapeHtml(item.name || '')}', newState);
-                                    this.textContent = newState ? '✓ ON' : '○ OFF';
-                                    this.style.background = newState ? 'var(--accent-green, #22c55e)' : 'var(--bg-tertiary, #333)';
-                                    this.style.color = newState ? 'var(--bg-primary, #1a1a1a)' : 'var(--text-secondary, #aaa)';
-                                    this.style.borderColor = newState ? 'var(--accent-green, #22c55e)' : 'var(--border-default, #555)';
-                                    this.style.transform='scale(0.95)'; 
-                                    setTimeout(() => this.style.transform='', 100);
-                                "
+                                data-widget="${index}"
+                                data-kind="toggle"
                                 data-state="${isOn}"
                                 style="
                                     display: flex;
@@ -1558,7 +1431,8 @@
                                 ">ACTION</span>
                             </div>
                             <button 
-                                onclick="sendButtonClick(${nodeId}, '${escapeHtml(item.name || '')}'); this.style.transform='scale(0.95)'; setTimeout(() => this.style.transform='', 100);"
+                                data-widget="${index}"
+                                data-kind="action"
                                 style="
                                     display: flex;
                                     align-items: center;
@@ -1588,7 +1462,7 @@
                     const opts = item.options && typeof item.options === 'object' ? item.options : {};
                     const min = opts.min !== undefined ? opts.min : 0;
                     const max = opts.max !== undefined ? opts.max : 100;
-                    const step = opts.step !== undefined ? opts.step : 0.01;
+                    const step = opts.step2 !== undefined || opts.step !== undefined ? stepFor(opts) : 0.01;
 
                     return `
                         <div style="
@@ -1622,8 +1496,8 @@
                                     step="${step}" 
                                     value="${rawValue}"
                                     style="flex: 1; accent-color: var(--accent-purple); cursor: pointer;"
+                                    data-widget="${index}"
                                     oninput="this.nextElementSibling.textContent = this.value"
-                                    onchange="commitWidgetEdit(this, ${nodeId}, '${escapeHtml(item.name || '')}')"
                                 />
                                 <span class="widget-slider-value" style="
                                     min-width: 50px; 
@@ -1672,15 +1546,12 @@
                         </div>`;
                 }
 
-                // Get widget options for combo boxes
-                const widgetOptions = item.options ? JSON.stringify(item.options).replace(/"/g, '&quot;') : '[]';
-
-                // Build onclick handler for editable widgets
-                const editableClass = isEditable ? 'widget-value-editable' : '';
-                const editableClick = isEditable && rawValue != null ?
-                    `onclick="editWidgetValue(this, ${nodeId}, '${escapeHtml(item.name || '')}', ${JSON.stringify(rawValue).replace(/"/g, '&quot;')}, '${type || 'text'}', ${widgetOptions})"` : '';
-                const editableStyle = isEditable ? 'cursor: pointer;' : '';
-                const editableTitle = isEditable ? 'title="Click to edit"' : '';
+                // Object values have no editor that keeps them intact
+                const canEditValue = isEditable && rawValue != null && !isObjectValue;
+                const editableClass = canEditValue ? 'widget-value-editable' : '';
+                const editableClick = canEditValue ? `data-widget="${index}" data-kind="value"` : '';
+                const editableStyle = canEditValue ? 'cursor: pointer;' : '';
+                const editableTitle = canEditValue ? 'title="Click to edit"' : '';
 
                 return `
                     <div style="
@@ -1710,7 +1581,7 @@
                                 word-break: break-all;
                                 max-width: 100%;
                             ">${type}</span>` : ''}
-                            ${isEditable ? `<span style="
+                            ${canEditValue ? `<span style="
                                 font-size: 9px;
                                 color: var(--accent-amber);
                                 margin-left: auto;
@@ -1792,18 +1663,14 @@
 
         // Node selection dropdown functionality
         let currentDropdownAnchorRect = null;
-        let pendingDropdownType = null;
 
         function requestNodeDropdown(type, anchorElement) {
-            console.log('[Popout] requestNodeDropdown called:', type, anchorElement);
             // Store anchor position immediately (before potential re-render)
             if (anchorElement) {
                 currentDropdownAnchorRect = anchorElement.getBoundingClientRect();
-                console.log('[Popout] Stored anchorRect:', currentDropdownAnchorRect);
             }
 
             if (channel) {
-                console.log('[Popout] Sending request-nodes message');
                 channel.postMessage({ type: 'request-nodes', data: type });
             }
         }
@@ -1814,35 +1681,8 @@
             }
         }
 
-        function copyToClipboard(text, button) {
-            navigator.clipboard.writeText(text).then(() => {
-                // Show success feedback
-                const originalContent = button.innerHTML;
-                button.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
-                button.style.borderColor = '#22c55e';
-                setTimeout(() => {
-                    button.innerHTML = originalContent;
-                    button.style.borderColor = 'var(--border-subtle)';
-                }, 1500);
-            }).catch(err => {
-                console.error('Failed to copy:', err);
-                // Fallback for older browsers
-                const textArea = document.createElement('textarea');
-                textArea.value = text;
-                document.body.appendChild(textArea);
-                textArea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textArea);
-            });
-        }
-
         function handleNodesList(data) {
-            console.log('[Popout] handleNodesList called:', data);
-            console.log('[Popout] currentDropdownAnchorRect:', currentDropdownAnchorRect);
-            if (!data || !data.nodes || !currentDropdownAnchorRect) {
-                console.log('[Popout] handleNodesList returning early');
-                return;
-            }
+            if (!data || !data.nodes || !currentDropdownAnchorRect) return;
             showDropdown(data.nodes, data.sortBy);
         }
 
@@ -1892,11 +1732,9 @@
 
             // Position dropdown
             document.body.appendChild(dropdown);
-            console.log('[Popout] showDropdown: Created dropdown with', nodes.length, 'nodes');
             const anchorRect = savedAnchorRect;
             dropdown.style.top = `${anchorRect.bottom + 4}px`;
             dropdown.style.left = `${anchorRect.left}px`;
-            console.log('[Popout] showDropdown: Positioned at', dropdown.style.top, dropdown.style.left);
 
             // Adjust if off-screen
             const dropdownRect = dropdown.getBoundingClientRect();
@@ -1927,14 +1765,11 @@
             }
             document.removeEventListener('click', closeDropdownOnClickOutside);
             currentDropdownAnchorRect = null;
-            pendingDropdownType = null;
         }
 
         function selectNode(nodeId) {
-            console.log('[Popout] selectNode called with nodeId:', nodeId);
             // Send node selection to main window
             if (channel) {
-                console.log('[Popout] Sending node-select message');
                 channel.postMessage({ type: 'node-select', data: nodeId });
             }
         }

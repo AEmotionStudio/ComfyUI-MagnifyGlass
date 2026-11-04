@@ -37,8 +37,6 @@ export interface PanelSettings {
     "🔍MagnifyGlass.InfoPanelWidth": number;
     "🔍MagnifyGlass.InfoPanelOpacity": number;
     "🔍MagnifyGlass.InfoPanelMaxHeight": number;
-    "🔍MagnifyGlass.InfoPanelAnimations": boolean;
-    "🔍MagnifyGlass.ShowInspectorTab": boolean;
     "🔍MagnifyGlass.ToggleHotkey": string;
     "🔍MagnifyGlass.GlassPreviewToggleHotkey": string;
     "🔍MagnifyGlass.PinPanelHotkey": string;
@@ -49,9 +47,10 @@ export interface PanelSettings {
     "🔍MagnifyGlass.InfoPanelFontSize": number;
     "🔍MagnifyGlass.InfoPanelFontFamily": string;
     "🔍MagnifyGlass.InfoPanelPersist": boolean;
-    "🔍MagnifyGlass.HoldInfoHotkey": string;
+    "🔍MagnifyGlass.InfoPanelFollowSelection": boolean;
     "🔍MagnifyGlass.StickyInfoHotkey": string;
     "🔍MagnifyGlass.NodeHighlightEnabled": boolean;
+    "🔍MagnifyGlass.HighContrastText": boolean;
     [key: string]: string | number | boolean; // Allow indexing
 }
 

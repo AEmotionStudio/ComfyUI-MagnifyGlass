@@ -49,8 +49,6 @@ export const DEFAULT_PANEL_SETTINGS: PanelSettings = {
     "🔍MagnifyGlass.InfoPanelWidth": DEFAULT_PANEL_WIDTH,
     "🔍MagnifyGlass.InfoPanelOpacity": DEFAULT_PANEL_OPACITY,
     "🔍MagnifyGlass.InfoPanelMaxHeight": DEFAULT_PANEL_MAX_HEIGHT,
-    "🔍MagnifyGlass.InfoPanelAnimations": false,
-    "🔍MagnifyGlass.ShowInspectorTab": false,
     "🔍MagnifyGlass.ToggleHotkey": "i",
     "🔍MagnifyGlass.GlassPreviewToggleHotkey": "g",
     "🔍MagnifyGlass.PinPanelHotkey": "u",
@@ -61,9 +59,10 @@ export const DEFAULT_PANEL_SETTINGS: PanelSettings = {
     "🔍MagnifyGlass.InfoPanelFontSize": 14,
     "🔍MagnifyGlass.InfoPanelFontFamily": "System Default",
     "🔍MagnifyGlass.InfoPanelPersist": false,
-    "🔍MagnifyGlass.HoldInfoHotkey": "p",
+    "🔍MagnifyGlass.InfoPanelFollowSelection": false,
     "🔍MagnifyGlass.StickyInfoHotkey": "s",
     "🔍MagnifyGlass.NodeHighlightEnabled": true,
+    "🔍MagnifyGlass.HighContrastText": false,
 };
 
 /**
@@ -92,5 +91,4 @@ export const DEFAULT_SETTINGS = {
     ...DEFAULT_GLASS_SETTINGS,
     ...DEFAULT_PANEL_SETTINGS,
     ...DEFAULT_ACCESSIBILITY_SETTINGS,
-    "🔍MagnifyGlass.HighContrastText": false,
 };

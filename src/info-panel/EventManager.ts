@@ -6,15 +6,16 @@
  */
 
 import { StateManager } from './StateManager';
-import { UIManager } from './UIManager';
-import { PositionManager } from './PositionManager';
-import { isUserTyping } from '../shared/utils';
-import { Logger } from '../shared/logger';
+import { isUserTyping, getSettingValue, setSettingValue, clamp } from '../shared/utils';
+import { DEFAULT_PANEL_SETTINGS, DEFAULT_GLASS_SETTINGS } from '../shared/settings/defaults';
 
 export interface EventCallbacks {
     toggleVisibility: () => void;
-    togglePin: () => void;
-    updatePosition: () => void;
+    toggleFloat: () => void;
+    toggleSticky: () => void;
+    /** Apply a dragged position or size: styles, toolbar states and positions */
+    updateLayout: () => void;
+    isGlassActive: () => boolean;
 }
 
 /**
@@ -24,155 +25,99 @@ export interface EventCallbacks {
 export class EventManager {
     stateManager: StateManager;
     panelElement: HTMLElement | null;
-    positionManager: PositionManager;
     callbacks: EventCallbacks | null;
 
     dragCleanup: (() => void) | null;
 
-    boundHandleMouseMove: (e: MouseEvent) => void;
     boundHandleKeyDown: (e: KeyboardEvent) => void;
-    boundHandleKeyUp: (e: KeyboardEvent) => void;
 
-    constructor(stateManager: StateManager, panelElement: HTMLElement | null, positionManager: PositionManager, callbacks?: EventCallbacks) {
+    constructor(stateManager: StateManager, panelElement: HTMLElement | null, callbacks?: EventCallbacks) {
         this.stateManager = stateManager;
         this.panelElement = panelElement;
-        this.positionManager = positionManager;
         this.callbacks = callbacks || null;
         this.dragCleanup = null;
 
-        this.boundHandleMouseMove = this.handleMouseMove.bind(this);
         this.boundHandleKeyDown = this.handleKeyDown.bind(this);
-        this.boundHandleKeyUp = this.handleKeyUp.bind(this);
 
         this.setupEventListeners();
     }
 
     setupEventListeners(): void {
-        this.setupPanelEvents();
         this.setupHotkeyEvents();
         this.setupDragEvents();
         this.setupHoverEvents();
-    }
-
-    setupPanelEvents(): void {
-        if (!this.panelElement) return;
-
-        // Vue handles most internal events now.
-        // We can keep specific global-ish listeners if needed here.
     }
 
     setupHotkeyEvents(): void {
         document.addEventListener('keydown', this.boundHandleKeyDown);
     }
 
+    /**
+     * Dragging the header floats the panel; the corner handle resizes it into the Width and Max Height settings.
+     * A press that does not move is a click, so it leaves the panel where it is.
+     */
     setupDragEvents(): void {
-        if (!this.panelElement) return;
+        const panel = this.panelElement;
+        if (!panel) return;
 
-        let isDragging = false;
-        let rafId: number | null = null;
-        let targetX = 0;
-        let targetY = 0;
-
-        const startDrag = (e: MouseEvent) => {
-            if (!this.panelElement) return;
+        const startDrag = (e: PointerEvent) => {
             const target = e.target as HTMLElement;
-
-            // Only allow dragging from header (expand clickable area)
-            const header = target.closest('.panel-header');
-            if (!header) return;
-            if (target.closest('button')) return;
-
-            // Button 2 (pin icon, data-action="lock") prevents dragging
-            if (this.stateManager.state.isPanelLocked) return;
-
-            // Also prevent dragging if we are "Following Glass" (not pinned to screen)
-            // This prevents fighting with the auto-positioner and accidental drags
-            if (!this.stateManager.state.isPanelPinned) return;
-
+            const resizing = !!target.closest('.panel-resize');
+            if (e.button !== 0 || (!resizing && (!target.closest('.panel-header') || target.closest('button')))) return;
             e.preventDefault();
-            e.stopPropagation();
 
-            isDragging = true;
-
+            const state = this.stateManager.state;
+            const settings = state.settings;
             const startX = e.clientX;
             const startY = e.clientY;
-            const rect = this.panelElement.getBoundingClientRect();
-            const startLeft = rect.left;
-            const startTop = rect.top;
+            const rect = panel.getBoundingClientRect();
+            const content = panel.querySelector('.panel-content') as HTMLElement;
+            const startContentHeight = content.offsetHeight;
+            // Max Height shows only while the content is at it
+            const capped = content.scrollHeight > startContentHeight;
+            const startWidth = settings["🔍MagnifyGlass.InfoPanelWidth"];
+            const startMaxHeight = settings["🔍MagnifyGlass.InfoPanelMaxHeight"];
+            let moved = false;
 
-            // Visual feedback - dragging state
-            this.panelElement.style.cursor = 'grabbing';
-            this.panelElement.style.opacity = '0.9';
-            this.panelElement.style.transition = 'none'; // Disable transitions during drag
-            document.body.style.cursor = 'grabbing';
-            document.body.style.userSelect = 'none';
+            const onPointerMove = (move: PointerEvent) => {
+                const dx = move.clientX - startX;
+                const dy = move.clientY - startY;
+                if (!moved && Math.abs(dx) + Math.abs(dy) < 3) return;
+                moved = true;
+                if (resizing) {
+                    // An axis that moves less than a drag keeps its setting, so a sideways drag keeps Max Height
+                    settings["🔍MagnifyGlass.InfoPanelWidth"] = Math.abs(dx) >= 3 ? clamp(Math.round(rect.width + dx), 200, 600) : startWidth;
+                    settings["🔍MagnifyGlass.InfoPanelMaxHeight"] = capped && Math.abs(dy) >= 3 ? clamp(Math.round(startContentHeight + dy), 200, 1500) : startMaxHeight;
+                } else {
+                    state.isFloating = true;
+                    state.floatPosition = { x: rect.left + dx, y: rect.top + dy };
+                }
+                this.callbacks?.updateLayout();
+            };
 
-            const onMouseMove = (moveEvent: MouseEvent) => {
-                if (!isDragging) return;
-
-                const dx = moveEvent.clientX - startX;
-                const dy = moveEvent.clientY - startY;
-
-                targetX = startLeft + dx;
-                targetY = startTop + dy;
-
-                // Keep within viewport bounds
-                const panelWidth = this.panelElement?.offsetWidth || 0;
-                const panelHeight = this.panelElement?.offsetHeight || 0;
-                targetX = Math.max(0, Math.min(targetX, window.innerWidth - panelWidth));
-                targetY = Math.max(0, Math.min(targetY, window.innerHeight - panelHeight));
-
-                // Use RAF for smooth updates
-                if (rafId === null) {
-                    rafId = requestAnimationFrame(() => {
-                        if (this.panelElement && isDragging) {
-                            this.panelElement.style.left = `${targetX}px`;
-                            this.panelElement.style.top = `${targetY}px`;
-                        }
-                        rafId = null;
-                    });
+            const onPointerUp = () => {
+                document.removeEventListener('pointermove', onPointerMove);
+                document.removeEventListener('pointerup', onPointerUp);
+                document.removeEventListener('pointercancel', onPointerUp);
+                panel.classList.remove('is-dragging');
+                if (!moved) return;
+                if (resizing) {
+                    for (const [id, start] of [["🔍MagnifyGlass.InfoPanelWidth", startWidth], ["🔍MagnifyGlass.InfoPanelMaxHeight", startMaxHeight]] as const) {
+                        if (settings[id] !== start) setSettingValue(id, settings[id]);
+                    }
+                } else {
+                    this.stateManager.saveLayout();
                 }
             };
 
-            const onMouseUp = () => {
-                isDragging = false;
-
-                // Cancel any pending RAF
-                if (rafId !== null) {
-                    cancelAnimationFrame(rafId);
-                    rafId = null;
-                }
-
-                document.removeEventListener('mousemove', onMouseMove);
-                document.removeEventListener('mouseup', onMouseUp);
-
-                // Restore visual state
-                if (this.panelElement) {
-                    this.panelElement.style.cursor = '';
-                    this.panelElement.style.opacity = '';
-                    this.panelElement.style.transition = '';
-
-                    // Final position update
-                    this.panelElement.style.left = `${targetX}px`;
-                    this.panelElement.style.top = `${targetY}px`;
-
-                    // Save pinned position
-                    this.stateManager.state.pinnedPosition = { x: targetX, y: targetY };
-                }
-
-                document.body.style.cursor = '';
-                document.body.style.userSelect = '';
-            };
-
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', onMouseUp);
+            panel.classList.add('is-dragging');
+            document.addEventListener('pointermove', onPointerMove);
+            document.addEventListener('pointerup', onPointerUp);
+            document.addEventListener('pointercancel', onPointerUp);
         };
 
-        this.panelElement.addEventListener('mousedown', startDrag);
-
-        this.dragCleanup = () => {
-            if (this.panelElement) this.panelElement.removeEventListener('mousedown', startDrag);
-        };
+        panel.addEventListener('pointerdown', startDrag);
+        this.dragCleanup = () => panel.removeEventListener('pointerdown', startDrag);
     }
 
     setupHoverEvents(): void {
@@ -180,86 +125,41 @@ export class EventManager {
 
         this.panelElement.addEventListener('mouseenter', () => {
             this.stateManager.state.isPanelHovered = true;
-            this.stateManager.clearAutoExpandTimer();
         });
 
         this.panelElement.addEventListener('mouseleave', () => {
             this.stateManager.state.isPanelHovered = false;
-            if (!this.stateManager.state.isHoveringNode) {
-                this.stateManager.scheduleAutoCollapse();
-            }
         });
     }
 
+    /**
+     * Panel hotkeys act only while the glass is active and never with Ctrl, Meta or Shift held. Alt must be
+     * held when AltRequired is on and must not be otherwise. Keys are read on each press, so changes apply at once.
+     */
     handleKeyDown(e: KeyboardEvent): void {
-        if (isUserTyping()) return;
+        if (isUserTyping() || !this.callbacks?.isGlassActive()) return;
+        if (e.ctrlKey || e.metaKey || e.shiftKey) return;
+        const altRequired = getSettingValue("🔍MagnifyGlass.AltRequired", DEFAULT_GLASS_SETTINGS["🔍MagnifyGlass.AltRequired"]);
+        if (e.altKey !== altRequired) return;
 
-        const settings = this.stateManager.state.settings;
         const key = e.key.toLowerCase();
-        // console.log(`[InfoPanel] KeyDown: ${key}`);
+        const hotkey = (id: keyof typeof DEFAULT_PANEL_SETTINGS & string) => String(getSettingValue(id, DEFAULT_PANEL_SETTINGS[id])).toLowerCase();
 
-        // Toggle visibility
-        if (key === (settings["🔍MagnifyGlass.ToggleHotkey"] as string).toLowerCase()) {
-            Logger.debug('Toggle visibility hotkey matched!');
+        if (key === hotkey("🔍MagnifyGlass.ToggleHotkey")) {
             e.preventDefault();
-            this.callbacks?.toggleVisibility();
+            this.callbacks.toggleVisibility();
         }
 
-        // Toggle Pin
-        if (key === (settings["🔍MagnifyGlass.PinPanelHotkey"] as string).toLowerCase()) {
+        // Follow glass / Float
+        if (key === hotkey("🔍MagnifyGlass.PinPanelHotkey")) {
             e.preventDefault();
-            this.callbacks?.togglePin();
+            this.callbacks.toggleFloat();
         }
 
-        // Toggle Hold Info (Pause/Play)
-        const holdInfoHotkey = (settings["🔍MagnifyGlass.HoldInfoHotkey"] as string || "p").toLowerCase();
-        if (key === holdInfoHotkey) {
-            // Only works when Sticky Info (Persist) is enabled
-            if (settings["🔍MagnifyGlass.InfoPanelPersist"]) {
-                e.preventDefault();
-                const isHeld = this.stateManager.toggleHold();
-                Logger.debug(`Hold Info toggled: ${isHeld ? 'PAUSED' : 'PLAYING'}`);
-                // Update the hover controls UI
-                const infoPanel = (window as any).infoPanelManager;
-                if (infoPanel?.uiManager) {
-                    infoPanel.uiManager.updateControlStates();
-                }
-            }
-        }
-
-        // Toggle Sticky Info (Persist mode)
-        const stickyInfoHotkey = (settings["🔍MagnifyGlass.StickyInfoHotkey"] as string || "s").toLowerCase();
-        if (key === stickyInfoHotkey) {
+        if (key === hotkey("🔍MagnifyGlass.StickyInfoHotkey")) {
             e.preventDefault();
-            const newValue = !(settings["🔍MagnifyGlass.InfoPanelPersist"] as boolean);
-            // Update local state
-            settings["🔍MagnifyGlass.InfoPanelPersist"] = newValue;
-            // Persist to ComfyUI settings
-            try {
-                const app = (window as any).app;
-                app.ui.settings.setSettingValue("🔍MagnifyGlass.InfoPanelPersist", newValue);
-            } catch (err) {
-                Logger.debug('Failed to persist sticky info setting');
-            }
-            // If disabling sticky, also disable hold
-            if (!newValue) {
-                this.stateManager.state.isInfoHeld = false;
-            }
-            Logger.debug(`Sticky Info toggled: ${newValue ? 'ON' : 'OFF'}`);
-            // Update the hover controls UI
-            const infoPanel = (window as any).infoPanelManager;
-            if (infoPanel?.uiManager) {
-                infoPanel.uiManager.updateControlStates();
-            }
+            this.callbacks.toggleSticky();
         }
-    }
-
-    handleMouseMove(e: MouseEvent): void {
-        // Placeholder
-    }
-
-    handleKeyUp(e: KeyboardEvent): void {
-        // Placeholder
     }
 
     cleanup(): void {

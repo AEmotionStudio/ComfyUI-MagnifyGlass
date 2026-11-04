@@ -1,4 +1,3 @@
-/// <reference types="vitest" />
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 import { version } from './package.json';
@@ -36,9 +35,5 @@ export default defineConfig({
             '@magnify-glass': resolve(__dirname, 'src/magnify-glass'),
             '@info-panel': resolve(__dirname, 'src/info-panel')
         }
-    },
-    test: {
-        environment: 'happy-dom',
-        globals: true
     }
 });

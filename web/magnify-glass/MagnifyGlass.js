@@ -2,7 +2,8 @@ var __defProp = Object.defineProperty;
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 import { findLiteGraphCanvas } from "../shared/utils.js";
-import { INFO_PANEL_ID, DEFAULT_PADDING, DEFAULT_GLASS_Y_OFFSET } from "../shared/constants.js";
+import { DEFAULT_PADDING, DEFAULT_GLASS_Y_OFFSET } from "../shared/constants.js";
+import "../shared/settings/defaults.js";
 import { registerGlassSettings } from "../shared/settings/glassSettings.js";
 import "/scripts/app.js";
 import { registerAccessibilitySettings } from "../shared/settings/accessibilitySettings.js";
@@ -29,10 +30,6 @@ class MagnifyGlass {
     __publicField(this, "litegraphCanvas");
     /** Last known mouse position for better initial positioning */
     __publicField(this, "lastKnownMousePosition");
-    /** Whether we're currently over media (for info panel) */
-    __publicField(this, "isOverMedia");
-    /** Current media element under cursor */
-    __publicField(this, "currentMediaElement");
     /** Render loop ID; the loop runs while the glass is active and visible */
     __publicField(this, "animationLoopId");
     this.config = new ConfigManager();
@@ -49,8 +46,6 @@ class MagnifyGlass {
     this.eventHandler = new EventHandler(this);
     this.litegraphCanvas = null;
     this.lastKnownMousePosition = { x: 0, y: 0 };
-    this.isOverMedia = false;
-    this.currentMediaElement = null;
     this.animationLoopId = null;
   }
   /**
@@ -102,25 +97,17 @@ class MagnifyGlass {
   }
   /**
    * Force hide all components including extensions (Info Panel, etc).
-   * This overcomes the "pinned" state of the info panel when the main tool is deactivated.
+   * This hides the info panel even while it floats, when the main tool is deactivated.
    */
   forceHideAllComponents() {
     this.state.active = false;
     this.stopAnimationLoop();
     this.ui.hide();
-    const panelEl = document.getElementById(INFO_PANEL_ID);
-    if (panelEl) {
-      panelEl.style.display = "none";
-      panelEl.style.opacity = "0";
-    }
     const extensions = window.comfyUIMagnifyGlassExtensions;
     if (extensions && extensions.length > 0) {
       extensions.forEach((extension) => {
         if (extension && extension.uiManager && typeof extension.uiManager.hide === "function") {
           extension.uiManager.hide();
-          if (extension.uiManager.elements && extension.uiManager.elements.panel) {
-            extension.uiManager.elements.panel.style.display = "none";
-          }
         }
       });
     }
@@ -239,6 +226,7 @@ class MagnifyGlass {
    * Reset offsets and panel positions to defaults.
    */
   resetOffsets() {
+    var _a;
     this.config.resetOffsets();
     this.config.followCursor = false;
     if (this.state.active) {
@@ -258,25 +246,7 @@ class MagnifyGlass {
         this.ui.glassDiv.style.left = "auto";
       }
     }
-    const extensions = window.comfyUIMagnifyGlassExtensions;
-    if (extensions && extensions.length > 0) {
-      extensions.forEach((extension) => {
-        var _a;
-        if (extension == null ? void 0 : extension.stateManager) {
-          extension.stateManager.state.isPanelPinned = false;
-          extension.stateManager.state.isPanelLocked = false;
-          extension.stateManager.state.isAutoPinned = false;
-          extension.stateManager.state.pinnedPosition = { x: 0, y: 0 };
-          extension.stateManager.state.lastPinnedPosition = null;
-          if (extension.positionManager) {
-            extension.positionManager.positionPanel();
-          }
-          if ((_a = extension.uiManager) == null ? void 0 : _a.updateControlStates) {
-            extension.uiManager.updateControlStates();
-          }
-        }
-      });
-    }
+    (_a = window.comfyUIMagnifyGlassExtensions) == null ? void 0 : _a.forEach((extension) => extension.resetPosition());
     this.debugger.log("Reset: Magnify glass and inspector panel positions restored to defaults");
   }
   /**

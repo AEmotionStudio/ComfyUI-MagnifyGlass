@@ -79,11 +79,11 @@ class EventHandler {
         config.offsetY += stepSize;
         offsetChanged = true;
         e.preventDefault();
-      } else if (e.key === "ArrowLeft") {
+      } else if (e.key === "ArrowLeft" && !e.defaultPrevented) {
         config.offsetX -= stepSize;
         offsetChanged = true;
         e.preventDefault();
-      } else if (e.key === "ArrowRight") {
+      } else if (e.key === "ArrowRight" && !e.defaultPrevented) {
         config.offsetX += stepSize;
         offsetChanged = true;
         e.preventDefault();

@@ -7,18 +7,7 @@
 
 import { formatWidgetValue } from './ValueFormatter';
 import type { NodeInfo } from '../types/comfyui';
-import { WidgetSyncManager } from './widget-editors/WidgetSyncManager';
-
-/**
- * Widget constraints for editors
- */
-export interface WidgetConstraintsInfo {
-    min?: number;
-    max?: number;
-    step?: number;
-    precision?: number;
-    options?: unknown[];
-}
+import { WidgetSyncManager, type WidgetConstraints } from './widget-editors/WidgetSyncManager';
 
 /**
  * Interface for extracted parameter items.
@@ -32,206 +21,19 @@ export interface ParameterItem {
     widgetType?: string;       // Widget type (number, combo, text, button, etc.)
     isEditable?: boolean;      // Whether this can be edited (value-based)
     isActionable?: boolean;    // Whether this is an action button (callback-based)
+    isLinked?: boolean;        // Driven by a link, so shown read-only
     rawValue?: unknown;        // Original unformatted value
-    constraints?: WidgetConstraintsInfo;  // Widget constraints for validation
+    constraints?: WidgetConstraints;  // Widget constraints for validation
     nodeId?: number;           // Node ID for sync operations
 }
 
 /**
- * Get checkpoint/model info from a node.
- * @param nodeInfo - Node information object
- * @returns Model filename or null
- */
-export function getCheckpointInfo(nodeInfo: NodeInfo): string | null {
-    if (nodeInfo.type && (
-        nodeInfo.type.includes('CheckpointLoader') ||
-        nodeInfo.type.includes('LoadCheckpoint') ||
-        nodeInfo.type.includes('ModelLoader') ||
-        nodeInfo.type.includes('UNETLoader') ||
-        nodeInfo.type.includes('VAELoader') ||
-        nodeInfo.type.includes('LoraLoader')
-    )) {
-        if (nodeInfo.widgets && nodeInfo.widgets.length > 0) {
-            for (const widget of nodeInfo.widgets) {
-                if (widget.name && (
-                    widget.name.toLowerCase().includes('model') ||
-                    widget.name.toLowerCase().includes('checkpoint') ||
-                    widget.name.toLowerCase().includes('ckpt') ||
-                    widget.name.toLowerCase().includes('lora') ||
-                    widget.name.toLowerCase().includes('vae') ||
-                    widget.name.toLowerCase().includes('file')
-                )) {
-                    const value = String(widget.value);
-                    const filename = value.split(/[\/\\]/).pop();
-                    return filename || value;
-                }
-            }
-        }
-    }
-    return null;
-}
-
-/**
- * Image info result type.
- */
-export interface ImageInfoResult {
-    width: string | number;
-    height: string | number;
-    src: string;
-}
-
-/**
- * Get image info from a node.
- * @param nodeInfo - Node information object
- * @returns Image info string, object, or null
- */
-export function getImageInfo(nodeInfo: NodeInfo): string | ImageInfoResult | null {
-    if (nodeInfo.type && (
-        nodeInfo.type.includes('SaveImage') ||
-        nodeInfo.type.includes('PreviewImage') ||
-        nodeInfo.type.includes('VisionOutput') ||
-        nodeInfo.type.includes('ImageOutput') ||
-        nodeInfo.type.includes('LoadImage') ||
-        nodeInfo.type.includes('Display')
-    )) {
-        if (nodeInfo.widgets) {
-            for (const widget of nodeInfo.widgets) {
-                if (widget.name && (
-                    widget.name.toLowerCase().includes('image') ||
-                    widget.name.toLowerCase().includes('filename') ||
-                    widget.name.toLowerCase().includes('file')
-                )) {
-                    return String(widget.value);
-                }
-            }
-        }
-
-        if (nodeInfo.properties && (nodeInfo.properties as Record<string, unknown>).img) {
-            const img = (nodeInfo.properties as Record<string, unknown>).img as Record<string, unknown>;
-            return {
-                width: (img.width as string | number) || 'unknown',
-                height: (img.height as string | number) || 'unknown',
-                src: img.src ? String(img.src).split(/[\/\\]/).pop() || 'Preview available' : 'Preview available'
-            };
-        }
-
-        if (nodeInfo.outputs) {
-            for (const output of nodeInfo.outputs) {
-                if (output.links && output.links.length > 0) {
-                    return 'Image connected to ' + output.links.length + ' node(s)';
-                }
-            }
-        }
-
-        return 'Image node';
-    }
-    return null;
-}
-
-/**
- * Get text box content from a node.
- * @param nodeInfo - Node information object
- * @returns Text content or null
- */
-export function getTextBoxContent(nodeInfo: NodeInfo): string | null {
-    if (nodeInfo.widgets && nodeInfo.widgets.length > 0) {
-        if (nodeInfo.type && nodeInfo.type.includes('CLIPTextEncode')) {
-            for (const widget of nodeInfo.widgets) {
-                if (widget.name === 'text' && typeof widget.value === 'string') {
-                    return widget.value;
-                }
-            }
-        }
-
-        for (const widget of nodeInfo.widgets) {
-            if ((widget.name.toLowerCase().includes('prompt') ||
-                widget.name.toLowerCase().includes('conditioning')) &&
-                typeof widget.value === 'string' && widget.value.length > 0) {
-                return widget.value;
-            }
-        }
-
-        for (const widget of nodeInfo.widgets) {
-            if ((widget.type === 'text' || widget.type === 'textarea' ||
-                widget.type === 'string' || widget.name.toLowerCase().includes('text')) &&
-                typeof widget.value === 'string' && widget.value.length > 0) {
-                return widget.value;
-            }
-        }
-    }
-    return null;
-}
-
-/**
- * List of important parameter names for complex nodes.
- */
-const COMPLEX_NODE_PARAMS = [
-    'seed', 'steps', 'cfg', 'scale', 'sampler', 'scheduler',
-    'positive', 'negative', 'width', 'height', 'denoise', 'strength',
-    'noise', 'count', 'batch', 'size', 'phase', 'color', 'intensity',
-    'control_after_generate', 'control', 'after', 'generate',
-    'start_at_step', 'end_at_step', 'start', 'end',
-    'return_with_leftover_noise', 'leftover', 'noise_return',
-    'model', 'vae', 'clip', 'lora', 'checkpoint',
-    'latent', 'image', 'mask', 'filename', 'directory',
-    'prompt', 'conditioning', 'filename_prefix',
-    'resolution', 'num_chunks', 'seconds', 'aspect_ratio',
-    'style_type', 'background', 'n', 'human', 'raw', 'guidance',
-    'skip_preprocessing', 'movement_amplitude', 'animation',
-    'material_type', 'b1', 'b2', 's1', 's2', 'type', 'channel',
-    'sigma', 'rho', 'alpha', 'base_shift', 'shift', 'stretch', 'terminal',
-    'spacing', 'style', 'eta', 'norm_threshold', 'momentum',
-    'hypernetwork_name', 'reuse_threshold', 'verbose', 'layers',
-    'set_cond_area', 'audioui', 'camera_pose', 'fx', 'cx', 'fy', 'cy'
-];
-
-/**
- * Parameters for save nodes.
- */
-const SAVE_NODE_PARAMS = [
-    'filename_prefix', 'filename', 'directory', 'path',
-    'format', 'quality', 'extension'
-];
-
-/**
- * Generic widget names to skip.
+ * Generic names to skip unless an input slot shows they are a real widget (CLIPLoader has a `type` widget).
  */
 const SKIP_WIDGET_NAMES = ['title', 'node', 'id', 'type', 'mode'];
 
 /**
- * Check if a node type should show all widgets.
- * @param nodeType - The node type string
- * @returns True if all widgets should be shown
- */
-function shouldShowAllWidgets(nodeType: string): boolean {
-    const type = nodeType.toLowerCase();
-    const isSaveNode = type.includes('save') &&
-        !type.includes('checkpoint') &&
-        !type.includes('model') &&
-        !type.includes('preview');
-
-    return (
-        type.includes('ksampler') ||
-        type.includes('sampler') ||
-        type.includes('k_samplers') ||
-        type.includes('checkpoint') ||
-        type.includes('model') ||
-        type.includes('lora') ||
-        type.includes('controlnet') ||
-        type.includes('advanced') ||
-        type.includes('detailer') ||
-        type.includes('inpaint') ||
-        type.includes('upscale') ||
-        type.includes('clip') ||
-        type.includes('text') ||
-        type.includes('encode')
-    ) && !isSaveNode;
-}
-
-/**
- * Get important node parameters based on node type.
- * @param nodeInfo - Node information object
- * @returns Array of parameter items with editing metadata
+ * The node's widgets as rows, with their editing metadata.
  */
 export function getImportantNodeParameters(nodeInfo: NodeInfo): ParameterItem[] {
     const parameters: ParameterItem[] = [];
@@ -240,68 +42,37 @@ export function getImportantNodeParameters(nodeInfo: NodeInfo): ParameterItem[] 
         return parameters;
     }
 
-    const nodeType = nodeInfo.type || '';
-    const typeLower = nodeType.toLowerCase();
-    const isSaveNode = typeLower.includes('save') &&
-        !typeLower.includes('checkpoint') &&
-        !typeLower.includes('model') &&
-        !typeLower.includes('preview');
-
-    // Track seen values to deduplicate widgets with identical values
-    const seenValues = new Set<string>();
-
-    // Helper to normalize value for comparison (handles different types)
-    const normalizeValue = (value: unknown): string => {
-        if (value === null || value === undefined) return '';
-        if (typeof value === 'string') return value.trim();
-        if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-        return JSON.stringify(value);
-    };
-
-    // Helper to check if value is meaningful (not empty/default)
-    const isMeaningfulValue = (value: unknown): boolean => {
-        if (value === null || value === undefined) return false;
-        if (typeof value === 'string') return value.trim().length > 0;
-        return true;
-    };
+    const inputs = nodeInfo.inputs || [];
+    const widgetSlot = (widget: any) => inputs.find((input: any) => input.widget?.name === widget.name);
 
     // Helper to create parameter item with full metadata
     const createParameterItem = (widget: any): ParameterItem => {
         const widgetType = WidgetSyncManager.getWidgetType(widget);
         const constraints = WidgetSyncManager.extractConstraints(widget);
-        const isEditable = WidgetSyncManager.isWidgetEditable(widget);
+        const isLinked = !!widget.computedDisabled || widgetSlot(widget)?.link != null;
+        const isEditable = !isLinked && WidgetSyncManager.isWidgetEditable(widget);
         // Button widgets are actionable (can be clicked to trigger callbacks)
         const isActionable = widgetType === 'button';
 
         return {
-            label: widget.name,
-            value: formatWidgetValue(widget.value),
+            label: widget.label || widget.name,
+            value: formatWidgetValue(widget.value, constraints.precision),
             // Editing metadata
             widgetName: widget.name,
             widgetType: widgetType,
             isEditable: isEditable,
             isActionable: isActionable,
+            isLinked: isLinked,
             rawValue: widget.value,
             constraints: constraints,
             nodeId: nodeInfo.id
         };
     };
 
-    // Helper to add widget (no longer deduplicating - each widget is unique by name)
-    const addWidget = (widget: any): boolean => {
-        parameters.push(createParameterItem(widget));
-        return true;
-    };
-
-    // Show ALL widgets for all nodes (with skip list only)
-    // This matches the popout viewer's behavior
+    // Every named widget, as the pop-out shows them
     for (const widget of nodeInfo.widgets) {
-        if (widget.name && widget.name !== '') {
-            const widgetName = widget.name.toLowerCase();
-            // Use exact matching for skip list to avoid false positives
-            if (!SKIP_WIDGET_NAMES.includes(widgetName)) {
-                addWidget(widget);
-            }
+        if (widget.name && (!SKIP_WIDGET_NAMES.includes(widget.name.toLowerCase()) || widgetSlot(widget))) {
+            parameters.push(createParameterItem(widget));
         }
     }
 

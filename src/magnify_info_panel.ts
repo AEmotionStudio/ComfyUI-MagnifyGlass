@@ -23,6 +23,10 @@ app.registerExtension({
         };
 
         checkDependencies();
+    },
+    // Undo, redo and loading a workflow replace the nodes without moving the mouse, which drives the other updates
+    afterConfigureGraph() {
+        if (window.comfyUIMagnifyGlass?.state.active) window.infoPanelManager?.scheduleInfoUpdate();
     }
 });
 

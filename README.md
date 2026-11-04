@@ -16,7 +16,7 @@
 [![Last Commit](https://img.shields.io/github/last-commit/AEmotionStudio/ComfyUI-MagnifyGlass?style=for-the-badge&label=Last%20Update&color=orange)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/commits)
 [![Activity](https://img.shields.io/github/commit-activity/m/AEmotionStudio/ComfyUI-MagnifyGlass?style=for-the-badge&label=Activity&color=yellow)](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/commits)
 
-![MagnifyGlass Intro](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/MagnifyGlass_Intro_v1.webp)  
+![MagnifyGlass Intro](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v2/MagnifyGlass_Intro_v2.webp)  
 *Inspect fine details in your generated images, node connections, and canvas with ease.*
 
 [Features](#-features) • [Installation](#-installation) • [Usage](#-usage) • [Configuration](#️-configuration) • [Known Issues](#-known-issues) • [Contributing](#-contributing) • [Changelog](CHANGELOG.md)
@@ -27,12 +27,13 @@
 
 ## 🚀 What's New in v1.15.0 (November 4, 2026)
 
-**Inspector Overhaul: New Look, Navigation and Modes**
+**Inspector and Pop-Out Overhaul: New Look, Navigation and a Second-Monitor Viewer**
 
-*   **🎨 Follows Your Palette**: The Inspector, its toolbar and menus use your ComfyUI palette, light or dark. The built-in themes are gone.
+*   **🎨 Follows Your Palette**: The Inspector, its toolbar, its menus and the pop-out viewer use your ComfyUI palette, light or dark. The built-in themes are gone.
 *   **🧭 Header and Go to Node**: Title, `#id` and type in the header, Back/Forward, Previous/Next in execution order, and a searchable node picker. Subgraph path and group show as a breadcrumb.
 *   **📌 Simpler Modes**: Follow the glass or drag the header to float. **Sticky**, **Lock** and the new **Follow Selection** decide which node is shown. Hold is replaced by Lock.
 *   **✏️ Reliable Editing**: Canvas-matching number steps, commit on Enter, revert on Escape, multiline prompts, undo, and subgraph support.
+*   **🖥️ Pop-Out Viewer**: A popup window that keeps pace with the glass, with the Inspector's rows, navigation and editing, run progress and errors, output thumbnails, clickable input/output links, zoom, and Split, Glass, Info and Output views.
 
 > 📄 **See [CHANGELOG.md](CHANGELOG.md) for the complete version history.**
 
@@ -59,7 +60,7 @@
 <td width="50%">
 
 ### ℹ️ Inspector Panel
-![Inspector Panel](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/MagnifyGlass_InspectorPanel_v1.webp)
+![Inspector Panel](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v2/MagnifyGlass_InspectorPanel_v2.webp)
 
 *   **Live Widgets**: Every widget of the hovered node, editable while Sticky, Locked or following the selection, with copy on every row.
 *   **Navigation**: Go to any node by title, type or `#id`, step through execution order, and go Back/Forward through your jumps.
@@ -71,17 +72,17 @@
 <td width="50%">
 
 ### ⚙️ Sidebar Integration
-![Sidebar Integration](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/MagnifyGlass_Sidebar_v1.webp)
+![Sidebar Integration](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v2/MagnifyGlass_Sidebar_v2.webp)
 
-*   **Organized Settings**: All Magnify Glass and Info Panel settings in one place.
+*   **Organized Settings**: Every glass, Inspector, hotkey and accessibility setting in one panel that follows your palette, with the Inspector panel switch at the top.
 *   **Live Previews**: Changes apply instantly without needing to refresh.
-*   **Reset Options**: Quickly restore defaults with individual or global reset buttons.
+*   **Quick Actions**: Open the pop-out viewer from the header, reset a section or everything, and find links and version info under About.
 
 </td>
 <td width="50%">
 
 ### 🖥️ Multi-Monitor Pop-Out
-![Multi-Monitor Pop-Out](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v1/MagnifyGlass_Popout_v1.webp)
+![Multi-Monitor Pop-Out](https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass/releases/download/assets-v2/MagnifyGlass_Popout_v2.webp)
 
 *   **Detachable Viewer**: Open the glass in a popup window for a second monitor; it keeps updating while the glass is hidden and follows your palette.
 *   **Inspector Sidebar**: The Inspector's rows, navigation and editing, plus the node's links, outputs and run progress, with the last error and its traceback.
@@ -141,6 +142,16 @@ git clone https://github.com/AEmotionStudio/ComfyUI-MagnifyGlass.git
 | **`Left/Right`** | Previous/Next node in execution order (while the Inspector is hovered or focused) |
 | **`D`** | Force Direct Capture (Optional after v1.11.0 improvements) |
 | **Arrows** | Nudge Glass Position (When not navigating nodes) |
+
+In the pop-out viewer, outside text fields:
+
+| Key | Action |
+| :--- | :--- |
+| **`Left/Right`** | Previous/Next node in execution order |
+| **`L`** | Lock / Unlock the shown node |
+| **`Ctrl+K`** | Go to node |
+| **`Esc`** | Close the picker, or leave the Output view |
+| **Mouse wheel** | Zoom (over the frame) |
 
 > **Pro Tip:** Press **`G`** to hide the magnifying preview and keep only the Inspector Panel. For the glass alone, turn off **Inspector panel** in the sidebar.
 

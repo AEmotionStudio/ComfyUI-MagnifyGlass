@@ -773,10 +773,12 @@ describe('Info Panel lifecycle', () => {
             panelManager().updateInfo();
             expect(sent()).toHaveLength(1);
 
-            // A run changes a value without any input in ComfyUI
+            // A run changes a value without any input in ComfyUI; the glass did not move, so the panel is not placed again
+            const place = vi.spyOn(panelManager().positionManager, 'positionPanel');
             nodes[0].widgets[0].value = 25;
             vi.advanceTimersByTime(250);
             expect(sent()).toHaveLength(2);
+            expect(place).not.toHaveBeenCalled();
             expect(last().rows[0].value).toBe('25');
             vi.advanceTimersByTime(1000);
             expect(sent()).toHaveLength(2);
@@ -912,7 +914,7 @@ describe('Info Panel lifecycle', () => {
 
             // The root graph's node 1 is another node
             app.nodeOutputs['1'] = { images: [{ filename: 'root.png', subfolder: '', type: 'output' }] };
-            app.nodeOutputs['sub-uuid:1'] = { images: [{ filename: 'a b.png', subfolder: 'x', type: 'output' }, { filename: 'c.png', subfolder: '', type: 'temp' }] };
+            app.nodeOutputs['sub-uuid:1'] = { images: [{ filename: 'a b.png', subfolder: 'x', type: 'output' }, { filename: 'c.png', subfolder: '', type: 'temp', metadata: { size: 1 } }] };
             vi.advanceTimersByTime(250);
             expect(last().outputs).toEqual(['/api/view?filename=a+b.png&subfolder=x&type=output&rand=1', '/api/view?filename=c.png&subfolder=&type=temp&rand=2']);
 

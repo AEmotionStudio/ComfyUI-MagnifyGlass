@@ -15,6 +15,7 @@ describe('Pop-out palette', () => {
             close() { }
         });
         manager = new PopOutManager(() => ({ glass: 'on', inspector: true, reduceMotion: false, zoom: 300 }), () => { }, () => { });
+        manager.listen();
     });
 
     afterEach(() => {

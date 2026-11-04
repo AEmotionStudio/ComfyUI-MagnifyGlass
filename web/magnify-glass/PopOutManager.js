@@ -52,8 +52,10 @@ class PopOutManager {
     // Closed from here: an announcing viewer waits until open() is called again
     __publicField(this, "dismissed", false);
     __publicField(this, "viewerHidden", false);
-    __publicField(this, "session");
-    __publicField(this, "viewerUrl");
+    __publicField(this, "session", "");
+    __publicField(this, "viewerUrl", "");
+    // Names this tab's claim on its session, which a tab already on it answers
+    __publicField(this, "claimId", Math.random().toString(36).slice(2));
     // The config last sent to the viewer, null until it connects
     __publicField(this, "sentConfig", null);
     __publicField(this, "onPageHide", () => {
@@ -82,11 +84,23 @@ class PopOutManager {
     this.getStatus = getStatus;
     this.onConnect = onConnect;
     this.onZoom = onZoom;
-    this.session = sessionStorage.getItem(SESSION_KEY) ?? Math.random().toString(36).slice(2);
-    sessionStorage.setItem(SESSION_KEY, this.session);
-    this.viewerUrl = this.getViewerUrl();
-    this.initChannel();
+    this.useSession(sessionStorage.getItem(SESSION_KEY) ?? void 0);
     window.addEventListener("pagehide", this.onPageHide);
+  }
+  /**
+   * Pair with the viewer of a session, a new one by default.
+   */
+  useSession(session = Math.random().toString(36).slice(2)) {
+    this.session = session;
+    sessionStorage.setItem(SESSION_KEY, session);
+    this.viewerUrl = this.getViewerUrl();
+  }
+  /**
+   * Listen for this session's viewer, once ComfyUI is set up: a viewer left open over a reload announces itself at once.
+   */
+  listen() {
+    this.initChannel();
+    this.sendMessage({ type: "claim", data: this.claimId });
   }
   /**
    * Get the URL for the pop-out viewer page, which sits at the web root next to this module's folder.
@@ -118,8 +132,19 @@ class PopOutManager {
    * Handle incoming messages from the viewer tab.
    */
   handleMessage(message) {
-    var _a, _b, _c, _d, _e, _f;
+    var _a, _b, _c, _d, _e, _f, _g;
+    if (!this.isOpen && message.type !== "pong" && message.type !== "claim" && message.type !== "claimed") return;
     switch (message.type) {
+      case "claim":
+        this.sendMessage({ type: "claimed", data: message.data });
+        break;
+      case "claimed":
+        if (message.data !== this.claimId) break;
+        this.disconnect();
+        (_a = this.channel) == null ? void 0 : _a.close();
+        this.useSession();
+        this.initChannel();
+        break;
       case "pong":
         this.pendingPings = 0;
         if (!this.isOpen && !this.dismissed) {
@@ -141,6 +166,7 @@ class PopOutManager {
         break;
       case "visibility":
         this.viewerHidden = message.data;
+        if (!this.viewerHidden) this.onConnect();
         break;
       case "zoom":
         this.onZoom(message.data);
@@ -152,21 +178,21 @@ class PopOutManager {
         }
         break;
       case "node-select":
-        (_a = this.onNodeSelect) == null ? void 0 : _a.call(this, message.data);
+        (_b = this.onNodeSelect) == null ? void 0 : _b.call(this, message.data);
         break;
       case "run-node-select": {
         const node = this.runNode(message.data);
-        if (node && node.graph === ((_b = app.canvas) == null ? void 0 : _b.graph)) (_c = this.onNodeSelect) == null ? void 0 : _c.call(this, node.id);
+        if (node && node.graph === ((_c = app.canvas) == null ? void 0 : _c.graph)) (_d = this.onNodeSelect) == null ? void 0 : _d.call(this, node.id);
         break;
       }
       case "panel-action":
-        (_d = this.onPanelAction) == null ? void 0 : _d.call(this, message.data.name, message.data.nodeId);
+        (_e = this.onPanelAction) == null ? void 0 : _e.call(this, message.data.name, message.data.nodeId);
         break;
       case "widget-edit":
-        (_e = this.onWidgetEdit) == null ? void 0 : _e.call(this, message.data);
+        (_f = this.onWidgetEdit) == null ? void 0 : _f.call(this, message.data);
         break;
       case "button-click":
-        (_f = this.onButtonClick) == null ? void 0 : _f.call(this, message.data);
+        (_g = this.onButtonClick) == null ? void 0 : _g.call(this, message.data);
         break;
       case "request-options":
         if (this.onRequestOptions) {
@@ -233,12 +259,18 @@ class PopOutManager {
     return this.isOpen;
   }
   /**
+   * Whether the viewer shows the glass's frames.
+   */
+  wantsFrames() {
+    return this.isOpen && !this.viewerHidden;
+  }
+  /**
    * Send a frame to the pop-out viewer as a PNG Blob, unless it is hidden.
    * Throttled to ~30fps for performance.
    * @param canvas - The source canvas to send
    */
   sendFrame(canvas) {
-    if (!this.isOpen || this.viewerHidden || this.frameInFlight || !this.channel) return;
+    if (!this.wantsFrames() || this.frameInFlight || !this.channel) return;
     const now = Date.now();
     if (now - this.lastFrameTime < this.FRAME_INTERVAL) {
       return;

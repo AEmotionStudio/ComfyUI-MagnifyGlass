@@ -142,6 +142,8 @@ const RUN_EVENTS = [
 type PopOutMessage =
     | { type: 'ping' }
     | { type: 'pong' }
+    | { type: 'claim'; data: string }
+    | { type: 'claimed'; data: string }
     | { type: 'close' }
     | { type: 'visibility'; data: boolean }
     | { type: 'zoom'; data: number }
@@ -183,8 +185,10 @@ export class PopOutManager {
     // Closed from here: an announcing viewer waits until open() is called again
     private dismissed: boolean = false;
     private viewerHidden: boolean = false;
-    private session: string;
-    private viewerUrl: string;
+    private session: string = '';
+    private viewerUrl: string = '';
+    // Names this tab's claim on its session, which a tab already on it answers
+    private readonly claimId = Math.random().toString(36).slice(2);
     // The config last sent to the viewer, null until it connects
     private sentConfig: string | null = null;
     private readonly onPageHide = () => {
@@ -218,11 +222,26 @@ export class PopOutManager {
         private readonly onZoom: (zoom: number) => void
     ) {
         // sessionStorage survives a reload, so the viewer finds this tab again after F5
-        this.session = sessionStorage.getItem(SESSION_KEY) ?? Math.random().toString(36).slice(2);
-        sessionStorage.setItem(SESSION_KEY, this.session);
-        this.viewerUrl = this.getViewerUrl();
-        this.initChannel();
+        this.useSession(sessionStorage.getItem(SESSION_KEY) ?? undefined);
         window.addEventListener('pagehide', this.onPageHide);
+    }
+
+    /**
+     * Pair with the viewer of a session, a new one by default.
+     */
+    private useSession(session = Math.random().toString(36).slice(2)): void {
+        this.session = session;
+        sessionStorage.setItem(SESSION_KEY, session);
+        this.viewerUrl = this.getViewerUrl();
+    }
+
+    /**
+     * Listen for this session's viewer, once ComfyUI is set up: a viewer left open over a reload announces itself at once.
+     */
+    listen(): void {
+        this.initChannel();
+        // A duplicated tab copies sessionStorage; the tab already on the session tells it to start its own
+        this.sendMessage({ type: 'claim', data: this.claimId });
     }
 
     /**
@@ -253,7 +272,19 @@ export class PopOutManager {
      * Handle incoming messages from the viewer tab.
      */
     private handleMessage(message: PopOutMessage): void {
+        // A viewer only announces itself until it is connected; requests from a disconnected one change nothing
+        if (!this.isOpen && message.type !== 'pong' && message.type !== 'claim' && message.type !== 'claimed') return;
         switch (message.type) {
+            case 'claim':
+                this.sendMessage({ type: 'claimed', data: message.data });
+                break;
+            case 'claimed':
+                if (message.data !== this.claimId) break;
+                this.disconnect();
+                this.channel?.close();
+                this.useSession();
+                this.initChannel();
+                break;
             case 'pong':
                 // A pong answers a ping, or announces a viewer that is waiting for this tab
                 this.pendingPings = 0;
@@ -278,6 +309,8 @@ export class PopOutManager {
                 break;
             case 'visibility':
                 this.viewerHidden = message.data;
+                // The render loop stops while nothing shows the glass
+                if (!this.viewerHidden) this.onConnect();
                 break;
             case 'zoom':
                 this.onZoom(message.data);
@@ -384,12 +417,19 @@ export class PopOutManager {
     }
 
     /**
+     * Whether the viewer shows the glass's frames.
+     */
+    wantsFrames(): boolean {
+        return this.isOpen && !this.viewerHidden;
+    }
+
+    /**
      * Send a frame to the pop-out viewer as a PNG Blob, unless it is hidden.
      * Throttled to ~30fps for performance.
      * @param canvas - The source canvas to send
      */
     sendFrame(canvas: HTMLCanvasElement): void {
-        if (!this.isOpen || this.viewerHidden || this.frameInFlight || !this.channel) return;
+        if (!this.wantsFrames() || this.frameInFlight || !this.channel) return;
 
         // Throttle frame rate
         const now = Date.now();

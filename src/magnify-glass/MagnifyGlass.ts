@@ -87,6 +87,7 @@ export class MagnifyGlass {
             return;
         }
         this.debugger.log("LiteGraph and app ready.");
+        this.popOutManager.listen();
 
 
 
@@ -260,7 +261,7 @@ export class MagnifyGlass {
 
         const animate = () => {
             // A hidden glass still feeds the pop-out, which may be the only view of it
-            const hidden = this.state.isPreviewHidden && !this.popOutManager.isPopOutOpen();
+            const hidden = this.state.isPreviewHidden && !this.popOutManager.wantsFrames();
             if (!this.state.active || hidden || !this.renderer || !this.litegraphCanvas) {
                 this.animationLoopId = null;
                 return;

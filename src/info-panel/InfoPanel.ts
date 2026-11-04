@@ -261,8 +261,9 @@ export class InfoPanel {
 
     /**
      * Update the info panel and the pop-out with the node to show.
+     * @param fromTick - The pop-out's refresh: the glass has not moved, so the panel is not placed again
      */
-    updateInfo(): void {
+    updateInfo(fromTick = false): void {
         const settings = this.stateManager.state.settings;
         const isActive = this.magnifyGlass.state.active;
         const popOutOpen = !!this.magnifyGlass.popOutManager?.isPopOutOpen();
@@ -323,8 +324,10 @@ export class InfoPanel {
         if (isActive) {
             this.uiManager.displayInfo(info);
             this.canvasHighlighter.setHighlightedNode(node ? node.id : null);
-            this.positionManager.positionPanel();
-            this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
+            if (!fromTick) {
+                this.positionManager.positionPanel();
+                this.positionManager.positionFloatingControls(this.uiManager.elements.controls);
+            }
         }
 
         if (popOutOpen) {
@@ -421,7 +424,8 @@ export class InfoPanel {
             this.popOutImages = output.images;
             // ComfyUI shows animated results other than WebP and PNG as video, which an <img> can't show
             const video = output.animated?.some(Boolean) && !output.images.some(image => /webp|png/.test(image.filename));
-            this.popOutImageUrls = video ? [] : output.images.map(image => app.api.apiURL(`/view?${new URLSearchParams(image)}${app.getRandParam()}`));
+            this.popOutImageUrls = video ? [] : output.images.map(({ filename, subfolder, type }) =>
+                app.api.apiURL(`/view?${new URLSearchParams({ filename, subfolder, type })}${app.getRandParam()}`));
         }
         return this.popOutImageUrls;
     }
@@ -453,7 +457,7 @@ export class InfoPanel {
             this.popOutTimer = null;
         }
         if (!connected) return;
-        this.popOutTimer = window.setInterval(() => this.updateInfo(), 250);
+        this.popOutTimer = window.setInterval(() => this.updateInfo(true), 250);
         this.refreshPopOut();
     }
 }

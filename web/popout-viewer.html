@@ -1393,7 +1393,7 @@
                 </button>
                 <button type="button" class="goto-btn" data-action="go-to-node" title="Go to node (Ctrl+K)" aria-haspopup="listbox" aria-expanded="false" disabled>
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-                    <span>Go to node…</span>
+                    <span>Go to…</span>
                 </button>
                 <div class="node-picker" hidden>
                     <input type="text" class="node-picker-filter" placeholder="Title, type or #id" role="combobox" aria-label="Go to node"
@@ -1462,9 +1462,18 @@
         const LAYOUT_KEY = 'magnifyglass-viewer-layout';
         let layout = { view: 'split', inspectorWidth: null, collapsed: [] };
         try {
-            layout = { ...layout, ...JSON.parse(localStorage.getItem(LAYOUT_KEY) || '{}') };
+            layout = { ...layout, ...JSON.parse(readStorage(LAYOUT_KEY) || '{}') };
         } catch {
             // An unreadable saved layout: start from the defaults
+        }
+
+        // Blocked storage throws on access; the viewer then starts from its defaults
+        function readStorage(key) {
+            try {
+                return localStorage.getItem(key);
+            } catch {
+                return null;
+            }
         }
 
         function saveLayout() {
@@ -1541,7 +1550,13 @@
 
         async function handleFrame(blob) {
             const frame = ++frameCount;
-            const bitmap = await createImageBitmap(blob);
+            let bitmap;
+            try {
+                bitmap = await createImageBitmap(blob);
+            } catch {
+                // A frame that cannot be decoded is skipped; the next one replaces it
+                return;
+            }
             // Decodes can finish out of order; never draw over a newer frame
             if (frame !== frameCount) {
                 bitmap.close();
@@ -1745,7 +1760,11 @@
                         // The list opens on the current value
                         editor.selectedIndex = list.indexOf(row.rawValue);
                         committed = readValue();
-                        editor.showPicker?.();
+                        // The options arrive after the click, whose user activation may have run out; the list then opens on the next click
+                        try {
+                            editor.showPicker?.();
+                        } catch {
+                        }
                     }
                 };
                 channel.postMessage({ type: 'request-options', data: { nodeId: pendingOptions.nodeId, widgetName: row.widgetName } });
@@ -2311,7 +2330,6 @@
 
         window.addEventListener('beforeunload', () => {
             channel.postMessage({ type: 'close' });
-            channel.close();
         });
 
         // Escape closes the picker, or leaves Output; an editor handles its own. ←/→, L and Ctrl+K act like their buttons, outside typing fields
@@ -2341,15 +2359,18 @@
         const canvasWrapper = document.querySelector('.canvas-wrapper');
 
         function setFitMode(active) {
-            localStorage.setItem('magnifyglass-viewer-fitmode', active);
             canvasWrapper.classList.toggle('fit-active', active);
             fitBtn.setAttribute('aria-pressed', String(active));
             fitBtn.title = active ? 'Restore the set size' : 'Fit to window';
             fitBtn.setAttribute('aria-label', fitBtn.title);
         }
 
-        setFitMode(localStorage.getItem('magnifyglass-viewer-fitmode') === 'true');
-        fitBtn.addEventListener('click', () => setFitMode(fitBtn.getAttribute('aria-pressed') !== 'true'));
+        setFitMode(readStorage('magnifyglass-viewer-fitmode') === 'true');
+        fitBtn.addEventListener('click', () => {
+            const active = fitBtn.getAttribute('aria-pressed') !== 'true';
+            setFitMode(active);
+            localStorage.setItem('magnifyglass-viewer-fitmode', active);
+        });
 
         // The corner handle sets the frame's width; the frame stays square and inside its area
         const resizeHandle = document.getElementById('resize-handle');
@@ -2359,7 +2380,7 @@
             canvas.style.setProperty('--canvas-size', `min(${width}px, 100cqw, 100cqh)`);
         }
 
-        const savedSize = Number(localStorage.getItem('magnifyglass-viewer-size'));
+        const savedSize = Number(readStorage('magnifyglass-viewer-size'));
         if (savedSize > 0) setCanvasSize(savedSize);
 
         resizeHandle.addEventListener('pointerdown', (e) => {

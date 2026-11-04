@@ -29,6 +29,8 @@ describe('Pop-out connection', () => {
             close() { }
         });
         manager = new PopOutManager(() => status, () => connects++, (zoom) => zooms.push(zoom));
+        manager.listen();
+        channels[0].posted = [];
     });
 
     afterEach(() => {
@@ -44,9 +46,37 @@ describe('Pop-out connection', () => {
         expect(channels[0].name).toBe(`comfyui-magnifyglass-popout:${session}`);
         expect(new URL((manager as any).viewerUrl).searchParams.get('session')).toBe(session);
 
+        manager.cleanup();
         const reloaded = new PopOutManager(() => status, () => { }, () => { });
+        // A viewer's announce waits until ComfyUI is set up
+        expect(channels).toHaveLength(1);
+        reloaded.listen();
         expect(channels[1].name).toBe(channels[0].name);
+        expect(channels[1].posted).toEqual([{ type: 'claim', data: expect.any(String) }]);
         reloaded.cleanup();
+    });
+
+    it('a duplicated tab starts a session of its own, and the viewer stays with the first tab', () => {
+        const edits: unknown[] = [];
+        manager.onWidgetEdit = (data) => edits.push(data);
+        receive({ type: 'pong' });
+
+        // The duplicate starts from a copy of this tab's sessionStorage
+        const duplicate = new PopOutManager(() => status, () => { }, () => { });
+        duplicate.listen();
+        const [claim] = channels[1].posted;
+        receive(claim);
+        expect(posted().at(-1)).toEqual({ type: 'claimed', data: claim.data });
+        // Another tab's claim is not this one's
+        receive({ type: 'claimed', data: 'other' });
+        expect(manager.isPopOutOpen()).toBe(true);
+
+        (duplicate as any).handleMessage(posted().at(-1));
+        expect(channels[2].name).not.toBe(channels[0].name);
+        expect(sessionStorage.getItem('magnifyglass-popout-session')).toBe(channels[2].name.split(':')[1]);
+        expect(new URL((duplicate as any).viewerUrl).searchParams.get('session')).toBe(channels[2].name.split(':')[1]);
+        expect(manager.isPopOutOpen()).toBe(true);
+        duplicate.cleanup();
     });
 
     it('pings only while a viewer is connected', () => {
@@ -157,7 +187,11 @@ describe('Pop-out connection', () => {
         manager.sendFrame(canvas);
         expect(encode).toBeNull();
 
+        expect(manager.wantsFrames()).toBe(false);
+        // Shown again: the glass's render loop starts again
         receive({ type: 'visibility', data: false });
+        expect(manager.wantsFrames()).toBe(true);
+        expect(connects).toBe(2);
         manager.sendFrame(canvas);
         const first = encode!;
         encode = null;
@@ -170,6 +204,22 @@ describe('Pop-out connection', () => {
         expect(frames()).toEqual([blob]);
         manager.sendFrame(canvas);
         expect(encode).not.toBeNull();
+    });
+
+    it('acts on no request from a viewer that is not connected', () => {
+        const calls: unknown[] = [];
+        manager.onWidgetEdit = (data) => calls.push(data);
+        manager.onNodeSelect = (id) => calls.push(id);
+        receive({ type: 'widget-edit', data: { nodeId: 5, widgetName: 'seed', value: 1 } });
+        receive({ type: 'node-select', data: 5 });
+        receive({ type: 'zoom', data: 350 });
+
+        receive({ type: 'pong' });
+        manager.close();
+        receive({ type: 'widget-edit', data: { nodeId: 5, widgetName: 'seed', value: 1 } });
+        receive({ type: 'zoom', data: 350 });
+        expect(calls).toEqual([]);
+        expect(zooms).toEqual([]);
     });
 
     it('hands viewer requests to the Inspector and sends its info as it is', () => {

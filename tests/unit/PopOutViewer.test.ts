@@ -180,6 +180,20 @@ describe('Pop-out viewer editing', () => {
         expect(edits()).toEqual([{ nodeId: 5, widgetName: 'size', value: 768 }]);
     });
 
+    it('a combo whose list can no longer open itself still fills', () => {
+        // The click's user activation ran out while the options were on their way
+        HTMLSelectElement.prototype.showPicker = () => { throw new DOMException('No user activation', 'NotAllowedError'); };
+        sendInfo([row('size', 'combo', 512)]);
+        valueOf('size').click();
+        receive('options', { nodeId: 5, widgetName: 'size', options: [512, 768] });
+        delete (HTMLSelectElement.prototype as any).showPicker;
+        const select = sidebar().querySelector('select')!;
+        expect([...select.options].map(o => o.textContent)).toEqual(['512', '768']);
+        select.selectedIndex = 1;
+        select.dispatchEvent(new Event('change'));
+        expect(edits()).toEqual([{ nodeId: 5, widgetName: 'size', value: 768 }]);
+    });
+
     it('keeps an open editor while info arrives, and values without a primitive raw value are not editable', () => {
         sendInfo([row('seed', 'INT', 1), row('data', 'text', undefined, { value: '{"a": 1}' })]);
         expect(valueOf('data')).toBeUndefined();
@@ -745,6 +759,25 @@ describe('Pop-out viewer editing', () => {
         expect([canvas.width, canvas.height]).toEqual([400, 400]);
         expect(ctx.drawImage).toHaveBeenCalledWith(bitmap, 0, 0);
         expect(document.querySelector('.canvas-placeholder')!.classList.contains('hidden')).toBe(true);
+    });
+
+    it('skips a frame that cannot be decoded', async () => {
+        const decode = vi.fn().mockRejectedValue(new DOMException('Truncated', 'InvalidStateError'));
+        vi.stubGlobal('createImageBitmap', decode);
+        const ctx = (document.getElementById('viewer-canvas') as HTMLCanvasElement).getContext('2d') as any;
+
+        channel.onmessage!({ data: { type: 'frame', data: new Blob(['a']) } });
+        await vi.waitFor(() => expect(decode).toHaveBeenCalled());
+        await Promise.resolve();
+        expect(ctx.drawImage).not.toHaveBeenCalled();
+    });
+
+    it('starts from its defaults when storage is blocked', () => {
+        vi.stubGlobal('localStorage', { getItem() { throw new DOMException('Blocked', 'SecurityError'); } });
+        document.body.innerHTML = bodyHtml;
+        new Function(script)();
+        expect((document.querySelector('.main-container') as HTMLElement).dataset.view).toBe('split');
+        expect(document.getElementById('fit-btn')!.getAttribute('aria-pressed')).toBe('false');
     });
 
     it('never draws an older frame over a newer one', async () => {

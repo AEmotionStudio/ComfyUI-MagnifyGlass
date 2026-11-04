@@ -6,6 +6,7 @@
  */
 
 import type { InfoPanel } from '../info-panel/InfoPanel';
+import type { NodeListEntry } from '../info-panel/NodeSelector';
 import type { PanelAction, PopOutInfo, WidgetEditData, WidgetRef } from '../magnify-glass/PopOutManager';
 
 // ============================================================================
@@ -238,8 +239,9 @@ export interface MagnifyGlassInstance {
         onNodeSelect?: ((nodeId: number) => void) | null;
         onWidgetEdit?: ((data: WidgetEditData) => void) | null;
         onButtonClick?: ((data: WidgetRef) => void) | null;
-        onPanelAction?: ((name: PanelAction, nodeId?: number) => void) | null;
+        onPanelAction?: ((name: PanelAction, nodeId: number | null) => void) | null;
         onRequestOptions?: ((data: WidgetRef) => unknown[]) | null;
+        onSearchNodes?: ((query: string) => NodeListEntry[]) | null;
     };
     lastKnownMousePosition: { x: number; y: number };
     updateMagnifiedView(): void;

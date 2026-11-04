@@ -50,7 +50,8 @@ class FakeGlass {
         onWidgetEdit: null as unknown,
         onButtonClick: null as unknown,
         onPanelAction: null as unknown,
-        onRequestOptions: null as unknown
+        onRequestOptions: null as unknown,
+        onSearchNodes: null as unknown
     };
     setGlassPreviewActive = vi.fn();
     updateMagnifiedView() { }
@@ -155,6 +156,7 @@ describe('Info Panel lifecycle', () => {
         expect(mg.popOutManager.onButtonClick).toBeNull();
         expect(mg.popOutManager.onPanelAction).toBeNull();
         expect(mg.popOutManager.onRequestOptions).toBeNull();
+        expect(mg.popOutManager.onSearchNodes).toBeNull();
         expect(mg.setGlassPreviewActive).toHaveBeenCalledWith(true);
 
         for (const [type, handler, options] of docAdd.mock.calls) {
@@ -842,6 +844,34 @@ describe('Info Panel lifecycle', () => {
             popOut().onPanelAction('focus-node', 1);
             expect((window as any).app.canvas.centerOnNode).toHaveBeenCalledWith(nodes[0]);
             expect(last().nav).toMatchObject({ source: 'locked', locked: true, canEdit: true });
+        });
+
+        it('navigation runs like the panel buttons, only for the node it shows', () => {
+            const centerOnNode = (window as any).app.canvas.centerOnNode;
+            popOut().onPanelAction('lock-node', 2);
+            expect(last().nav.locked).toBe(false);
+
+            popOut().onPanelAction('lock-node', 1);
+            expect(last().nav).toMatchObject({ source: 'locked', locked: true });
+            popOut().onPanelAction('next-node', 1);
+            expect(last().node.id).toBe(2);
+            expect(last().nav.canBack).toBe(true);
+            popOut().onPanelAction('back', 2);
+            expect(last().node.id).toBe(1);
+            popOut().onPanelAction('prev-node', 1);
+            expect(centerOnNode).toHaveBeenLastCalledWith(nodes[1]);
+            popOut().onPanelAction('lock-node', 2);
+            expect(last().nav.locked).toBe(false);
+
+            // A name outside the allowlist does nothing
+            const count = sent().length;
+            popOut().onPanelAction('minimize', 1);
+            expect(sent()).toHaveLength(count);
+        });
+
+        it('searches nodes like the Go to node picker', () => {
+            expect(popOut().onSearchNodes('load')).toEqual([{ id: 1, title: 'Loader', type: 'KSampler', order: 1 }]);
+            expect(popOut().onSearchNodes('#2').map((n: any) => n.id)).toEqual([2]);
         });
     });
 

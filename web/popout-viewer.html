@@ -165,6 +165,13 @@
             color: var(--mg-accent-fg);
         }
 
+        .icon-button:disabled {
+            background: transparent;
+            color: var(--mg-muted);
+            opacity: 0.5;
+            cursor: default;
+        }
+
         /* Frame and Inspector side by side; the Inspector stacks under the frame in narrow windows */
         .main-container {
             display: grid;
@@ -311,12 +318,260 @@
             color: var(--mg-fg);
         }
 
-        .sidebar-header {
+        /* The node's identity, then the navigation row and the breadcrumb, as in the Inspector */
+        .node-header {
+            border-bottom: 1px solid var(--mg-stroke);
+        }
+
+        .node-identity {
+            display: flex;
+            align-items: baseline;
+            gap: 0.375em;
+            width: 100%;
+            min-height: 2.75em;
+            padding: 0.5em 0.75em;
+            border: 0;
+            background: transparent;
+            text-align: left;
+        }
+
+        .node-identity:disabled {
+            cursor: default;
+        }
+
+        .node-identity:not(:disabled):hover {
+            background: var(--mg-control);
+        }
+
+        .node-name,
+        .node-badge,
+        .goto-btn span,
+        .crumb,
+        .crumb-group {
+            min-width: 0;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .node-name {
+            font-size: 0.9375rem;
+            font-weight: 700;
+        }
+
+        .node-name.is-empty {
+            color: var(--mg-muted);
+            font-weight: 600;
+        }
+
+        .node-id {
+            flex: none;
+            color: var(--mg-muted);
+            font-variant-numeric: tabular-nums;
+        }
+
+        .node-badge {
+            flex: 0 4 auto;
+            min-width: 3.5em;
+            max-width: 40%;
+            padding: 0.125em 0.5em;
+            border-radius: 1em;
+            background: var(--mg-control);
+            color: var(--mg-muted);
+            font-size: 0.75rem;
+        }
+
+        .copy-icon {
+            display: flex;
+            align-self: center;
+            margin-left: auto;
+            color: var(--mg-muted);
+            opacity: 0;
+        }
+
+        .copy-icon svg {
+            width: 0.75rem;
+            height: 0.75rem;
+        }
+
+        .node-identity:not(:disabled):is(:hover, :focus-visible) .copy-icon,
+        .copied .copy-icon {
+            opacity: 1;
+        }
+
+        .copied .copy-icon {
+            color: var(--mg-accent-fg);
+        }
+
+        .node-nav {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 0.125rem;
+            padding: 0.25rem 0.375rem;
+            border-bottom: 1px solid var(--mg-stroke);
+        }
+
+        .goto-btn {
+            display: flex;
+            flex: 1;
+            align-items: center;
+            gap: 0.375em;
+            min-width: 0;
+            height: 2rem;
+            margin-left: 0.25rem;
+            padding: 0 0.5em;
+            border: 1px solid var(--mg-stroke);
+            border-radius: 0.375rem;
+            background: var(--mg-control);
+            color: var(--mg-muted);
+        }
+
+        .goto-btn:not(:disabled):hover,
+        .goto-btn[aria-expanded="true"] {
+            background: var(--mg-control-hover);
+            color: var(--mg-fg);
+        }
+
+        .goto-btn:disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
+
+        /* Go to node: under the navigation row, as wide as the Inspector */
+        .node-picker {
+            position: absolute;
+            top: 100%;
+            right: 0.375rem;
+            left: 0.375rem;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            max-height: min(20rem, 60vh);
+            margin-top: 0.25rem;
+            border: 1px solid var(--mg-stroke);
+            border-radius: 0.5rem;
+            background: var(--mg-surface);
+            box-shadow: var(--mg-shadow);
+        }
+
+        .node-picker[hidden] {
+            display: none;
+        }
+
+        .node-picker-filter {
+            margin: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            border: 1px solid var(--mg-stroke);
+            border-radius: 0.375rem;
+            background: var(--mg-control);
+        }
+
+        .node-picker-filter:focus-visible {
+            outline: none;
+            border-color: var(--mg-accent);
+        }
+
+        .node-picker-list {
+            min-height: 0;
+            overflow-y: auto;
+            scrollbar-width: thin;
+            scrollbar-color: var(--mg-stroke) transparent;
+        }
+
+        .node-picker-empty {
             padding: 0.5rem 0.75rem;
+            color: var(--mg-muted);
+        }
+
+        .dropdown-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.375rem 0.75rem;
+            cursor: pointer;
+        }
+
+        .dropdown-item.active {
+            background: var(--mg-control-hover);
+        }
+
+        .dropdown-item[aria-selected="true"] {
+            font-weight: 600;
+            box-shadow: inset 2px 0 var(--mg-accent);
+        }
+
+        .dropdown-item-order {
+            min-width: 1.5rem;
+            color: var(--mg-accent-fg);
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .dropdown-item-title {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .dropdown-item-type,
+        .dropdown-item-id {
+            flex: none;
+            color: var(--mg-muted);
+            font-size: 0.75rem;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .dropdown-item-type {
+            flex-shrink: 1;
+            max-width: 40%;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+        }
+
+        .node-breadcrumb {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.25em 0.375em;
+            padding: 0.25rem 0.75rem;
             border-bottom: 1px solid var(--mg-stroke);
             color: var(--mg-muted);
             font-size: 0.75rem;
-            font-weight: 600;
+        }
+
+        .node-breadcrumb[hidden] {
+            display: none;
+        }
+
+        .crumb {
+            max-width: 10em;
+        }
+
+        .crumb[aria-current] {
+            color: var(--mg-fg);
+        }
+
+        .crumb-group {
+            max-width: 12em;
+            padding: 0 0.375em;
+            border: 1px solid var(--mg-stroke);
+            border-radius: 0.25rem;
+        }
+
+        .crumb-action {
+            margin-left: auto;
+            padding: 0.125em 0.5em;
+            border: 0;
+            border-radius: 0.375rem;
+            background: var(--mg-control);
+        }
+
+        .crumb-action:hover {
+            background: var(--mg-control-hover);
         }
 
         .sidebar-content {
@@ -332,10 +587,13 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
+            width: 100%;
             min-height: 2.25rem;
             padding: 0 0.75rem;
+            border: 0;
             border-bottom: 1px solid var(--mg-stroke);
-            cursor: pointer;
+            background: transparent;
+            text-align: left;
             user-select: none;
         }
 
@@ -344,17 +602,8 @@
         }
 
         .section-title {
-            flex: none;
-            font-weight: 600;
-        }
-
-        .section-badge {
             flex: 1;
-            min-width: 0;
-            overflow: hidden;
-            color: var(--mg-muted);
-            white-space: nowrap;
-            text-overflow: ellipsis;
+            font-weight: 600;
         }
 
         .section-chevron {
@@ -372,9 +621,10 @@
         }
 
         /* Rows: label and value side by side, as in the Inspector */
+        /* Label, value and its copy button */
         .info-row {
             display: grid;
-            grid-template-columns: minmax(4.5em, 2fr) minmax(0, 3fr);
+            grid-template-columns: minmax(4.5em, 2fr) minmax(0, 3fr) auto;
             align-items: baseline;
             column-gap: 0.75em;
             min-height: 2em;
@@ -395,6 +645,94 @@
         .info-row:has(textarea) {
             grid-template-columns: minmax(0, 1fr);
             row-gap: 0.25em;
+        }
+
+        .info-row:has(.widget-editor-inline) :is(.copy-btn, .value-expand) {
+            display: none;
+        }
+
+        .copy-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            align-self: start;
+            width: 1.5rem;
+            height: 1.5rem;
+            border: 0;
+            border-radius: 0.375rem;
+            background: transparent;
+            color: var(--mg-muted);
+            opacity: 0;
+        }
+
+        .copy-btn .copy-icon {
+            margin: 0;
+            opacity: 1;
+        }
+
+        .copy-btn:hover {
+            background: var(--mg-control-hover);
+            color: var(--mg-fg);
+        }
+
+        .info-row:hover .copy-btn,
+        .copy-btn:focus-visible,
+        .copy-btn.copied {
+            opacity: 1;
+        }
+
+        @media (hover: none) {
+            .copy-btn {
+                opacity: 1;
+            }
+        }
+
+        /* Off screen while the clipboard fallback copies from it */
+        .copy-fallback {
+            position: fixed;
+            top: 0;
+            left: -9999px;
+            opacity: 0;
+        }
+
+        /* Long values show a few lines until expanded */
+        .is-clamped {
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 4;
+            overflow: hidden;
+        }
+
+        .info-row.is-expanded .is-clamped {
+            display: block;
+        }
+
+        .value-expand {
+            grid-area: 2 / 2;
+            justify-self: start;
+            border: 0;
+            background: transparent;
+            color: var(--mg-accent-fg);
+            font-size: 0.75rem;
+        }
+
+        .value-expand:hover {
+            text-decoration: underline;
+        }
+
+        .edit-hint {
+            margin: 0.375em 0.75em;
+            padding: 0.125em 0.5em;
+            border: 1px solid var(--mg-stroke);
+            border-radius: 0.25rem;
+            background: transparent;
+            color: var(--mg-muted);
+            font-size: 0.75rem;
+        }
+
+        .edit-hint:hover {
+            background: var(--mg-control-hover);
+            color: var(--mg-fg);
         }
 
         .info-label {
@@ -425,20 +763,8 @@
             font-variant-numeric: tabular-nums;
         }
 
-        .clickable-row {
-            cursor: pointer;
-        }
-
-        .clickable-row:hover,
         .widget-value-editable:hover {
             background: var(--mg-control);
-        }
-
-        .clickable-row .info-value {
-            display: flex;
-            align-items: center;
-            gap: 0.25em;
-            color: var(--mg-accent-fg);
         }
 
         .widget-value-editable {
@@ -541,6 +867,41 @@
             border-color: var(--mg-accent);
         }
 
+        .widget-editor-number {
+            display: flex;
+            align-items: center;
+            gap: 0.25em;
+        }
+
+        .widget-editor-number input::-webkit-outer-spin-button,
+        .widget-editor-number input::-webkit-inner-spin-button {
+            margin: 0;
+            -webkit-appearance: none;
+        }
+
+        .widget-editor-stepper {
+            display: flex;
+            flex: none;
+            align-items: center;
+            justify-content: center;
+            width: 1.75em;
+            height: 1.75em;
+            border: 0;
+            border-radius: 0.375rem;
+            background: var(--mg-control);
+            color: var(--mg-muted);
+        }
+
+        .widget-editor-stepper:hover {
+            background: var(--mg-control-hover);
+            color: var(--mg-fg);
+        }
+
+        .widget-editor-stepper svg {
+            width: 0.875rem;
+            height: 0.875rem;
+        }
+
         textarea.widget-editor-input {
             resize: vertical;
             font-family: ui-monospace, monospace;
@@ -559,59 +920,6 @@
         .empty-state svg {
             width: 2rem;
             height: 2rem;
-        }
-
-        /* Node list */
-        .node-selector-dropdown {
-            position: absolute;
-            z-index: 100;
-            min-width: 12rem;
-            max-width: 20rem;
-            max-height: 20rem;
-            overflow-y: auto;
-            scrollbar-width: thin;
-            scrollbar-color: var(--mg-stroke) transparent;
-            background: var(--mg-surface);
-            border: 1px solid var(--mg-stroke);
-            border-radius: 0.5rem;
-            box-shadow: var(--mg-shadow);
-        }
-
-        .dropdown-item {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.375rem 0.75rem;
-            cursor: pointer;
-        }
-
-        .dropdown-item:hover {
-            background: var(--mg-control-hover);
-        }
-
-        .node-order {
-            min-width: 1.5rem;
-            color: var(--mg-accent-fg);
-            font-weight: 600;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .node-title {
-            flex: 1;
-            min-width: 0;
-            overflow: hidden;
-            white-space: nowrap;
-            text-overflow: ellipsis;
-        }
-
-        .node-type {
-            flex: 0 1 auto;
-            max-width: 40%;
-            overflow: hidden;
-            color: var(--mg-muted);
-            font-size: 0.75rem;
-            white-space: nowrap;
-            text-overflow: ellipsis;
         }
 
         @media (max-width: 720px) {
@@ -696,8 +1004,46 @@
             </div>
         </section>
 
-        <aside class="inspector-sidebar">
-            <h2 class="sidebar-header">Inspector</h2>
+        <aside class="inspector-sidebar" id="inspector">
+            <div class="node-header">
+                <button type="button" class="node-identity" data-action="copy-title" title="Copy title and id" aria-label="Copy title and id" disabled>
+                    <span class="node-name is-empty">Inspector</span>
+                    <span class="node-id" hidden></span>
+                    <span class="node-badge" hidden></span>
+                    <span class="copy-icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
+                </button>
+            </div>
+            <div class="node-nav" role="toolbar" aria-label="Node navigation">
+                <button type="button" class="icon-button" data-action="back" title="Back" aria-label="Back" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+                </button>
+                <button type="button" class="icon-button" data-action="forward" title="Forward" aria-label="Forward" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                </button>
+                <button type="button" class="icon-button" data-action="prev-node" title="Previous in execution order (←)" aria-label="Previous in execution order" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                </button>
+                <button type="button" class="icon-button" data-action="next-node" title="Next in execution order (→)" aria-label="Next in execution order" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                </button>
+                <button type="button" class="icon-button" data-action="focus-node" title="Centre on node" aria-label="Centre on node" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+                </button>
+                <button type="button" class="icon-button" data-action="lock-node" title="Lock to this node (L)" aria-label="Lock to this node" aria-pressed="false" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                </button>
+                <button type="button" class="goto-btn" data-action="go-to-node" title="Go to node (Ctrl+K)" aria-haspopup="listbox" aria-expanded="false" disabled>
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                    <span>Go to node…</span>
+                </button>
+                <div class="node-picker" hidden>
+                    <input type="text" class="node-picker-filter" placeholder="Title, type or #id" role="combobox" aria-label="Go to node"
+                        aria-autocomplete="list" aria-expanded="true" aria-controls="node-picker-list">
+                    <div class="node-picker-list" id="node-picker-list" role="listbox" aria-label="Nodes"></div>
+                    <div class="node-picker-empty" hidden>No matching nodes</div>
+                </div>
+            </div>
+            <div class="node-breadcrumb" hidden></div>
             <div class="sidebar-content" id="sidebar-content">
                 <div class="empty-state" id="empty-state">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -722,8 +1068,16 @@
         const statusDot = document.querySelector('.status-dot');
         const statusLabel = document.querySelector('.status-label');
         const placeholder = document.querySelector('.canvas-placeholder');
+        const inspector = document.getElementById('inspector');
         const sidebarContent = document.getElementById('sidebar-content');
         const emptyState = document.getElementById('empty-state');
+        const identity = inspector.querySelector('.node-identity');
+        const breadcrumb = inspector.querySelector('.node-breadcrumb');
+        const gotoBtn = inspector.querySelector('[data-action="go-to-node"]');
+        const picker = inspector.querySelector('.node-picker');
+        const pickerFilter = picker.querySelector('.node-picker-filter');
+        const pickerList = picker.querySelector('.node-picker-list');
+        const pickerEmpty = picker.querySelector('.node-picker-empty');
 
         // State: 'connecting', 'connected', 'inactive' (no ping for a while) or 'closed' (ComfyUI closed or reloaded, or closed this viewer)
         let connection = 'connecting';
@@ -808,10 +1162,10 @@
         function handleConfig(data) {
             applyPalette(data.palette);
             document.documentElement.classList.toggle('reduce-motion', data.reduceMotion);
-            const inspectorChanged = data.inspector !== config.inspector;
             config = data;
             renderStatus();
-            if (inspectorChanged) handleInfo(currentInfo);
+            // Renders only when the Inspector was turned on or off
+            handleInfo(currentInfo);
         }
 
         // ComfyUI's computed palette values feed the --mg-* tokens; an empty value drops an override that went away
@@ -826,25 +1180,42 @@
             root.fontSize = palette.fontSize;
         }
 
-        // The latest info, the info the sidebar was last rendered from, and the combo editor waiting for its options
+        // The latest info, the info the Inspector was last rendered from and its key, and the combo editor waiting for its options
         let currentInfo = null;
         let renderedInfo = null;
+        let renderedKey = null;
         let pendingOptions = null;
+        // The texts of the rendered copy buttons, the long values shown in full and the collapsed sections
+        let copyTexts = [];
+        const expandedValues = new Set();
+        const collapsedSections = new Set();
 
         function handleInfo(info) {
             currentInfo = info;
             // Re-rendering would drop an open editor; closing it renders the latest info
             if (sidebarContent.querySelector('.widget-editor-inline')) return;
-            if (!info || !info.node || !config.inspector) {
+            // ComfyUI sends unchanged info again after edits; rendering it would drop hover, focus and text selection
+            const key = JSON.stringify([info, config.inspector]);
+            if (key === renderedKey) return;
+            renderedKey = key;
+            renderedInfo = config.inspector ? info : null;
+            renderHeader(renderedInfo);
+            if (renderedInfo?.node) {
+                renderInfo(renderedInfo);
+            } else {
                 showEmptyState();
-                return;
             }
+        }
 
-            hideEmptyState();
-            renderInfo(info);
+        // Render the latest info even when it looks unchanged, e.g. after an editor shows a value of its own
+        function rerender() {
+            renderedKey = null;
+            handleInfo(currentInfo);
         }
 
         function sendWidgetEdit(row, value) {
+            // The sent value shows until ComfyUI answers, so its answer renders even if unchanged
+            renderedKey = null;
             channel.postMessage({ type: 'widget-edit', data: { nodeId: renderedInfo.node.id, widgetName: row.widgetName, value } });
         }
 
@@ -854,13 +1225,26 @@
             return renderedInfo && index !== undefined ? renderedInfo.rows[Number(index)] : null;
         }
 
-        sidebarContent.addEventListener('click', (e) => {
+        // Navigation ComfyUI runs for the node shown here
+        const PANEL_ACTIONS = ['back', 'forward', 'prev-node', 'next-node', 'focus-node', 'lock-node', 'enter-subgraph'];
+
+        inspector.addEventListener('click', (e) => {
             const action = e.target.closest('[data-action]');
             if (action) {
-                if (action.dataset.action === 'toggle-section') toggleSection(action);
-                else if (action.dataset.action === 'node-dropdown') requestNodeDropdown(action.dataset.sort, action);
-                else if (action.dataset.action === 'focus-node' && renderedInfo) {
-                    channel.postMessage({ type: 'panel-action', data: { name: 'focus-node', nodeId: renderedInfo.node.id } });
+                const name = action.dataset.action;
+                if (PANEL_ACTIONS.includes(name)) {
+                    channel.postMessage({ type: 'panel-action', data: { name, nodeId: renderedInfo?.node?.id ?? null } });
+                } else if (name === 'go-to-node') {
+                    if (picker.hidden) openPicker();
+                    else closePicker(true);
+                } else if (name === 'copy-title') {
+                    copyText(action, `${renderedInfo.node.title} #${renderedInfo.node.id}`);
+                } else if (name === 'copy') {
+                    copyText(action, copyTexts[Number(action.dataset.copy)]);
+                } else if (name === 'expand-value') {
+                    toggleExpanded(action);
+                } else if (name === 'toggle-section') {
+                    toggleSection(action);
                 }
                 return;
             }
@@ -892,9 +1276,23 @@
             pending.fill(data.options);
         }
 
+        // A number as the widget shows it: INT whole, FLOAT to its precision
+        function formatNumber(value, row) {
+            const precision = row.widgetType === 'INT' ? 0 : row.constraints.precision;
+            return precision === undefined ? String(value) : Number(value).toFixed(precision);
+        }
+
+        // One step of a number widget, as WidgetSyncManager.getStep: Shift is x10, Alt x0.1 but never finer than the widget stores
+        function stepSize(constraints, e) {
+            const step = constraints.step ?? 1;
+            if (e.shiftKey) return step * 10;
+            if (e.altKey) return Math.max(step / 10, constraints.round ?? 10 ** -(constraints.precision ?? 3));
+            return step;
+        }
+
         /**
          * Start editing a widget value inline. Enter or blur commits, Escape cancels;
-         * a textarea commits on Ctrl/Cmd+Enter so its newlines survive.
+         * a textarea commits on Ctrl/Cmd+Enter so its newlines survive. Only a changed value is sent.
          */
         function editWidgetValue(element, row) {
             if (element.querySelector('.widget-editor-inline')) return;
@@ -909,22 +1307,20 @@
                 return;
             }
 
+            const wrapper = document.createElement('div');
+            wrapper.className = 'widget-editor-inline';
             let editor;
             let readValue;
             if (type === 'combo') {
                 editor = document.createElement('select');
                 editor.className = 'widget-editor-select';
-                // A hidden placeholder, so picking the current value again still fires change
-                const addOption = (label) => {
-                    const option = document.createElement('option');
-                    option.textContent = String(label);
-                    editor.appendChild(option);
-                };
-                addOption('Loading…');
-                editor.options[0].disabled = true;
+                const loading = document.createElement('option');
+                loading.textContent = 'Loading…';
+                loading.disabled = true;
+                editor.appendChild(loading);
                 let options = [];
                 // The option itself, so numeric combo values stay numbers
-                readValue = () => editor.selectedIndex > 0 ? options[editor.selectedIndex - 1] : undefined;
+                readValue = () => options[editor.selectedIndex];
                 // ComfyUI sends the list only for an open editor, as it can be long
                 pendingOptions = {
                     nodeId: renderedInfo.node.id,
@@ -933,13 +1329,19 @@
                     fill(list) {
                         if (!list.length) return finish(false);
                         options = list;
-                        editor.options[0].textContent = 'Select...';
-                        editor.options[0].hidden = true;
-                        list.forEach(addOption);
-                        editor.selectedIndex = 0;
+                        editor.replaceChildren(...list.map(value => {
+                            const option = document.createElement('option');
+                            option.textContent = String(value);
+                            return option;
+                        }));
+                        // The list opens on the current value
+                        editor.selectedIndex = list.indexOf(row.rawValue);
+                        committed = readValue();
+                        editor.showPicker?.();
                     }
                 };
                 channel.postMessage({ type: 'request-options', data: { nodeId: pendingOptions.nodeId, widgetName: row.widgetName } });
+                wrapper.appendChild(editor);
             } else if (type === 'INT' || type === 'FLOAT') {
                 editor = document.createElement('input');
                 editor.type = 'number';
@@ -947,8 +1349,36 @@
                 if (constraints.min !== undefined) editor.min = String(constraints.min);
                 if (constraints.max !== undefined) editor.max = String(constraints.max);
                 editor.step = String(constraints.step ?? (type === 'INT' ? 1 : 'any'));
-                editor.value = String(row.rawValue);
-                readValue = () => editor.value === '' || isNaN(parseFloat(editor.value)) ? undefined : parseFloat(editor.value);
+                editor.value = formatNumber(row.rawValue, row);
+                readValue = () => {
+                    const value = parseFloat(editor.value);
+                    return isNaN(value) ? undefined : type === 'INT' ? Math.round(value) : value;
+                };
+                // The steppers and arrow keys send each step at once, as in the Inspector
+                const nudge = (direction, e) => {
+                    const { min = -Infinity, max = Infinity } = constraints;
+                    const value = (readValue() ?? committed ?? 0) + direction * stepSize(constraints, e);
+                    editor.value = formatNumber(Math.min(max, Math.max(min, value)), row);
+                    commit();
+                };
+                editor.addEventListener('keydown', (e) => {
+                    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+                    e.preventDefault();
+                    nudge(e.key === 'ArrowUp' ? 1 : -1, e);
+                });
+                wrapper.classList.add('widget-editor-number');
+                for (const direction of [-1, 1]) {
+                    const stepper = document.createElement('button');
+                    stepper.type = 'button';
+                    stepper.className = 'widget-editor-stepper';
+                    stepper.innerHTML = direction < 0 ? ICONS.minus : ICONS.plus;
+                    stepper.setAttribute('aria-label', direction < 0 ? 'Decrease' : 'Increase');
+                    // Keeps focus in the input, whose blur would close the editor
+                    stepper.addEventListener('mousedown', (e) => e.preventDefault());
+                    stepper.addEventListener('click', (e) => nudge(direction, e));
+                    wrapper.appendChild(stepper);
+                }
+                wrapper.insertBefore(editor, wrapper.lastChild);
             } else {
                 const text = String(row.rawValue ?? '');
                 const multiline = type === 'multiline' || text.includes('\n');
@@ -961,30 +1391,38 @@
                 }
                 editor.value = text;
                 readValue = () => editor.value;
+                wrapper.appendChild(editor);
             }
 
+            // The value the editor opened with, or the last one sent
+            let committed = readValue();
             let done = false;
-            function finish(commit) {
+
+            function commit() {
+                const value = readValue();
+                if (value === undefined || value === committed) return false;
+                committed = value;
+                sendWidgetEdit(row, value);
+                return true;
+            }
+
+            function finish(keep) {
                 if (done) return;
                 done = true;
                 if (pendingOptions?.editor === editor) pendingOptions = null;
-                const value = readValue();
-                element.innerHTML = '';
-                if (commit && value !== undefined) {
+                wrapper.remove();
+                if (keep && commit()) {
                     // Shown until ComfyUI sends the value it kept
-                    sendWidgetEdit(row, value);
-                    element.textContent = String(value);
+                    element.textContent = String(committed);
                 } else {
-                    handleInfo(currentInfo);
+                    // The info that came while editing, which has any steps already sent
+                    rerender();
                 }
             }
 
+            editor.addEventListener('blur', () => finish(true));
             if (editor.tagName === 'SELECT') {
                 editor.addEventListener('change', () => finish(true));
-                // Clicking away without a pick cancels
-                editor.addEventListener('blur', () => finish(editor.selectedIndex > 0));
-            } else {
-                editor.addEventListener('blur', () => finish(true));
             }
             editor.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') {
@@ -995,48 +1433,70 @@
                 }
             });
 
-            const wrapper = document.createElement('div');
-            wrapper.className = 'widget-editor-inline';
-            wrapper.appendChild(editor);
             element.innerHTML = '';
             element.appendChild(wrapper);
             editor.focus();
             if (editor.select) editor.select();
         }
 
+        // The node's identity, navigation and breadcrumb, updated in place so focus stays on its buttons
+        function renderHeader(info) {
+            const node = info?.node;
+            const nav = info?.nav;
+            const name = identity.querySelector('.node-name');
+            name.textContent = node ? node.title : 'Inspector';
+            name.title = node ? node.title : '';
+            name.classList.toggle('is-empty', !node);
+            const id = identity.querySelector('.node-id');
+            id.hidden = !node;
+            id.textContent = node ? `#${node.id}` : '';
+            const badge = identity.querySelector('.node-badge');
+            badge.textContent = node ? node.type : '';
+            badge.title = badge.textContent;
+            badge.hidden = !node || node.type === node.title;
+            identity.disabled = !node;
+
+            const button = (action) => inspector.querySelector(`.node-nav [data-action="${action}"]`);
+            button('back').disabled = !nav?.canBack;
+            button('forward').disabled = !nav?.canForward;
+            button('prev-node').disabled = !nav;
+            button('next-node').disabled = !nav;
+            button('focus-node').disabled = !node;
+            const lock = button('lock-node');
+            lock.disabled = !node && !nav?.locked;
+            lock.setAttribute('aria-pressed', String(!!nav?.locked));
+            lock.title = nav?.locked ? 'Unlock: show the hovered node (L)' : 'Lock to this node (L)';
+            lock.setAttribute('aria-label', nav?.locked ? 'Unlock' : 'Lock to this node');
+            gotoBtn.disabled = !nav;
+            if (!nav) closePicker(false);
+
+            const path = node?.graphPath.length ? ['Root', ...node.graphPath] : [];
+            breadcrumb.innerHTML = [
+                path.map((crumb, i) => `<span class="crumb" title="${escapeHtml(crumb)}"${i === path.length - 1 ? ' aria-current="location"' : ''}>${escapeHtml(crumb)}</span>`).join('<span aria-hidden="true">›</span>'),
+                node?.group ? `<span class="crumb-group" title="Group">${escapeHtml(node.group)}</span>` : '',
+                node?.isSubgraph ? '<button type="button" class="crumb-action" data-action="enter-subgraph">Enter subgraph</button>' : ''
+            ].join('');
+            breadcrumb.hidden = !breadcrumb.innerHTML;
+        }
+
         function renderInfo(info) {
-            renderedInfo = info;
             const node = info.node;
-            const isCollapsed = window.collapsedSections?.has('node');
+            const collapsed = collapsedSections.has('node');
+            copyTexts = [];
 
             sidebarContent.innerHTML = `
-                <div class="info-section ${isCollapsed ? 'collapsed' : ''}" data-section-id="node">
-                    <div class="section-header" data-action="toggle-section">
+                <section class="info-section${collapsed ? ' collapsed' : ''}" data-section-id="node">
+                    <button type="button" class="section-header" data-action="toggle-section" aria-expanded="${!collapsed}">
                         <span class="section-title">Node</span>
-                        <span class="section-badge">${escapeHtml(node.type)}</span>
                         <span class="section-chevron">${ICONS.chevronDown}</span>
-                    </div>
+                    </button>
                     <div class="section-body">
-                        <div class="info-row clickable-row" data-action="node-dropdown" data-sort="title">
-                            <span class="info-label">Title</span>
-                            <span class="info-value">${escapeHtml(node.title)} (#${escapeHtml(node.id)})${ICONS.chevronDown}</span>
-                        </div>
-                        ${node.execOrder !== undefined ? `
-                        <div class="info-row clickable-row" data-action="node-dropdown" data-sort="execOrder">
-                            <span class="info-label">Exec Order</span>
-                            <span class="info-value">${escapeHtml(node.execOrder)}${ICONS.chevronDown}</span>
-                        </div>` : ''}
-                        <div class="info-row clickable-row" data-action="focus-node">
-                            <span class="info-label">Location</span>
-                            <span class="info-value">${ICONS.focus}Focus Node</span>
-                        </div>
-                        <div class="info-row">
-                            <span class="info-label">Mode</span>
-                            <span class="info-value">${escapeHtml(node.mode)}</span>
-                        </div>
+                        ${textRow('Mode', node.mode)}
+                        ${node.execOrder !== undefined ? textRow('Exec Order', String(node.execOrder)) : ''}
                         ${renderRows(info)}
+                        ${!info.nav.canEdit && info.rows.some(row => row.isEditable) ? '<button type="button" class="edit-hint" data-action="lock-node" title="Lock to this node to edit its widgets">Lock to edit</button>' : ''}
                     </div>
-                </div>
+                </section>
             `;
             for (const holder of sidebarContent.querySelectorAll('.widget-image')) {
                 const img = document.createElement('img');
@@ -1045,19 +1505,70 @@
             }
         }
 
-        // Initialize collapsed state tracking
-        window.collapsedSections = new Set();
-
         function toggleSection(header) {
             const section = header.parentElement;
-            const sectionId = section.dataset.sectionId;
-            section.classList.toggle('collapsed');
-
-            if (section.classList.contains('collapsed')) {
-                window.collapsedSections.add(sectionId);
+            const collapsed = section.classList.toggle('collapsed');
+            header.setAttribute('aria-expanded', String(!collapsed));
+            if (collapsed) {
+                collapsedSections.add(section.dataset.sectionId);
             } else {
-                window.collapsedSections.delete(sectionId);
+                collapsedSections.delete(section.dataset.sectionId);
             }
+        }
+
+        function toggleExpanded(button) {
+            const row = button.closest('.info-row');
+            const expanded = !expandedValues.has(row.dataset.expandKey);
+            if (expanded) {
+                expandedValues.add(row.dataset.expandKey);
+            } else {
+                expandedValues.delete(row.dataset.expandKey);
+            }
+            row.classList.toggle('is-expanded', expanded);
+            button.textContent = expanded ? 'Show less' : 'Show more';
+            button.setAttribute('aria-expanded', String(expanded));
+        }
+
+        // The text is kept in copyTexts, so long values are not repeated in the markup
+        function copyButton(text, label) {
+            copyTexts.push(text);
+            return `<button type="button" class="copy-btn" data-action="copy" data-copy="${copyTexts.length - 1}" title="Copy value" aria-label="Copy ${escapeHtml(label)}"><span class="copy-icon">${ICONS.copy}</span></button>`;
+        }
+
+        function textRow(label, value) {
+            return `<div class="info-row"><span class="info-label">${label}</span><span class="info-value">${escapeHtml(value)}</span>${copyButton(value, label)}</div>`;
+        }
+
+        /**
+         * Copy text, as the Inspector does. navigator.clipboard is missing on plain http, such as ComfyUI
+         * opened from another machine on the LAN, so fall back to a selected textarea there.
+         */
+        async function copyText(button, text) {
+            try {
+                await navigator.clipboard.writeText(text);
+            } catch {
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.className = 'copy-fallback';
+                document.body.appendChild(textarea);
+                textarea.select();
+                const copied = document.execCommand('copy');
+                textarea.remove();
+                button.focus();
+                if (!copied) {
+                    button.dataset.title ??= button.title;
+                    button.title = 'Copy failed: the browser blocked access to the clipboard';
+                    setTimeout(() => { button.title = button.dataset.title; }, 1500);
+                    return;
+                }
+            }
+            const icon = button.querySelector('.copy-icon');
+            icon.innerHTML = ICONS.check;
+            button.classList.add('copied');
+            setTimeout(() => {
+                icon.innerHTML = ICONS.copy;
+                button.classList.remove('copied');
+            }, 1500);
         }
 
         // The widget rows as ComfyUI's Inspector computed them; it also decides which can be edited
@@ -1066,13 +1577,14 @@
                 const label = escapeHtml(row.label);
                 // Values without a primitive raw value, like objects, have no editor that keeps them intact
                 const editable = row.isEditable && info.nav.canEdit && row.rawValue !== undefined;
-                const lockHint = row.isEditable && !info.nav.canEdit ? ' title="Lock the node in ComfyUI to edit"' : '';
+                const lockHint = row.isEditable && !info.nav.canEdit ? ' title="Lock to this node to edit"' : '';
                 // Plot nodes send an <img> with a data URI; only the URI itself is used
                 const imageSrc = row.value.match(IMAGE_DATA_URI)?.[0];
                 if (row.isActionable) {
                     return `<div class="info-row is-wide"><button type="button" class="widget-button" data-widget="${index}" data-kind="action">${label}</button></div>`;
                 }
                 let body;
+                let long = false;
                 if (imageSrc) {
                     body = `<div class="widget-image" data-src="${imageSrc}"></div>`;
                 } else if (row.widgetType === 'boolean' && typeof row.rawValue === 'boolean') {
@@ -1086,22 +1598,35 @@
                             <span class="widget-slider-value">${escapeHtml(row.value)}</span>
                         </div>`;
                 } else {
+                    long = isLongText(row.value);
                     const shown = row.value === '' ? '<span class="value-empty">empty</span>' : escapeHtml(row.value);
                     const attrs = editable ? ` data-widget="${index}" data-kind="value" title="Click to edit"` : lockHint;
-                    body = `<div class="widget-value${editable ? ' widget-value-editable' : ''}"${attrs}>${shown}</div>`;
+                    body = `<div class="widget-value${editable ? ' widget-value-editable' : ''}${long ? ' is-clamped' : ''}"${attrs}>${shown}</div>`;
                 }
+                const expandKey = `${info.node.id}:${row.label}`;
+                const expanded = long && expandedValues.has(expandKey);
                 return `
-                    <div class="info-row${imageSrc ? ' is-wide' : ''}">
+                    <div class="info-row${imageSrc ? ' is-wide' : ''}${expanded ? ' is-expanded' : ''}"${long ? ` data-expand-key="${escapeHtml(expandKey)}"` : ''}>
                         <span class="info-label">${label}${row.isLinked ? '<span class="linked-tag" title="Set by a link">linked</span>' : ''}${row.widgetType ? `<span class="widget-type">${escapeHtml(row.widgetType)}</span>` : ''}</span>
                         ${body}
+                        ${imageSrc ? '' : copyButton(row.value, row.label)}
+                        ${long ? `<button type="button" class="value-expand" data-action="expand-value" aria-expanded="${expanded}">${expanded ? 'Show less' : 'Show more'}</button>` : ''}
                     </div>`;
             }).join('');
+        }
+
+        // Values this long are clamped to a few lines with Show more, as in the Inspector
+        function isLongText(text) {
+            return text.length > 200 || text.split('\n').length > 4;
         }
 
         // Paths from src/shared/icons.ts
         const ICONS = {
             chevronDown: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
-            focus: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>'
+            copy: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+            check: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+            minus: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+            plus: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
         };
 
         const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
@@ -1118,117 +1643,102 @@
             sidebarContent.appendChild(empty);
         }
 
-        function hideEmptyState() {
-            const existing = sidebarContent.querySelector('.empty-state');
-            if (existing) existing.remove();
+        // Go to node: ComfyUI searches its graph, the same search as the Inspector's picker
+        let pickerEntries = [];
+        let pickerActive = -1;
+
+        function openPicker() {
+            picker.hidden = false;
+            gotoBtn.setAttribute('aria-expanded', 'true');
+            pickerFilter.value = '';
+            pickerEntries = [];
+            pickerList.innerHTML = '';
+            pickerEmpty.hidden = true;
+            pickerFilter.focus();
+            searchNodes();
         }
 
-        // Node selection dropdown functionality
-        let currentDropdownAnchorRect = null;
-
-        function requestNodeDropdown(type, anchorElement) {
-            // Store anchor position immediately (before potential re-render)
-            if (anchorElement) {
-                currentDropdownAnchorRect = anchorElement.getBoundingClientRect();
-            }
-
-            if (channel) {
-                channel.postMessage({ type: 'request-nodes', data: type });
-            }
+        function closePicker(refocus) {
+            if (picker.hidden) return;
+            picker.hidden = true;
+            gotoBtn.setAttribute('aria-expanded', 'false');
+            if (refocus) gotoBtn.focus();
         }
 
-        function handleNodesList(data) {
-            if (!data || !data.nodes || !currentDropdownAnchorRect) return;
-            showDropdown(data.nodes, data.sortBy);
+        function searchNodes() {
+            channel.postMessage({ type: 'search-nodes', data: pickerFilter.value });
         }
 
-        function showDropdown(nodes, sortBy) {
-            // Save anchorRect before hideDropdown clears it
-            const savedAnchorRect = currentDropdownAnchorRect;
-            hideDropdown();
-
-            if (nodes.length === 0) return;
-            if (!savedAnchorRect) return;
-
-            const dropdown = document.createElement('div');
-            dropdown.className = 'node-selector-dropdown';
-            dropdown.id = 'node-dropdown';
-
-            nodes.forEach(node => {
-                const item = document.createElement('div');
-                item.className = 'dropdown-item';
-
-                if (sortBy === 'execOrder' && node.order !== undefined) {
-                    item.innerHTML = `
-                        <span class="node-order">#${escapeHtml(node.order)}</span>
-                        <span class="node-title">${escapeHtml(node.title)} (#${escapeHtml(node.id)})</span>
-                        <span class="node-type">${escapeHtml(node.type)}</span>
-                    `;
-                } else if (sortBy === 'id') {
-                    item.innerHTML = `
-                        <span class="node-order">#${escapeHtml(node.id)}</span>
-                        <span class="node-title">${escapeHtml(node.title)}</span>
-                        <span class="node-type">${escapeHtml(node.type)}</span>
-                    `;
-                } else {
-                    item.innerHTML = `
-                        <span class="node-title">${escapeHtml(node.title)} (#${escapeHtml(node.id)})</span>
-                        <span class="node-type">${escapeHtml(node.type)}</span>
-                    `;
-                }
-
-                item.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    selectNode(node.id);
-                    hideDropdown();
-                });
-
-                dropdown.appendChild(item);
-            });
-
-            // Position dropdown
-            document.body.appendChild(dropdown);
-            const anchorRect = savedAnchorRect;
-            dropdown.style.top = `${anchorRect.bottom + 4}px`;
-            dropdown.style.left = `${anchorRect.left}px`;
-
-            // Adjust if off-screen
-            const dropdownRect = dropdown.getBoundingClientRect();
-            if (dropdownRect.right > window.innerWidth - 10) {
-                dropdown.style.left = `${window.innerWidth - dropdownRect.width - 10}px`;
-            }
-            if (dropdownRect.bottom > window.innerHeight - 10) {
-                dropdown.style.top = `${anchorRect.top - dropdownRect.height - 4}px`;
-            }
-
-            // Close on click outside
-            setTimeout(() => {
-                document.addEventListener('click', closeDropdownOnClickOutside);
-            }, 10);
+        function handleNodesList({ query, nodes }) {
+            // A reply to an earlier query, or for a picker that has closed
+            if (picker.hidden || query !== pickerFilter.value) return;
+            const current = renderedInfo?.node?.id;
+            pickerEntries = nodes;
+            pickerList.innerHTML = nodes.map((node, i) => `
+                <div class="dropdown-item" id="node-picker-${i}" role="option" aria-selected="${node.id === current}" data-index="${i}">
+                    <span class="dropdown-item-order">${node.order >= 0 ? escapeHtml(node.order) : ''}</span>
+                    <span class="dropdown-item-title">${escapeHtml(node.title)}</span>
+                    <span class="dropdown-item-type">${escapeHtml(node.type)}</span>
+                    <span class="dropdown-item-id">#${escapeHtml(node.id)}</span>
+                </div>`).join('');
+            pickerEmpty.hidden = nodes.length > 0;
+            pickerActive = -1;
+            // Unfiltered, it opens on the shown node
+            setPickerActive(query ? 0 : nodes.findIndex(node => node.id === current));
         }
 
-        function closeDropdownOnClickOutside(e) {
-            const dropdown = document.getElementById('node-dropdown');
-            if (dropdown && !dropdown.contains(e.target)) {
-                hideDropdown();
+        function setPickerActive(index, scroll = true) {
+            pickerList.children[pickerActive]?.classList.remove('active');
+            pickerActive = pickerEntries.length ? Math.max(0, Math.min(index, pickerEntries.length - 1)) : -1;
+            const item = pickerList.children[pickerActive];
+            if (item) {
+                item.classList.add('active');
+                if (scroll) item.scrollIntoView({ block: 'nearest' });
+                pickerFilter.setAttribute('aria-activedescendant', item.id);
+            } else {
+                pickerFilter.removeAttribute('aria-activedescendant');
             }
         }
 
-        function hideDropdown() {
-            const dropdown = document.getElementById('node-dropdown');
-            if (dropdown) {
-                dropdown.remove();
-            }
-            document.removeEventListener('click', closeDropdownOnClickOutside);
-            currentDropdownAnchorRect = null;
+        function pickNode(index) {
+            const entry = pickerEntries[index];
+            if (!entry) return;
+            closePicker(true);
+            channel.postMessage({ type: 'node-select', data: entry.id });
         }
 
-        function selectNode(nodeId) {
-            // Send node selection to main window
-            if (channel) {
-                channel.postMessage({ type: 'node-select', data: nodeId });
+        pickerFilter.addEventListener('input', searchNodes);
+        pickerFilter.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowDown') {
+                setPickerActive(pickerActive + 1);
+            } else if (e.key === 'ArrowUp') {
+                setPickerActive(pickerActive - 1);
+            } else if (e.key === 'Enter') {
+                pickNode(pickerActive);
+            } else if (e.key === 'Escape') {
+                closePicker(true);
+            } else {
+                return;
             }
-        }
+            e.preventDefault();
+            e.stopPropagation();
+        });
+        // Keep focus in the filter while clicking an item
+        pickerList.addEventListener('mousedown', (e) => e.preventDefault());
+        pickerList.addEventListener('mouseover', (e) => {
+            const item = e.target.closest('.dropdown-item');
+            if (item) setPickerActive(Number(item.dataset.index), false);
+        });
+        pickerList.addEventListener('click', (e) => {
+            const item = e.target.closest('.dropdown-item');
+            if (item) pickNode(Number(item.dataset.index));
+        });
+        picker.addEventListener('focusout', (e) => {
+            if (e.relatedTarget && !picker.contains(e.relatedTarget) && e.relatedTarget !== gotoBtn) closePicker(false);
+        });
+        document.addEventListener('pointerdown', (e) => {
+            if (!picker.hidden && !picker.contains(e.target) && !gotoBtn.contains(e.target)) closePicker(false);
+        });
 
         const STATUS_LABELS = { connecting: 'Connecting...', inactive: 'ComfyUI tab inactive', closed: 'Disconnected from ComfyUI' };
         const GLASS_LABELS = { on: 'Connected', hidden: 'Glass hidden', off: 'Glass off' };
@@ -1266,9 +1776,21 @@
             channel.close();
         });
 
-        // Escape closes the node list; an editor handles its own
+        // Escape closes the picker; an editor handles its own. ←/→, L and Ctrl+K act like their buttons, outside typing fields
+        const VIEWER_KEYS = { ArrowLeft: 'prev-node', ArrowRight: 'next-node', l: 'lock-node', L: 'lock-node' };
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') hideDropdown();
+            if (e.key === 'Escape') {
+                closePicker(true);
+                return;
+            }
+            if (document.activeElement?.matches('input, textarea, select')) return;
+            const action = e.ctrlKey || e.metaKey
+                ? (!e.altKey && e.key.toLowerCase() === 'k' ? 'go-to-node' : null)
+                : (e.altKey ? null : VIEWER_KEYS[e.key]);
+            const button = action && inspector.querySelector(`.node-nav [data-action="${action}"]`);
+            if (!button) return;
+            e.preventDefault();
+            if (!button.disabled) button.click();
         });
 
         // Fit: the frame fills the area instead of keeping the size set with the handle

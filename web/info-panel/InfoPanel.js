@@ -96,10 +96,11 @@ class InfoPanel {
         var _a, _b;
         return ((_b = (_a = this.popOutRow(data)) == null ? void 0 : _a.constraints) == null ? void 0 : _b.options) ?? [];
       };
+      popOut.onSearchNodes = (query) => this.uiManager.nodeSelector.search(query);
       popOut.onPanelAction = (name, nodeId) => {
         var _a;
-        if (name === "focus-node" && nodeId === this.popOutNodeId && ((_a = app.canvas) == null ? void 0 : _a.graph) === this.popOutGraph) {
-          this.uiManager.jumpToNode(nodeId);
+        if (nodeId === this.popOutNodeId && ((_a = app.canvas) == null ? void 0 : _a.graph) === this.popOutGraph) {
+          this.uiManager.runAction(name, nodeId);
         }
       };
       this.setPopOutRefresh(popOut.isPopOutOpen());
@@ -171,6 +172,7 @@ class InfoPanel {
       mg.popOutManager.onWidgetEdit = null;
       mg.popOutManager.onButtonClick = null;
       mg.popOutManager.onRequestOptions = null;
+      mg.popOutManager.onSearchNodes = null;
       mg.popOutManager.onPanelAction = null;
     }
     this.setPopOutRefresh(false);

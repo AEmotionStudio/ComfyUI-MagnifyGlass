@@ -115,9 +115,11 @@ export class InfoPanel {
                 this.refreshPopOut();
             };
             popOut.onRequestOptions = (data) => this.popOutRow(data)?.constraints?.options ?? [];
+            popOut.onSearchNodes = (query) => this.uiManager.nodeSelector.search(query);
+            // Navigation from the node the pop-out shows, the same as the panel's buttons
             popOut.onPanelAction = (name, nodeId) => {
-                if (name === 'focus-node' && nodeId === this.popOutNodeId && app.canvas?.graph === this.popOutGraph) {
-                    this.uiManager.jumpToNode(nodeId);
+                if (nodeId === this.popOutNodeId && app.canvas?.graph === this.popOutGraph) {
+                    this.uiManager.runAction(name, nodeId);
                 }
             };
             // Mounted while a viewer is connected, e.g. the Inspector turned back on
@@ -220,6 +222,7 @@ export class InfoPanel {
             mg.popOutManager.onWidgetEdit = null;
             mg.popOutManager.onButtonClick = null;
             mg.popOutManager.onRequestOptions = null;
+            mg.popOutManager.onSearchNodes = null;
             mg.popOutManager.onPanelAction = null;
         }
         this.setPopOutRefresh(false);

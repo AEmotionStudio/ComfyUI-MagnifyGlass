@@ -116,30 +116,9 @@ class UIManager {
     }
   }
   handlePanelAction(button) {
-    var _a;
-    const state = this.stateManager.state;
     switch (button.dataset.action) {
       case "minimize":
         this.toggleMinimized();
-        break;
-      case "lock-node":
-        this.lockTo(state.lockedNodeId === null ? state.currentNodeId : null);
-        (_a = this.onRefresh) == null ? void 0 : _a.call(this);
-        break;
-      case "back":
-        this.goThroughHistory(-1);
-        break;
-      case "forward":
-        this.goThroughHistory(1);
-        break;
-      case "prev-node":
-        this.navigateExecOrder(-1);
-        break;
-      case "next-node":
-        this.navigateExecOrder(1);
-        break;
-      case "focus-node":
-        this.focusCurrentNode();
         break;
       case "go-to-node":
         if (this.currentDropdown) {
@@ -165,8 +144,38 @@ class UIManager {
         button.setAttribute("aria-expanded", String(expanded));
         break;
       }
+      default:
+        this.runAction(button.dataset.action, this.stateManager.state.currentNodeId);
+    }
+  }
+  /**
+   * Navigation from the panel's buttons or the pop-out's, for the node the caller shows.
+   * Back, Forward and Prev/Next start from the shown node, which the pop-out's is checked to be.
+   */
+  runAction(action, nodeId) {
+    var _a;
+    switch (action) {
+      case "lock-node":
+        this.lockTo(this.stateManager.state.lockedNodeId === null ? nodeId : null);
+        (_a = this.onRefresh) == null ? void 0 : _a.call(this);
+        break;
+      case "back":
+        this.goThroughHistory(-1);
+        break;
+      case "forward":
+        this.goThroughHistory(1);
+        break;
+      case "prev-node":
+        this.navigateExecOrder(-1);
+        break;
+      case "next-node":
+        this.navigateExecOrder(1);
+        break;
+      case "focus-node":
+        if (nodeId !== null) this.jumpToNode(nodeId);
+        break;
       case "enter-subgraph": {
-        const node = state.currentNodeId === null ? null : this.nodeSelector.getNodeById(state.currentNodeId);
+        const node = nodeId === null ? null : this.nodeSelector.getNodeById(nodeId);
         if (node == null ? void 0 : node.subgraph) {
           this.lockTo(null);
           app.canvas.openSubgraph(node.subgraph, node);

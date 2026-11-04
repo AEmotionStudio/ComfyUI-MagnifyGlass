@@ -33,6 +33,7 @@ class PopOutManager {
     __publicField(this, "onButtonClick", null);
     __publicField(this, "onPanelAction", null);
     __publicField(this, "onRequestOptions", null);
+    __publicField(this, "onSearchNodes", null);
     __publicField(this, "pingInterval", null);
     // Pings since the last pong
     __publicField(this, "pendingPings", 0);
@@ -112,8 +113,10 @@ class PopOutManager {
       case "visibility":
         this.viewerHidden = message.data;
         break;
-      case "request-nodes":
-        this.handleNodeListRequest(message.data);
+      case "search-nodes":
+        if (this.onSearchNodes) {
+          this.sendMessage({ type: "nodes-list", data: { query: message.data, nodes: this.onSearchNodes(message.data) } });
+        }
         break;
       case "node-select":
         (_a = this.onNodeSelect) == null ? void 0 : _a.call(this, message.data);
@@ -229,46 +232,6 @@ class PopOutManager {
   sendInfo(info) {
     if (!this.isOpen) return;
     this.sendMessage({ type: "info", data: info });
-  }
-  /**
-   * Handle node list request from popout viewer.
-   * Fetches nodes from canvas and sends them to the popout.
-   */
-  handleNodeListRequest(sortBy) {
-    var _a, _b;
-    if (!this.channel) return;
-    try {
-      const app = window.app;
-      const nodes = ((_b = (_a = app == null ? void 0 : app.canvas) == null ? void 0 : _a.graph) == null ? void 0 : _b._nodes) || [];
-      let nodeList;
-      if (sortBy === "execOrder") {
-        nodeList = nodes.map((n) => ({
-          id: n.id,
-          title: n.title || "Untitled",
-          type: n.type || "Unknown",
-          order: n.order ?? -1
-        })).filter((n) => n.order >= 0).sort((a, b) => a.order - b.order);
-      } else if (sortBy === "id") {
-        nodeList = nodes.map((n) => ({
-          id: n.id,
-          title: n.title || "Untitled",
-          type: n.type || "Unknown"
-        })).sort((a, b) => a.id - b.id);
-      } else {
-        nodeList = nodes.map((n) => ({
-          id: n.id,
-          title: n.title || "Untitled",
-          type: n.type || "Unknown"
-        })).sort((a, b) => a.title.localeCompare(b.title));
-      }
-      this.sendMessage({
-        type: "nodes-list",
-        data: { nodes: nodeList, sortBy }
-      });
-      Logger.debug(`[PopOut] Sent ${nodeList.length} nodes to viewer (sorted by ${sortBy})`);
-    } catch (e) {
-      Logger.error("[PopOut] Failed to get node list:", e);
-    }
   }
   /**
    * Send a message through the BroadcastChannel.

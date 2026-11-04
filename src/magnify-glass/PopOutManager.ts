@@ -7,6 +7,7 @@
 
 import { BROADCAST_CHANNEL_NAME } from '../shared/constants';
 import { Logger } from '../shared/logger';
+import type { NodeListEntry } from '../info-panel/NodeSelector';
 
 /**
  * A widget of a node, as the viewer names it in edits and requests
@@ -20,15 +21,13 @@ export interface WidgetEditData extends WidgetRef {
     value: unknown;
 }
 
-/** Inspector actions the viewer may ask for */
-export type PanelAction = 'focus-node';
+/** Inspector navigation the viewer may ask for, for the node it shows */
+export type PanelAction = 'back' | 'forward' | 'prev-node' | 'next-node' | 'focus-node' | 'lock-node' | 'enter-subgraph';
 
-/**
- * Node list data sent to popout for dropdown
- */
+/** Go to node picker results, with the query they answer */
 interface NodeListData {
-    nodes: { id: number; title: string; type: string; order?: number }[];
-    sortBy: 'title' | 'execOrder' | 'id';
+    query: string;
+    nodes: NodeListEntry[];
 }
 
 export interface PopOutStatus {
@@ -111,9 +110,9 @@ type PopOutMessage =
     | { type: 'config'; data: PopOutConfig }
     | { type: 'info'; data: PopOutInfo }
     | { type: 'nodes-list'; data: NodeListData }
-    | { type: 'request-nodes'; data: NodeListData['sortBy'] }
+    | { type: 'search-nodes'; data: string }
     | { type: 'node-select'; data: number }
-    | { type: 'panel-action'; data: { name: PanelAction; nodeId?: number } }
+    | { type: 'panel-action'; data: { name: PanelAction; nodeId: number | null } }
     | { type: 'widget-edit'; data: WidgetEditData }
     | { type: 'button-click'; data: WidgetRef }
     | { type: 'request-options'; data: WidgetRef }
@@ -134,8 +133,9 @@ export class PopOutManager {
     public onNodeSelect: ((nodeId: number) => void) | null = null;
     public onWidgetEdit: ((data: WidgetEditData) => void) | null = null;
     public onButtonClick: ((data: WidgetRef) => void) | null = null;
-    public onPanelAction: ((name: PanelAction, nodeId?: number) => void) | null = null;
+    public onPanelAction: ((name: PanelAction, nodeId: number | null) => void) | null = null;
     public onRequestOptions: ((data: WidgetRef) => unknown[]) | null = null;
+    public onSearchNodes: ((query: string) => NodeListData['nodes']) | null = null;
     private pingInterval: number | null = null;
     // Pings since the last pong
     private pendingPings: number = 0;
@@ -217,9 +217,10 @@ export class PopOutManager {
             case 'visibility':
                 this.viewerHidden = message.data;
                 break;
-            case 'request-nodes':
-                // Popout is requesting the node list for dropdown
-                this.handleNodeListRequest(message.data);
+            case 'search-nodes':
+                if (this.onSearchNodes) {
+                    this.sendMessage({ type: 'nodes-list', data: { query: message.data, nodes: this.onSearchNodes(message.data) } });
+                }
                 break;
             case 'node-select':
                 this.onNodeSelect?.(message.data);
@@ -354,59 +355,6 @@ export class PopOutManager {
     sendInfo(info: PopOutInfo): void {
         if (!this.isOpen) return;
         this.sendMessage({ type: 'info', data: info });
-    }
-
-    /**
-     * Handle node list request from popout viewer.
-     * Fetches nodes from canvas and sends them to the popout.
-     */
-    private handleNodeListRequest(sortBy: 'title' | 'execOrder' | 'id'): void {
-        if (!this.channel) return;
-
-        try {
-            // Access nodes from ComfyUI's app object
-            const app = (window as any).app;
-            const nodes = app?.canvas?.graph?._nodes || [];
-
-            let nodeList: { id: number; title: string; type: string; order?: number }[];
-
-            if (sortBy === 'execOrder') {
-                nodeList = nodes
-                    .map((n: any) => ({
-                        id: n.id,
-                        title: n.title || 'Untitled',
-                        type: n.type || 'Unknown',
-                        order: n.order ?? -1
-                    }))
-                    .filter((n: any) => n.order >= 0)
-                    .sort((a: any, b: any) => a.order - b.order);
-            } else if (sortBy === 'id') {
-                nodeList = nodes
-                    .map((n: any) => ({
-                        id: n.id,
-                        title: n.title || 'Untitled',
-                        type: n.type || 'Unknown'
-                    }))
-                    .sort((a: any, b: any) => a.id - b.id);
-            } else {
-                nodeList = nodes
-                    .map((n: any) => ({
-                        id: n.id,
-                        title: n.title || 'Untitled',
-                        type: n.type || 'Unknown'
-                    }))
-                    .sort((a: any, b: any) => a.title.localeCompare(b.title));
-            }
-
-            this.sendMessage({
-                type: 'nodes-list',
-                data: { nodes: nodeList, sortBy }
-            });
-
-            Logger.debug(`[PopOut] Sent ${nodeList.length} nodes to viewer (sorted by ${sortBy})`);
-        } catch (e) {
-            Logger.error('[PopOut] Failed to get node list:', e);
-        }
     }
 
     /**

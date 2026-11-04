@@ -163,6 +163,7 @@ describe('Pop-out connection', () => {
         manager.onButtonClick = (data) => calls.push(['click', data]);
         manager.onPanelAction = (name, nodeId) => calls.push(['action', name, nodeId]);
         manager.onRequestOptions = (data) => data.widgetName === 'size' ? [512, 768] : [];
+        manager.onSearchNodes = (query) => [{ id: 5, title: query, type: 'Node', order: 0 }];
         const info = { node: null, nav: { source: 'hover', locked: false, canBack: false, canForward: false, canEdit: false }, rows: [] } as const;
 
         manager.sendInfo(info);
@@ -173,6 +174,7 @@ describe('Pop-out connection', () => {
         receive({ type: 'button-click', data: { nodeId: 5, widgetName: 'run' } });
         receive({ type: 'panel-action', data: { name: 'focus-node', nodeId: 5 } });
         receive({ type: 'request-options', data: { nodeId: 5, widgetName: 'size' } });
+        receive({ type: 'search-nodes', data: 'ks' });
         manager.sendInfo(info);
 
         expect(calls).toEqual([
@@ -181,6 +183,8 @@ describe('Pop-out connection', () => {
             ['action', 'focus-node', 5]
         ]);
         expect(posted().filter(m => m.type === 'options')).toEqual([{ type: 'options', data: { nodeId: 5, widgetName: 'size', options: [512, 768] } }]);
+        // The reply names its query, so the viewer can drop one for an earlier keystroke
+        expect(posted().filter(m => m.type === 'nodes-list')).toEqual([{ type: 'nodes-list', data: { query: 'ks', nodes: [{ id: 5, title: 'ks', type: 'Node', order: 0 }] } }]);
         expect(posted().at(-1)).toEqual({ type: 'info', data: info });
     });
 });

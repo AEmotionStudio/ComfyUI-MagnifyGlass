@@ -14,6 +14,7 @@ import { formatWidgetValue, isLongText } from './ValueFormatter';
 import { getImportantNodeParameters } from './NodeDataExtractor';
 import { NodeSelector, type NodeListEntry } from './NodeSelector';
 import type { ComfyNode, NodeInfo } from '../types/comfyui';
+import type { PanelAction } from '../magnify-glass/PopOutManager';
 import {
     WidgetEditorFactory,
     WidgetSyncManager,
@@ -161,29 +162,9 @@ export class UIManager {
     }
 
     private handlePanelAction(button: HTMLButtonElement): void {
-        const state = this.stateManager.state;
         switch (button.dataset.action) {
             case 'minimize':
                 this.toggleMinimized();
-                break;
-            case 'lock-node':
-                this.lockTo(state.lockedNodeId === null ? state.currentNodeId : null);
-                this.onRefresh?.();
-                break;
-            case 'back':
-                this.goThroughHistory(-1);
-                break;
-            case 'forward':
-                this.goThroughHistory(1);
-                break;
-            case 'prev-node':
-                this.navigateExecOrder(-1);
-                break;
-            case 'next-node':
-                this.navigateExecOrder(1);
-                break;
-            case 'focus-node':
-                this.focusCurrentNode();
                 break;
             case 'go-to-node':
                 if (this.currentDropdown) {
@@ -209,8 +190,38 @@ export class UIManager {
                 button.setAttribute('aria-expanded', String(expanded));
                 break;
             }
+            default:
+                this.runAction(button.dataset.action as PanelAction, this.stateManager.state.currentNodeId);
+        }
+    }
+
+    /**
+     * Navigation from the panel's buttons or the pop-out's, for the node the caller shows.
+     * Back, Forward and Prev/Next start from the shown node, which the pop-out's is checked to be.
+     */
+    runAction(action: PanelAction, nodeId: number | null): void {
+        switch (action) {
+            case 'lock-node':
+                this.lockTo(this.stateManager.state.lockedNodeId === null ? nodeId : null);
+                this.onRefresh?.();
+                break;
+            case 'back':
+                this.goThroughHistory(-1);
+                break;
+            case 'forward':
+                this.goThroughHistory(1);
+                break;
+            case 'prev-node':
+                this.navigateExecOrder(-1);
+                break;
+            case 'next-node':
+                this.navigateExecOrder(1);
+                break;
+            case 'focus-node':
+                if (nodeId !== null) this.jumpToNode(nodeId);
+                break;
             case 'enter-subgraph': {
-                const node = state.currentNodeId === null ? null : this.nodeSelector.getNodeById(state.currentNodeId);
+                const node = nodeId === null ? null : this.nodeSelector.getNodeById(nodeId);
                 if (node?.subgraph) {
                     this.lockTo(null);
                     app.canvas.openSubgraph(node.subgraph, node);

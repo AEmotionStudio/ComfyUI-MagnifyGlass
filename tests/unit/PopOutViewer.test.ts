@@ -21,10 +21,13 @@ describe('Pop-out viewer editing', () => {
         isEditable: true, isLinked: false, isActionable: false, constraints: {}, ...extra
     });
     const node = (id: unknown = 5) => ({ id, title: 'Node', type: 'Node', mode: 'Always', graphPath: [], isSubgraph: false });
+    const nav = (canEdit = true) => ({ source: 'locked', locked: canEdit, canBack: false, canForward: false, canEdit });
     const sendInfo = (list: any[], canEdit = true) => {
         rows = list;
-        channel.onmessage!({ data: { type: 'info', data: { node: node(), nav: { source: 'locked', locked: true, canBack: false, canForward: false, canEdit }, rows } } });
+        channel.onmessage!({ data: { type: 'info', data: { node: node(), nav: nav(canEdit), rows } } });
     };
+    const receive = (type: string, data?: unknown) => channel.onmessage!({ data: { type, data } });
+    const navButton = (action: string) => document.querySelector(`.node-nav [data-action="${action}"]`) as HTMLButtonElement;
     const palette = { scheme: 'dark', fontFamily: 'Inter, Arial, sans-serif', fontSize: '16px', properties: { '--fg-color': '#dddddd' } };
     const key = (el: Element, k: string, init: KeyboardEventInit = {}) =>
         el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...init }));
@@ -96,6 +99,58 @@ describe('Pop-out viewer editing', () => {
         expect((sidebar().querySelector('input[type="number"]') as HTMLInputElement).step).toBe('any');
     });
 
+    it('numbers step with the arrows and steppers, Shift x10 and Alt x0.1, at their precision; INT stays whole', () => {
+        sendInfo([
+            row('cfg', 'FLOAT', 8, { constraints: { min: 0, max: 30, step: 0.5, precision: 2 } }),
+            row('steps', 'INT', 20, { constraints: { min: 1, max: 100, step: 1, precision: 0 } })
+        ]);
+        const input = () => sidebar().querySelector('input[type="number"]') as HTMLInputElement;
+
+        valueOf('cfg').click();
+        expect(input().value).toBe('8.00');
+        key(input(), 'ArrowUp');
+        key(input(), 'ArrowUp', { shiftKey: true });
+        key(input(), 'ArrowDown', { altKey: true });
+        (sidebar().querySelector('.widget-editor-stepper[aria-label="Decrease"]') as HTMLElement).click();
+        expect(input().value).toBe('12.95');
+        // Each step is sent at once, as in the Inspector
+        expect(edits().map(e => e.value)).toEqual([8.5, 13.5, 13.45, 12.95]);
+        // Leaving without another change sends nothing more
+        input().dispatchEvent(new Event('blur'));
+        expect(edits()).toHaveLength(4);
+
+        valueOf('steps').click();
+        key(input(), 'ArrowDown', { altKey: true });
+        expect(input().value).toBe('19');
+        input().value = '100.4';
+        key(input(), 'ArrowUp', { shiftKey: true });
+        expect(input().value).toBe('100');
+        input().value = '42.6';
+        key(input(), 'Enter');
+        expect(edits().slice(4).map(e => e.value)).toEqual([19, 100, 43]);
+    });
+
+    it('a value is sent only when it changed', () => {
+        sendInfo([row('denoise', 'FLOAT', 0.5), row('prompt', 'text', 'cat')]);
+
+        valueOf('denoise').click();
+        key(sidebar().querySelector('input')!, 'Enter');
+        valueOf('prompt').click();
+        sidebar().querySelector('input')!.dispatchEvent(new Event('blur'));
+        expect(edits()).toEqual([]);
+        // Unchanged, the rows are back as they were
+        expect(valueOf('prompt').textContent).toBe('cat');
+
+        valueOf('prompt').click();
+        (sidebar().querySelector('input') as HTMLInputElement).value = 'dog';
+        key(sidebar().querySelector('input')!, 'Enter');
+        expect(edits()).toEqual([{ nodeId: 5, widgetName: 'prompt', value: 'dog' }]);
+        // Shown until ComfyUI answers, and its answer renders even when it kept the old value
+        expect(valueOf('prompt').textContent).toBe('dog');
+        sendInfo(rows);
+        expect(valueOf('prompt').textContent).toBe('cat');
+    });
+
     it('a combo asks for its options, drops a reply for another widget, and a pick keeps the option type', () => {
         sendInfo([row('size', 'combo', 512)]);
 
@@ -109,7 +164,9 @@ describe('Pop-out viewer editing', () => {
         expect(select.options).toHaveLength(1);
 
         channel.onmessage!({ data: { type: 'options', data: { nodeId: 5, widgetName: 'size', options: [512, 768] } } });
-        expect([...select.options].map(o => o.textContent)).toEqual(['Select...', '512', '768']);
+        expect([...select.options].map(o => o.textContent)).toEqual(['512', '768']);
+        // It opens on the current value, and leaving it unchanged sends nothing
+        expect(select.selectedIndex).toBe(0);
         select.dispatchEvent(new Event('blur'));
         expect(edits()).toEqual([]);
         expect(sidebar().querySelector('select')).toBeNull();
@@ -117,7 +174,7 @@ describe('Pop-out viewer editing', () => {
         valueOf('size').click();
         select = sidebar().querySelector('select')!;
         channel.onmessage!({ data: { type: 'options', data: { nodeId: 5, widgetName: 'size', options: [512, 768] } } });
-        select.selectedIndex = 2;
+        select.selectedIndex = 1;
         select.dispatchEvent(new Event('change'));
         expect(edits()).toEqual([{ nodeId: 5, widgetName: 'size', value: 768 }]);
     });
@@ -182,21 +239,161 @@ describe('Pop-out viewer editing', () => {
         expect((window as any).__pwned).toBeUndefined();
     });
 
-    it('node ids stay text, and node actions post through delegated listeners', () => {
+    it('node ids stay text, and navigation posts the shown node through delegated listeners', () => {
         const id = `1); window.__pwned = (1`;
-        channel.onmessage!({ data: { type: 'info', data: { node: node(id), nav: { canEdit: false }, rows: [] } } });
+        channel.onmessage!({ data: { type: 'info', data: { node: node(id), nav: nav(false), rows: [] } } });
 
-        expect(sidebar().querySelector('[onclick]')).toBeNull();
-        expect(sidebar().textContent).toContain(`(#${id})`);
-        (sidebar().querySelector('[data-action="focus-node"]') as HTMLElement).click();
-        (sidebar().querySelector('[data-action="node-dropdown"]') as HTMLElement).click();
-        const sent = channel.postMessage.mock.calls.map(([m]) => m).filter((m: any) => m.type !== 'pong');
-        expect(sent).toEqual([{ type: 'panel-action', data: { name: 'focus-node', nodeId: id } }, { type: 'request-nodes', data: 'title' }]);
+        expect(document.querySelector('[onclick]')).toBeNull();
+        expect(document.querySelector('.node-id')!.textContent).toBe(`#${id}`);
+        for (const action of ['back', 'forward', 'prev-node', 'next-node', 'focus-node', 'lock-node']) navButton(action).click();
+        const sent = channel.postMessage.mock.calls.map(([m]) => m).filter((m: any) => m.type === 'panel-action');
+        // Back and Forward have nowhere to go
+        expect(sent).toEqual(['prev-node', 'next-node', 'focus-node', 'lock-node'].map(name => ({ type: 'panel-action', data: { name, nodeId: id } })));
         expect((window as any).__pwned).toBeUndefined();
     });
 
+    it('the header mirrors the Inspector: identity, navigation state, lock and breadcrumb', () => {
+        const title = () => document.querySelector('.node-name')!.textContent;
+        expect(title()).toBe('Inspector');
+        expect(navButton('prev-node').disabled).toBe(true);
+
+        channel.onmessage!({ data: { type: 'info', data: {
+            node: { ...node(), title: 'Sampler', type: 'KSampler', graphPath: ['<b>Refine</b>'], group: 'Sampling', isSubgraph: true },
+            nav: { source: 'hover', locked: false, canBack: true, canForward: false, canEdit: false }, rows: [row('seed', 'INT', 1)]
+        } } });
+        expect([title(), document.querySelector('.node-id')!.textContent, document.querySelector('.node-badge')!.textContent]).toEqual(['Sampler', '#5', 'KSampler']);
+        expect([navButton('back').disabled, navButton('forward').disabled, navButton('lock-node').getAttribute('aria-pressed')]).toEqual([false, true, 'false']);
+        const breadcrumb = document.querySelector('.node-breadcrumb') as HTMLElement;
+        expect([...breadcrumb.querySelectorAll('.crumb')].map(c => c.textContent)).toEqual(['Root', '<b>Refine</b>']);
+        expect(breadcrumb.querySelector('b')).toBeNull();
+        expect(breadcrumb.querySelector('.crumb-group')!.textContent).toBe('Sampling');
+
+        // Unlocked, the rows offer the lock; Enter subgraph and the hint post like the buttons
+        (breadcrumb.querySelector('[data-action="enter-subgraph"]') as HTMLElement).click();
+        (sidebar().querySelector('.edit-hint') as HTMLElement).click();
+        expect(posted('panel-action').map((d: any) => d.name)).toEqual(['enter-subgraph', 'lock-node']);
+
+        sendInfo(rows);
+        expect(navButton('lock-node').getAttribute('aria-pressed')).toBe('true');
+        expect(sidebar().querySelector('.edit-hint')).toBeNull();
+        expect(breadcrumb.hidden).toBe(true);
+    });
+
+    it('re-renders only when the info changed, so hover, focus and selection stay', () => {
+        sendInfo([row('seed', 'INT', 1)]);
+        const copy = sidebar().querySelector('.copy-btn') as HTMLButtonElement;
+        copy.focus();
+
+        sendInfo([row('seed', 'INT', 1)]);
+        expect(sidebar().querySelector('.copy-btn')).toBe(copy);
+        expect(document.activeElement).toBe(copy);
+
+        sendInfo([row('seed', 'INT', 2)]);
+        expect(sidebar().querySelector('.copy-btn')).not.toBe(copy);
+        expect(valueOf('seed').textContent).toBe('2');
+    });
+
+    it('copies values and the title, and long values show more or less across renders', async () => {
+        const writeText = vi.fn().mockResolvedValue(undefined);
+        vi.stubGlobal('navigator', { clipboard: { writeText } });
+        const long = 'word '.repeat(60);
+        sendInfo([row('seed', 'INT', 7), row('prompt', 'text', long)]);
+
+        const copies = sidebar().querySelectorAll<HTMLButtonElement>('.copy-btn');
+        expect(copies[0].getAttribute('aria-label')).toBe('Copy Mode');
+        copies[copies.length - 1].click();
+        (document.querySelector('.node-identity') as HTMLButtonElement).click();
+        await vi.waitFor(() => expect(writeText).toHaveBeenCalledTimes(2));
+        expect(writeText.mock.calls).toEqual([[long], ['Node #5']]);
+        await vi.waitFor(() => expect(copies[copies.length - 1].classList.contains('copied')).toBe(true));
+
+        const expand = sidebar().querySelector('.value-expand') as HTMLButtonElement;
+        expect(valueOf('prompt').classList.contains('is-clamped')).toBe(true);
+        expand.click();
+        expect([expand.textContent, expand.getAttribute('aria-expanded')]).toEqual(['Show less', 'true']);
+        sendInfo([row('seed', 'INT', 8), row('prompt', 'text', long)]);
+        expect(sidebar().querySelector('.info-row.is-expanded')).not.toBeNull();
+        expect(sidebar().querySelector('.value-expand')!.textContent).toBe('Show less');
+    });
+
+    it('sections collapse from a button that says whether it is expanded', () => {
+        sendInfo([row('seed', 'INT', 1)]);
+        const header = () => sidebar().querySelector('.section-header') as HTMLButtonElement;
+        expect(header().tagName).toBe('BUTTON');
+        header().click();
+        expect(header().getAttribute('aria-expanded')).toBe('false');
+        sendInfo([row('seed', 'INT', 2)]);
+        expect(header().getAttribute('aria-expanded')).toBe('false');
+        expect(sidebar().querySelector('.info-section.collapsed')).not.toBeNull();
+    });
+
+    it('the picker searches in ComfyUI, drops stale replies, and picks with the keyboard', () => {
+        sendInfo([]);
+        const picker = document.querySelector('.node-picker') as HTMLElement;
+        const filter = document.querySelector('.node-picker-filter') as HTMLInputElement;
+        const items = () => [...picker.querySelectorAll('[role="option"]')];
+        const nodes = [{ id: 3, title: 'Loader', type: 'Checkpoint', order: 0 }, { id: 5, title: 'Node', type: 'Node', order: 1 }];
+
+        navButton('go-to-node').click();
+        expect(picker.hidden).toBe(false);
+        expect(document.activeElement).toBe(filter);
+        expect(posted('search-nodes')).toEqual(['']);
+        receive('nodes-list', { query: '', nodes });
+        // Unfiltered, it opens on the shown node
+        expect(items().map(i => [i.getAttribute('aria-selected'), i.classList.contains('active')])).toEqual([['false', false], ['true', true]]);
+
+        filter.value = 'lo';
+        filter.dispatchEvent(new Event('input'));
+        expect(posted('search-nodes')).toEqual(['', 'lo']);
+        // A reply to an earlier query is dropped
+        receive('nodes-list', { query: 'l', nodes: [] });
+        expect(items()).toHaveLength(2);
+        receive('nodes-list', { query: 'lo', nodes: nodes.slice(0, 1) });
+        expect(items().map(i => i.querySelector('.dropdown-item-title')!.textContent)).toEqual(['Loader']);
+
+        key(filter, 'Enter');
+        expect(posted('node-select')).toEqual([3]);
+        expect(picker.hidden).toBe(true);
+        expect(document.activeElement).toBe(navButton('go-to-node'));
+    });
+
+    it('←/→, L and Ctrl+K act outside typing fields only, and Escape closes the picker, never the window', () => {
+        sendInfo([row('prompt', 'text', 'cat')]);
+        const picker = document.querySelector('.node-picker') as HTMLElement;
+
+        key(document.body, 'ArrowRight');
+        key(document.body, 'ArrowLeft');
+        key(document.body, 'l');
+        key(document.body, 'ArrowLeft', { ctrlKey: true });
+        expect(posted('panel-action').map((d: any) => d.name)).toEqual(['next-node', 'prev-node', 'lock-node']);
+
+        valueOf('prompt').click();
+        key(sidebar().querySelector('input')!, 'ArrowRight');
+        key(sidebar().querySelector('input')!, 'l');
+        expect(posted('panel-action')).toHaveLength(3);
+        key(sidebar().querySelector('input')!, 'Escape');
+
+        key(document.body, 'k', { ctrlKey: true });
+        expect(picker.hidden).toBe(false);
+        key(document.querySelector('.node-picker-filter')!, 'Escape');
+        expect(picker.hidden).toBe(true);
+        navButton('go-to-node').click();
+        key(document.body, 'Escape');
+        expect(picker.hidden).toBe(true);
+        key(document.body, 'Escape');
+        expect(window.close).not.toHaveBeenCalled();
+        expect(channel.postMessage.mock.calls.map(([m]) => m.type)).not.toContain('close');
+
+        // Nothing to navigate while the Inspector is off
+        channel.onmessage!({ data: { type: 'config', data: { palette, reduceMotion: false, glass: 'on', inspector: false } } });
+        key(document.body, 'ArrowRight');
+        key(document.body, 'k', { ctrlKey: true });
+        expect(posted('panel-action')).toHaveLength(3);
+        expect(picker.hidden).toBe(true);
+    });
+
     it('shows the empty state for no node, with no Cursor section', () => {
-        channel.onmessage!({ data: { type: 'info', data: { node: null, nav: { canEdit: false }, rows: [] } } });
+        channel.onmessage!({ data: { type: 'info', data: { node: null, nav: nav(false), rows: [] } } });
         expect(sidebar().querySelector('.empty-state')).not.toBeNull();
         expect(sidebar().textContent).not.toContain('Cursor');
     });
@@ -305,18 +502,5 @@ describe('Pop-out viewer editing', () => {
 
         expect(ctx.drawImage).toHaveBeenCalledTimes(1);
         expect(ctx.drawImage).toHaveBeenCalledWith(newer, 0, 0);
-    });
-
-    it('Escape closes the node list, never the window', () => {
-        sendInfo([]);
-        (sidebar().querySelector('[data-action="node-dropdown"]') as HTMLElement).click();
-        channel.onmessage!({ data: { type: 'nodes-list', data: { nodes: [{ id: 5, title: 'Node', type: 'Node' }], sortBy: 'title' } } });
-        expect(document.getElementById('node-dropdown')).not.toBeNull();
-
-        key(document.body, 'Escape');
-        expect(document.getElementById('node-dropdown')).toBeNull();
-        key(document.body, 'Escape');
-        expect(window.close).not.toHaveBeenCalled();
-        expect(channel.postMessage.mock.calls.map(([m]) => m.type)).not.toContain('close');
     });
 });

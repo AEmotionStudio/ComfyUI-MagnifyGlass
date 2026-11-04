@@ -36,7 +36,8 @@ class MagnifyGlass {
     this.state = new MagnifierState();
     this.popOutManager = new PopOutManager(() => ({
       glass: !this.state.active ? "off" : this.state.isPreviewHidden ? "hidden" : "on",
-      inspector: !!window.infoPanelManager
+      inspector: !!window.infoPanelManager,
+      reduceMotion: this.config.reduceMotion
     }), () => this.updateMagnifiedView());
     this.ui = new UiManager(
       this.config,

@@ -14,7 +14,7 @@ describe('Pop-out connection', () => {
         vi.useFakeTimers();
         sessionStorage.clear();
         channels = [];
-        status = { glass: 'on', inspector: true };
+        status = { glass: 'on', inspector: true, reduceMotion: false };
         connects = 0;
         vi.stubGlobal('BroadcastChannel', class {
             onmessage: ((e: MessageEvent) => void) | null = null;
@@ -124,9 +124,9 @@ describe('Pop-out connection', () => {
         const configs = () => posted().filter(m => m.type === 'config').map(m => [m.data.glass, m.data.inspector]);
         receive({ type: 'pong' });
         receive({ type: 'pong' });
-        status = { glass: 'hidden', inspector: true };
+        status = { glass: 'hidden', inspector: true, reduceMotion: false };
         receive({ type: 'pong' });
-        status = { glass: 'off', inspector: false };
+        status = { glass: 'off', inspector: false, reduceMotion: false };
         receive({ type: 'pong' });
         expect(configs()).toEqual([['on', true], ['hidden', true], ['off', false]]);
     });

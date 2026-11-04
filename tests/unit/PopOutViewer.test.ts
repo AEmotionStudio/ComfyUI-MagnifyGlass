@@ -25,6 +25,7 @@ describe('Pop-out viewer editing', () => {
         rows = list;
         channel.onmessage!({ data: { type: 'info', data: { node: node(), nav: { source: 'locked', locked: true, canBack: false, canForward: false, canEdit }, rows } } });
     };
+    const palette = { scheme: 'dark', fontFamily: 'Inter, Arial, sans-serif', fontSize: '16px', properties: { '--fg-color': '#dddddd' } };
     const key = (el: Element, k: string, init: KeyboardEventInit = {}) =>
         el.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...init }));
 
@@ -46,6 +47,8 @@ describe('Pop-out viewer editing', () => {
 
     afterEach(() => {
         history.replaceState(null, '', '/');
+        document.documentElement.removeAttribute('style');
+        document.documentElement.className = '';
         document.body.innerHTML = '';
         vi.restoreAllMocks();
         vi.unstubAllGlobals();
@@ -156,8 +159,14 @@ describe('Pop-out viewer editing', () => {
         for (const button of sidebar().querySelectorAll<HTMLElement>('[data-kind="action"]')) button.click();
         expect(posted('button-click')).toEqual([{ nodeId: 5, widgetName: `o'clock` }, { nodeId: 5, widgetName: `run "now"` }]);
 
-        valueOf('enabled').click();
+        // A boolean is a switch, disabled until the node can be edited
+        const toggle = valueOf('enabled');
+        expect([toggle.getAttribute('role'), toggle.getAttribute('aria-checked')]).toEqual(['switch', 'false']);
+        toggle.click();
         expect(edits()).toEqual([{ nodeId: 5, widgetName: 'enabled', value: true }]);
+        expect(toggle.getAttribute('aria-checked')).toBe('true');
+        sendInfo(rows, false);
+        expect((sidebar().querySelector('[role="switch"]') as HTMLButtonElement).disabled).toBe(true);
     });
 
     it('a data:image value renders only the image, never its markup', () => {
@@ -208,7 +217,7 @@ describe('Pop-out viewer editing', () => {
     it('status follows pings and config, and never wipes the sidebar or an open editor', () => {
         const label = () => document.querySelector('.status-label')!.textContent;
         const ping = () => channel.onmessage!({ data: { type: 'ping' } });
-        const config = (glass: string) => channel.onmessage!({ data: { type: 'config', data: { theme: 'dark', glass, inspector: true } } });
+        const config = (glass: string) => channel.onmessage!({ data: { type: 'config', data: { palette, reduceMotion: false, glass, inspector: true } } });
         ping();
         config('off');
         sendInfo([row('seed', 'INT', 1)]);
@@ -236,10 +245,30 @@ describe('Pop-out viewer editing', () => {
 
     it('says when the Inspector is off in ComfyUI', () => {
         sendInfo([row('seed', 'INT', 1)]);
-        channel.onmessage!({ data: { type: 'config', data: { theme: 'dark', glass: 'on', inspector: false } } });
+        channel.onmessage!({ data: { type: 'config', data: { palette, reduceMotion: false, glass: 'on', inspector: false } } });
         expect(sidebar().textContent).toContain('The Inspector is off in ComfyUI');
-        channel.onmessage!({ data: { type: 'config', data: { theme: 'dark', glass: 'on', inspector: true } } });
+        channel.onmessage!({ data: { type: 'config', data: { palette, reduceMotion: false, glass: 'on', inspector: true } } });
         expect(valueOf('seed')).toBeDefined();
+    });
+
+    it('applies the palette ComfyUI sends, drops an override that went away, and follows Reduce Motion', () => {
+        const root = document.documentElement;
+        const config = (properties: Record<string, string>, scheme: string, reduceMotion: boolean) =>
+            channel.onmessage!({ data: { type: 'config', data: { glass: 'on', inspector: true, reduceMotion, palette: { ...palette, scheme, properties } } } });
+
+        config({ '--fg-color': '#222222', '--mg-panel-accent': '#ff8800' }, 'light', true);
+        expect(root.style.getPropertyValue('--fg-color')).toBe('#222222');
+        expect(root.style.getPropertyValue('--mg-panel-accent')).toBe('#ff8800');
+        expect(root.style.colorScheme).toBe('light');
+        expect(root.style.fontFamily).toBe('Inter, Arial, sans-serif');
+        expect(root.style.fontSize).toBe('16px');
+        expect(root.classList.contains('reduce-motion')).toBe(true);
+
+        config({ '--fg-color': '#dddddd', '--mg-panel-accent': '' }, 'dark', false);
+        expect(root.style.getPropertyValue('--fg-color')).toBe('#dddddd');
+        expect(root.style.getPropertyValue('--mg-panel-accent')).toBe('');
+        expect(root.style.colorScheme).toBe('dark');
+        expect(root.classList.contains('reduce-motion')).toBe(false);
     });
 
     it('draws a Blob frame at its own size and closes its bitmap', async () => {

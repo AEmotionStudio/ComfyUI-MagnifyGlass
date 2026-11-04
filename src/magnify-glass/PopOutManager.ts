@@ -34,11 +34,31 @@ interface NodeListData {
 export interface PopOutStatus {
     glass: 'on' | 'hidden' | 'off';
     inspector: boolean;
+    reduceMotion: boolean;
+}
+
+/**
+ * ComfyUI's palette as the viewer needs it: the computed values of the allowlisted
+ * properties ('' when unset), the light or dark scheme, and the UI font.
+ */
+interface PopOutPalette {
+    scheme: 'dark' | 'light';
+    fontFamily: string;
+    fontSize: string;
+    properties: Record<string, string>;
 }
 
 interface PopOutConfig extends PopOutStatus {
-    theme: 'dark' | 'light';
+    palette: PopOutPalette;
 }
+
+// The palette tokens the viewer's --mg-* tokens are built on, and the Inspector's colour overrides
+const PALETTE_PROPERTIES = [
+    '--fg-color', '--comfy-menu-bg', '--comfy-menu-secondary-bg', '--comfy-input-bg', '--border-color',
+    '--descrip-text', '--error-text', '--interface-stroke', '--secondary-background',
+    '--secondary-background-hover', '--primary-background', '--border-default', '--base-background',
+    '--mg-panel-fg', '--mg-panel-accent'
+];
 
 /**
  * A widget row as the Inspector computes it. Combo options are sent when an editor asks for them.
@@ -308,13 +328,19 @@ export class PopOutManager {
     }
 
     /**
-     * Send the theme and the glass and Inspector state when they change.
+     * Send the palette and the glass and Inspector state when they change.
      */
     private syncConfig(): void {
-        // The viewer follows the palette's light or dark, which the frontend keeps as body.dark-theme
+        // Computed values resolve the palette's var() chains, which the viewer cannot see
+        const style = getComputedStyle(document.body);
         const config: PopOutConfig = {
-            theme: document.body.classList.contains('dark-theme') ? 'dark' : 'light',
-            ...this.getStatus()
+            ...this.getStatus(),
+            palette: {
+                scheme: document.body.classList.contains('dark-theme') ? 'dark' : 'light',
+                fontFamily: style.fontFamily,
+                fontSize: style.fontSize,
+                properties: Object.fromEntries(PALETTE_PROPERTIES.map(name => [name, style.getPropertyValue(name).trim()]))
+            }
         };
         const json = JSON.stringify(config);
         if (json === this.sentConfig) return;

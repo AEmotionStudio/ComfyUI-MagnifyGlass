@@ -3,6 +3,23 @@ var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { en
 var __publicField = (obj, key, value) => __defNormalProp(obj, typeof key !== "symbol" ? key + "" : key, value);
 import { BROADCAST_CHANNEL_NAME } from "../shared/constants.js";
 import { Logger } from "../shared/logger.js";
+const PALETTE_PROPERTIES = [
+  "--fg-color",
+  "--comfy-menu-bg",
+  "--comfy-menu-secondary-bg",
+  "--comfy-input-bg",
+  "--border-color",
+  "--descrip-text",
+  "--error-text",
+  "--interface-stroke",
+  "--secondary-background",
+  "--secondary-background-hover",
+  "--primary-background",
+  "--border-default",
+  "--base-background",
+  "--mg-panel-fg",
+  "--mg-panel-accent"
+];
 const SESSION_KEY = "magnifyglass-popout-session";
 class PopOutManager {
   constructor(getStatus, onConnect) {
@@ -188,12 +205,18 @@ class PopOutManager {
     }, "image/png");
   }
   /**
-   * Send the theme and the glass and Inspector state when they change.
+   * Send the palette and the glass and Inspector state when they change.
    */
   syncConfig() {
+    const style = getComputedStyle(document.body);
     const config = {
-      theme: document.body.classList.contains("dark-theme") ? "dark" : "light",
-      ...this.getStatus()
+      ...this.getStatus(),
+      palette: {
+        scheme: document.body.classList.contains("dark-theme") ? "dark" : "light",
+        fontFamily: style.fontFamily,
+        fontSize: style.fontSize,
+        properties: Object.fromEntries(PALETTE_PROPERTIES.map((name) => [name, style.getPropertyValue(name).trim()]))
+      }
     };
     const json = JSON.stringify(config);
     if (json === this.sentConfig) return;

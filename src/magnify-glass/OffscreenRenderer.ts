@@ -94,7 +94,7 @@ export class OffscreenRenderer {
         if (virtualZoom) {
             return this.renderVirtualZoom(lgCanvas, targetCanvas, rect, dpr, pivotX, pivotY, cap, media);
         }
-        return this.renderDirectCapture(targetCanvas, dpr, cap, media, vueNodes);
+        return this.renderDirectCapture(targetCanvas, rect, dpr, cap, media, vueNodes);
     }
 
     /**
@@ -145,6 +145,9 @@ export class OffscreenRenderer {
         const renderSize = this.config.glassSize;
         this.offscreenCtx!.save();
         this.offscreenCtx!.filter = this.accessibilityFilter();
+        // The canvas shows the page behind it past its edge, and through its grid at zoom 1.5 and above
+        this.offscreenCtx!.fillStyle = getComputedStyle(document.body).backgroundColor;
+        this.offscreenCtx!.fillRect(0, 0, renderSize, renderSize);
         this.offscreenCtx!.drawImage(
             targetCanvas,
             cap.left * dpr, cap.top * dpr, cap.size * dpr, cap.size * dpr,
@@ -157,7 +160,7 @@ export class OffscreenRenderer {
      * Mode 1: Direct Capture (Nuclear Fix)
      * Copies pixels directly from screen. Zero drift.
      */
-    private renderDirectCapture(targetCanvas: HTMLCanvasElement, dpr: number, cap: CaptureRegion, media: DomMedia[], vueNodes: boolean): HTMLCanvasElement | null {
+    private renderDirectCapture(targetCanvas: HTMLCanvasElement, rect: DOMRect, dpr: number, cap: CaptureRegion, media: DomMedia[], vueNodes: boolean): HTMLCanvasElement | null {
         try {
             this.isCapturing = true;
             const renderSize = this.config.glassSize;
@@ -168,7 +171,8 @@ export class OffscreenRenderer {
             const ds = app.canvas.ds;
             const scale = ds.scale;
             const offset: [number, number] = [ds.offset[0], ds.offset[1]];
-            // Vue nodes draw their own text and titles in the DOM
+            // Vue nodes are DOM over the canvas, so the capture has none of them
+            if (vueNodes) this.drawVueNodes(rect, cap, scale);
             const visibleNodes = vueNodes ? [] : this.getVisibleNodes(cap, scale, offset);
 
             this.drawMedia(targetCanvas, dpr, visibleNodes, media, cap, scale, offset);
@@ -366,6 +370,122 @@ export class OffscreenRenderer {
     }
 
     /**
+     * Paint the Vue nodes under the glass from the DOM, back to front: element backgrounds and borders,
+     * text, and input values. Icons, pseudo-elements and shadows are left out; drawMedia() adds images and videos.
+     */
+    private drawVueNodes(rect: DOMRect, cap: CaptureRegion, scale: number): void {
+        const ctx = this.offscreenCtx!;
+        // Node layout CSS pixels to glass pixels: the nodes' transform pane is scaled by the canvas zoom
+        const k = scale * cap.k;
+        const glassBox = (r: DOMRect) => toGlass({ x: r.left - rect.left, y: r.top - rect.top, w: r.width, h: r.height }, cap);
+        const onGlass = (g: Box) => g.w > 0 && g.h > 0 && g.x < this.config.glassSize && g.y < this.config.glassSize && g.x + g.w > 0 && g.y + g.h > 0;
+        const fontOf = (cs: CSSStyleDeclaration) => `${cs.fontStyle} ${cs.fontWeight} ${parseFloat(cs.fontSize) * k}px ${cs.fontFamily}`;
+
+        const paint = (el: Element, alpha: number) => {
+            if (el instanceof SVGElement || el instanceof HTMLImageElement || el instanceof HTMLVideoElement || el instanceof HTMLCanvasElement) return;
+            const cs = getComputedStyle(el);
+            alpha *= Number(cs.opacity);
+            if (cs.display === 'none' || cs.visibility === 'hidden' || !alpha) return;
+            ctx.globalAlpha = alpha;
+            const g = glassBox(el.getBoundingClientRect());
+
+            // Icons are a background colour shown through a mask
+            if (onGlass(g) && !cs.maskImage?.startsWith('url')) {
+                ctx.beginPath();
+                ctx.roundRect(g.x, g.y, g.w, g.h, Math.min(parseFloat(cs.borderTopLeftRadius) * k || 0, g.w / 2, g.h / 2));
+                ctx.fillStyle = cs.backgroundColor;
+                ctx.fill();
+                const [top, right, bottom, left] = [cs.borderTopWidth, cs.borderRightWidth, cs.borderBottomWidth, cs.borderLeftWidth].map(w => parseFloat(w) * k || 0);
+                if (top && top === right && top === bottom && top === left) {
+                    ctx.lineWidth = top;
+                    ctx.strokeStyle = cs.borderTopColor;
+                    ctx.stroke();
+                } else {
+                    ctx.fillStyle = cs.borderTopColor;
+                    ctx.fillRect(g.x, g.y, g.w, top);
+                    ctx.fillStyle = cs.borderBottomColor;
+                    ctx.fillRect(g.x, g.y + g.h - bottom, g.w, bottom);
+                    ctx.fillStyle = cs.borderLeftColor;
+                    ctx.fillRect(g.x, g.y, left, g.h);
+                    ctx.fillStyle = cs.borderRightColor;
+                    ctx.fillRect(g.x + g.w - right, g.y, right, g.h);
+                }
+
+                if ((el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) && el.value) {
+                    ctx.save();
+                    ctx.clip();
+                    ctx.font = fontOf(cs);
+                    ctx.fillStyle = cs.color;
+                    const padLeft = parseFloat(cs.paddingLeft) * k || 0;
+                    if (el instanceof HTMLInputElement) {
+                        const center = cs.textAlign === 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.textAlign = center ? 'center' : 'left';
+                        ctx.fillText(el.value, center ? g.x + g.w / 2 : g.x + padLeft, g.y + g.h / 2);
+                    } else {
+                        // Wrap the prompt at word boundaries like the textarea, from its scroll position
+                        ctx.textBaseline = 'top';
+                        const width = g.w - padLeft - (parseFloat(cs.paddingRight) * k || 0);
+                        const lineHeight = (parseFloat(cs.lineHeight) || parseFloat(cs.fontSize) * 1.2) * k;
+                        let y = g.y + (parseFloat(cs.paddingTop) * k || 0) - el.scrollTop * k;
+                        for (const paragraph of el.value.split('\n')) {
+                            let line = '';
+                            for (const word of paragraph.split(' ')) {
+                                if (line && ctx.measureText(`${line} ${word}`).width > width) {
+                                    ctx.fillText(line, g.x + padLeft, y);
+                                    y += lineHeight;
+                                    line = word;
+                                } else {
+                                    line = line ? `${line} ${word}` : word;
+                                }
+                            }
+                            ctx.fillText(line, g.x + padLeft, y);
+                            y += lineHeight;
+                            if (y > g.y + g.h) break;
+                        }
+                    }
+                    ctx.restore();
+                }
+            }
+
+            for (const child of el.childNodes) {
+                if (child instanceof Element) {
+                    paint(child, alpha);
+                    ctx.globalAlpha = alpha;
+                    continue;
+                }
+                const text = child.nodeType === Node.TEXT_NODE ? child.textContent!.trim() : '';
+                if (!text) continue;
+                const range = document.createRange();
+                range.selectNodeContents(child);
+                const t = glassBox(range.getBoundingClientRect());
+                if (!onGlass(t)) continue;
+                ctx.save();
+                // Truncated labels overflow their element: clip them to it
+                if (cs.overflowX !== 'visible') {
+                    ctx.beginPath();
+                    ctx.rect(g.x, g.y, g.w, g.h);
+                    ctx.clip();
+                }
+                ctx.font = fontOf(cs);
+                ctx.fillStyle = cs.color;
+                ctx.textBaseline = 'middle';
+                ctx.textAlign = 'left';
+                ctx.fillText(text, t.x, t.y + t.h / 2);
+                ctx.restore();
+            }
+        };
+
+        const nodes = [...document.querySelectorAll<HTMLElement>('.lg-node[data-node-id]')]
+            .filter(el => onGlass(glassBox(el.getBoundingClientRect())))
+            .sort((a, b) => (Number(a.style.zIndex) || 0) - (Number(b.style.zIndex) || 0));
+        ctx.save();
+        ctx.filter = this.accessibilityFilter();
+        for (const node of nodes) paint(node, 1);
+        ctx.restore();
+    }
+
+    /**
      * Draw node titles natively with accessibility styling.
      */
     private drawNodeTitlesNatively(
@@ -384,27 +504,29 @@ export class OffscreenRenderer {
 
             const title = node.title || node.type || "Node";
 
-            // Node position in CSS pixels
+            // Title bar in CSS pixels: LiteGraph draws it above node.pos, and none for NO_TITLE nodes such as Reroute
+            const titleHeight = node.pos[1] - node.boundingRect[1];
+            if (!titleHeight) continue;
             const nodeCssX = (node.pos[0] + offset[0]) * scale;
-            const nodeCssY = (node.pos[1] + offset[1]) * scale;
+            const nodeCssY = (node.pos[1] - titleHeight + offset[1]) * scale;
             const nodeCssWidth = node.size[0] * scale;
 
             // Check visibility
             if (nodeCssX + nodeCssWidth < cap.left || nodeCssX > cap.left + cap.size) continue;
-            if (nodeCssY + (TITLE_HEIGHT * scale) < cap.top || nodeCssY > cap.top + cap.size) continue;
+            if (nodeCssY + (titleHeight * scale) < cap.top || nodeCssY > cap.top + cap.size) continue;
 
             // Draw
             const canvasX = (nodeCssX - cap.left) * cap.k;
             const canvasY = (nodeCssY - cap.top) * cap.k;
             const canvasWidth = nodeCssWidth * cap.k;
-            const canvasHeight = TITLE_HEIGHT * scale * cap.k;
+            const canvasHeight = titleHeight * scale * cap.k;
 
             if (canvasX + canvasWidth > 0 && canvasX < renderSize && canvasY + canvasHeight > 0 && canvasY < renderSize) {
                 ctx.save();
 
                 // Enhanced Background
                 ctx.beginPath();
-                ctx.roundRect(canvasX, canvasY - (5 * scale), canvasWidth, canvasHeight, 4);
+                ctx.roundRect(canvasX, canvasY, canvasWidth, canvasHeight, 4);
                 ctx.fillStyle = this.config.highContrastMode ? '#000000' : '#222222';
                 ctx.fill();
 
@@ -438,7 +560,7 @@ export class OffscreenRenderer {
                 }
 
                 const padding = 10 * scale * cap.k;
-                ctx.fillText(title, canvasX + padding, canvasY + (canvasHeight / 2) - (5 * scale));
+                ctx.fillText(title, canvasX + padding, canvasY + canvasHeight / 2);
 
                 ctx.restore();
             }

@@ -25,11 +25,16 @@ class InformationGatherer {
     return info;
   }
   getNodeUnderCursor() {
-    var _a;
+    var _a, _b;
     const magnifyGlass = window.comfyUIMagnifyGlass;
     const graph = (_a = app.canvas) == null ? void 0 : _a.graph;
     if (!graph || !magnifyGlass) {
       return null;
+    }
+    if (((_b = window.LiteGraph) == null ? void 0 : _b.vueNodesMode) && !app.canvas.read_only) {
+      const { x, y } = magnifyGlass.lastKnownMousePosition;
+      const nodeEl = document.elementsFromPoint(x, y).map((el) => el.closest(".lg-node[data-node-id]")).find(Boolean);
+      return nodeEl ? graph.getNodeById(Number(nodeEl.dataset.nodeId)) ?? null : null;
     }
     if (app.canvas.node_over) {
       return app.canvas.node_over;

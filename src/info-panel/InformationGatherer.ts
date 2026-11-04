@@ -51,6 +51,15 @@ export class InformationGatherer {
             return null;
         }
 
+        // Vue nodes are DOM over the canvas: it gets no pointer moves over them and stacks them differently.
+        // In pan mode (space or the hand tool) they ignore the pointer, so the canvas hit test below applies
+        if ((window as any).LiteGraph?.vueNodesMode && !app.canvas.read_only) {
+            const { x, y } = magnifyGlass.lastKnownMousePosition;
+            // Slots stick out of the node element, so a hit on one is not a hit on the node element itself
+            const nodeEl = document.elementsFromPoint(x, y).map(el => el.closest<HTMLElement>('.lg-node[data-node-id]')).find(Boolean);
+            return nodeEl ? graph.getNodeById(Number(nodeEl.dataset.nodeId)) ?? null : null;
+        }
+
         if (app.canvas.node_over) {
             return app.canvas.node_over;
         }

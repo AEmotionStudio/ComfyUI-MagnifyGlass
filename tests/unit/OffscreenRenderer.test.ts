@@ -96,6 +96,7 @@ describe('OffscreenRenderer Optimization', () => {
                     closePath: vi.fn(),
                     strokeText: vi.fn(),
                     rect: vi.fn(),
+                    fillRect: vi.fn(),
                 });
                 return canvas;
             }
@@ -162,6 +163,43 @@ describe('OffscreenRenderer Optimization', () => {
 
         // Verify text was NOT drawn for invisible node
         expect(fillTextSpy).not.toHaveBeenCalledWith(expect.stringContaining('Invisible Text'), expect.any(Number), expect.any(Number));
+    });
+
+    it('draws the emphasized title over the title bar above node.pos, and none for NO_TITLE nodes', () => {
+        // A legacy Reroute has no title bar: LiteGraph measures its bounds from pos
+        const reroute = { pos: [60, 120], size: [75, 26], boundingRect: [60, 120, 75, 26], title: 'Reroute', widgets: [] };
+        appMock.canvas.visible_nodes = [lgNode([50, 100], [100, 100], { title: 'KSampler', widgets: [] }), reroute];
+        const canvas = document.createElement('canvas');
+        canvas.width = 1000;
+        canvas.height = 800;
+
+        renderer.renderHighResRegion(canvas);
+
+        // Capture region 50-150, k 2: title bar (50, 70, 100x30) -> glass (0, 40, 200x60), not the first slot row below it
+        const ctx = (renderer as any).offscreenCtx;
+        expect(ctx.roundRect.mock.calls).toEqual([[0, 40, 200, 60, 4]]);
+        expect(ctx.fillText).toHaveBeenCalledWith('KSampler', 20, 70);
+        expect(ctx.fillText).not.toHaveBeenCalledWith('Reroute', expect.any(Number), expect.any(Number));
+    });
+
+    it('fills the glass with the page background that shows through the canvas', () => {
+        // Past the canvas edge, and through the grid at zoom 1.5 and above, the screen shows the page background
+        appMock.canvas.clear_background_color = '#222';
+        document.body.style.backgroundColor = 'rgb(32, 32, 32)';
+        const ctx = (renderer as any).offscreenCtx;
+        const fillStyles: string[] = [];
+        ctx.fillRect.mockImplementation(() => fillStyles.push(ctx.fillStyle));
+        const canvas = document.createElement('canvas');
+        canvas.width = 1000;
+        canvas.height = 800;
+        stateMock.y = 790;
+
+        renderer.renderHighResRegion(canvas);
+
+        expect(ctx.fillRect).toHaveBeenCalledWith(0, 0, 200, 200);
+        expect(fillStyles).toEqual(['rgb(32, 32, 32)']);
+        expect(ctx.fillRect.mock.invocationCallOrder[0]).toBeLessThan(ctx.drawImage.mock.invocationCallOrder[0]);
+        document.body.style.backgroundColor = '';
     });
 
     describe('media in the glass', () => {
@@ -300,7 +338,7 @@ describe('OffscreenRenderer Optimization', () => {
 
             renderer.renderHighResRegion(targetCanvas(0, 0, 1));
 
-            expect(style.mock.calls.map(c => c[0])).toEqual([near]);
+            expect(style.mock.calls.map(c => c[0]).filter(el => el !== document.body)).toEqual([near]);
             expect(drawsOf(near)).toHaveLength(1);
             expect(drawsOf(far)).toHaveLength(0);
         });
@@ -384,6 +422,53 @@ describe('OffscreenRenderer Optimization', () => {
             expect(appMock.canvas.setZoom).not.toHaveBeenCalled();
             expect(appMock.canvas.draw).not.toHaveBeenCalled();
             expect(drawsOf(img)).toEqual([[img, 60, 60, 80, 60]]);
+        });
+
+        it('paints the Vue nodes under the glass from the DOM, back to front', () => {
+            (window as any).LiteGraph = { vueNodesMode: true };
+            appMock.canvas.ds = { scale: 0.5, offset: [0, 0] };
+            const box = (el: HTMLElement, left: number, top: number, width: number, height: number) => {
+                // happy-dom computes no opacity, which browsers always do
+                el.style.opacity = '1';
+                vi.spyOn(el, 'getBoundingClientRect').mockReturnValue({ x: left, y: top, left, top, width, height, right: left + width, bottom: top + height, toJSON: () => {} } as DOMRect);
+            };
+            const vueNode = (id: string, zIndex: string, color: string) => {
+                const el = document.createElement('div');
+                el.className = 'lg-node';
+                el.dataset.nodeId = id;
+                el.style.zIndex = zIndex;
+                el.style.backgroundColor = color;
+                document.body.appendChild(el);
+                return el;
+            };
+            const front = vueNode('2', '9', 'rgb(0, 0, 255)');
+            const back = vueNode('1', '1', 'rgb(255, 0, 0)');
+            const far = vueNode('3', '1', 'rgb(0, 255, 0)');
+            box(front, 290, 190, 40, 40);
+            box(back, 260, 160, 100, 100);
+            box(far, 900, 700, 50, 50);
+            const title = document.createElement('span');
+            title.textContent = ' KSampler ';
+            back.appendChild(title);
+            box(title, 265, 165, 50, 10);
+            const steps = document.createElement('input');
+            steps.value = '20';
+            back.appendChild(steps);
+            box(steps, 265, 180, 60, 10);
+            vi.spyOn(Range.prototype, 'getBoundingClientRect').mockReturnValue({ x: 265, y: 165, left: 265, top: 165, width: 40, height: 10, right: 305, bottom: 175, toJSON: () => {} } as DOMRect);
+            const ctx = (renderer as any).offscreenCtx;
+            const fills: string[] = [];
+            ctx.fill.mockImplementation(() => fills.push(ctx.fillStyle));
+            stateMock.x = 300;
+            stateMock.y = 200;
+
+            renderer.renderHighResRegion(targetCanvas(0, 0, 1));
+
+            // Capture region 250-350 x 150-250, k 2
+            expect(fills.filter(f => f.startsWith('rgb('))).toEqual(['rgb(255, 0, 0)', 'rgb(0, 0, 255)']);
+            expect(ctx.roundRect).toHaveBeenCalledWith(20, 20, 200, 200, 0);
+            expect(ctx.fillText).toHaveBeenCalledWith('KSampler', 30, 40);
+            expect(ctx.fillText).toHaveBeenCalledWith('20', 30, 70);
         });
 
         it('caps Virtual Zoom near 60 fps and draws the video on each rendered frame', () => {

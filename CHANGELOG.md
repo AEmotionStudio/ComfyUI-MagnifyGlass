@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Max Height now defaults to 600px.
 
 ### Fixed
+- **Nodes 2.0 (Vue nodes)**: The glass shows the nodes, painted from the page: boxes, borders, text, widget values and prompts (icons are left out). The Inspector finds the node under the cursor, also in pan mode, and the highlight fits collapsed nodes.
+- **Node Title Emphasis** sits on the title bar instead of the first slot row, and is not drawn on nodes without a title bar such as Reroute.
+- The glass background matches the page past the canvas edge and at canvas zoom of 1.5 and above.
 - **Subgraphs**: The panel, picker, highlight and editing use the graph on screen, so they work inside subgraphs. Title bars and collapsed nodes are hit.
 - **Widget edits** run the widget's callback, redraw the canvas and record undo. CLIPLoader's `type` widget shows again.
 - Dropdowns no longer get orphaned or keep writing after the panel re-renders, and they can be filtered by typing.

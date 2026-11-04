@@ -105,6 +105,50 @@ describe('InformationGatherer', () => {
             expect(hit).toBe(node);
             mockApp.canvas.graph = canvasGraph;
         });
+
+        it('takes the topmost Vue node element under the pointer in Vue nodes mode', () => {
+            // LiteGraph's own hit test and node_over disagree with what Vue stacks on top
+            const front = { id: 7 };
+            const nodes: Record<number, any> = { 3: { id: 3 }, 7: front };
+            const canvasGraph = mockApp.canvas.graph;
+            const getNodeOnPos = vi.fn(() => nodes[3]);
+            mockApp.canvas.graph = { _nodes: Object.values(nodes), getNodeOnPos, getNodeById: (id: number) => nodes[id] ?? null };
+            mockApp.canvas.node_over = nodes[3];
+            (window as any).LiteGraph = { vueNodesMode: true };
+            // The panel's rows carry data-node-id too, and sit above the nodes
+            const panelRow = document.createElement('div');
+            panelRow.dataset.nodeId = '3';
+            // A slot dot sticks out of its node, so the node element itself is not under the pointer
+            const slot = document.createElement('div');
+            const frontEl = document.createElement('div');
+            frontEl.className = 'lg-node';
+            frontEl.dataset.nodeId = '7';
+            frontEl.appendChild(slot);
+            const backEl = document.createElement('div');
+            backEl.className = 'lg-node';
+            backEl.dataset.nodeId = '3';
+            const elementsFromPoint = vi.fn(() => [panelRow, slot, backEl]);
+            (document as any).elementsFromPoint = elementsFromPoint;
+
+            expect(gatherer.getNodeUnderCursor()).toBe(front);
+            expect(elementsFromPoint).toHaveBeenCalledWith(200, 200);
+            expect(getNodeOnPos).not.toHaveBeenCalled();
+
+            elementsFromPoint.mockReturnValue([]);
+            expect(gatherer.getNodeUnderCursor()).toBeNull();
+
+            // In pan mode Vue nodes are pointer-events: none, so the canvas hit test finds the node
+            mockApp.canvas.read_only = true;
+            mockApp.canvas.node_over = null;
+            expect(gatherer.getNodeUnderCursor()).toBe(nodes[3]);
+            expect(getNodeOnPos).toHaveBeenCalledWith(200, 200);
+
+            delete mockApp.canvas.read_only;
+            delete (window as any).LiteGraph;
+            delete (document as any).elementsFromPoint;
+            mockApp.canvas.node_over = null;
+            mockApp.canvas.graph = canvasGraph;
+        });
     });
 
     describe('getNodeModeText', () => {

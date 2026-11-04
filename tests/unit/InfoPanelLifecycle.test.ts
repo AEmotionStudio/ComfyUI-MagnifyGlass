@@ -1059,7 +1059,8 @@ describe('Info Panel lifecycle', () => {
         });
 
         it('the highlight follows the cached setting and clips to the canvas', () => {
-            const node = { id: 3, pos: [0, 0], size: [100, 50] };
+            // LiteGraph's bounds include the title bar above pos
+            const node = { id: 3, getBounding: () => [0, -30, 100, 80] };
             const canvas = document.createElement('canvas');
             vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, right: 800, bottom: 600, width: 800, height: 600 } as DOMRect);
             Object.assign((window as any).app.canvas, { canvas, ds: { scale: 1, offset: [0, 0] }, graph: { getNodeById: () => node } });
@@ -1076,6 +1077,37 @@ describe('Info Panel lifecycle', () => {
             window.infoPanelManager!.stateManager.state.settings['🔍MagnifyGlass.NodeHighlightEnabled'] = false;
             (window as any).app.canvas.onDrawForeground(null, []);
             expect(highlight.style.display).toBe('none');
+        });
+
+        it('the highlight covers only the title of a collapsed node', () => {
+            const node = { id: 3, pos: [100, 100], size: [300, 200], getBounding: () => [100, 70, 120, 30] };
+            const canvas = document.createElement('canvas');
+            vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, right: 800, bottom: 600, width: 800, height: 600 } as DOMRect);
+            Object.assign((window as any).app.canvas, { canvas, ds: { scale: 2, offset: [0, 0] }, graph: { getNodeById: () => node } });
+            mountInfoPanel(asInstance(mg));
+            const highlight = document.getElementById('magnify-glass-node-highlight')!;
+
+            window.infoPanelManager!.canvasHighlighter.setHighlightedNode(3);
+            (window as any).app.canvas.onDrawForeground(null, []);
+
+            expect([highlight.style.left, highlight.style.top, highlight.style.width, highlight.style.height]).toEqual(['194px', '134px', '252px', '72px']);
+        });
+
+        it('the highlight takes a collapsed Vue node from node.size, where Vue writes its DOM size', () => {
+            (window as any).LiteGraph = { vueNodesMode: true, NODE_TITLE_HEIGHT: 30 };
+            // LiteGraph's own pill is narrower than the collapsed Vue node
+            const node = { id: 3, pos: [100, 100], size: [225, 8], getBounding: () => [100, 70, 120, 30] };
+            const canvas = document.createElement('canvas');
+            vi.spyOn(canvas, 'getBoundingClientRect').mockReturnValue({ left: 0, top: 0, right: 800, bottom: 600, width: 800, height: 600 } as DOMRect);
+            Object.assign((window as any).app.canvas, { canvas, ds: { scale: 1, offset: [0, 0] }, graph: { getNodeById: () => node } });
+            mountInfoPanel(asInstance(mg));
+            const highlight = document.getElementById('magnify-glass-node-highlight')!;
+
+            window.infoPanelManager!.canvasHighlighter.setHighlightedNode(3);
+            (window as any).app.canvas.onDrawForeground(null, []);
+
+            expect([highlight.style.left, highlight.style.top, highlight.style.width, highlight.style.height]).toEqual(['94px', '64px', '237px', '50px']);
+            delete (window as any).LiteGraph;
         });
     });
 

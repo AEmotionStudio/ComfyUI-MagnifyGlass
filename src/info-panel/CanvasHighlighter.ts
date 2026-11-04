@@ -113,30 +113,21 @@ export class CanvasHighlighter {
         const scale = ds.scale;
         const offset = ds.offset;
 
-        const LiteGraph = (window as any).LiteGraph;
-        const titleHeight = LiteGraph?.NODE_TITLE_HEIGHT ?? 30;
         const padding = 6;
 
-        // Graph coordinates
-        // Assuming node.pos is top of body, we shift up by titleHeight to cover title
-        // And use total height = title + body
-        const graphX = node.pos[0];
-        const graphY = node.pos[1] - titleHeight;
-        const graphW = node.size[0];
-        const graphH = titleHeight + node.size[1];
+        // Graph coordinates of the title and body. LiteGraph measures a collapsed node as its title pill,
+        // while a Vue node writes its DOM size, collapsed or not, to node.size below the title
+        const LiteGraph = (window as any).LiteGraph;
+        const titleHeight = LiteGraph?.NODE_TITLE_HEIGHT ?? 30;
+        const [graphX, graphY, graphW, graphH] = LiteGraph?.vueNodesMode
+            ? [node.pos[0], node.pos[1] - titleHeight, node.size[0], node.size[1] + titleHeight]
+            : node.getBounding();
 
-        // Canvas-relative screen coordinates (CSS pixels within the canvas element)
-        // LiteGraph transform is: (Graph + Offset) * Scale
-        const canvasX = (graphX + offset[0]) * scale;
-        const canvasY = (graphY + offset[1]) * scale;
-        const canvasW = graphW * scale;
-        const canvasH = graphH * scale;
-
-        // Page-absolute coordinates (add canvas position on the page)
-        const pageX = canvasRect.left + canvasX - padding;
-        const pageY = canvasRect.top + canvasY - padding; // Removed hardcoded offset
-        const finalW = canvasW + (padding * 2);
-        const finalH = canvasH + (padding * 2);
+        // Page coordinates: LiteGraph draws (graph + offset) * scale from the canvas corner
+        const pageX = canvasRect.left + (graphX + offset[0]) * scale - padding;
+        const pageY = canvasRect.top + (graphY + offset[1]) * scale - padding;
+        const finalW = graphW * scale + (padding * 2);
+        const finalH = graphH * scale + (padding * 2);
 
         // 5. Update DOM, clipped to the canvas element (negative insets keep the glow inside it)
         const clip = `inset(${canvasRect.top - pageY}px ${pageX + finalW - canvasRect.right}px ${pageY + finalH - canvasRect.bottom}px ${canvasRect.left - pageX}px)`;

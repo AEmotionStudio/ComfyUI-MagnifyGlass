@@ -79,21 +79,14 @@ class CanvasHighlighter {
     const ds = app.canvas.ds;
     const scale = ds.scale;
     const offset = ds.offset;
+    const padding = 6;
     const LiteGraph = window.LiteGraph;
     const titleHeight = (LiteGraph == null ? void 0 : LiteGraph.NODE_TITLE_HEIGHT) ?? 30;
-    const padding = 6;
-    const graphX = node.pos[0];
-    const graphY = node.pos[1] - titleHeight;
-    const graphW = node.size[0];
-    const graphH = titleHeight + node.size[1];
-    const canvasX = (graphX + offset[0]) * scale;
-    const canvasY = (graphY + offset[1]) * scale;
-    const canvasW = graphW * scale;
-    const canvasH = graphH * scale;
-    const pageX = canvasRect.left + canvasX - padding;
-    const pageY = canvasRect.top + canvasY - padding;
-    const finalW = canvasW + padding * 2;
-    const finalH = canvasH + padding * 2;
+    const [graphX, graphY, graphW, graphH] = (LiteGraph == null ? void 0 : LiteGraph.vueNodesMode) ? [node.pos[0], node.pos[1] - titleHeight, node.size[0], node.size[1] + titleHeight] : node.getBounding();
+    const pageX = canvasRect.left + (graphX + offset[0]) * scale - padding;
+    const pageY = canvasRect.top + (graphY + offset[1]) * scale - padding;
+    const finalW = graphW * scale + padding * 2;
+    const finalH = graphH * scale + padding * 2;
     const clip = `inset(${canvasRect.top - pageY}px ${pageX + finalW - canvasRect.right}px ${pageY + finalH - canvasRect.bottom}px ${canvasRect.left - pageX}px)`;
     const styleState = `${pageX.toFixed(1)},${pageY.toFixed(1)},${finalW.toFixed(1)},${finalH.toFixed(1)},${clip}`;
     if (this.lastStyleState !== styleState || this.highlightEl.style.display === "none") {

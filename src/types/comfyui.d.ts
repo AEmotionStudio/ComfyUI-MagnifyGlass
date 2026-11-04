@@ -200,6 +200,8 @@ export interface ComfyCanvas {
         offset: [number, number];
     };
     node_over: ComfyNode | null;
+    /** True in pan mode: space held or the hand tool */
+    read_only: boolean;
     selected_nodes: Record<string, ComfyNode>;
     convertOffsetToCanvasPos?(pos: [number, number]): [number, number];
     centerOnNode(node: ComfyNode): void;

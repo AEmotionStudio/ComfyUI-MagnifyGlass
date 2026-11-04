@@ -168,7 +168,7 @@ Access settings via the **new Sidebar Panel** or the ComfyUI Settings (⚙️) m
 | **Force Direct Capture**| `Off` | High-accuracy mode for low zoom levels. |
 | **Show Mini Cursor** | `Off` | Displays a cursor preview inside the glass. |
 
-> Image previews, videos and animated images show in the glass in both capture modes. In Nodes 2.0 (Vue nodes) mode the glass always uses Direct Capture.
+> Image previews, videos and animated images show in the glass in both capture modes. In Nodes 2.0 (Vue nodes) mode the glass always uses Direct Capture and paints the nodes from the page, without their icons.
 
 </details>
 

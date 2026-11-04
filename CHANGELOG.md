@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Sidebar header buttons**: Open or close the pop-out viewer, and close the sidebar with the X.
 - **Pop-out controls**: Zoom with −/+ or the mouse wheel over the frame (writes the Zoom Factor setting), and Split, Glass, Info and Output views with a draggable divider. The view, the divider and collapsed sections are kept per browser.
-- **Pop-out progress and errors**: A run bar shows the queue, the running node and its progress. The shown node gets a Running, Cached, Done or Error badge. The last error shows as a banner with Go to node and Copy traceback, and inputs that failed validation are marked with the reason.
+- **Pop-out progress and errors**: A run bar shows the queue, the running node and its progress. The shown node gets a Running, Cached, Done or Error badge, only in the workflow tab that ran. The last error shows as a banner with Go to node and Copy traceback, and inputs that failed validation are marked with the reason.
 - **Pop-out outputs**: The shown node's live previews or last results as thumbnails; click one to show it large in the Output view (Esc returns).
 - **Pop-out links**: Inputs and Outputs list each linked node as a chip that jumps to it, and flag required inputs left unconnected.
 
@@ -45,9 +45,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Loading fonts from Google Fonts. Font Family uses fonts installed locally.
 - The Inspector and Media sections, the Show Inspector Tab setting, the guessed Model/Image/Text rows, and the unused Animations setting.
 - From the pop-out: Keep Alive, the Cursor section, Esc-to-close, and the Title and Exec-order node lists.
-
-### Known Issues
-- After switching workflow tabs during a run, the pop-out's run badges match nodes by execution id, so a node in the other tab with the same id can show one.
 
 ---
 

@@ -408,7 +408,7 @@ describe('Pop-out viewer editing', () => {
     });
 
     it('the run bar shows the running node, its progress and the queue, and the shown node its state', () => {
-        const run = (data: object) => receive('run', { queue: 0, nodeId: null, title: '', value: 0, max: 0, cached: [], done: [], error: null, ...data });
+        const run = (data: object) => receive('run', { queue: 0, nodeId: null, title: '', value: 0, max: 0, cached: [], done: [], error: null, here: true, ...data });
         const bar = () => [...document.querySelectorAll('.run-bar > span')].map(el => el.textContent);
         const fill = () => (document.querySelector('.run-progress-fill') as HTMLElement).style.width;
         const badge = () => document.querySelector('.run-badge') as HTMLElement;
@@ -448,18 +448,23 @@ describe('Pop-out viewer editing', () => {
         expect(banner.hidden).toBe(true);
 
         receive('info', { node: { ...node(5), executionId: '7:5' }, nav: nav(), rows: [], links });
-        receive('run', { queue: 0, nodeId: null, title: '', value: 0, max: 0, cached: [], done: ['7:5'], error });
+        const failed = { queue: 0, nodeId: null, title: '', value: 0, max: 0, cached: [], done: ['7:5'], error, here: true };
+        receive('run', failed);
         expect(banner.hidden).toBe(false);
         expect(banner.querySelector('.error-text')!.textContent).toBe(`KSampler #7:5 ${error.message}`);
         expect(banner.querySelector('img')).toBeNull();
         expect(document.querySelector('.run-badge')!.textContent).toBe('Error');
+        // In another workflow tab, node 7:5 is another node
+        receive('run', { ...failed, here: false });
+        expect((document.querySelector('.run-badge') as HTMLElement).hidden).toBe(true);
+        expect(banner.hidden).toBe(false);
 
         (banner.querySelector('[data-action="go-to-error"]') as HTMLElement).click();
         expect(posted('run-node-select')).toEqual(['7:5']);
         (banner.querySelector('[data-action="copy-traceback"]') as HTMLElement).click();
         await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith(`Traceback:\n  line 1\n${error.message}`));
 
-        receive('run', { queue: 0, nodeId: null, title: '', value: 0, max: 0, cached: [], done: [], error: null });
+        receive('run', { queue: 0, nodeId: null, title: '', value: 0, max: 0, cached: [], done: [], error: null, here: true });
         expect(banner.hidden).toBe(true);
 
         sendInfo([row('ckpt_name', 'combo', 'x'), row('steps', 'INT', 20, { error: 'Value not in list: <b>x</b>' })]);

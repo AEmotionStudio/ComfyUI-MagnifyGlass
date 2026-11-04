@@ -2255,7 +2255,7 @@
             const badge = identity.querySelector('.run-badge');
             const id = renderedInfo?.node?.executionId;
             let state = null;
-            if (run && id !== undefined) {
+            if (run?.here && id !== undefined) {
                 if (run.error?.nodeId === id) state = 'error';
                 else if (run.nodeId === id) state = 'running';
                 else if (run.cached.includes(id)) state = 'cached';

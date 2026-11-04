@@ -71,7 +71,7 @@ class PopOutManager {
       this.reduceRun(event.type, event.detail);
       this.runTimer ?? (this.runTimer = window.setTimeout(() => {
         this.runTimer = null;
-        this.sendMessage({ type: "run", data: this.run });
+        this.sendRun();
       }, 100));
     });
     // The viewer announces its window to this tab's window, which opened it, so a reload here gets the handle back
@@ -157,7 +157,7 @@ class PopOutManager {
           this.startPing();
           this.run = PopOutManager.idleRun(app.ui.lastQueueSize ?? 0);
           this.runWorkflow = app.extensionManager.workflow.activeWorkflow;
-          this.sendMessage({ type: "run", data: this.run });
+          this.sendRun();
           for (const name of RUN_EVENTS) app.api.addEventListener(name, this.onRunEvent);
           if (this.onStateChange) this.onStateChange(true);
           this.onConnect();
@@ -300,10 +300,18 @@ class PopOutManager {
    */
   sendInfo(info) {
     if (!this.isOpen) return;
+    if (this.runIsHere() !== this.run.here) this.sendRun();
     this.sendMessage({ type: "info", data: info });
   }
+  sendRun() {
+    this.run.here = this.runIsHere();
+    this.sendMessage({ type: "run", data: this.run });
+  }
+  runIsHere() {
+    return app.extensionManager.workflow.activeWorkflow === this.runWorkflow;
+  }
   static idleRun(queue) {
-    return { queue, nodeId: null, title: "", value: 0, max: 0, cached: [], done: [], error: null };
+    return { queue, nodeId: null, title: "", value: 0, max: 0, cached: [], done: [], error: null, here: true };
   }
   /**
    * Apply one of ComfyUI's execution events to the run the viewer shows.
@@ -381,7 +389,7 @@ class PopOutManager {
    * None while another workflow tab is on screen than the one the prompt started in.
    */
   runNode(executionId) {
-    if (app.extensionManager.workflow.activeWorkflow !== this.runWorkflow) return null;
+    if (!this.runIsHere()) return null;
     let graph = app.graph;
     let node = null;
     for (const id of executionId.split(":")) {

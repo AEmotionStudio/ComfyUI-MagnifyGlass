@@ -130,6 +130,8 @@ export interface PopOutRun {
     done: string[];
     /** The last prompt's error, until the next prompt starts */
     error: { nodeId: string; title: string; type: string; message: string; traceback: string } | null;
+    /** Whether the workflow tab on screen is the one the ids belong to; another tab's nodes get no badges */
+    here: boolean;
 }
 
 // The execution events the viewer shows, listened to while it is connected
@@ -208,7 +210,7 @@ export class PopOutManager {
         this.reduceRun(event.type, (event as CustomEvent).detail);
         this.runTimer ??= window.setTimeout(() => {
             this.runTimer = null;
-            this.sendMessage({ type: 'run', data: this.run });
+            this.sendRun();
         }, 100);
     };
 
@@ -303,7 +305,7 @@ export class PopOutManager {
                     // The events missed while disconnected are gone; the queue size is kept by ComfyUI
                     this.run = PopOutManager.idleRun(app.ui.lastQueueSize ?? 0);
                     this.runWorkflow = app.extensionManager.workflow.activeWorkflow;
-                    this.sendMessage({ type: 'run', data: this.run });
+                    this.sendRun();
                     for (const name of RUN_EVENTS) app.api.addEventListener(name, this.onRunEvent);
                     if (this.onStateChange) this.onStateChange(true);
                     this.onConnect();
@@ -465,11 +467,22 @@ export class PopOutManager {
      */
     sendInfo(info: PopOutInfo): void {
         if (!this.isOpen) return;
+        // Switching workflow tabs changes the info; the badges follow with it
+        if (this.runIsHere() !== this.run.here) this.sendRun();
         this.sendMessage({ type: 'info', data: info });
     }
 
+    private sendRun(): void {
+        this.run.here = this.runIsHere();
+        this.sendMessage({ type: 'run', data: this.run });
+    }
+
+    private runIsHere(): boolean {
+        return app.extensionManager.workflow.activeWorkflow === this.runWorkflow;
+    }
+
     private static idleRun(queue: number): PopOutRun {
-        return { queue, nodeId: null, title: '', value: 0, max: 0, cached: [], done: [], error: null };
+        return { queue, nodeId: null, title: '', value: 0, max: 0, cached: [], done: [], error: null, here: true };
     }
 
     /**
@@ -551,7 +564,7 @@ export class PopOutManager {
      * None while another workflow tab is on screen than the one the prompt started in.
      */
     private runNode(executionId: string): ComfyNode | null {
-        if (app.extensionManager.workflow.activeWorkflow !== this.runWorkflow) return null;
+        if (!this.runIsHere()) return null;
         let graph: ComfyGraph | undefined = app.graph;
         let node: ComfyNode | null = null;
         for (const id of executionId.split(':')) {

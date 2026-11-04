@@ -272,7 +272,7 @@ describe('Pop-out connection', () => {
 
         it('starts from the queue ComfyUI knows, and sends what the events add up to at most every 100 ms', () => {
             receive({ type: 'pong' });
-            expect(runs()).toEqual([{ queue: 2, nodeId: null, title: '', value: 0, max: 0, cached: [], done: [], error: null }]);
+            expect(runs()).toEqual([{ queue: 2, nodeId: null, title: '', value: 0, max: 0, cached: [], done: [], error: null, here: true }]);
 
             emit('execution_start', { prompt_id: 'p' });
             emit('execution_cached', { nodes: ['1', 4] });
@@ -314,7 +314,7 @@ describe('Pop-out connection', () => {
 
             emit('execution_start', { prompt_id: 'q' });
             vi.advanceTimersByTime(100);
-            expect(runs().at(-1)).toEqual({ queue: 2, nodeId: null, title: '', value: 0, max: 0, cached: [], done: [], error: null });
+            expect(runs().at(-1)).toEqual({ queue: 2, nodeId: null, title: '', value: 0, max: 0, cached: [], done: [], error: null, here: true });
 
             // Connected mid-run: the next progress state names the running node
             emit('progress_state', { prompt_id: 'q', nodes: { '4': { state: 'finished', value: 1, max: 1, node_id: '4' }, '5': { state: 'running', value: 2, max: 9, node_id: '5' } } });
@@ -380,6 +380,29 @@ describe('Pop-out connection', () => {
             (globalThis as any).app.extensionManager.workflow.activeWorkflow = {};
             receive({ type: 'run-node-select', data: '4' });
             expect(selected).toEqual([4, 3]);
+        });
+
+        it('tells the viewer when the run belongs to another workflow tab, with the info that switch changed', () => {
+            const workflow = (globalThis as any).app.extensionManager.workflow;
+            const info = { node: null, nav: {}, rows: [], outputs: [], links: { inputs: [], outputs: [] } } as any;
+            receive({ type: 'pong' });
+            emit('execution_start', { prompt_id: 'p' });
+            vi.advanceTimersByTime(100);
+            expect(runs().at(-1).here).toBe(true);
+
+            const ran = workflow.activeWorkflow;
+            workflow.activeWorkflow = {};
+            manager.sendInfo(info);
+            expect(posted().slice(-2).map(m => m.type)).toEqual(['run', 'info']);
+            expect(runs().at(-1).here).toBe(false);
+            // Unchanged, only the info goes
+            const sent = runs().length;
+            manager.sendInfo(info);
+            expect(runs()).toHaveLength(sent);
+
+            workflow.activeWorkflow = ran;
+            manager.sendInfo(info);
+            expect(runs().at(-1).here).toBe(true);
         });
     });
 });
